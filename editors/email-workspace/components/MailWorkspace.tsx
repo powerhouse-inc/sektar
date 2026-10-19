@@ -460,7 +460,15 @@ function MessageRowImpl({
       aside={
         <>
           <span>{fmtWhen(s.sentAt ?? s.receivedAt)}</span>
-          {s.attachments.length > 0 && <Icon name="upload" size={16} mono />}
+          {s.attachments.length > 0 && (
+            <span
+              className="sk-mail__files"
+              title={`${s.attachments.length} ${s.attachments.length === 1 ? "attachment" : "attachments"}`}
+            >
+              <Icon name="upload" size={16} mono />
+              {s.attachments.length > 1 && s.attachments.length}
+            </span>
+          )}
           {s.flagged && (
             <Badge tone="warning" dot pill>
               Flagged

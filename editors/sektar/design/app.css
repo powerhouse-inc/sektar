@@ -1011,6 +1011,15 @@
   word-break: break-all;
   vertical-align: top;
 }
+/* A row's attachment mark: the icon, and the count when there is more than one */
+.sk-app .sk-mail__files {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--sk-text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--sk-text-muted);
+}
 /* The sender line: "address · To: name" */
 .sk-app .sk-mail__meta-to {
   color: var(--sk-text-muted);
