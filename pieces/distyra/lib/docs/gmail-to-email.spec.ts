@@ -101,6 +101,17 @@ describe("field helpers", () => {
     ).toEqual([{ fileName: "a.pdf", mimeType: "application/pdf", sizeBytes: 10, ref: "attachment://v1:a" }]);
   });
 
+  it("keeps one of several identical attachments under one name", () => {
+    // A signature image inlined three times arrives as three "image" files
+    // with the same ref; the model refuses the second, so only one is sent.
+    const image = { fileName: "image", mimeType: "image/png", size: 5, data: "attachment://v1:same" };
+    expect(attachmentsOf([image, image, image, { ...image, fileName: "logo" }, { ...image, data: "attachment://v1:other" }])).toEqual([
+      { fileName: "image", mimeType: "image/png", sizeBytes: 5, ref: "attachment://v1:same" },
+      { fileName: "logo", mimeType: "image/png", sizeBytes: 5, ref: "attachment://v1:same" },
+      { fileName: "image", mimeType: "image/png", sizeBytes: 5, ref: "attachment://v1:other" },
+    ]);
+  });
+
   it("names a document by subject, else by sender", () => {
     expect(emailName("  Hello ", [])).toBe("Hello");
     expect(emailName(null, [{ address: "a@b.c", name: "A" }])).toBe("(no subject) from A");

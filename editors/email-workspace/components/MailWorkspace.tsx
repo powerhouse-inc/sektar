@@ -12,7 +12,7 @@ import {
   useSelectedNode,
 } from "@powerhousedao/reactor-browser";
 import type { EmailAttachment, EmailDocument } from "document-models/email";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   AttachmentPreview,
   EmailBadges,
@@ -22,6 +22,7 @@ import {
 import {
   accountsOf,
   bytes,
+  EMAIL_TYPE,
   fmtWhen,
   mail,
   mailboxLabel,
@@ -29,6 +30,7 @@ import {
   seedSampleMail,
   useEmails,
 } from "../../sektar/kit/mail.js";
+import { fileIds } from "../../sektar/kit/data.js";
 import { Menu } from "../../sektar/kit/menu.js";
 import { useSearch } from "../../sektar/kit/search-context.js";
 import {
@@ -41,6 +43,7 @@ import {
   ListItem,
   Progress,
   Selector,
+  Skeleton,
 } from "../../sektar/kit/ui.js";
 import {
   Pane,
@@ -165,12 +168,25 @@ export function MailWorkspace() {
   const previewCollapsed = previewPref ?? narrow;
 
   if (emails.length === 0) {
+    // The drive's node list arrives before the documents it names (a
+    // remote drive syncs in that order), so for a few seconds there is mail
+    // on the way but none to show: a skeleton, not the empty state.
+    const expected = fileIds(drive, EMAIL_TYPE).length;
     return (
       <div
         className="sk-page"
         style={{ padding: "var(--sk-space-10) var(--sk-space-6)" }}
       >
-        <MailEmpty drive={drive} hasStore={Boolean(client)} />
+        {expected > 0 ? (
+          <div className="sk-stack sk-stack--4" style={{ maxWidth: 560, margin: "0 auto" }}>
+            <Skeleton width={180} height={20} />
+            {[0, 1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} height={64} />
+            ))}
+          </div>
+        ) : (
+          <MailEmpty drive={drive} hasStore={Boolean(client)} />
+        )}
       </div>
     );
   }
@@ -355,7 +371,22 @@ export function MailWorkspace() {
   );
 }
 
-function MessageRow({
+/**
+ * A row re-renders only when its own message, selection or checkbox changes.
+ * The drive syncs one operation at a time while a backfill runs, and every
+ * sync re-renders the workspace; React re-applies `type` and `name` on each
+ * controlled checkbox it re-renders, which the browser paints as a blink.
+ * Two hundred rows blinking once a second was the "flicker".
+ */
+const MessageRow = memo(MessageRowImpl, (a, b) =>
+  a.selected === b.selected &&
+  a.checked === b.checked &&
+  a.doc.header.id === b.doc.header.id &&
+  a.doc.header.lastModifiedAtUtcIso === b.doc.header.lastModifiedAtUtcIso &&
+  a.doc.state.global === b.doc.state.global,
+);
+
+function MessageRowImpl({
   doc,
   selected,
   checked,
