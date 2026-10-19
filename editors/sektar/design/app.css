@@ -654,13 +654,24 @@
 .sk-app .sk-topbar__user {
   display: none;
 }
-@media (max-width: 960px) {
+/* The shell's phone breakpoint is 1063px here, not the design system's 960:
+   the sidebar (264px) must give way exactly where a three-pane workspace
+   would otherwise drop under 800px of width, so narrowing a window moves
+   through one transition (sidebar → drawer) instead of panes → stack →
+   panes → stack. The block mirrors the design system's own mobile shell
+   rules for the extra band. */
+@media (max-width: 1063px) {
+  .sk-app.sk-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sk-app.sk-shell > .sk-sidebar {
+    display: none;
+  }
   .sk-app .sk-topbar__user {
     display: inline-flex;
   }
-  /* The rail is a desktop state, remembered per browser. Under 960px the
-     sidebar is a drawer and the grid has one column; the rail's own
-     72px + 1fr columns would otherwise put the whole page in the 72px one. */
+  /* The rail is a desktop state, remembered per browser; in drawer mode the
+     grid has one column, whatever the rail state says. */
   .sk-app.sk-shell--rail {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -809,11 +820,12 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Mail workspace (editors/email-workspace): the design system's panes pattern
+   Drive workspaces (editors/email-workspace, editors/backfills): the design
+   system's panes pattern
    filling the content area. The height is measured by the app; the panes
    scroll inside it.
    --------------------------------------------------------------------------- */
-.sk-app .sk-mail {
+.sk-app :is(.sk-mail, .sk-backfills) {
   display: flex;
   flex-direction: column;
   /* Explicit, not left to flex stretch: a size container that is only
@@ -824,38 +836,43 @@
   min-height: 360px;
   background: var(--sk-surface);
   container-type: inline-size;
-  container-name: mail;
+  container-name: drive-app;
 }
-.sk-app .sk-mail > .sk-workspace--stack {
+.sk-app :is(.sk-mail, .sk-backfills) > .sk-workspace--stack {
   width: 100%;
 }
 /* The design system folds a panes workspace into a column under 960px of
    viewport (its docs rule); a stacked workspace is a horizontal track of
    screens and must stay one, whatever the viewport. */
-@media (max-width: 960px) {
-  .sk-app .sk-mail .sk-workspace--stack {
+@media (max-width: 1063px) {
+  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack {
     flex-direction: row;
   }
-  .sk-app .sk-mail .sk-workspace--stack > .sk-pane {
+  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack > .sk-pane {
     border-top: 0;
+    border-left: 1px solid var(--sk-border-subtle);
+  }
+  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack > .sk-pane:first-child,
+  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--has-parent > .sk-pane--parent + .sk-pane {
+    border-left: 0;
   }
 }
 
-.sk-app .sk-mail > .sk-subbar {
+.sk-app :is(.sk-mail, .sk-backfills) > .sk-subbar {
   flex: none;
   /* flush: the first tile's underline starts on the content's left edge */
   padding-inline: 0;
 }
 /* The chooser is the first pane but hidden side by side, so the list pane
    would keep its left hairline and double the sidebar's edge. */
-.sk-app .sk-mail .sk-workspace--has-parent > .sk-pane--parent + .sk-pane {
+.sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--has-parent > .sk-pane--parent + .sk-pane {
   border-left: 0;
 }
-.sk-app .sk-mail > .sk-workspace--panes {
+.sk-app :is(.sk-mail, .sk-backfills) > .sk-workspace--panes {
   flex: 1;
   min-height: 0;
 }
-.sk-app .sk-mail .sk-pane__body {
+.sk-app :is(.sk-mail, .sk-backfills) .sk-pane__body {
   overflow: auto;
   /* Each pane scrolls on its own, with the platform's own physics: momentum
      stays inside the pane instead of chaining into Connect's page scroller
@@ -868,8 +885,8 @@
   scrollbar-width: thin;
   scrollbar-color: var(--sk-border-strong) transparent;
 }
-.sk-app .sk-mail .sk-pane--parent .sk-pane__body,
-.sk-app .sk-mail .sk-workspace--panes {
+.sk-app :is(.sk-mail, .sk-backfills) .sk-pane--parent .sk-pane__body,
+.sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--panes {
   overscroll-behavior: contain;
 }
 .sk-app .sk-mail__unread {
@@ -902,7 +919,7 @@
 /* Side by side, the list keeps a readable width; the message pane gives way.
    (Stacked, the design system's 100% basis applies instead.) */
 @container panes (min-width: 641px) {
-  .sk-app .sk-mail .sk-pane--start:not(.is-collapsed) {
+  .sk-app :is(.sk-mail, .sk-backfills) .sk-pane--start:not(.is-collapsed) {
     min-width: 300px;
   }
 }
@@ -911,28 +928,28 @@
 .sk-app .sk-drawer__close {
   z-index: 2;
 }
-/* The Mail workspace stacks earlier than the design system's 640px: three
+/* These workspaces stack earlier than the design system's 640px: three
    panes need 800px to be readable, so below 800px of workspace width the
    stacked rules below apply (range syntax: the boundary is exact, 799.5px
    still stacks). They mirror the design
    system's own block (components.css, "@container panes (max-width: 640px)")
    so the two states are identical; keep them in step when it changes. */
 @container panes (640px < width < 800px) {
-  .sk-app .sk-mail .sk-workspace--stack > .sk-pane { --sk-stacked: 1; display: flex; flex: 0 0 100%; min-width: 100%; border-left: 0; border-top: 0; transform: translateX(calc(var(--sk-level-offset) * -100%)); transition: transform var(--sk-duration-slow, 320ms) var(--sk-ease-out, ease-out); }
-  @media (prefers-reduced-motion: reduce) { .sk-app .sk-mail .sk-workspace--stack > .sk-pane { transition: none; } }
-  .sk-app .sk-mail .sk-workspace--stack .sk-pane__toggle { display: none; }
-  .sk-app .sk-mail .sk-workspace--stack .sk-pane__back { display: grid; }
-  .sk-app .sk-mail .sk-workspace--stack .sk-pane.is-collapsed { flex-basis: auto; }
-  .sk-app .sk-mail .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__body { display: block; }
-  .sk-app .sk-mail .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__header { flex-direction: row; padding: 0 var(--sk-space-3) 0 var(--sk-space-4); min-height: 52px; border-bottom: 1px solid var(--sk-border-subtle); }
-  .sk-app .sk-mail .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__header > * { display: flex; }
-  .sk-app .sk-mail .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__title { writing-mode: horizontal-tb; transform: none; font-size: var(--sk-text-md); color: inherit; }
-  .sk-app .sk-mail .sk-workspace--stack .sk-pane__title--collapsed-only { display: none; }
-  .sk-app .sk-mail .sk-workspace--stack [data-sk-drill] .sk-drill-chevron { display: block; }
-  .sk-app .sk-mail .sk-workspace--stack > .sk-pane--parent { display: flex; }
-  .sk-app .sk-mail .sk-workspace--stack .sk-pane__switch { cursor: pointer; }
-  .sk-app .sk-mail .sk-workspace--stack .sk-pane__switch .sk-icon { display: block; }
-  .sk-app .sk-mail .sk-workspace--stack .sk-stack-only { display: block; }
+  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack > .sk-pane { --sk-stacked: 1; display: flex; flex: 0 0 100%; min-width: 100%; border-left: 0; border-top: 0; transform: translateX(calc(var(--sk-level-offset) * -100%)); transition: transform var(--sk-duration-slow, 320ms) var(--sk-ease-out, ease-out); }
+  @media (prefers-reduced-motion: reduce) { .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack > .sk-pane { transition: none; } }
+  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-pane__toggle { display: none; }
+  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-pane__back { display: grid; }
+  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-pane.is-collapsed { flex-basis: auto; }
+  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__body { display: block; }
+  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__header { flex-direction: row; padding: 0 var(--sk-space-3) 0 var(--sk-space-4); min-height: 52px; border-bottom: 1px solid var(--sk-border-subtle); }
+  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__header > * { display: flex; }
+  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__title { writing-mode: horizontal-tb; transform: none; font-size: var(--sk-text-md); color: inherit; }
+  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-pane__title--collapsed-only { display: none; }
+  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack [data-sk-drill] .sk-drill-chevron { display: block; }
+  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack > .sk-pane--parent { display: flex; }
+  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-pane__switch { cursor: pointer; }
+  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-pane__switch .sk-icon { display: block; }
+  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-stack-only { display: block; }
   .sk-app .sk-mail .sk-workspace--stack .sk-stack-hide { display: none; }
   .sk-app .sk-mail .sk-pane--start:not(.is-collapsed) { min-width: 100%; }
 }
@@ -1013,4 +1030,165 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
+}
+
+/* ---------------------------------------------------------------------------
+   Backfills workspace (editors/backfills): the definition and walk panes.
+   --------------------------------------------------------------------------- */
+.sk-app .sk-backfills__definition .sk-pane__section-body,
+.sk-app .sk-backfills__walk .sk-pane__section-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sk-space-2);
+}
+/* The about block: name and description side by side, stacked narrow */
+.sk-app .sk-backfills__about {
+  gap: var(--sk-space-4);
+}
+/* A loop: depth · kind tile · name and span · count · reorder */
+.sk-app .sk-backfills__loops {
+  list-style: none;
+  margin: var(--sk-space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sk-space-2);
+}
+.sk-app .sk-backfills__loop {
+  display: flex;
+  align-items: center;
+  gap: var(--sk-space-3);
+  padding: var(--sk-space-2) var(--sk-space-3);
+  border: 1px solid var(--sk-border-subtle);
+  border-radius: var(--sk-radius-md);
+  background: var(--sk-surface);
+}
+.sk-app .sk-backfills__depth {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--sk-radius-full);
+  background: var(--sk-forest);
+  color: var(--sk-cream);
+  font-size: var(--sk-text-xs);
+  font-weight: var(--sk-weight-semibold);
+}
+.sk-app .sk-backfills__loop-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sk-app .sk-backfills__loop-count {
+  flex: none;
+  white-space: nowrap;
+}
+/* The add forms: a tinted block under the list, fields in a responsive grid */
+.sk-app .sk-backfills__form {
+  margin-top: var(--sk-space-3);
+  padding: var(--sk-space-4);
+  border-radius: var(--sk-radius-md);
+  background: var(--sk-bg-subtle);
+}
+.sk-app .sk-backfills__fields {
+  gap: var(--sk-space-3);
+}
+.sk-app .sk-backfills__fields .sk-field {
+  min-width: 0;
+}
+/* A queue's values: index · value · here */
+.sk-app .sk-backfills__values {
+  list-style: none;
+  margin: var(--sk-space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--sk-text-sm);
+}
+.sk-app .sk-backfills__values li {
+  display: flex;
+  align-items: center;
+  gap: var(--sk-space-2);
+  padding: 2px var(--sk-space-2);
+  border-radius: var(--sk-radius-sm);
+}
+.sk-app .sk-backfills__values li.is-current {
+  background: var(--sk-accent-subtle);
+}
+.sk-app .sk-backfills__values li > .sk-tabular {
+  flex: none;
+  width: 24px;
+  text-align: right;
+}
+.sk-app .sk-backfills__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--sk-font-mono, ui-monospace, monospace);
+  font-size: var(--sk-text-xs);
+}
+/* The walk: status card, the dials, the failures */
+.sk-app .sk-backfills__status .sk-ring {
+  flex: none;
+}
+.sk-app .sk-backfills__odometer {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--sk-space-2);
+}
+.sk-app .sk-backfills__dial {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.sk-app .sk-backfills__reading {
+  font-family: var(--sk-font-display);
+  font-size: var(--sk-text-xl);
+  font-weight: var(--sk-weight-medium);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variation-settings: "opsz" 24, "SOFT" 20, "WONK" 0;
+}
+.sk-app .sk-backfills__next {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sk-app .sk-backfills__failures {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.sk-app .sk-backfills__failures > li {
+  padding: var(--sk-space-2) 0;
+  border-bottom: 1px solid var(--sk-border-subtle);
+}
+.sk-app .sk-backfills__failures > li:last-child {
+  border-bottom: 0;
+}
+/* The "Walk" link in the definition header only exists when stacked */
+.sk-app .sk-backfills .sk-stack-only {
+  display: none;
+}
+/* Under 640px of workspace the two-up grids stack */
+@container drive-app (max-width: 640px) {
+  .sk-app .sk-backfills__about,
+  .sk-app .sk-backfills__fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@container drive-app (max-width: 900px) {
+  .sk-app .sk-backfills__fields.sk-grid--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

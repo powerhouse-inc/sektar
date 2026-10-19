@@ -50,6 +50,13 @@
       "documentTypes": [
         "powerhouse/document-drive"
       ]
+    },
+    {
+      "id": "backfills",
+      "name": "Backfills",
+      "documentTypes": [
+        "powerhouse/document-drive"
+      ]
     }
   ],
   "editors": [

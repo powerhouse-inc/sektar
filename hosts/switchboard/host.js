@@ -49,6 +49,15 @@ export default {
         preferredEditor: "email-workspace",
         icon: "./icons/sektar_symbol_64x64.png",
       },
+      // Backfills: Original Source Queues (distyra/original-source-queue),
+      // defined in the Backfills workspace and walked by workflows on the
+      // For Every trigger, which reach the queue through this switchboard.
+      {
+        slug: "backfills",
+        name: "Backfills",
+        preferredEditor: "backfills",
+        icon: "./icons/sektar_symbol_64x64.png",
+      },
     ],
   },
 };

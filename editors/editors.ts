@@ -3,6 +3,7 @@
  * This file is auto-generated and updated by codegen
  */
 import type { EditorModule } from "document-model";
+import { BackfillsWorkspace } from "./backfills/module.js";
 import { BankAccountEditor } from "./bank-account-editor/module.js";
 import { ContactEditor } from "./contact-editor/module.js";
 import { EmailEditor } from "./email-editor/module.js";
@@ -14,6 +15,7 @@ import { OriginalSourceQueueEditor } from "./original-source-queue-editor/module
 import { Sektar } from "./sektar/module.js";
 
 export const editors: EditorModule[] = [
+  BackfillsWorkspace,
   BankAccountEditor,
   ContactEditor,
   EmailEditor,

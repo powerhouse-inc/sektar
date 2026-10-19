@@ -14,9 +14,11 @@ import connect from "../connect/host.js";
 
 // The drives the studio switchboard serves to Connect over the network (a
 // subset of the switchboard host's list): Mail, whose attachments live in
-// the switchboard's store.
-const mailDrives = (switchboard.reactor.drives ?? []).filter(
-  (d) => d.slug === "mail",
+// the switchboard's store, and Backfills, whose queues the workflows advance
+// through the switchboard.
+const SERVED = new Set(["mail", "backfills"]);
+const mailDrives = (switchboard.reactor.drives ?? []).filter((d) =>
+  SERVED.has(d.slug),
 );
 
 /** @satisfies {PHHost} */
@@ -50,9 +52,9 @@ export default {
             preferredEditor: "vetra-drive-app",
           },
           { slug: "vetra-preview", name: "Vetra Preview", projectHash: true },
-          // Mail, served here so the studio Connect can attach it as a remote
-          // (the drive app reaches the attachment store through the
-          // switchboard behind the drive).
+          // Mail and Backfills, served here so the studio Connect can attach
+          // them as remotes (the drive apps reach the attachment store and
+          // the workflow runtime through the switchboard behind the drive).
           ...mailDrives,
         ],
       },
@@ -67,9 +69,9 @@ export default {
         ],
       },
       // The studio Connect keeps its own local drives (the business drive)
-      // but takes Mail from the studio switchboard as a REMOTE: the
-      // standalone host's local Mail copy is dropped so the slug names one
-      // drive, the switchboard's.
+      // but takes Mail and Backfills from the studio switchboard as REMOTES:
+      // the standalone host's local copies are dropped so each slug names
+      // one drive, the switchboard's.
       reactor: {
         ...connect.reactor,
         drives: [

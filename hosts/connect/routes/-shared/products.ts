@@ -41,6 +41,8 @@ export const PRODUCTS: readonly Product[] = [
       { to: "/productivity", label: "Welcome", icon: "dashboard" },
       // The Mail drive (hosts/*: slug "mail", drive app email-workspace)
       { to: "/d/mail", label: "Mail", icon: "mail" },
+      // The Backfills drive (hosts/*: slug "backfills", drive app backfills)
+      { to: "/d/backfills", label: "Backfills", icon: "download" },
     ],
     drive: {
       slug: "workflows",

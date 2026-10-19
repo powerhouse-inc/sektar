@@ -33,7 +33,8 @@ import { UserMenu } from "./-shared/user-menu.js";
 // Sektar replaces Connect's layout with the design system's app shell: the
 // sidebar (the product switch on the brand lockup, the product's work
 // surfaces, its drive, promo, the user), a top bar with the search, and the
-// content beside it. Under 960px the
+// content beside it. Under 1064px (264px of sidebar + 800px for a three-pane
+// workspace; app.css carries the same number) the
 // sidebar becomes a drawer behind the top bar's menu button, as in the design
 // system's phone dashboard. Core routes (the drive at /d/sektar, settings)
 // render inside the same shell.
@@ -84,7 +85,7 @@ function Shell() {
     }
   });
   const toggleMenu = () => {
-    if (window.matchMedia("(max-width: 960px)").matches) {
+    if (window.matchMedia("(max-width: 1063px)").matches) {
       setDrawer(true);
       return;
     }
@@ -106,7 +107,7 @@ function Shell() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setDrawer(false);
     };
-    const mq = window.matchMedia("(min-width: 961px)");
+    const mq = window.matchMedia("(min-width: 1064px)");
     const onSize = () => {
       if (mq.matches) setDrawer(false);
     };

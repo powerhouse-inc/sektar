@@ -1,3 +1,4 @@
+export { BackfillsWorkspace } from "./backfills/module.js";
 export { BankAccountEditor } from "./bank-account-editor/module.js";
 export { ContactEditor } from "./contact-editor/module.js";
 export { EmailEditor } from "./email-editor/module.js";
