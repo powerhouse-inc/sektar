@@ -66,6 +66,8 @@ export default {
         protocol: switchboard.reactor.protocol,
         backends: {
           main: {
+            // the switchboard's own reactor; backend kind is required
+            kind: "in-process",
             // Per-user data dir; ${userData} resolves at the runner (a shell
             // points it at the OS profile via PH_USER_DATA_DIR).
             storage: {
