@@ -64,7 +64,7 @@ const FILTER_ICON: Record<Filter, IconName> = {
 export function BackfillsWorkspace() {
   const [drive] = useSelectedDrive();
   const node = useSelectedNode();
-  const queues = useOriginalSourceQueueDocumentsInSelectedDrive() ?? [];
+  const queues = useOriginalSourceQueueDocumentsInSelectedDrive();
   const { query } = useSearch();
 
   const [filter, setFilter] = useState<Filter>("all");
@@ -88,7 +88,7 @@ export function BackfillsWorkspace() {
     }
   }, [node]);
 
-  const sorted = useMemo(() => sortQueues(queues), [queues]);
+  const sorted = useMemo(() => sortQueues(queues ?? []), [queues]);
   const counts = useMemo(() => {
     const by: Record<Filter, number> = {
       all: sorted.length,

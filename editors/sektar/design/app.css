@@ -953,6 +953,28 @@
   .sk-app .sk-mail .sk-workspace--stack .sk-stack-hide { display: none; }
   .sk-app .sk-mail .sk-pane--start:not(.is-collapsed) { min-width: 100%; }
 }
+/* Stacked, a row's "selected" state has nothing on screen to refer to (the
+   message is a screen away), so rows do not show it; the same for the
+   attachment list at the end of a message. The inbox chooser keeps its
+   active mark: that one is the live filter. */
+@container panes (width < 800px) {
+  .sk-app .sk-mail .sk-list-item--rich.is-selected,
+  .sk-app .sk-mail .sk-list-item--rich[aria-current="true"] {
+    background: transparent;
+  }
+  .sk-app .sk-mail .sk-list-item--rich.is-selected::before,
+  .sk-app .sk-mail .sk-list-item--rich[aria-current="true"]::before {
+    display: none;
+  }
+  .sk-app .sk-mail .sk-list-item--rich.is-selected:hover {
+    background: var(--sk-bg-subtle);
+  }
+  .sk-app .sk-mail .sk-stack-only .sk-selector__tile.is-active,
+  .sk-app .sk-mail .sk-stack-only .sk-selector__tile[aria-pressed="true"] {
+    background: transparent;
+    color: var(--sk-text);
+  }
+}
 /* The sub-bar follows the same breakpoint: hidden whenever the panes stack. */
 @container mail (width < 800px) {
   .sk-app .sk-mail > .sk-subbar--wide { display: none; }
@@ -1176,9 +1198,17 @@
 .sk-app .sk-backfills__failures > li:last-child {
   border-bottom: 0;
 }
-/* The "Walk" link in the definition header only exists when stacked */
-.sk-app .sk-backfills .sk-stack-only {
+/* The "Walk" link in the definition header only exists when stacked: the
+   design system's .sk-stack-only shows it as a block; a button wants its
+   own inline-flex, so the stacked widths (both the system's own and the
+   wider one above) set it back. */
+.sk-app .sk-backfills .sk-btn.sk-stack-only {
   display: none;
+}
+@container panes (max-width: 800px) {
+  .sk-app .sk-backfills .sk-workspace--stack .sk-btn.sk-stack-only {
+    display: inline-flex;
+  }
 }
 /* Under 640px of workspace the two-up grids stack */
 @container drive-app (max-width: 640px) {
