@@ -133,8 +133,12 @@ export function MailWorkspace() {
       return next;
     });
 
-  const accountName =
-    account === ALL
+  // One mailbox: nothing to choose between, so no selector, no chooser
+  // screen and no switch; the list is simply titled after the mailbox.
+  const single = accounts.length <= 1;
+  const accountName = single
+    ? (accounts[0]?.name ?? "Inbox")
+    : account === ALL
       ? "All inboxes"
       : (accounts.find((a) => a.address === account)?.name ?? account);
   const accountOptions = [
@@ -179,20 +183,8 @@ export function MailWorkspace() {
     >
       {/* The inbox selector: a second top-bar row. Narrow, the design system
           hides it and the list's title becomes the switch to the chooser. */}
-      <SubBar className="sk-subbar--wide">
-        <Selector
-          value={account}
-          options={accountOptions}
-          onChange={(v) => {
-            setAccount(v);
-            setLevel(1);
-          }}
-          label="Inbox"
-        />
-      </SubBar>
-
-      <Workspace level={level} hasParent>
-        <Pane parent title="Inboxes" count={accounts.length} flush>
+      {!single && (
+        <SubBar className="sk-subbar--wide">
           <Selector
             value={account}
             options={accountOptions}
@@ -201,9 +193,25 @@ export function MailWorkspace() {
               setLevel(1);
             }}
             label="Inbox"
-            list
           />
-        </Pane>
+        </SubBar>
+      )}
+
+      <Workspace level={level} hasParent={!single}>
+        {!single && (
+          <Pane parent title="Inboxes" count={accounts.length} flush>
+            <Selector
+              value={account}
+              options={accountOptions}
+              onChange={(v) => {
+                setAccount(v);
+                setLevel(1);
+              }}
+              label="Inbox"
+              list
+            />
+          </Pane>
+        )}
 
         <Pane
           side="start"
@@ -213,12 +221,15 @@ export function MailWorkspace() {
           onToggle={() => setListCollapsed((v) => !v)}
           count={visible.length}
           // The switch's own title is what the collapsed strip shows.
+          title={single ? accountName : undefined}
           header={
-            <PaneSwitch
-              label={accountName}
-              ariaLabel="Choose inbox"
-              onClick={() => setLevel(0)}
-            />
+            single ? undefined : (
+              <PaneSwitch
+                label={accountName}
+                ariaLabel="Choose inbox"
+                onClick={() => setLevel(0)}
+              />
+            )
           }
           trailing={
             <Menu

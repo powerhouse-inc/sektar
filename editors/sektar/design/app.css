@@ -1114,6 +1114,11 @@
   padding: var(--sk-space-4);
   border-radius: var(--sk-radius-md);
   background: var(--sk-bg-subtle);
+  /* Its own size container: the field grid folds by the room the form has,
+     not by the workspace, since the pane it sits in gives way to its
+     neighbours. */
+  container-type: inline-size;
+  container-name: form;
 }
 .sk-app .sk-backfills__fields {
   gap: var(--sk-space-3);
@@ -1210,15 +1215,50 @@
     display: inline-flex;
   }
 }
-/* Under 640px of workspace the two-up grids stack */
+/* Stacked, every pane is a whole screen, a collapsed one included: the
+   design system sizes a collapsed pane by its content, which for the walk
+   pane is wider than a phone. */
+@container panes (max-width: 800px) {
+  .sk-app .sk-backfills .sk-workspace--stack > .sk-pane.is-collapsed {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+  .sk-app .sk-backfills .sk-workspace--stack > .sk-pane.is-collapsed .sk-pane__body {
+    overflow: auto;
+  }
+}
+/* The status card's ring and text wrap rather than widen the pane */
+.sk-app .sk-backfills__status > .sk-row {
+  flex-wrap: wrap;
+}
+.sk-app .sk-backfills__odometer {
+  grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
+}
+/* Under 640px of workspace the two-up grids stack, and a loop row wraps its
+   count and reorder arrows onto a second line rather than squeezing the span */
 @container drive-app (max-width: 640px) {
   .sk-app .sk-backfills__about,
   .sk-app .sk-backfills__fields {
     grid-template-columns: minmax(0, 1fr);
   }
+  .sk-app .sk-backfills__loop {
+    flex-wrap: wrap;
+  }
+  .sk-app .sk-backfills__loop-body {
+    flex-basis: calc(100% - 24px - 36px - 2 * var(--sk-space-3));
+  }
+  .sk-app .sk-backfills__loop-count {
+    margin-left: auto;
+  }
 }
-@container drive-app (max-width: 900px) {
+/* Four date fields need about 640px to read; under that, two per row */
+@container form (max-width: 640px) {
   .sk-app .sk-backfills__fields.sk-grid--4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container form (max-width: 360px) {
+  .sk-app .sk-backfills__fields {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
