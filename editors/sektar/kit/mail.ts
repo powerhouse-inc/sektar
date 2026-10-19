@@ -127,6 +127,38 @@ export function bytes(size: number | null | undefined): string {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/**
+ * The files worth showing: one per stored ref. Gmail reports a calendar
+ * invite twice — once as a `text/calendar` part under a synthesised name
+ * ("attachment-1792440339391"), once as `invite.ics` — both pointing at the
+ * same bytes. The capture keeps both, as received; the view shows the one
+ * with a real name and the more specific type.
+ */
+export function uniqueAttachments<T extends Pick<EmailAttachment, "ref" | "fileName" | "mimeType">>(
+  attachments: readonly T[],
+): T[] {
+  const synthesised = (a: T) => /^attachment-\d+$/i.test(a.fileName);
+  const byRef = new Map<string, T>();
+  for (const a of attachments) {
+    const cur = byRef.get(a.ref);
+    if (!cur) {
+      byRef.set(a.ref, a);
+      continue;
+    }
+    // prefer a real name; between two real names, the one that looks like a file
+    const better =
+      synthesised(cur) && !synthesised(a)
+        ? a
+        : !synthesised(cur) && synthesised(a)
+          ? cur
+          : /\.[a-z0-9]{2,5}$/i.test(a.fileName) && !/\.[a-z0-9]{2,5}$/i.test(cur.fileName)
+            ? a
+            : cur;
+    byRef.set(a.ref, better);
+  }
+  return [...byRef.values()];
+}
+
 export type AttachmentKind = "image" | "pdf" | "sheet" | "document" | "other";
 
 /** What a file is, for the tile and the preview. The store's own mime type wins over the one the sender claimed. */

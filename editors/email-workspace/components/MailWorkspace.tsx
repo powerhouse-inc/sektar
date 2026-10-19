@@ -28,6 +28,7 @@ import {
   mailboxLabel,
   matchesMail,
   seedSampleMail,
+  uniqueAttachments,
   useEmails,
 } from "../../sektar/kit/mail.js";
 import { fileIds } from "../../sektar/kit/data.js";
@@ -110,16 +111,19 @@ export function MailWorkspace() {
   );
 
   const selected = emails.find((d) => d.header.id === selectedId);
-  const hasFiles = (selected?.state.global.attachments.length ?? 0) > 0;
-  const file =
-    selected?.state.global.attachments.find((a) => a.ref === fileRef) ?? null;
+  const files = useMemo(
+    () => (selected ? uniqueAttachments(selected.state.global.attachments) : []),
+    [selected],
+  );
+  const hasFiles = files.length > 0;
+  const file = files.find((a) => a.ref === fileRef) ?? null;
 
   const pick = (doc: EmailDocument) => {
     setSelectedId(doc.header.id);
     // Line up the first file so an open preview follows the selection, but
     // keep a collapsed preview collapsed: a pane that reopens itself is a
     // pane you cannot close.
-    setFileRef(doc.state.global.attachments[0]?.ref ?? null);
+    setFileRef(uniqueAttachments(doc.state.global.attachments)[0]?.ref ?? null);
     setLevel(2);
     if (!doc.state.global.read) void mail.markRead(doc.header.id);
   };
@@ -360,8 +364,8 @@ export function MailWorkspace() {
           header={
             hasFiles && selected ? (
               <Selector
-                value={fileRef ?? selected.state.global.attachments[0].ref}
-                options={selected.state.global.attachments.map((a) => ({
+                value={fileRef ?? files[0].ref}
+                options={files.map((a) => ({
                   value: a.ref,
                   name: a.fileName,
                   meta: bytes(a.sizeBytes) || a.mimeType || undefined,
@@ -422,6 +426,7 @@ function MessageRowImpl({
   const s = doc.state.global;
   const sender = s.from[0];
   const name = sender ? mailboxLabel(sender) : "Unknown sender";
+  const fileCount = uniqueAttachments(s.attachments).length;
   return (
     <ListItem
       rich
@@ -460,13 +465,13 @@ function MessageRowImpl({
       aside={
         <>
           <span>{fmtWhen(s.sentAt ?? s.receivedAt)}</span>
-          {s.attachments.length > 0 && (
+          {fileCount > 0 && (
             <span
               className="sk-mail__files"
-              title={`${s.attachments.length} ${s.attachments.length === 1 ? "attachment" : "attachments"}`}
+              title={`${fileCount} ${fileCount === 1 ? "attachment" : "attachments"}`}
             >
               <Icon name="upload" size={16} mono />
-              {s.attachments.length > 1 && s.attachments.length}
+              {fileCount > 1 && fileCount}
             </span>
           )}
           {s.flagged && (

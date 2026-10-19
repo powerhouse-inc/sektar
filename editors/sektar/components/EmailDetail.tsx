@@ -20,6 +20,7 @@ import {
   fmtWhen,
   mail,
   mailboxLabel,
+  uniqueAttachments,
   type AttachmentKind,
 } from "../kit/mail.js";
 import { traceRender } from "../kit/diagnostics.js";
@@ -228,6 +229,7 @@ export function EmailDetail({
     ...s.replyTo.map((m) => ({ m, role: "Reply to" })),
   ];
   const toLine = s.to.map(mailboxLabel).join(", ");
+  const files = uniqueAttachments(s.attachments);
   const headerRows: [string, string | null | undefined][] = [
     ["Message-ID", s.messageId],
     ["Thread", s.threadId],
@@ -296,9 +298,9 @@ export function EmailDetail({
 
       {/* Standalone: the files as chips. In the workspace the preview pane's
           picker has them wide; stacked, the list below does. */}
-      {!compact && s.attachments.length > 0 && (
+      {!compact && files.length > 0 && (
         <div className="sk-files">
-          {s.attachments.map((a) => (
+          {files.map((a) => (
             <Chip
               key={a.id}
               name={
@@ -313,20 +315,20 @@ export function EmailDetail({
           ))}
         </div>
       )}
-      {compact && onPickAttachment && s.attachments.length > 0 && (
+      {compact && onPickAttachment && files.length > 0 && (
         <div className="sk-stack-only">
-          <PaneSection title="Attachments" count={s.attachments.length}>
+          <PaneSection title="Attachments" count={files.length}>
             <Selector
               list
               label="Attachments"
               value={selectedRef ?? ""}
-              options={s.attachments.map((a) => ({
+              options={files.map((a) => ({
                 value: a.ref,
                 name: a.fileName,
                 meta: bytes(a.sizeBytes) || a.mimeType || undefined,
               }))}
               onChange={(ref) => {
-                const a = s.attachments.find((x) => x.ref === ref);
+                const a = files.find((x) => x.ref === ref);
                 if (a) onPickAttachment(a);
               }}
             />
