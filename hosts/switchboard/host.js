@@ -42,6 +42,13 @@ export default {
         preferredEditor: "sektar",
         icon: "./icons/sektar_symbol_64x64.png",
       },
+      // Mail: captured emails (sektar/email), opened by the Mail workspace.
+      {
+        slug: "mail",
+        name: "Mail",
+        preferredEditor: "email-workspace",
+        icon: "./icons/sektar_symbol_64x64.png",
+      },
     ],
   },
 };

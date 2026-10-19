@@ -933,6 +933,8 @@ export function ListItem({
   aside,
   selected,
   extra,
+  drill,
+  leading,
 }: {
   icon?: ReactNode;
   title: ReactNode;
@@ -950,10 +952,18 @@ export function ListItem({
   selected?: boolean;
   /** Anything else inside the body, e.g. a progress row */
   extra?: ReactNode;
+  /**
+   * Stacked workspace: the level this row leads to. The design system shows
+   * the drill chevron only on rows that carry data-sk-drill.
+   */
+  drill?: number;
+  /** Before the avatar: a checkbox, say (rich rows) */
+  leading?: ReactNode;
 }) {
   const subs = Array.isArray(sub) ? sub : sub ? [sub] : [];
   const body = rich ? (
     <>
+      {leading}
       {icon}
       <div className="sk-list-item__body">
         <div className="sk-list-item__title">{title}</div>
@@ -996,12 +1006,15 @@ export function ListItem({
       type="button"
       className={className}
       aria-current={selected ? "true" : undefined}
+      data-sk-drill={drill}
       onClick={onClick}
     >
       {body}
     </button>
   ) : (
-    <div className={className}>{body}</div>
+    <div className={className} data-sk-drill={drill}>
+      {body}
+    </div>
   );
 }
 

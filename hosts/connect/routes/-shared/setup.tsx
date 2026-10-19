@@ -28,7 +28,8 @@ export function SetupState({ what }: { what: string }) {
       style={{
         alignItems: "center",
         textAlign: "center",
-        padding: "var(--sk-space-12) 0",
+        // the sides come from the page rule; only the vertical room is ours
+        paddingBlock: "var(--sk-space-12)",
       }}
     >
       <img

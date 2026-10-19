@@ -1,0 +1,170 @@
+scalar Unknown
+scalar DateTime
+scalar Address
+scalar AttachmentRef
+scalar Amount_Tokens
+scalar EthereumAddress
+scalar EmailAddress
+scalar Amount_Percentage
+scalar Date
+scalar URL
+scalar Amount_Money
+scalar OLabel
+scalar Currency
+scalar PHID
+scalar OID
+scalar Amount_Fiat
+scalar Amount_Currency
+scalar Amount_Crypto
+scalar Amount
+scalar Upload
+
+type EmailState {
+  account: MailAccount!
+  externalId: String
+  messageId: String
+  threadId: String
+  inReplyTo: String
+  references: [String!]!
+  subject: String
+  from: [Mailbox!]!
+  to: [Mailbox!]!
+  cc: [Mailbox!]!
+  bcc: [Mailbox!]!
+  replyTo: [Mailbox!]!
+  sentAt: DateTime
+  receivedAt: DateTime
+  text: String
+  html: String
+  snippet: String
+  headers: [EmailHeader!]!
+  labels: [String!]!
+  attachments: [EmailAttachment!]!
+  status: EmailStatus!
+  read: Boolean!
+  flagged: Boolean!
+  notes: String
+  source: String
+  capturedAt: DateTime
+}
+
+type MailAccount {
+  address: String
+  name: String
+  provider: String
+}
+
+type Mailbox {
+  address: String!
+  name: String
+}
+
+type EmailHeader {
+  key: String!
+  value: String!
+}
+
+type EmailAttachment {
+  id: OID!
+  ref: AttachmentRef!
+  fileName: String!
+  mimeType: String
+  sizeBytes: Int
+  contentId: String
+  inline: Boolean!
+}
+
+enum EmailStatus {
+  INBOX
+  ARCHIVED
+}
+
+# message
+
+input SetAccountInput {
+  address: String
+  name: String
+  provider: String
+}
+
+input CaptureMessageInput {
+  externalId: String!
+  messageId: String
+  threadId: String
+  inReplyTo: String
+  references: [String!]
+  subject: String
+  from: [CapturedMailboxInput!]!
+  to: [CapturedMailboxInput!]
+  cc: [CapturedMailboxInput!]
+  bcc: [CapturedMailboxInput!]
+  replyTo: [CapturedMailboxInput!]
+  sentAt: DateTime
+  receivedAt: DateTime
+  text: String
+  html: String
+  headers: [CapturedHeaderInput!]
+  labels: [String!]
+  source: String
+  capturedAt: DateTime!
+}
+
+input CapturedMailboxInput {
+  address: String!
+  name: String
+}
+
+input CapturedHeaderInput {
+  key: String!
+  value: String!
+}
+
+input SetNotesInput {
+  notes: String
+}
+
+# attachments
+
+input AddAttachmentInput {
+  id: OID!
+  ref: AttachmentRef!
+  fileName: String!
+  mimeType: String
+  sizeBytes: Int
+  contentId: String
+  inline: Boolean
+}
+
+input RemoveAttachmentInput {
+  id: OID!
+}
+
+# triage
+
+input MarkReadInput {
+  _: Boolean
+}
+
+input MarkUnreadInput {
+  _: Boolean
+}
+
+input SetFlaggedInput {
+  flagged: Boolean!
+}
+
+input ArchiveInput {
+  _: Boolean
+}
+
+input UnarchiveInput {
+  _: Boolean
+}
+
+input AddLabelsInput {
+  labels: [String!]!
+}
+
+input RemoveLabelsInput {
+  labels: [String!]!
+}

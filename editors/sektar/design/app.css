@@ -266,6 +266,14 @@
   overflow-x: hidden; /* a floating menu must never scroll the sidebar sideways */
   overscroll-behavior: contain;
 }
+/* Sticky makes the sidebar its own stacking layer, painted under the main
+   column that follows it; while the product switch is open, the sidebar
+   rises so its popover (wider than the sidebar) sits above the page. */
+.sk-app.sk-shell > .sk-sidebar:has(.sk-product-switch.is-open),
+.sk-app .sk-drawer > .sk-sidebar:has(.sk-product-switch.is-open) {
+  z-index: var(--sk-z-overlay);
+  overflow: visible;
+}
 .sk-app .sk-topbar {
   position: sticky;
   top: 0;
@@ -273,6 +281,18 @@
 }
 .sk-app .sk-shell__content {
   min-width: 0;
+}
+/* The content area is always flush (see _app.tsx): a routed page carries the
+   design system's page padding itself (24px, 16px under 640px of content
+   width), so everything that is not a page — drive apps, Workflow Studio,
+   Connect's settings — fills the area edge to edge with no rule of its own. */
+.sk-app .sk-shell__content--flush > .sk-page {
+  padding: var(--sk-space-6);
+}
+@container dash (max-width: 640px) {
+  .sk-app .sk-shell__content--flush > .sk-page {
+    padding: var(--sk-space-4);
+  }
 }
 /* The menu button: drawer on phones, sidebar rail on larger screens (the
    rail follows the design system: icons only, footer hidden) */
@@ -638,6 +658,12 @@
   .sk-app .sk-topbar__user {
     display: inline-flex;
   }
+  /* The rail is a desktop state, remembered per browser. Under 960px the
+     sidebar is a drawer and the grid has one column; the rail's own
+     72px + 1fr columns would otherwise put the whole page in the 72px one. */
+  .sk-app.sk-shell--rail {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -780,4 +806,211 @@
 }
 .sk-app .sk-dash-grid .sk-stat {
   align-content: start;
+}
+
+/* ---------------------------------------------------------------------------
+   Mail workspace (editors/email-workspace): the design system's panes pattern
+   filling the content area. The height is measured by the app; the panes
+   scroll inside it.
+   --------------------------------------------------------------------------- */
+.sk-app .sk-mail {
+  display: flex;
+  flex-direction: column;
+  /* Explicit, not left to flex stretch: a size container that is only
+     stretched can be resolved at its min-content width by Chrome after a
+     viewport change (the device toolbar), which squeezes the whole
+     workspace into a 100px column. */
+  width: 100%;
+  min-height: 360px;
+  background: var(--sk-surface);
+  container-type: inline-size;
+  container-name: mail;
+}
+.sk-app .sk-mail > .sk-workspace--stack {
+  width: 100%;
+}
+/* The design system folds a panes workspace into a column under 960px of
+   viewport (its docs rule); a stacked workspace is a horizontal track of
+   screens and must stay one, whatever the viewport. */
+@media (max-width: 960px) {
+  .sk-app .sk-mail .sk-workspace--stack {
+    flex-direction: row;
+  }
+  .sk-app .sk-mail .sk-workspace--stack > .sk-pane {
+    border-top: 0;
+  }
+}
+
+.sk-app .sk-mail > .sk-subbar {
+  flex: none;
+  /* flush: the first tile's underline starts on the content's left edge */
+  padding-inline: 0;
+}
+/* The chooser is the first pane but hidden side by side, so the list pane
+   would keep its left hairline and double the sidebar's edge. */
+.sk-app .sk-mail .sk-workspace--has-parent > .sk-pane--parent + .sk-pane {
+  border-left: 0;
+}
+.sk-app .sk-mail > .sk-workspace--panes {
+  flex: 1;
+  min-height: 0;
+}
+.sk-app .sk-mail .sk-pane__body {
+  overflow: auto;
+  /* Each pane scrolls on its own, with the platform's own physics: momentum
+     stays inside the pane instead of chaining into Connect's page scroller
+     once a list hits its end, a swipe pans vertically only (the track slides
+     by level, never by finger), and the design system's slim scrollbars
+     (base.css, not vendored into the app) apply here. */
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sk-border-strong) transparent;
+}
+.sk-app .sk-mail .sk-pane--parent .sk-pane__body,
+.sk-app .sk-mail .sk-workspace--panes {
+  overscroll-behavior: contain;
+}
+.sk-app .sk-mail__unread {
+  font-weight: var(--sk-weight-semibold);
+}
+/* A popover menu on a header button (kit/menu.tsx) */
+.sk-app .sk-menu-host {
+  position: relative;
+  flex: none;
+}
+.sk-app .sk-menu--popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  z-index: 40;
+  white-space: nowrap;
+}
+.sk-app .sk-menu--end {
+  right: 0;
+}
+.sk-app .sk-menu--start {
+  left: 0;
+}
+.sk-app .sk-menu__item.is-active {
+  color: var(--sk-text-brand);
+}
+/* A rich row's checkbox must not open the row */
+.sk-app .sk-list-item--rich .sk-check {
+  flex: none;
+}
+/* Side by side, the list keeps a readable width; the message pane gives way.
+   (Stacked, the design system's 100% basis applies instead.) */
+@container panes (min-width: 641px) {
+  .sk-app .sk-mail .sk-pane--start:not(.is-collapsed) {
+    min-width: 300px;
+  }
+}
+/* The drawer's close button paints above the brand block beside it; the
+   product switch comes later in the DOM and would otherwise take the click. */
+.sk-app .sk-drawer__close {
+  z-index: 2;
+}
+/* The Mail workspace stacks earlier than the design system's 640px: three
+   panes need 800px to be readable, so below 800px of workspace width the
+   stacked rules below apply (range syntax: the boundary is exact, 799.5px
+   still stacks). They mirror the design
+   system's own block (components.css, "@container panes (max-width: 640px)")
+   so the two states are identical; keep them in step when it changes. */
+@container panes (640px < width < 800px) {
+  .sk-app .sk-mail .sk-workspace--stack > .sk-pane { --sk-stacked: 1; display: flex; flex: 0 0 100%; min-width: 100%; border-left: 0; border-top: 0; transform: translateX(calc(var(--sk-level-offset) * -100%)); transition: transform var(--sk-duration-slow, 320ms) var(--sk-ease-out, ease-out); }
+  @media (prefers-reduced-motion: reduce) { .sk-app .sk-mail .sk-workspace--stack > .sk-pane { transition: none; } }
+  .sk-app .sk-mail .sk-workspace--stack .sk-pane__toggle { display: none; }
+  .sk-app .sk-mail .sk-workspace--stack .sk-pane__back { display: grid; }
+  .sk-app .sk-mail .sk-workspace--stack .sk-pane.is-collapsed { flex-basis: auto; }
+  .sk-app .sk-mail .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__body { display: block; }
+  .sk-app .sk-mail .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__header { flex-direction: row; padding: 0 var(--sk-space-3) 0 var(--sk-space-4); min-height: 52px; border-bottom: 1px solid var(--sk-border-subtle); }
+  .sk-app .sk-mail .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__header > * { display: flex; }
+  .sk-app .sk-mail .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__title { writing-mode: horizontal-tb; transform: none; font-size: var(--sk-text-md); color: inherit; }
+  .sk-app .sk-mail .sk-workspace--stack .sk-pane__title--collapsed-only { display: none; }
+  .sk-app .sk-mail .sk-workspace--stack [data-sk-drill] .sk-drill-chevron { display: block; }
+  .sk-app .sk-mail .sk-workspace--stack > .sk-pane--parent { display: flex; }
+  .sk-app .sk-mail .sk-workspace--stack .sk-pane__switch { cursor: pointer; }
+  .sk-app .sk-mail .sk-workspace--stack .sk-pane__switch .sk-icon { display: block; }
+  .sk-app .sk-mail .sk-workspace--stack .sk-stack-only { display: block; }
+  .sk-app .sk-mail .sk-workspace--stack .sk-stack-hide { display: none; }
+  .sk-app .sk-mail .sk-pane--start:not(.is-collapsed) { min-width: 100%; }
+}
+/* The sub-bar follows the same breakpoint: hidden whenever the panes stack. */
+@container mail (width < 800px) {
+  .sk-app .sk-mail > .sk-subbar--wide { display: none; }
+}
+/* The message's raw headers: a two-column data table. The key column stays
+   narrow and quiet; values are mono and may break anywhere. */
+.sk-app .sk-mail-headers__card {
+  /* a card around a table: the rows run to the card's edge, the eyebrow row
+     sits inside the rounded frame rather than directly under the tabs */
+  --_pad: 0;
+  padding: 0 var(--sk-space-2);
+  margin-top: var(--sk-space-2);
+  overflow: hidden;
+}
+.sk-app .sk-mail-headers {
+  table-layout: fixed;
+}
+.sk-app .sk-mail-headers tbody tr:last-child td {
+  border-bottom: 0;
+}
+.sk-app .sk-mail-headers th:first-child,
+.sk-app .sk-mail-headers__key {
+  width: 30%;
+}
+.sk-app .sk-mail-headers__key {
+  color: var(--sk-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: top;
+}
+.sk-app .sk-mail-headers__value {
+  font-size: var(--sk-text-sm);
+  word-break: break-all;
+  vertical-align: top;
+}
+/* The sender line: "address · To: name" */
+.sk-app .sk-mail__meta-to {
+  color: var(--sk-text-muted);
+}
+.sk-app .sk-mail-body {
+  margin: 0;
+  font: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: var(--sk-leading-relaxed, 1.6);
+}
+.sk-app .sk-mail-frame {
+  width: 100%;
+  min-height: 420px;
+  border: 1px solid var(--sk-border-subtle);
+  border-radius: var(--sk-radius-sm);
+  background: #fff;
+}
+.sk-app .sk-mail-preview-image {
+  display: block;
+  max-width: 100%;
+  margin: 0 auto;
+  border-radius: var(--sk-radius-sm);
+  background: repeating-conic-gradient(#9e9e9e 0% 25%, #cfcfcf 0% 50%) 0 0 / 16px 16px;
+}
+.sk-app .sk-mail-preview-frame {
+  width: 100%;
+  height: 100%;
+  min-height: 480px;
+  border: 0;
+}
+.sk-app .sk-mail .sk-preview {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.sk-app .sk-mail .sk-preview__page {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }

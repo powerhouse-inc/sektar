@@ -30,12 +30,23 @@
     {
       "id": "distyra/original-source-collection",
       "name": "OriginalSourceCollection"
+    },
+    {
+      "name": "Email",
+      "id": "sektar/email"
     }
   ],
   "apps": [
     {
       "id": "sektar",
       "name": "sektar",
+      "documentTypes": [
+        "powerhouse/document-drive"
+      ]
+    },
+    {
+      "id": "email-workspace",
+      "name": "Mail",
       "documentTypes": [
         "powerhouse/document-drive"
       ]
@@ -83,6 +94,13 @@
       "documentTypes": [
         "distyra/original-source-collection"
       ]
+    },
+    {
+      "id": "email-editor",
+      "name": "email-editor",
+      "documentTypes": [
+        "sektar/email"
+      ]
     }
   ],
   "processors": [
@@ -101,11 +119,11 @@
       "name": "osc-index"
     }
   ],
-  "config": [],
   "pieces": [
     {
       "id": "@powerhousedao/distyra-piece",
       "name": "Distyra"
     }
-  ]
+  ],
+  "config": []
 }

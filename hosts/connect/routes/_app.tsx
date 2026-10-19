@@ -135,7 +135,10 @@ function Shell() {
             product={product}
             onMenu={toggleMenu}
           />
-          <main className="sk-shell__content">
+          {/* Flush: the content area carries no padding of its own. Routed
+              pages (.sk-page) bring the design system's page padding; drive
+              apps, Workflow Studio and Connect's settings fill edge to edge. */}
+          <main className="sk-shell__content sk-shell__content--flush">
             <Suspense fallback={<PageSkeleton />}>
               <Outlet />
             </Suspense>
@@ -354,7 +357,7 @@ function ThemeSwitch() {
 
 function PageSkeleton() {
   return (
-    <div className="sk-stack sk-stack--6">
+    <div className="sk-page sk-stack sk-stack--6">
       <Skeleton width={240} height={32} />
       <div className="sk-grid sk-grid--4">
         {[0, 1, 2, 3].map((i) => (

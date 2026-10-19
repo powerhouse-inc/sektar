@@ -1,5 +1,7 @@
 export { BankAccountEditor } from "./bank-account-editor/module.js";
 export { ContactEditor } from "./contact-editor/module.js";
+export { EmailEditor } from "./email-editor/module.js";
+export { EmailWorkspace } from "./email-workspace/module.js";
 export { ExpenseReportEditor } from "./expense-report-editor/module.js";
 export { InvoiceEditor } from "./invoice-editor/module.js";
 export { OriginalSourceCollectionEditor } from "./original-source-collection-editor/module.js";

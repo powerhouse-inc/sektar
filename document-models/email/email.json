@@ -1,0 +1,253 @@
+{
+  "id": "sektar/email",
+  "name": "Email",
+  "author": {
+    "name": "Sektar",
+    "website": "https://sektar.example"
+  },
+  "extension": "mail",
+  "description": "An email message as received from a mailbox such as Gmail: envelope, body, headers and the stored attachments, with the mailbox it came from and our own triage on top.",
+  "specifications": [
+    {
+      "version": 1,
+      "changeLog": [],
+      "state": {
+        "global": {
+          "schema": "type EmailState {\n  account: MailAccount!\n  externalId: String\n  messageId: String\n  threadId: String\n  inReplyTo: String\n  references: [String!]!\n  subject: String\n  from: [Mailbox!]!\n  to: [Mailbox!]!\n  cc: [Mailbox!]!\n  bcc: [Mailbox!]!\n  replyTo: [Mailbox!]!\n  sentAt: DateTime\n  receivedAt: DateTime\n  text: String\n  html: String\n  snippet: String\n  headers: [EmailHeader!]!\n  labels: [String!]!\n  attachments: [EmailAttachment!]!\n  status: EmailStatus!\n  read: Boolean!\n  flagged: Boolean!\n  notes: String\n  source: String\n  capturedAt: DateTime\n}\n\ntype MailAccount {\n  address: String\n  name: String\n  provider: String\n}\n\ntype Mailbox {\n  address: String!\n  name: String\n}\n\ntype EmailHeader {\n  key: String!\n  value: String!\n}\n\ntype EmailAttachment {\n  id: OID!\n  ref: AttachmentRef!\n  fileName: String!\n  mimeType: String\n  sizeBytes: Int\n  contentId: String\n  inline: Boolean!\n}\n\nenum EmailStatus {\n  INBOX\n  ARCHIVED\n}",
+          "initialValue": "{\"account\": {\"address\": null, \"name\": null, \"provider\": null}, \"externalId\": null, \"messageId\": null, \"threadId\": null, \"inReplyTo\": null, \"references\": [], \"subject\": null, \"from\": [], \"to\": [], \"cc\": [], \"bcc\": [], \"replyTo\": [], \"sentAt\": null, \"receivedAt\": null, \"text\": null, \"html\": null, \"snippet\": null, \"headers\": [], \"labels\": [], \"attachments\": [], \"status\": \"INBOX\", \"read\": false, \"flagged\": false, \"notes\": null, \"source\": null, \"capturedAt\": null}",
+          "examples": []
+        },
+        "local": {
+          "schema": "",
+          "initialValue": "",
+          "examples": []
+        }
+      },
+      "modules": [
+        {
+          "id": "0d5a07ef-e468-4df9-a8c7-3e563140d5f4",
+          "name": "message",
+          "description": "The mailbox, the captured message and our note",
+          "operations": [
+            {
+              "id": "d897748c-17ca-4643-bb76-0b521faf24bb",
+              "name": "SET_ACCOUNT",
+              "description": "The mailbox this message belongs to",
+              "schema": "input SetAccountInput {\n  address: String\n  name: String\n  provider: String\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nif (i.address !== undefined) state.account.address = i.address;\nif (i.name !== undefined) state.account.name = i.name;\nif (i.provider !== undefined) state.account.provider = i.provider;",
+              "errors": [],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "1ead5e3d-454c-47f1-a7e6-c8c706e86397",
+              "name": "CAPTURE_MESSAGE",
+              "description": "File the message as received: identity, envelope, body and headers in one step; a re-capture replaces them",
+              "schema": "input CaptureMessageInput {\n  externalId: String!\n  messageId: String\n  threadId: String\n  inReplyTo: String\n  references: [String!]\n  subject: String\n  from: [CapturedMailboxInput!]!\n  to: [CapturedMailboxInput!]\n  cc: [CapturedMailboxInput!]\n  bcc: [CapturedMailboxInput!]\n  replyTo: [CapturedMailboxInput!]\n  sentAt: DateTime\n  receivedAt: DateTime\n  text: String\n  html: String\n  headers: [CapturedHeaderInput!]\n  labels: [String!]\n  source: String\n  capturedAt: DateTime!\n}\n\ninput CapturedMailboxInput {\n  address: String!\n  name: String\n}\n\ninput CapturedHeaderInput {\n  key: String!\n  value: String!\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nconst externalId = i.externalId.trim();\nif (!/^[a-z0-9_-]+:.+/i.test(externalId))\n  throw new InvalidExternalIdError(`External id must be namespaced, e.g. gmail:18f3a, got \"${i.externalId}\"`);\nif (state.externalId && state.externalId !== externalId)\n  throw new ExternalIdMismatchError(`This document holds ${state.externalId}, not ${externalId}`);\nconst mailboxes = (list: { address: string; name?: string | null }[] | null | undefined) => (list ?? []).map((m) => ({ address: m.address, name: m.name ?? null }));\nstate.externalId = externalId;\nstate.messageId = i.messageId ?? null;\nstate.threadId = i.threadId ?? null;\nstate.inReplyTo = i.inReplyTo ?? null;\nstate.references = [...(i.references ?? [])];\nstate.subject = i.subject ?? null;\nstate.from = mailboxes(i.from);\nstate.to = mailboxes(i.to);\nstate.cc = mailboxes(i.cc);\nstate.bcc = mailboxes(i.bcc);\nstate.replyTo = mailboxes(i.replyTo);\nstate.sentAt = i.sentAt ?? null;\nstate.receivedAt = i.receivedAt ?? null;\nstate.text = i.text ?? null;\nstate.html = i.html ?? null;\nstate.snippet = i.text ? i.text.replace(/\\s+/g, \" \").trim().slice(0, 160) : null;\nstate.headers = (i.headers ?? []).map((h) => ({ key: h.key, value: h.value }));\nstate.labels = [...new Set((i.labels ?? []).map((l) => l.trim()).filter((l) => l !== \"\"))];\nstate.source = i.source ?? state.source;\nstate.capturedAt = i.capturedAt;",
+              "errors": [
+                {
+                  "id": "f4ef34a0-5d40-473f-914c-44c2b077d698",
+                  "code": "INVALID_EXTERNAL_ID",
+                  "name": "InvalidExternalIdError",
+                  "description": "The external id must be namespaced by its system, e.g. gmail:18f3a",
+                  "template": ""
+                },
+                {
+                  "id": "d2837c12-feb1-452d-bb1b-948adbb10b1a",
+                  "code": "EXTERNAL_ID_MISMATCH",
+                  "name": "ExternalIdMismatchError",
+                  "description": "The document already holds a different message",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "dfc725ce-f881-4e05-b7fe-6ba8041484b6",
+              "name": "SET_NOTES",
+              "description": "A note of our own beside the message",
+              "schema": "input SetNotesInput {\n  notes: String\n}",
+              "template": "",
+              "reducer": "state.notes = action.input.notes ?? null;",
+              "errors": [],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        },
+        {
+          "id": "8ffb6995-a1ba-429e-b7bf-4ea215167120",
+          "name": "attachments",
+          "description": "Files stored beside the message",
+          "operations": [
+            {
+              "id": "3c7d1e55-ff65-4b77-8e73-1e30b7c8d80a",
+              "name": "ADD_ATTACHMENT",
+              "description": "Record a stored file as part of the message",
+              "schema": "input AddAttachmentInput {\n  id: OID!\n  ref: AttachmentRef!\n  fileName: String!\n  mimeType: String\n  sizeBytes: Int\n  contentId: String\n  inline: Boolean\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nconst fileName = i.fileName.trim();\nif (fileName === \"\") throw new InvalidFileNameError(\"An attachment needs a file name\");\nif (state.attachments.some((a) => a.id === i.id || (a.ref === i.ref && a.fileName === fileName)))\n  throw new DuplicateAttachmentError(`Attachment ${fileName} is already on the message`);\nstate.attachments.push({\n  id: i.id,\n  ref: i.ref,\n  fileName,\n  mimeType: i.mimeType ?? null,\n  sizeBytes: i.sizeBytes ?? null,\n  contentId: i.contentId ?? null,\n  inline: i.inline ?? false,\n});",
+              "errors": [
+                {
+                  "id": "8b3848ce-6524-493f-9561-44c17eebe83e",
+                  "code": "INVALID_FILE_NAME",
+                  "name": "InvalidFileNameError",
+                  "description": "The file name is empty",
+                  "template": ""
+                },
+                {
+                  "id": "c4d60d10-b936-41f9-a03c-366f5de5c6ee",
+                  "code": "DUPLICATE_ATTACHMENT",
+                  "name": "DuplicateAttachmentError",
+                  "description": "The attachment is already on the message",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "aa044420-3f42-432d-8de9-9cddaacecab8",
+              "name": "REMOVE_ATTACHMENT",
+              "description": "",
+              "schema": "input RemoveAttachmentInput {\n  id: OID!\n}",
+              "template": "",
+              "reducer": "const index = state.attachments.findIndex((a) => a.id === action.input.id);\nif (index === -1) throw new AttachmentNotFoundError(`Attachment ${action.input.id} not found`);\nstate.attachments.splice(index, 1);",
+              "errors": [
+                {
+                  "id": "4c0031d8-8b28-495a-8619-f42ef2c90689",
+                  "code": "ATTACHMENT_NOT_FOUND",
+                  "name": "AttachmentNotFoundError",
+                  "description": "No attachment with that id",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        },
+        {
+          "id": "e6a0081a-15a8-48ba-8dd8-51037cb3f448",
+          "name": "triage",
+          "description": "Read, flagged, archived, labelled",
+          "operations": [
+            {
+              "id": "1545b4bc-24b5-4858-9f85-544f3ef6e577",
+              "name": "MARK_READ",
+              "description": "Idempotent",
+              "schema": "input MarkReadInput {\n  _: Boolean\n}",
+              "template": "",
+              "reducer": "state.read = true;",
+              "errors": [],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "026fac10-7166-4f8f-8b2e-3622aab31907",
+              "name": "MARK_UNREAD",
+              "description": "Idempotent",
+              "schema": "input MarkUnreadInput {\n  _: Boolean\n}",
+              "template": "",
+              "reducer": "state.read = false;",
+              "errors": [],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "62fc5f77-eda5-4396-96f8-6e73d1a5c621",
+              "name": "SET_FLAGGED",
+              "description": "",
+              "schema": "input SetFlaggedInput {\n  flagged: Boolean!\n}",
+              "template": "",
+              "reducer": "state.flagged = action.input.flagged;",
+              "errors": [],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "fc3fe52c-d308-4e7a-bf2f-e5dd517a118c",
+              "name": "ARCHIVE",
+              "description": "",
+              "schema": "input ArchiveInput {\n  _: Boolean\n}",
+              "template": "",
+              "reducer": "if (state.status === \"ARCHIVED\") throw new AlreadyArchivedError(\"The message is archived already\");\nstate.status = \"ARCHIVED\";",
+              "errors": [
+                {
+                  "id": "041e42bf-665f-4587-b05d-9e0ce9a40720",
+                  "code": "ALREADY_ARCHIVED",
+                  "name": "AlreadyArchivedError",
+                  "description": "The message is archived already",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "78f939a6-4f5d-4415-83aa-c8e919f18cc4",
+              "name": "UNARCHIVE",
+              "description": "",
+              "schema": "input UnarchiveInput {\n  _: Boolean\n}",
+              "template": "",
+              "reducer": "if (state.status !== \"ARCHIVED\") throw new NotArchivedError(\"The message is not archived\");\nstate.status = \"INBOX\";",
+              "errors": [
+                {
+                  "id": "91a58493-e1d1-4de6-8fd9-ac2b9846304d",
+                  "code": "NOT_ARCHIVED",
+                  "name": "NotArchivedError",
+                  "description": "The message is not archived",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "7f268c14-a9c5-4a87-b933-6dc8c4118314",
+              "name": "ADD_LABELS",
+              "description": "",
+              "schema": "input AddLabelsInput {\n  labels: [String!]!\n}",
+              "template": "",
+              "reducer": "const labels = action.input.labels.map((raw) => raw.trim());\nif (labels.some((label) => label === \"\"))\n  throw new InvalidLabelError(\"A label cannot be empty\");\nfor (const label of labels) {\n  if (!state.labels.includes(label)) state.labels.push(label);\n}",
+              "errors": [
+                {
+                  "id": "012ef2f8-9726-43a1-86a6-6bb755218088",
+                  "code": "INVALID_LABEL",
+                  "name": "InvalidLabelError",
+                  "description": "A label is empty",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "add7d8e0-dd58-4e62-88bf-2045323923f3",
+              "name": "REMOVE_LABELS",
+              "description": "",
+              "schema": "input RemoveLabelsInput {\n  labels: [String!]!\n}",
+              "template": "",
+              "reducer": "const labels = action.input.labels.map((raw) => raw.trim());\nconst missing = labels.find((label) => !state.labels.includes(label));\nif (missing !== undefined)\n  throw new LabelNotFoundError(`No label \"${missing}\" on the message`);\nstate.labels = state.labels.filter((label) => !labels.includes(label));",
+              "errors": [
+                {
+                  "id": "285cdf91-9388-497e-bbd6-b6b2b415b197",
+                  "code": "LABEL_NOT_FOUND",
+                  "name": "LabelNotFoundError",
+                  "description": "The message does not carry that label",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

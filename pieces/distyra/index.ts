@@ -2,6 +2,8 @@ import { createPiece } from "@powerhousedao/pieces-framework";
 import { distyraGetLatestTransactionsAction } from "./lib/actions/get-latest-transactions.js";
 import { distyraPullForLedgerAction } from "./lib/actions/pull-for-ledger.js";
 import { distyraAuth } from "./lib/auth.js";
+import { distyraGmailToEmailAction } from "./lib/docs/gmail-to-email.js";
+import { distyraUpsertDocumentsAction } from "./lib/docs/upsert-documents.js";
 import {
   distyraOsqAddCollectionValuesAction,
   distyraOsqClearCollectionAction,
@@ -78,6 +80,11 @@ export const distyra = createPiece({
     // actions for a Dispatch step. Pairs with the batch button in the
     // collection editor.
     distyraOscSelectTasksAction,
+    // Document steps. Upsert is generic — a list in, one document per item,
+    // deduplicated on a key — and the Gmail mapper is its first adapter:
+    // pure, so a test shows the exact actions before anything is written.
+    distyraGmailToEmailAction,
+    distyraUpsertDocumentsAction,
   ],
   triggers: [distyraForEveryTrigger, distyraOnNewSourceTrigger],
 });

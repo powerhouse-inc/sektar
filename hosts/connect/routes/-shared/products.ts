@@ -37,7 +37,11 @@ export const PRODUCTS: readonly Product[] = [
     lead: "Mail, calendar, tasks and projects for the whole team in one place.",
     home: "/productivity",
     icon: { light: iconSageLight, dark: iconSageDark },
-    nav: [{ to: "/productivity", label: "Welcome", icon: "dashboard" }],
+    nav: [
+      { to: "/productivity", label: "Welcome", icon: "dashboard" },
+      // The Mail drive (hosts/*: slug "mail", drive app email-workspace)
+      { to: "/d/mail", label: "Mail", icon: "mail" },
+    ],
     drive: {
       slug: "workflows",
       label: "Workflows drive",
@@ -117,6 +121,14 @@ export function driveFor<D extends DriveLike>(
 }
 
 /**
+ * Whether a URL opens the product's drive: by slug, or by an id derived from
+ * the slug such as `workflows-03d82c74`.
+ */
+export function isProductDrive(pathname: string, product: Product): boolean {
+  return new RegExp(`^/d/${product.drive.slug}(?:[/-]|$)`).test(pathname);
+}
+
+/**
  * Which product a URL belongs to: its own pages and its drive (by slug, or by
  * an id derived from the slug such as `workflows-03d82c74`). Shared routes
  * (settings, search) keep the product that was open last.
@@ -128,7 +140,7 @@ export function productFor(
   const own = PRODUCTS.find(
     (p) =>
       p.nav.some((n) => pathname.startsWith(n.to)) ||
-      new RegExp(`^/d/${p.drive.slug}(?:[/-]|$)`).test(pathname),
+      isProductDrive(pathname, p),
   );
   return (
     own ??

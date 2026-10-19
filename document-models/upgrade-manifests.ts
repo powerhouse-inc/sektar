@@ -5,6 +5,7 @@
 import type { UpgradeManifest } from "document-model";
 import { bankAccountUpgradeManifest } from "document-models/bank-account/upgrades";
 import { contactUpgradeManifest } from "document-models/contact/upgrades";
+import { emailUpgradeManifest } from "document-models/email/upgrades";
 import { expenseReportUpgradeManifest } from "document-models/expense-report/upgrades";
 import { invoiceUpgradeManifest } from "document-models/invoice/upgrades";
 import { originalSourceCollectionUpgradeManifest } from "document-models/original-source-collection/upgrades";
@@ -13,6 +14,7 @@ import { originalSourceQueueUpgradeManifest } from "document-models/original-sou
 export const upgradeManifests: UpgradeManifest<readonly number[]>[] = [
   bankAccountUpgradeManifest,
   contactUpgradeManifest,
+  emailUpgradeManifest,
   expenseReportUpgradeManifest,
   invoiceUpgradeManifest,
   originalSourceCollectionUpgradeManifest,
