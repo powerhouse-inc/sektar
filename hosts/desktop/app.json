@@ -1,0 +1,58 @@
+{
+  "identifier": "inc.powerhouse.desktop.sektar",
+  "productName": "Sektar",
+  "icon": "../../icons/sektar.png",
+  "background": {
+    "layers": [
+      {
+        "src": {
+          "light": "../../icons/sektar_lockup_light.svg",
+          "dark": "../../icons/sektar_lockup_dark.svg"
+        },
+        "position": {
+          "top": "calc(50% - 120px)"
+        },
+        "width": 240
+      },
+      {
+        "src": {
+          "light": "../../icons/sektar_growth_light.svg",
+          "dark": "../../icons/sektar_growth_dark.svg"
+        },
+        "position": {
+          "bottom": 0,
+          "right": 0
+        },
+        "width": "33%",
+        "opacity": 0.4
+      }
+    ]
+  },
+  "loading": {
+    "background": "#F5F7F3",
+    "color": "#566159",
+    "accent": "#6B8F73",
+    "dark": {
+      "background": "#0D1411",
+      "color": "#B5C4B9",
+      "accent": "#BFD7BD"
+    },
+    "message": "Opening your books…"
+  },
+  "window": {
+    "title": "Sektar",
+    "width": 1600,
+    "height": 960,
+    "minWidth": 1180,
+    "minHeight": 720
+  },
+  "fileAssociations": [
+    {
+      "ext": [
+        "phd"
+      ],
+      "name": "Powerhouse Document",
+      "mimeType": "application/vnd.powerhouse.document+zip"
+    }
+  ]
+}

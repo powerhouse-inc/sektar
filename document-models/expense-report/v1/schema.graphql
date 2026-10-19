@@ -1,0 +1,143 @@
+scalar Unknown
+scalar DateTime
+scalar Address
+scalar AttachmentRef
+scalar Amount_Tokens
+scalar EthereumAddress
+scalar EmailAddress
+scalar Amount_Percentage
+scalar Date
+scalar URL
+scalar Amount_Money
+scalar OLabel
+scalar Currency
+scalar PHID
+scalar OID
+scalar Amount_Fiat
+scalar Amount_Currency
+scalar Amount_Crypto
+scalar Amount
+scalar Upload
+
+type ExpenseReportState {
+  title: String
+  submitter: Person!
+  status: ExpenseStatus!
+  currency: String!
+  items: [ExpenseItem!]!
+  submittedAt: DateTime
+  decidedAt: DateTime
+  decidedBy: String
+  decisionNote: String
+  reimbursedAt: DateTime
+  reimbursementTransactionId: String
+}
+
+type Person {
+  name: String
+  email: String
+}
+
+type ExpenseItem {
+  id: OID!
+  spentAt: DateTime!
+  merchant: String!
+  category: TransactionCategory!
+  amount: Float!
+  vatAmount: Float!
+  paidWith: PaidWith!
+  receiptName: String
+  note: String
+  contactId: String
+}
+
+enum ExpenseStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  REIMBURSED
+}
+
+enum PaidWith {
+  COMPANY_CARD
+  PERSONAL
+  CASH
+}
+
+enum TransactionCategory {
+  UNCATEGORIZED
+  SALES
+  SUPPLIES
+  PAYROLL
+  RENT
+  SOFTWARE
+  TRAVEL
+  MARKETING
+  TAX
+  BANK_FEES
+  TRANSFER
+  OTHER
+}
+
+# items
+
+input SetReportDetailsInput {
+  title: String
+  submitterName: String
+  submitterEmail: String
+  currency: String
+}
+
+input AddItemInput {
+  id: OID!
+  spentAt: DateTime!
+  merchant: String!
+  category: TransactionCategory!
+  amount: Float!
+  vatAmount: Float
+  paidWith: PaidWith!
+  receiptName: String
+  note: String
+  contactId: String
+}
+
+input UpdateItemInput {
+  id: OID!
+  spentAt: DateTime
+  merchant: String
+  category: TransactionCategory
+  amount: Float
+  vatAmount: Float
+  paidWith: PaidWith
+  receiptName: String
+  note: String
+  contactId: String
+}
+
+input RemoveItemInput {
+  id: OID!
+}
+
+# approval
+
+input SubmitReportInput {
+  submittedAt: DateTime!
+}
+
+input ApproveReportInput {
+  decidedAt: DateTime!
+  decidedBy: String!
+  note: String
+}
+
+input RejectReportInput {
+  decidedAt: DateTime!
+  decidedBy: String!
+  note: String!
+}
+
+input ReimburseReportInput {
+  reimbursedAt: DateTime!
+  transactionId: String
+}

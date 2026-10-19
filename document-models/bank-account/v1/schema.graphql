@@ -1,0 +1,128 @@
+scalar Unknown
+scalar DateTime
+scalar Address
+scalar AttachmentRef
+scalar Amount_Tokens
+scalar EthereumAddress
+scalar EmailAddress
+scalar Amount_Percentage
+scalar Date
+scalar URL
+scalar Amount_Money
+scalar OLabel
+scalar Currency
+scalar PHID
+scalar OID
+scalar Amount_Fiat
+scalar Amount_Currency
+scalar Amount_Crypto
+scalar Amount
+scalar Upload
+
+type BankAccountState {
+  name: String
+  institution: String
+  iban: String
+  kind: AccountKind!
+  currency: String!
+  openingBalance: Float!
+  transactions: [Transaction!]!
+  lastImportedAt: DateTime
+}
+
+type Transaction {
+  id: OID!
+  bookedAt: DateTime!
+  amount: Float!
+  counterparty: String!
+  description: String
+  reference: String
+  category: TransactionCategory!
+  contactId: String
+  matchedDocumentId: String
+  matchedKind: MatchKind
+  status: TransactionStatus!
+  importBatch: String
+}
+
+enum AccountKind {
+  CURRENT
+  SAVINGS
+  CREDIT_CARD
+}
+
+enum MatchKind {
+  INVOICE
+  EXPENSE
+}
+
+enum TransactionStatus {
+  NEW
+  CATEGORIZED
+  MATCHED
+  EXCLUDED
+}
+
+enum TransactionCategory {
+  UNCATEGORIZED
+  SALES
+  SUPPLIES
+  PAYROLL
+  RENT
+  SOFTWARE
+  TRAVEL
+  MARKETING
+  TAX
+  BANK_FEES
+  TRANSFER
+  OTHER
+}
+
+# account
+
+input SetAccountDetailsInput {
+  name: String
+  institution: String
+  iban: String
+  kind: AccountKind
+  currency: String
+  openingBalance: Float
+}
+
+# feed
+
+input ImportTransactionsInput {
+  batchId: String!
+  importedAt: DateTime!
+  transactions: [ImportedTransactionInput!]!
+}
+
+input ImportedTransactionInput {
+  id: OID!
+  bookedAt: DateTime!
+  amount: Float!
+  counterparty: String!
+  description: String
+  reference: String
+}
+
+input CategorizeTransactionInput {
+  id: OID!
+  category: TransactionCategory!
+  contactId: String
+}
+
+input MatchTransactionInput {
+  id: OID!
+  documentId: String!
+  kind: MatchKind!
+}
+
+input UnmatchTransactionInput {
+  id: OID!
+}
+
+input ExcludeTransactionInput {
+  id: OID!
+  excluded: Boolean!
+}

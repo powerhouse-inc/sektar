@@ -1,0 +1,545 @@
+/* =============================================================================
+   Sektar Design System — Tokens
+   Source: Sektar brand guide, icon system guide, dashboard references.
+   Prefix: --sk-
+   Themes: light (default) · dark · auto (prefers-color-scheme)
+   ============================================================================= */
+
+:root {
+  color-scheme: light;
+
+  /* ---------------------------------------------------------------------------
+     1. PRIMITIVES — brand palette
+     Six named brand colours from the guide, each expanded into a working scale.
+     --------------------------------------------------------------------------- */
+
+  /* Forest — primary brand, headers, primary actions */
+  --sk-forest-50:  #EEF3EF;
+  --sk-forest-100: #DCE6DE;
+  --sk-forest-200: #B9CDBE;
+  --sk-forest-300: #8FAF98;
+  --sk-forest-400: #5F8A6C;
+  --sk-forest-500: #3B6349;
+  --sk-forest-600: #2A4D38;
+  --sk-forest-700: #1F3A2E;   /* ◉ Forest */
+  --sk-forest-800: #183024;
+  --sk-forest-900: #122A1E;
+  --sk-forest-950: #0D1411;
+
+  /* Sage — secondary, UI elements, charts */
+  --sk-sage-50:  #F1F5F1;
+  --sk-sage-100: #E1EAE2;
+  --sk-sage-200: #C4D6C6;
+  --sk-sage-300: #A6C0AA;
+  --sk-sage-400: #88A88E;
+  --sk-sage-500: #6B8F73;     /* ◉ Sage */
+  --sk-sage-600: #587A60;
+  --sk-sage-700: #46634D;
+  --sk-sage-800: #364C3B;
+  --sk-sage-900: #26362A;
+
+  /* Mint — surfaces, highlights, graphs */
+  --sk-mint-50:  #F4F8F3;
+  --sk-mint-100: #E8F0E6;
+  --sk-mint-200: #DCE8DA;
+  --sk-mint-300: #BFD7BD;     /* ◉ Mint */
+  --sk-mint-400: #A6C6A5;
+  --sk-mint-500: #8DB38E;
+
+  /* Neutrals — Cream, Stone, Charcoal live here */
+  --sk-neutral-0:   #FFFFFF;
+  --sk-neutral-50:  #F9FAF8;
+  --sk-neutral-100: #F5F7F3;  /* ◉ Cream */
+  --sk-neutral-200: #EBEFE9;
+  --sk-neutral-300: #D7DDD7;  /* ◉ Stone */
+  --sk-neutral-400: #B9C2BA;
+  --sk-neutral-500: #9BA7A1;
+  --sk-neutral-600: #7E8F84;
+  --sk-neutral-700: #566159;
+  --sk-neutral-800: #343D38;
+  --sk-neutral-900: #1A2421;  /* ◉ Charcoal */
+  --sk-neutral-950: #0F1512;
+
+  /* Named aliases (as written in the brand guide) */
+  --sk-forest:   var(--sk-forest-700);
+  --sk-sage:     var(--sk-sage-500);
+  --sk-mint:     var(--sk-mint-300);
+  --sk-cream:    var(--sk-neutral-100);
+  --sk-stone:    var(--sk-neutral-300);
+  --sk-charcoal: var(--sk-neutral-900);
+
+  /* Status primitives — kept muted and earthy to sit inside the green palette */
+  --sk-clay-500:  #B4544A;
+  --sk-clay-100:  #F6E6E3;
+  --sk-clay-700:  #8A3C34;
+  --sk-amber-500: #B8893B;
+  --sk-amber-100: #F6EEDD;
+  --sk-amber-700: #8A6424;
+
+  /* ---------------------------------------------------------------------------
+     2. TYPOGRAPHY
+     Fraunces → headings, brand wordmark, display, large numerals
+     Inter    → UI text, body copy, labels
+     --------------------------------------------------------------------------- */
+  --sk-font-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --sk-font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --sk-font-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /* Size scale (rem) */
+  --sk-text-2xs: 0.6875rem;  /* 11px — eyebrow */
+  --sk-text-xs:  0.75rem;    /* 12px */
+  --sk-text-sm:  0.8125rem;  /* 13px */
+  --sk-text-md:  0.875rem;   /* 14px — UI default */
+  --sk-text-base: 1rem;      /* 16px — body */
+  --sk-text-lg:  1.125rem;   /* 18px */
+  --sk-text-xl:  1.25rem;    /* 20px — h4 */
+  --sk-text-2xl: 1.5rem;     /* 24px — h3 */
+  --sk-text-3xl: 2rem;       /* 32px — h2 */
+  --sk-text-4xl: 2.5rem;     /* 40px — h1 */
+  --sk-text-5xl: 3rem;       /* 48px — display */
+  --sk-text-6xl: 4rem;       /* 64px — display xl */
+
+  --sk-leading-none:  1;
+  --sk-leading-tight: 1.1;
+  --sk-leading-snug:  1.25;
+  --sk-leading-normal: 1.5;
+  --sk-leading-relaxed: 1.65;
+
+  --sk-tracking-tight: -0.02em;
+  --sk-tracking-normal: 0;
+  --sk-tracking-wide: 0.04em;
+  --sk-tracking-eyebrow: 0.14em;
+
+  --sk-weight-light: 300;
+  --sk-weight-regular: 400;
+  --sk-weight-medium: 500;
+  --sk-weight-semibold: 600;
+  --sk-weight-bold: 700;
+
+  /* ---------------------------------------------------------------------------
+     3. SPACE · RADIUS · ELEVATION · MOTION
+     4px base grid. Icons: 24px grid, 20px live area.
+     --------------------------------------------------------------------------- */
+  --sk-space-0: 0;
+  --sk-space-1: 0.25rem;   /* 4 */
+  --sk-space-2: 0.5rem;    /* 8 */
+  --sk-space-3: 0.75rem;   /* 12 */
+  --sk-space-4: 1rem;      /* 16 */
+  --sk-space-5: 1.25rem;   /* 20 */
+  --sk-space-6: 1.5rem;    /* 24 */
+  --sk-space-8: 2rem;      /* 32 */
+  --sk-space-10: 2.5rem;   /* 40 */
+  --sk-space-12: 3rem;     /* 48 */
+  --sk-space-16: 4rem;     /* 64 */
+  --sk-space-20: 5rem;     /* 80 */
+  --sk-space-24: 6rem;     /* 96 */
+
+  --sk-radius-xs: 4px;
+  --sk-radius-sm: 6px;
+  --sk-radius-md: 10px;
+  --sk-radius-lg: 14px;
+  --sk-radius-xl: 20px;
+  --sk-radius-2xl: 28px;
+  --sk-radius-full: 999px;
+
+  /* Elevation — soft, slightly green-tinted shadows */
+  --sk-shadow-color: 26 36 33;
+  --sk-shadow-xs: 0 1px 2px rgb(var(--sk-shadow-color) / 0.05);
+  --sk-shadow-sm: 0 1px 2px rgb(var(--sk-shadow-color) / 0.05), 0 2px 6px rgb(var(--sk-shadow-color) / 0.05);
+  --sk-shadow-md: 0 2px 4px rgb(var(--sk-shadow-color) / 0.05), 0 8px 20px -4px rgb(var(--sk-shadow-color) / 0.10);
+  --sk-shadow-lg: 0 4px 8px rgb(var(--sk-shadow-color) / 0.06), 0 20px 40px -8px rgb(var(--sk-shadow-color) / 0.16);
+  --sk-shadow-focus: 0 0 0 3px var(--sk-focus-ring);
+
+  --sk-duration-fast: 120ms;
+  --sk-duration-base: 200ms;
+  --sk-duration-slow: 320ms;
+  --sk-ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --sk-ease-in-out: cubic-bezier(0.6, 0, 0.2, 1);
+
+  /* Icon grid */
+  --sk-icon-grid: 24px;
+  --sk-icon-live: 20px;
+  --sk-icon-radius: 2px;
+
+  /* Layout */
+  --sk-container: 1280px;
+  --sk-sidebar-w: 264px;
+  --sk-topbar-h: 72px;
+  --sk-gutter: 16px;
+
+  /* Z-index */
+  --sk-z-raised: 10;
+  --sk-z-sticky: 100;
+  --sk-z-overlay: 1000;
+  --sk-z-modal: 1100;
+  --sk-z-toast: 1200;
+
+  /* ---------------------------------------------------------------------------
+     4. SEMANTIC — LIGHT THEME
+     --------------------------------------------------------------------------- */
+  --sk-bg:             var(--sk-cream);
+  --sk-bg-subtle:      var(--sk-neutral-200);
+  --sk-surface:        var(--sk-neutral-0);
+  --sk-surface-2:      var(--sk-neutral-50);
+  --sk-surface-3:      var(--sk-mint-100);
+  --sk-surface-inverse: var(--sk-forest-800);
+  --sk-overlay:        rgb(26 36 33 / 0.5);
+
+  --sk-border:         #CBD3CB;   /* a step past Stone so inputs read on cream */
+  --sk-border-subtle:  #DBE1DA;   /* cards/dividers: ~1.33 on white, matching the dark theme's visibility */
+  --sk-border-strong:  var(--sk-neutral-400);
+
+  --sk-text:           var(--sk-charcoal);
+  --sk-text-secondary: var(--sk-neutral-700);
+  --sk-text-muted:     var(--sk-neutral-600);
+  --sk-text-disabled:  var(--sk-neutral-400);
+  --sk-text-inverse:   var(--sk-cream);
+  --sk-text-brand:     var(--sk-forest);
+  --sk-text-accent:    var(--sk-sage-600);   /* eyebrows, numerals in lists */
+  --sk-text-link:      var(--sk-forest-600);
+
+  --sk-primary:        var(--sk-forest);
+  --sk-primary-hover:  var(--sk-forest-800);
+  --sk-primary-active: var(--sk-forest-900);
+  --sk-on-primary:     var(--sk-cream);
+
+  --sk-secondary:      var(--sk-sage);
+  --sk-secondary-hover: var(--sk-sage-600);
+  --sk-on-secondary:   var(--sk-neutral-0);
+
+  --sk-accent:         var(--sk-mint);
+  --sk-accent-subtle:  var(--sk-mint-100);
+  --sk-on-accent:      var(--sk-forest);
+
+  --sk-focus-ring:     rgb(107 143 115 / 0.45);
+
+  --sk-success:        var(--sk-sage-600);
+  --sk-success-bg:     var(--sk-sage-100);
+  --sk-success-text:   var(--sk-sage-800);
+  --sk-warning:        var(--sk-amber-500);
+  --sk-warning-bg:     var(--sk-amber-100);
+  --sk-warning-text:   var(--sk-amber-700);
+  --sk-danger:         var(--sk-clay-500);
+  --sk-danger-bg:      var(--sk-clay-100);
+  --sk-danger-text:    var(--sk-clay-700);
+  --sk-info:           var(--sk-forest-500);
+  --sk-info-bg:        var(--sk-forest-50);
+  --sk-info-text:      var(--sk-forest-800);
+
+  --sk-positive:       var(--sk-sage-600);  /* numeric deltas */
+  --sk-negative:       var(--sk-neutral-600);
+
+  /* Icon tones — the layered 2–3 tone look */
+  --sk-icon-1: var(--sk-forest);
+  --sk-icon-2: var(--sk-sage-500);
+  --sk-icon-3: var(--sk-mint-300);
+  --sk-icon-3-soft: var(--sk-sage-200);   /* tone 3 for inactive nav icons */
+  --sk-icon-bg: var(--sk-mint-100);
+
+  /* Theme-aware asset switches (island-safe: driven by tokens, not :root selectors) */
+  --sk-show-light: block;                 /* .sk-logo-swap__light */
+  --sk-show-dark: none;                   /* .sk-logo-swap__dark  */
+  --sk-pattern-url: url("./shapes/sektar-pattern-repeat-light.svg");
+  --sk-banner-art-url: url("./shapes/sektar-growth-four-column-combined-light.svg");
+  /* Brand marks (sektar-symbol-light / wordmark-light / tagline fill) */
+  --sk-mark-1: #85A185;
+  --sk-mark-2: #66856A;
+  --sk-mark-3: #2A4D38;   /* Forest 600 — lifted from the kit's #1C3527 so the light symbol matches the dark colourway's balance */
+  --sk-mark-4: #183024;   /* Forest 800 — overlap, was #122A1E */
+  --sk-wordmark: #010101;
+  --sk-tagline-color: #57615C;
+
+  /* Charts */
+  --sk-chart-1: var(--sk-forest-700);
+  --sk-chart-2: var(--sk-sage-500);
+  --sk-chart-3: var(--sk-mint-300);
+  --sk-chart-4: var(--sk-forest-400);
+  --sk-chart-5: var(--sk-sage-300);
+  --sk-chart-6: var(--sk-neutral-300);
+  --sk-chart-grid: var(--sk-border-subtle);
+  --sk-chart-line: var(--sk-forest-700);
+  --sk-chart-area: linear-gradient(180deg, rgb(107 143 115 / 0.35), rgb(107 143 115 / 0));
+
+  /* Components */
+  --sk-nav-active-bg:  var(--sk-neutral-200);
+  --sk-nav-active-text: var(--sk-forest);
+  --sk-input-bg:       var(--sk-surface);
+  --sk-input-border:   var(--sk-border);
+  --sk-input-placeholder: var(--sk-neutral-500);
+  --sk-table-stripe:   var(--sk-neutral-50);
+  --sk-skeleton:       linear-gradient(90deg, var(--sk-neutral-200) 25%, var(--sk-neutral-100) 50%, var(--sk-neutral-200) 75%);
+}
+
+/* ---------------------------------------------------------------------------
+   5. SEMANTIC — DARK THEME
+   Applied when:  <html data-theme="dark">  ·  <div class="sk-theme-dark">
+   or automatically under prefers-color-scheme: dark (unless data-theme="light").
+   --------------------------------------------------------------------------- */
+:root[data-theme="dark"],
+.sk-theme-dark {
+  color-scheme: dark;
+
+  --sk-bg:             var(--sk-forest-950);
+  --sk-bg-subtle:      #111A15;
+  --sk-surface:        #141D18;
+  --sk-surface-2:      #1A251F;
+  --sk-surface-3:      #1F2D25;
+  --sk-surface-inverse: var(--sk-cream);
+  --sk-overlay:        rgb(13 20 17 / 0.7);
+
+  --sk-border:         #27352D;
+  --sk-border-subtle:  #1F2B25;
+  --sk-border-strong:  #3A4B41;
+
+  --sk-text:           #F3F5F1;
+  --sk-text-secondary: #B5C4B9;
+  --sk-text-muted:     #8A9C90;
+  --sk-text-disabled:  #536159;
+  --sk-text-inverse:   var(--sk-charcoal);
+  --sk-text-brand:     var(--sk-mint-300);
+  --sk-text-accent:    var(--sk-sage-300);   /* eyebrows, numerals in lists */
+  --sk-text-link:      var(--sk-mint-400);
+
+  --sk-primary:        var(--sk-mint-300);
+  --sk-primary-hover:  var(--sk-mint-200);
+  --sk-primary-active: var(--sk-mint-100);
+  --sk-on-primary:     var(--sk-forest-900);
+
+  --sk-secondary:      var(--sk-sage-400);
+  --sk-secondary-hover: var(--sk-sage-300);
+  --sk-on-secondary:   var(--sk-forest-950);
+
+  --sk-accent:         var(--sk-sage-500);
+  --sk-accent-subtle:  #223328;
+  --sk-on-accent:      var(--sk-mint-100);
+
+  --sk-focus-ring:     rgb(191 215 189 / 0.4);
+
+  --sk-success:        var(--sk-sage-400);
+  --sk-success-bg:     #1E3326;
+  --sk-success-text:   var(--sk-mint-300);
+  --sk-warning:        #D2A75A;
+  --sk-warning-bg:     #33291A;
+  --sk-warning-text:   #E6C98A;
+  --sk-danger:         #D07A70;
+  --sk-danger-bg:      #3A2320;
+  --sk-danger-text:    #ECAAA2;
+  --sk-info:           var(--sk-sage-300);
+  --sk-info-bg:        #1C2A22;
+  --sk-info-text:      var(--sk-mint-200);
+
+  --sk-positive:       #8FD19A;
+  --sk-negative:       var(--sk-text-muted);
+
+  --sk-icon-1: var(--sk-mint-200);
+  --sk-icon-2: var(--sk-sage-400);
+  --sk-icon-3: var(--sk-forest-500);
+  --sk-icon-3-soft: var(--sk-forest-500);
+  --sk-icon-bg: #22322A;
+
+  --sk-show-light: none;
+  --sk-show-dark: block;
+  --sk-pattern-url: url("./shapes/sektar-pattern-repeat-dark.svg");
+  --sk-banner-art-url: url("./shapes/sektar-growth-four-column-combined-dark.svg");
+  /* Brand marks (sektar-symbol-dark / wordmark-dark / tagline fill) */
+  --sk-mark-1: #AACEAC;
+  --sk-mark-2: #7CAB83;
+  --sk-mark-3: #326145;
+  --sk-mark-4: #143324;
+  --sk-wordmark: #FDFDFD;
+  --sk-tagline-color: #C4CFC9;
+
+  --sk-chart-1: var(--sk-mint-300);
+  --sk-chart-2: var(--sk-sage-400);
+  --sk-chart-3: var(--sk-forest-500);
+  --sk-chart-4: var(--sk-sage-200);
+  --sk-chart-5: var(--sk-forest-300);
+  --sk-chart-6: #3A4B41;
+  --sk-chart-grid: #22302A;
+  --sk-chart-line: var(--sk-mint-200);
+  --sk-chart-area: linear-gradient(180deg, rgb(191 215 189 / 0.28), rgb(191 215 189 / 0));
+
+  --sk-shadow-color: 0 0 0;
+  --sk-nav-active-bg:  #1F2D25;
+  --sk-nav-active-text: var(--sk-mint-200);
+  --sk-input-bg:       #111A15;
+  --sk-input-border:   #2B3A31;
+  --sk-input-placeholder: #6E8075;
+  --sk-table-stripe:   #171f1b;
+  --sk-skeleton:       linear-gradient(90deg, #1F2B25 25%, #26352D 50%, #1F2B25 75%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --sk-bg:             var(--sk-forest-950);
+    --sk-bg-subtle:      #111A15;
+    --sk-surface:        #141D18;
+    --sk-surface-2:      #1A251F;
+    --sk-surface-3:      #1F2D25;
+    --sk-surface-inverse: var(--sk-cream);
+    --sk-overlay:        rgb(13 20 17 / 0.7);
+
+    --sk-border:         #27352D;
+    --sk-border-subtle:  #1F2B25;
+    --sk-border-strong:  #3A4B41;
+
+    --sk-text:           #F3F5F1;
+    --sk-text-secondary: #B5C4B9;
+    --sk-text-muted:     #8A9C90;
+    --sk-text-disabled:  #536159;
+    --sk-text-inverse:   var(--sk-charcoal);
+    --sk-text-brand:     var(--sk-mint-300);
+    --sk-text-accent:    var(--sk-sage-300);   /* eyebrows, numerals in lists */
+    --sk-text-link:      var(--sk-mint-400);
+
+    --sk-primary:        var(--sk-mint-300);
+    --sk-primary-hover:  var(--sk-mint-200);
+    --sk-primary-active: var(--sk-mint-100);
+    --sk-on-primary:     var(--sk-forest-900);
+
+    --sk-secondary:      var(--sk-sage-400);
+    --sk-secondary-hover: var(--sk-sage-300);
+    --sk-on-secondary:   var(--sk-forest-950);
+
+    --sk-accent:         var(--sk-sage-500);
+    --sk-accent-subtle:  #223328;
+    --sk-on-accent:      var(--sk-mint-100);
+
+    --sk-focus-ring:     rgb(191 215 189 / 0.4);
+
+    --sk-success:        var(--sk-sage-400);
+    --sk-success-bg:     #1E3326;
+    --sk-success-text:   var(--sk-mint-300);
+    --sk-warning:        #D2A75A;
+    --sk-warning-bg:     #33291A;
+    --sk-warning-text:   #E6C98A;
+    --sk-danger:         #D07A70;
+    --sk-danger-bg:      #3A2320;
+    --sk-danger-text:    #ECAAA2;
+    --sk-info:           var(--sk-sage-300);
+    --sk-info-bg:        #1C2A22;
+    --sk-info-text:      var(--sk-mint-200);
+
+    --sk-positive:       #8FD19A;
+    --sk-negative:       var(--sk-text-muted);
+
+    --sk-icon-1: var(--sk-mint-200);
+    --sk-icon-2: var(--sk-sage-400);
+    --sk-icon-3: var(--sk-forest-500);
+    --sk-icon-3-soft: var(--sk-forest-500);
+    --sk-icon-bg: #22322A;
+
+    --sk-show-light: none;
+    --sk-show-dark: block;
+    --sk-pattern-url: url("./shapes/sektar-pattern-repeat-dark.svg");
+    --sk-banner-art-url: url("./shapes/sektar-growth-four-column-combined-dark.svg");
+    /* Brand marks (sektar-symbol-dark / wordmark-dark / tagline fill) */
+    --sk-mark-1: #AACEAC;
+    --sk-mark-2: #7CAB83;
+    --sk-mark-3: #326145;
+    --sk-mark-4: #143324;
+    --sk-wordmark: #FDFDFD;
+    --sk-tagline-color: #C4CFC9;
+
+    --sk-chart-1: var(--sk-mint-300);
+    --sk-chart-2: var(--sk-sage-400);
+    --sk-chart-3: var(--sk-forest-500);
+    --sk-chart-4: var(--sk-sage-200);
+    --sk-chart-5: var(--sk-forest-300);
+    --sk-chart-6: #3A4B41;
+    --sk-chart-grid: #22302A;
+    --sk-chart-line: var(--sk-mint-200);
+    --sk-chart-area: linear-gradient(180deg, rgb(191 215 189 / 0.28), rgb(191 215 189 / 0));
+
+    --sk-shadow-color: 0 0 0;
+    --sk-nav-active-bg:  #1F2D25;
+    --sk-nav-active-text: var(--sk-mint-200);
+    --sk-input-bg:       #111A15;
+    --sk-input-border:   #2B3A31;
+    --sk-input-placeholder: #6E8075;
+    --sk-table-stripe:   #171f1b;
+    --sk-skeleton:       linear-gradient(90deg, #1F2B25 25%, #26352D 50%, #1F2B25 75%);
+  }
+}
+
+/* Force a light island inside a dark page (e.g. docs previews) */
+.sk-theme-light {
+  color-scheme: light;
+  --sk-bg: var(--sk-cream);
+  --sk-bg-subtle: var(--sk-neutral-200);
+  --sk-surface: var(--sk-neutral-0);
+  --sk-surface-2: var(--sk-neutral-50);
+  --sk-surface-3: var(--sk-mint-100);
+  --sk-surface-inverse: var(--sk-forest-800);
+  --sk-border: #CBD3CB;
+  --sk-border-subtle: #DBE1DA;
+  --sk-border-strong: var(--sk-neutral-400);
+  --sk-text: var(--sk-charcoal);
+  --sk-text-secondary: var(--sk-neutral-700);
+  --sk-text-muted: var(--sk-neutral-600);
+  --sk-text-disabled: var(--sk-neutral-400);
+  --sk-text-inverse: var(--sk-cream);
+  --sk-text-brand: var(--sk-forest);
+  --sk-text-accent:    var(--sk-sage-600);   /* eyebrows, numerals in lists */
+  --sk-text-link: var(--sk-forest-600);
+  --sk-primary: var(--sk-forest);
+  --sk-primary-hover: var(--sk-forest-800);
+  --sk-primary-active: var(--sk-forest-900);
+  --sk-on-primary: var(--sk-cream);
+  --sk-secondary: var(--sk-sage);
+  --sk-secondary-hover: var(--sk-sage-600);
+  --sk-on-secondary: var(--sk-neutral-0);
+  --sk-accent: var(--sk-mint);
+  --sk-accent-subtle: var(--sk-mint-100);
+  --sk-on-accent: var(--sk-forest);
+  --sk-focus-ring: rgb(107 143 115 / 0.45);
+  --sk-success: var(--sk-sage-600);
+  --sk-success-bg: var(--sk-sage-100);
+  --sk-success-text: var(--sk-sage-800);
+  --sk-warning: var(--sk-amber-500);
+  --sk-warning-bg: var(--sk-amber-100);
+  --sk-warning-text: var(--sk-amber-700);
+  --sk-danger: var(--sk-clay-500);
+  --sk-danger-bg: var(--sk-clay-100);
+  --sk-danger-text: var(--sk-clay-700);
+  --sk-info: var(--sk-forest-500);
+  --sk-info-bg: var(--sk-forest-50);
+  --sk-info-text: var(--sk-forest-800);
+  --sk-positive: var(--sk-sage-600);
+  --sk-negative: var(--sk-neutral-600);
+  --sk-icon-1: var(--sk-forest);
+  --sk-icon-2: var(--sk-sage-500);
+  --sk-icon-3: var(--sk-mint-300);
+  --sk-icon-3-soft: var(--sk-sage-200);
+  --sk-icon-bg: var(--sk-mint-100);
+  --sk-show-light: block;
+  --sk-show-dark: none;
+  --sk-pattern-url: url("./shapes/sektar-pattern-repeat-light.svg");
+  --sk-banner-art-url: url("./shapes/sektar-growth-four-column-combined-light.svg");
+  /* Brand marks (sektar-symbol-light / wordmark-light / tagline fill) */
+  --sk-mark-1: #85A185;
+  --sk-mark-2: #66856A;
+  --sk-mark-3: #2A4D38;   /* Forest 600 — lifted from the kit's #1C3527 so the light symbol matches the dark colourway's balance */
+  --sk-mark-4: #183024;   /* Forest 800 — overlap, was #122A1E */
+  --sk-wordmark: #010101;
+  --sk-tagline-color: #57615C;
+  --sk-chart-1: var(--sk-forest-700);
+  --sk-chart-2: var(--sk-sage-500);
+  --sk-chart-3: var(--sk-mint-300);
+  --sk-chart-4: var(--sk-forest-400);
+  --sk-chart-5: var(--sk-sage-300);
+  --sk-chart-6: var(--sk-neutral-300);
+  --sk-chart-grid: var(--sk-border-subtle);
+  --sk-chart-line: var(--sk-forest-700);
+  --sk-chart-area: linear-gradient(180deg, rgb(107 143 115 / 0.35), rgb(107 143 115 / 0));
+  --sk-shadow-color: 26 36 33;
+  --sk-nav-active-bg: var(--sk-neutral-200);
+  --sk-nav-active-text: var(--sk-forest);
+  --sk-input-bg: var(--sk-surface);
+  --sk-input-border: var(--sk-border);
+  --sk-input-placeholder: var(--sk-neutral-500);
+  --sk-table-stripe: var(--sk-neutral-50);
+  --sk-skeleton: linear-gradient(90deg, var(--sk-neutral-200) 25%, var(--sk-neutral-100) 50%, var(--sk-neutral-200) 75%);
+}

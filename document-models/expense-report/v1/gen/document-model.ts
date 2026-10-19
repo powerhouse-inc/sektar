@@ -1,0 +1,250 @@
+import type { DocumentModelGlobalState } from "document-model";
+
+export const documentModel: DocumentModelGlobalState = {
+  id: "sektar/expense-report",
+  name: "Expense Report",
+  author: {
+    name: "Sektar",
+    website: "https://sektar.example",
+  },
+  extension: "exp",
+  description:
+    "An employee's expense claim: receipts grouped into a report that is submitted, approved and reimbursed.",
+  specifications: [
+    {
+      version: 1,
+      changeLog: [],
+      state: {
+        global: {
+          schema:
+            "type ExpenseReportState {\n  title: String\n  submitter: Person!\n  status: ExpenseStatus!\n  currency: String!\n  items: [ExpenseItem!]!\n  submittedAt: DateTime\n  decidedAt: DateTime\n  decidedBy: String\n  decisionNote: String\n  reimbursedAt: DateTime\n  reimbursementTransactionId: String\n}\n\ntype Person {\n  name: String\n  email: String\n}\n\ntype ExpenseItem {\n  id: OID!\n  spentAt: DateTime!\n  merchant: String!\n  category: TransactionCategory!\n  amount: Float!\n  vatAmount: Float!\n  paidWith: PaidWith!\n  receiptName: String\n  note: String\n  contactId: String\n}\n\nenum ExpenseStatus {\n  DRAFT\n  SUBMITTED\n  APPROVED\n  REJECTED\n  REIMBURSED\n}\n\nenum PaidWith {\n  COMPANY_CARD\n  PERSONAL\n  CASH\n}\n\nenum TransactionCategory {\n  UNCATEGORIZED\n  SALES\n  SUPPLIES\n  PAYROLL\n  RENT\n  SOFTWARE\n  TRAVEL\n  MARKETING\n  TAX\n  BANK_FEES\n  TRANSFER\n  OTHER\n}",
+          initialValue:
+            '{"title": null, "submitter": {"name": null, "email": null}, "status": "DRAFT", "currency": "EUR", "items": [], "submittedAt": null, "decidedAt": null, "decidedBy": null, "decisionNote": null, "reimbursedAt": null, "reimbursementTransactionId": null}',
+          examples: [],
+        },
+        local: {
+          schema: "",
+          initialValue: "",
+          examples: [],
+        },
+      },
+      modules: [
+        {
+          id: "91cc0b07-583a-4c7f-9669-c0282ce2f876",
+          name: "items",
+          description: "Receipts on the report",
+          operations: [
+            {
+              id: "c8875010-cf98-4cba-8908-8e2503830ae3",
+              name: "SET_REPORT_DETAILS",
+              description: "",
+              schema:
+                "input SetReportDetailsInput {\n  title: String\n  submitterName: String\n  submitterEmail: String\n  currency: String\n}",
+              template: "",
+              reducer:
+                'if (state.status !== "DRAFT" && state.status !== "REJECTED") throw new ReportLockedError("The report is submitted");\nif (action.input.title !== undefined) state.title = action.input.title;\nif (action.input.submitterName !== undefined) state.submitter.name = action.input.submitterName;\nif (action.input.submitterEmail !== undefined) state.submitter.email = action.input.submitterEmail;\nif (action.input.currency !== undefined && action.input.currency !== null) state.currency = action.input.currency;',
+              errors: [
+                {
+                  id: "c88d9df0-9dc4-4296-8b25-e08612af32a6",
+                  code: "REPORT_LOCKED",
+                  name: "ReportLockedError",
+                  description: "The report is no longer editable",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+            {
+              id: "6fcaf991-665b-462b-aebf-007a384e6e79",
+              name: "ADD_ITEM",
+              description: "",
+              schema:
+                "input AddItemInput {\n  id: OID!\n  spentAt: DateTime!\n  merchant: String!\n  category: TransactionCategory!\n  amount: Float!\n  vatAmount: Float\n  paidWith: PaidWith!\n  receiptName: String\n  note: String\n  contactId: String\n}",
+              template: "",
+              reducer:
+                'if (state.status !== "DRAFT" && state.status !== "REJECTED") throw new ReportLockedError("The report is submitted");\nif (action.input.amount <= 0) throw new InvalidAmountError("An expense must be positive");\nstate.items.push({\n  id: action.input.id,\n  spentAt: action.input.spentAt,\n  merchant: action.input.merchant,\n  category: action.input.category,\n  amount: action.input.amount,\n  vatAmount: action.input.vatAmount ?? 0,\n  paidWith: action.input.paidWith,\n  receiptName: action.input.receiptName || null,\n  note: action.input.note || null,\n  contactId: action.input.contactId || null,\n});',
+              errors: [
+                {
+                  id: "fab7ed20-b5af-4e9d-8a62-0fd288a30280",
+                  code: "REPORT_LOCKED",
+                  name: "ReportLockedError",
+                  description: "The report is no longer editable",
+                  template: "",
+                },
+                {
+                  id: "54ec0d11-49cd-4dbe-98e5-17c6d3b90fc5",
+                  code: "INVALID_AMOUNT",
+                  name: "InvalidAmountError",
+                  description: "The amount is not positive",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+            {
+              id: "b1094d9c-2511-4d73-969c-1235af765441",
+              name: "UPDATE_ITEM",
+              description: "",
+              schema:
+                "input UpdateItemInput {\n  id: OID!\n  spentAt: DateTime\n  merchant: String\n  category: TransactionCategory\n  amount: Float\n  vatAmount: Float\n  paidWith: PaidWith\n  receiptName: String\n  note: String\n  contactId: String\n}",
+              template: "",
+              reducer:
+                'if (state.status !== "DRAFT" && state.status !== "REJECTED") throw new ReportLockedError("The report is submitted");\nconst item = state.items.find((it) => it.id === action.input.id);\nif (!item) throw new ItemNotFoundError(`Item ${action.input.id} not found`);\nconst i = action.input;\nif (i.amount !== undefined && i.amount !== null) {\n  if (i.amount <= 0) throw new InvalidAmountError("An expense must be positive");\n  item.amount = i.amount;\n}\nif (i.spentAt !== undefined && i.spentAt !== null) item.spentAt = i.spentAt;\nif (i.merchant !== undefined && i.merchant !== null) item.merchant = i.merchant;\nif (i.category !== undefined && i.category !== null) item.category = i.category;\nif (i.vatAmount !== undefined && i.vatAmount !== null) item.vatAmount = i.vatAmount;\nif (i.paidWith !== undefined && i.paidWith !== null) item.paidWith = i.paidWith;\nif (i.receiptName !== undefined) item.receiptName = i.receiptName;\nif (i.note !== undefined) item.note = i.note;\nif (i.contactId !== undefined) item.contactId = i.contactId;',
+              errors: [
+                {
+                  id: "38875735-15a6-4b66-8203-a8d6452d487e",
+                  code: "REPORT_LOCKED",
+                  name: "ReportLockedError",
+                  description: "The report is no longer editable",
+                  template: "",
+                },
+                {
+                  id: "637364a4-33ad-4c6f-9f1c-00ba61b7c982",
+                  code: "ITEM_NOT_FOUND",
+                  name: "ItemNotFoundError",
+                  description: "No item with that id",
+                  template: "",
+                },
+                {
+                  id: "da8924af-ff0d-4bd7-8945-f9370015dfa0",
+                  code: "INVALID_AMOUNT",
+                  name: "InvalidAmountError",
+                  description: "The amount is not positive",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+            {
+              id: "f5ab43b6-6b9b-4b81-b037-db33ea4844be",
+              name: "REMOVE_ITEM",
+              description: "",
+              schema: "input RemoveItemInput {\n  id: OID!\n}",
+              template: "",
+              reducer:
+                'if (state.status !== "DRAFT" && state.status !== "REJECTED") throw new ReportLockedError("The report is submitted");\nconst index = state.items.findIndex((it) => it.id === action.input.id);\nif (index === -1) throw new ItemNotFoundError(`Item ${action.input.id} not found`);\nstate.items.splice(index, 1);',
+              errors: [
+                {
+                  id: "80eda3b7-0c33-4179-a48e-2f4a60da9170",
+                  code: "REPORT_LOCKED",
+                  name: "ReportLockedError",
+                  description: "The report is no longer editable",
+                  template: "",
+                },
+                {
+                  id: "d0c577ef-9252-4683-b5f0-e9c1ad2a0bc7",
+                  code: "ITEM_NOT_FOUND",
+                  name: "ItemNotFoundError",
+                  description: "No item with that id",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+          ],
+        },
+        {
+          id: "23376853-4ca0-4898-99d9-76c0e3395658",
+          name: "approval",
+          description: "Submit, decide, reimburse",
+          operations: [
+            {
+              id: "4cc0b25f-2e48-458d-b4fa-c74d375d095a",
+              name: "SUBMIT_REPORT",
+              description: "",
+              schema: "input SubmitReportInput {\n  submittedAt: DateTime!\n}",
+              template: "",
+              reducer:
+                'if (state.status !== "DRAFT" && state.status !== "REJECTED") throw new ReportLockedError("The report is already submitted");\nif (state.items.length === 0) throw new NoItemsError("Add at least one expense before submitting");\nstate.status = "SUBMITTED";\nstate.submittedAt = action.input.submittedAt;\nstate.decidedAt = null;\nstate.decidedBy = null;\nstate.decisionNote = null;',
+              errors: [
+                {
+                  id: "bf04d150-d2e6-482f-9950-38fc4784af34",
+                  code: "REPORT_LOCKED",
+                  name: "ReportLockedError",
+                  description: "The report is already submitted",
+                  template: "",
+                },
+                {
+                  id: "4bfd6d05-c8ff-41c1-bb62-5952f8d785ed",
+                  code: "NO_ITEMS",
+                  name: "NoItemsError",
+                  description: "The report has no items",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+            {
+              id: "74b103f6-408d-461e-8f63-f2e328185d02",
+              name: "APPROVE_REPORT",
+              description: "",
+              schema:
+                "input ApproveReportInput {\n  decidedAt: DateTime!\n  decidedBy: String!\n  note: String\n}",
+              template: "",
+              reducer:
+                'if (state.status !== "SUBMITTED") throw new ReportNotSubmittedError("Only a submitted report can be approved");\nstate.status = "APPROVED";\nstate.decidedAt = action.input.decidedAt;\nstate.decidedBy = action.input.decidedBy;\nstate.decisionNote = action.input.note || null;',
+              errors: [
+                {
+                  id: "5ad6dfc5-f4ba-4dd4-8b6e-935a17b772d8",
+                  code: "REPORT_NOT_SUBMITTED",
+                  name: "ReportNotSubmittedError",
+                  description: "The report is not awaiting a decision",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+            {
+              id: "74fedb57-ed54-4c6c-b234-fe10baa89990",
+              name: "REJECT_REPORT",
+              description: "",
+              schema:
+                "input RejectReportInput {\n  decidedAt: DateTime!\n  decidedBy: String!\n  note: String!\n}",
+              template: "",
+              reducer:
+                'if (state.status !== "SUBMITTED") throw new ReportNotSubmittedError("Only a submitted report can be rejected");\nstate.status = "REJECTED";\nstate.decidedAt = action.input.decidedAt;\nstate.decidedBy = action.input.decidedBy;\nstate.decisionNote = action.input.note;',
+              errors: [
+                {
+                  id: "c05bf659-0b10-4679-9cdd-23ea6c1e91ac",
+                  code: "REPORT_NOT_SUBMITTED",
+                  name: "ReportNotSubmittedError",
+                  description: "The report is not awaiting a decision",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+            {
+              id: "1562b4dd-0d66-4ca4-9774-fa8619907e1f",
+              name: "REIMBURSE_REPORT",
+              description: "",
+              schema:
+                "input ReimburseReportInput {\n  reimbursedAt: DateTime!\n  transactionId: String\n}",
+              template: "",
+              reducer:
+                'if (state.status !== "APPROVED") throw new ReportNotApprovedError("Only an approved report can be reimbursed");\nstate.status = "REIMBURSED";\nstate.reimbursedAt = action.input.reimbursedAt;\nstate.reimbursementTransactionId = action.input.transactionId || null;',
+              errors: [
+                {
+                  id: "f88e1e4c-3c5c-4aaf-af2a-9c355f2b0996",
+                  code: "REPORT_NOT_APPROVED",
+                  name: "ReportNotApprovedError",
+                  description: "The report is not approved",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};

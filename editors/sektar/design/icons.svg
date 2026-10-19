@@ -1,0 +1,233 @@
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <!--
+    Sektar icon sprite · 24×24 grid · 20×20 live area · 2px padding · 2–3 tones
+    Tones are CSS custom properties so every icon recolours with the theme:
+      - -sk-icon-1  primary (Forest on light, Mint on dark)
+      - -sk-icon-2  secondary (Sage)
+      - -sk-icon-3  highlight (Mint on light, deep Forest on dark)
+    Usage:  <svg class="sk-icon"><use href="#i-dashboard"/></svg>
+  -->
+
+  <!-- Finance -->
+  <symbol id="i-dashboard" viewBox="0 0 24 24">
+    <rect x="3" y="14" width="5" height="7" rx="1.5" style="fill:var(--sk-icon-3)"/>
+    <rect x="9.5" y="9" width="5" height="12" rx="1.5" style="fill:var(--sk-icon-2)"/>
+    <path d="M16 4.5A1.5 1.5 0 0 1 17.5 3H19.5A1.5 1.5 0 0 1 21 4.5V19.5a1.5 1.5 0 0 1-1.5 1.5h-2A1.5 1.5 0 0 1 16 19.5z" style="fill:var(--sk-icon-1)"/>
+  </symbol>
+
+  <symbol id="i-growth" viewBox="0 0 24 24">
+    <path d="M3 21v-3.5c0-3 1.5-5.2 4.5-6v9.5z" style="fill:var(--sk-icon-3)"/>
+    <path d="M9 21V13c0-3.6 1.6-6.4 5-7.4V21z" style="fill:var(--sk-icon-2)"/>
+    <path d="M15.5 21V9.8C15.5 5.6 17.8 3.4 21 3v8.5c0 5-2.2 8.5-5.5 9.5z" style="fill:var(--sk-icon-1)"/>
+  </symbol>
+
+  <symbol id="i-transactions" viewBox="0 0 24 24">
+    <path d="M2.5 6.5h9.5V3.5L18.5 8 12 12.5V9.5H2.5a1 1 0 0 1-1-1v-1a1 1 0 0 1 1-1z" style="fill:var(--sk-icon-1)"/>
+    <path d="M21.5 17.5H12v3L5.5 16 12 11.5v3h9.5a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1z" style="fill:var(--sk-icon-2)"/>
+  </symbol>
+
+  <symbol id="i-invoice" viewBox="0 0 24 24">
+    <path d="M6 2h8l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" style="fill:var(--sk-icon-2)"/>
+    <path d="M14 2v4a1 1 0 0 0 1 1h4z" style="fill:var(--sk-icon-1)"/>
+    <rect x="7" y="11" width="8" height="1.7" rx=".85" style="fill:var(--sk-icon-3)"/>
+    <rect x="7" y="14.5" width="10" height="1.7" rx=".85" style="fill:var(--sk-icon-3)"/>
+    <rect x="7" y="18" width="6" height="1.7" rx=".85" style="fill:var(--sk-icon-3)"/>
+  </symbol>
+
+  <symbol id="i-card" viewBox="0 0 24 24">
+    <rect x="2" y="5" width="20" height="14" rx="2.5" style="fill:var(--sk-icon-2)"/>
+    <rect x="2" y="8.5" width="20" height="3" style="fill:var(--sk-icon-1)"/>
+    <rect x="5" y="14" width="5" height="2" rx="1" style="fill:var(--sk-icon-3)"/>
+  </symbol>
+
+  <symbol id="i-wallet" viewBox="0 0 24 24">
+    <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h11A2.5 2.5 0 0 1 19 7.5V8H5.5A2.5 2.5 0 0 1 3 7.5z" style="fill:var(--sk-icon-1)"/>
+    <rect x="3" y="7" width="18" height="13" rx="2.5" style="fill:var(--sk-icon-2)"/>
+    <path d="M15 12h6v5h-6a2.5 2.5 0 0 1 0-5z" style="fill:var(--sk-icon-3)"/>
+  </symbol>
+
+  <symbol id="i-customers" viewBox="0 0 24 24">
+    <circle cx="16.5" cy="8.5" r="3" style="fill:var(--sk-icon-2)"/>
+    <path d="M14.5 21v-.5a8.5 8.5 0 0 0-2.4-5.9A5.5 5.5 0 0 1 22 19.5v1.5z" style="fill:var(--sk-icon-2)"/>
+    <circle cx="9" cy="8" r="3.6" style="fill:var(--sk-icon-1)"/>
+    <path d="M2.5 20.2a6.5 6.5 0 0 1 13 0v.8h-13z" style="fill:var(--sk-icon-1)"/>
+  </symbol>
+
+  <symbol id="i-reports" viewBox="0 0 24 24">
+    <rect x="3" y="11" width="5" height="10" rx="1.5" style="fill:var(--sk-icon-2)"/>
+    <rect x="9.5" y="4" width="5" height="17" rx="1.5" style="fill:var(--sk-icon-1)"/>
+    <rect x="16" y="14" width="5" height="7" rx="1.5" style="fill:var(--sk-icon-3)"/>
+  </symbol>
+
+  <symbol id="i-trends" viewBox="0 0 24 24">
+    <path d="M3 17l5-6 4 3 5-7 4 3V21H3z" style="fill:var(--sk-icon-3)"/>
+    <path d="M3 17l5-6 4 3 5-7 4 3" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--sk-icon-1)"/>
+  </symbol>
+
+  <symbol id="i-pie" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9.5" style="fill:var(--sk-icon-3)"/>
+    <path d="M12 12h9.5A9.5 9.5 0 0 1 12 21.5z" style="fill:var(--sk-icon-2)"/>
+    <path d="M12 2.5a9.5 9.5 0 0 1 9.5 9.5H12z" style="fill:var(--sk-icon-1)"/>
+  </symbol>
+
+  <symbol id="i-tax" viewBox="0 0 24 24">
+    <path d="M10.3 4.2a2 2 0 0 1 3.4 0l8 14A2 2 0 0 1 20 21H4a2 2 0 0 1-1.7-2.8z" style="fill:var(--sk-icon-1)"/>
+    <rect x="11" y="9" width="2" height="6" rx="1" style="fill:var(--sk-icon-3)"/>
+    <circle cx="12" cy="17.6" r="1.2" style="fill:var(--sk-icon-3)"/>
+  </symbol>
+
+  <symbol id="i-bank" viewBox="0 0 24 24">
+    <path d="M11.2 2.6a1.5 1.5 0 0 1 1.6 0l8.2 4.8c.9.5.5 1.8-.5 1.8H3.5c-1 0-1.4-1.3-.5-1.8z" style="fill:var(--sk-icon-1)"/>
+    <rect x="4" y="10.5" width="2.6" height="7" style="fill:var(--sk-icon-2)"/>
+    <rect x="8.6" y="10.5" width="2.6" height="7" style="fill:var(--sk-icon-2)"/>
+    <rect x="12.8" y="10.5" width="2.6" height="7" style="fill:var(--sk-icon-2)"/>
+    <rect x="17.4" y="10.5" width="2.6" height="7" style="fill:var(--sk-icon-2)"/>
+    <rect x="2" y="18.5" width="20" height="2.8" rx="1.2" style="fill:var(--sk-icon-1)"/>
+  </symbol>
+
+  <symbol id="i-cart" viewBox="0 0 24 24">
+    <path d="M6.6 6.5h14.1a.8.8 0 0 1 .8 1l-1.9 6.4a1 1 0 0 1-1 .7H8.4z" style="fill:var(--sk-icon-1)"/>
+    <path d="M2.5 3.5h2.6l3.1 10.7H17" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--sk-icon-1)"/>
+    <circle cx="9.5" cy="19" r="1.8" style="fill:var(--sk-icon-2)"/>
+    <circle cx="16.5" cy="19" r="1.8" style="fill:var(--sk-icon-2)"/>
+  </symbol>
+
+  <symbol id="i-shield" viewBox="0 0 24 24">
+    <path d="M12 2.5 20 5.5v6c0 4.8-3.4 8.6-8 10-4.6-1.4-8-5.2-8-10v-6z" style="fill:var(--sk-icon-2)"/>
+    <path d="M12 2.5v19c4.6-1.4 8-5.2 8-10v-6z" style="fill:var(--sk-icon-1)"/>
+  </symbol>
+
+  <!-- Files & communication -->
+  <symbol id="i-folder" viewBox="0 0 24 24">
+    <path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h4.2c.6 0 1.2.3 1.6.7l1.5 1.3h5.7A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z" style="fill:var(--sk-icon-1)"/>
+    <rect x="3" y="10" width="18" height="10" rx="2.5" style="fill:var(--sk-icon-2)"/>
+  </symbol>
+
+  <symbol id="i-mail" viewBox="0 0 24 24">
+    <rect x="2.5" y="5" width="19" height="14" rx="2.5" style="fill:var(--sk-icon-2)"/>
+    <path d="M2.5 7.5 12 13.6l9.5-6.1A2.5 2.5 0 0 0 19 5H5a2.5 2.5 0 0 0-2.5 2.5z" style="fill:var(--sk-icon-1)"/>
+  </symbol>
+
+  <symbol id="i-calendar" viewBox="0 0 24 24">
+    <rect x="3" y="4.5" width="18" height="16.5" rx="2.5" style="fill:var(--sk-icon-2)"/>
+    <path d="M3 7a2.5 2.5 0 0 1 2.5-2.5h13A2.5 2.5 0 0 1 21 7v3H3z" style="fill:var(--sk-icon-1)"/>
+    <rect x="6.5" y="2.5" width="2.2" height="4.5" rx="1.1" style="fill:var(--sk-icon-1)"/>
+    <rect x="15.3" y="2.5" width="2.2" height="4.5" rx="1.1" style="fill:var(--sk-icon-1)"/>
+    <circle cx="8" cy="14" r="1.15" style="fill:var(--sk-icon-3)"/>
+    <circle cx="12" cy="14" r="1.15" style="fill:var(--sk-icon-3)"/>
+    <circle cx="16" cy="14" r="1.15" style="fill:var(--sk-icon-3)"/>
+    <circle cx="8" cy="17.6" r="1.15" style="fill:var(--sk-icon-3)"/>
+    <circle cx="12" cy="17.6" r="1.15" style="fill:var(--sk-icon-3)"/>
+  </symbol>
+
+  <symbol id="i-bell" viewBox="0 0 24 24">
+    <path d="M12 2.5a6 6 0 0 0-6 6v3.2c0 .8-.3 1.6-.8 2.2L4 16a1 1 0 0 0 .8 1.6h14.4A1 1 0 0 0 20 16l-1.2-2.1a3.5 3.5 0 0 1-.8-2.2V8.5a6 6 0 0 0-6-6z" style="fill:var(--sk-icon-1)"/>
+    <path d="M9.3 19.2a2.7 2.7 0 0 0 5.4 0z" style="fill:var(--sk-icon-2)"/>
+  </symbol>
+
+  <symbol id="i-upload" viewBox="0 0 24 24">
+    <rect x="3" y="16" width="18" height="5" rx="2" style="fill:var(--sk-icon-2)"/>
+    <path d="M12 2.5l5.8 5.8h-3.6V15h-4.4V8.3H6.2z" style="fill:var(--sk-icon-1)"/>
+  </symbol>
+
+  <symbol id="i-download" viewBox="0 0 24 24">
+    <rect x="3" y="16" width="18" height="5" rx="2" style="fill:var(--sk-icon-2)"/>
+    <path d="M12 15.2 6.2 9.4h3.6V2.7h4.4v6.7h3.6z" style="fill:var(--sk-icon-1)"/>
+  </symbol>
+
+  <!-- System -->
+  <symbol id="i-settings" viewBox="0 0 24 24">
+    <g style="fill:var(--sk-icon-1)">
+      <rect x="10.5" y="2" width="3" height="4.5" rx="1.2"/>
+      <rect x="10.5" y="2" width="3" height="4.5" rx="1.2" transform="rotate(45 12 12)"/>
+      <rect x="10.5" y="2" width="3" height="4.5" rx="1.2" transform="rotate(90 12 12)"/>
+      <rect x="10.5" y="2" width="3" height="4.5" rx="1.2" transform="rotate(135 12 12)"/>
+      <rect x="10.5" y="2" width="3" height="4.5" rx="1.2" transform="rotate(180 12 12)"/>
+      <rect x="10.5" y="2" width="3" height="4.5" rx="1.2" transform="rotate(225 12 12)"/>
+      <rect x="10.5" y="2" width="3" height="4.5" rx="1.2" transform="rotate(270 12 12)"/>
+      <rect x="10.5" y="2" width="3" height="4.5" rx="1.2" transform="rotate(315 12 12)"/>
+      <circle cx="12" cy="12" r="7"/>
+    </g>
+    <circle cx="12" cy="12" r="3.2" style="fill:var(--sk-icon-3)"/>
+  </symbol>
+
+  <symbol id="i-help" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="10" style="fill:var(--sk-icon-1)"/>
+    <path d="M9.2 9.6a2.8 2.8 0 1 1 4.1 2.5c-.8.4-1.3 1-1.3 1.9v.4" fill="none" stroke-width="2.1" stroke-linecap="round" style="stroke:var(--sk-icon-3)"/>
+    <circle cx="12" cy="17.4" r="1.25" style="fill:var(--sk-icon-3)"/>
+  </symbol>
+
+  <symbol id="i-search" viewBox="0 0 24 24">
+    <circle cx="10.5" cy="10.5" r="7.5" style="fill:var(--sk-icon-1)"/>
+    <circle cx="10.5" cy="10.5" r="4.6" style="fill:var(--sk-icon-3)"/>
+    <rect x="16.2" y="14.6" width="3.2" height="7.6" rx="1.6" transform="rotate(-45 17.8 18.4)" style="fill:var(--sk-icon-2)"/>
+  </symbol>
+
+  <symbol id="i-plus" viewBox="0 0 24 24">
+    <rect x="10.4" y="4" width="3.2" height="16" rx="1.6" style="fill:var(--sk-icon-1)"/>
+    <rect x="4" y="10.4" width="16" height="3.2" rx="1.6" style="fill:var(--sk-icon-1)"/>
+  </symbol>
+
+  <symbol id="i-plus-circle" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="10" style="fill:var(--sk-icon-1)"/>
+    <rect x="10.7" y="6.5" width="2.6" height="11" rx="1.3" style="fill:var(--sk-icon-3)"/>
+    <rect x="6.5" y="10.7" width="11" height="2.6" rx="1.3" style="fill:var(--sk-icon-3)"/>
+  </symbol>
+
+  <symbol id="i-leaf" viewBox="0 0 24 24">
+    <path d="M20.5 3.5C10 3.5 3.5 10 3.5 20.5c10.5 0 17-6.5 17-17z" style="fill:var(--sk-icon-1)"/>
+    <path d="M3.5 20.5C7 14.5 12 9.5 20.5 3.5" fill="none" stroke-width="1.6" stroke-linecap="round" style="stroke:var(--sk-icon-3)"/>
+  </symbol>
+
+  <symbol id="i-sun" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="4.2" style="fill:var(--sk-icon-1)"/>
+    <g fill="none" stroke-width="2" stroke-linecap="round" style="stroke:var(--sk-icon-2)">
+      <path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>
+    </g>
+  </symbol>
+
+  <symbol id="i-moon" viewBox="0 0 24 24">
+    <path d="M20.5 14.3A8.8 8.8 0 0 1 9.7 3.5a8.8 8.8 0 1 0 10.8 10.8z" style="fill:var(--sk-icon-1)"/>
+  </symbol>
+
+  <!-- Glyphs (single tone, stroke) -->
+  <symbol id="i-chevron-right" viewBox="0 0 24 24">
+    <path d="M9 6l6 6-6 6" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--sk-icon-1)"/>
+  </symbol>
+  <symbol id="i-chevron-down" viewBox="0 0 24 24">
+    <path d="M6 9l6 6 6-6" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--sk-icon-1)"/>
+  </symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 24 24">
+    <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--sk-icon-1)"/>
+  </symbol>
+  <symbol id="i-arrow-up-right" viewBox="0 0 24 24">
+    <path d="M7 17 17 7M9 7h8v8" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--sk-icon-1)"/>
+  </symbol>
+  <symbol id="i-arrow-down-right" viewBox="0 0 24 24">
+    <path d="M7 7l10 10M17 9v8H9" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--sk-icon-1)"/>
+  </symbol>
+  <symbol id="i-check" viewBox="0 0 24 24">
+    <path d="M5 12.5l4.5 4.5L19 7" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--sk-icon-1)"/>
+  </symbol>
+  <symbol id="i-close" viewBox="0 0 24 24">
+    <path d="M6 6l12 12M18 6 6 18" fill="none" stroke-width="2.2" stroke-linecap="round" style="stroke:var(--sk-icon-1)"/>
+  </symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24">
+    <rect x="3" y="5.5" width="18" height="2.4" rx="1.2" style="fill:var(--sk-icon-1)"/>
+    <rect x="3" y="10.8" width="18" height="2.4" rx="1.2" style="fill:var(--sk-icon-1)"/>
+    <rect x="3" y="16.1" width="18" height="2.4" rx="1.2" style="fill:var(--sk-icon-1)"/>
+  </symbol>
+  <symbol id="i-info" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="10" style="fill:var(--sk-icon-1)"/>
+    <rect x="10.8" y="10.5" width="2.4" height="7" rx="1.2" style="fill:var(--sk-icon-3)"/>
+    <circle cx="12" cy="7.4" r="1.35" style="fill:var(--sk-icon-3)"/>
+  </symbol>
+  <symbol id="i-check-circle" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="10" style="fill:var(--sk-icon-1)"/>
+    <path d="M7.5 12.5l3 3 6-6.5" fill="none" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--sk-icon-3)"/>
+  </symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24">
+    <rect x="3" y="3" width="12" height="12" rx="2.5" style="fill:var(--sk-icon-2)"/>
+    <rect x="9" y="9" width="12" height="12" rx="2.5" style="fill:var(--sk-icon-1)"/>
+  </symbol>
+</svg>

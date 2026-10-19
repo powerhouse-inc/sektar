@@ -1,0 +1,153 @@
+scalar Unknown
+scalar DateTime
+scalar Address
+scalar AttachmentRef
+scalar Amount_Tokens
+scalar EthereumAddress
+scalar EmailAddress
+scalar Amount_Percentage
+scalar Date
+scalar URL
+scalar Amount_Money
+scalar OLabel
+scalar Currency
+scalar PHID
+scalar OID
+scalar Amount_Fiat
+scalar Amount_Currency
+scalar Amount_Crypto
+scalar Amount
+scalar Upload
+
+type ContactState {
+  name: String
+  kind: ContactKind!
+  status: ContactStatus!
+  email: String
+  phone: String
+  website: String
+  vatId: String
+  registrationNumber: String
+  address: PostalAddress!
+  bank: BankDetails!
+  paymentTermsDays: Int!
+  defaultCategory: TransactionCategory!
+  tags: [String!]!
+  people: [ContactPerson!]!
+  notes: String
+}
+
+type PostalAddress {
+  street: String
+  postalCode: String
+  city: String
+  country: String
+}
+
+type BankDetails {
+  iban: String
+  bic: String
+  accountHolder: String
+}
+
+type ContactPerson {
+  id: OID!
+  name: String!
+  role: String
+  email: String
+  phone: String
+}
+
+enum ContactKind {
+  SUPPLIER
+  CUSTOMER
+  BOTH
+  OTHER
+}
+
+enum ContactStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum TransactionCategory {
+  UNCATEGORIZED
+  SALES
+  SUPPLIES
+  PAYROLL
+  RENT
+  SOFTWARE
+  TRAVEL
+  MARKETING
+  TAX
+  BANK_FEES
+  TRANSFER
+  OTHER
+}
+
+# profile
+
+input SetProfileInput {
+  name: String
+  kind: ContactKind
+  email: String
+  phone: String
+  website: String
+  vatId: String
+  registrationNumber: String
+  notes: String
+}
+
+input SetAddressInput {
+  street: String
+  postalCode: String
+  city: String
+  country: String
+}
+
+input SetBankDetailsInput {
+  iban: String
+  bic: String
+  accountHolder: String
+}
+
+input SetPaymentTermsInput {
+  paymentTermsDays: Int!
+  defaultCategory: TransactionCategory
+}
+
+input AddTagInput {
+  tag: String!
+}
+
+input RemoveTagInput {
+  tag: String!
+}
+
+# people
+
+input AddPersonInput {
+  id: OID!
+  name: String!
+  role: String
+  email: String
+  phone: String
+}
+
+input UpdatePersonInput {
+  id: OID!
+  name: String
+  role: String
+  email: String
+  phone: String
+}
+
+input RemovePersonInput {
+  id: OID!
+}
+
+# lifecycle
+
+input ArchiveContactInput {
+  archived: Boolean!
+}

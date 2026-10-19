@@ -1,0 +1,136 @@
+scalar Unknown
+scalar DateTime
+scalar Address
+scalar AttachmentRef
+scalar Amount_Tokens
+scalar EthereumAddress
+scalar EmailAddress
+scalar Amount_Percentage
+scalar Date
+scalar URL
+scalar Amount_Money
+scalar OLabel
+scalar Currency
+scalar PHID
+scalar OID
+scalar Amount_Fiat
+scalar Amount_Currency
+scalar Amount_Crypto
+scalar Amount
+scalar Upload
+
+type InvoiceState {
+  direction: InvoiceDirection!
+  number: String
+  status: InvoiceStatus!
+  counterparty: Party!
+  issuedAt: DateTime
+  dueAt: DateTime
+  currency: String!
+  lines: [InvoiceLine!]!
+  payments: [Payment!]!
+  reference: String
+  notes: String
+  voidReason: String
+}
+
+type Party {
+  name: String
+  contactId: String
+  email: String
+  vatId: String
+  address: String
+}
+
+type InvoiceLine {
+  id: OID!
+  description: String!
+  quantity: Float!
+  unitPrice: Float!
+  vatRate: Float!
+}
+
+type Payment {
+  id: OID!
+  paidAt: DateTime!
+  amount: Float!
+  method: PaymentMethod!
+  transactionId: String
+}
+
+enum InvoiceDirection {
+  OUTGOING
+  INCOMING
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CARD
+  CASH
+  OTHER
+}
+
+# details
+
+input SetInvoiceDetailsInput {
+  direction: InvoiceDirection
+  number: String
+  counterpartyName: String
+  contactId: String
+  email: String
+  vatId: String
+  address: String
+  currency: String
+  reference: String
+  notes: String
+  dueAt: DateTime
+}
+
+# lines
+
+input AddLineInput {
+  id: OID!
+  description: String!
+  quantity: Float!
+  unitPrice: Float!
+  vatRate: Float!
+}
+
+input UpdateLineInput {
+  id: OID!
+  description: String
+  quantity: Float
+  unitPrice: Float
+  vatRate: Float
+}
+
+input RemoveLineInput {
+  id: OID!
+}
+
+# lifecycle
+
+input IssueInvoiceInput {
+  number: String!
+  issuedAt: DateTime!
+  dueAt: DateTime!
+}
+
+input RecordPaymentInput {
+  id: OID!
+  paidAt: DateTime!
+  amount: Float!
+  method: PaymentMethod!
+  transactionId: String
+}
+
+input VoidInvoiceInput {
+  reason: String!
+}

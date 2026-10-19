@@ -1,0 +1,215 @@
+/* =============================================================================
+   Sektar Design System — Base
+   Reset, document defaults, typography rhythm.
+   ============================================================================= */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+* { margin: 0; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--sk-topbar-h) + var(--sk-space-4));
+}
+
+body {
+  font-family: var(--sk-font-sans);
+  font-size: var(--sk-text-base);
+  line-height: var(--sk-leading-normal);
+  color: var(--sk-text);
+  background: var(--sk-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv11", "ss01", "calt";
+  min-height: 100dvh;
+}
+
+img, picture, video, canvas, svg { display: block; max-width: 100%; }
+img { height: auto; }
+
+input, button, textarea, select { font: inherit; color: inherit; }
+button { background: none; border: 0; cursor: pointer; }
+
+p, h1, h2, h3, h4, h5, h6 { overflow-wrap: break-word; }
+
+/* -----------------------------------------------------------------------------
+   Headings — Fraunces. Soft optical size, slightly negative tracking.
+   ----------------------------------------------------------------------------- */
+h1, h2, h3, h4, h5, h6,
+.sk-display, .sk-display-xl, .sk-h1, .sk-h2, .sk-h3, .sk-h4 {
+  font-family: var(--sk-font-display);
+  font-weight: var(--sk-weight-regular);
+  font-variation-settings: "opsz" 72, "SOFT" 30, "WONK" 0;
+  letter-spacing: var(--sk-tracking-tight);
+  line-height: var(--sk-leading-tight);
+  color: var(--sk-text);
+  text-wrap: balance;
+}
+
+.sk-display-xl { font-size: var(--sk-text-6xl); line-height: 1.02; font-variation-settings: "opsz" 144, "SOFT" 40, "WONK" 0; }
+.sk-display    { font-size: var(--sk-text-5xl); line-height: 1.06; font-variation-settings: "opsz" 120, "SOFT" 40, "WONK" 0; }
+h1, .sk-h1 { font-size: var(--sk-text-4xl); }
+h2, .sk-h2 { font-size: var(--sk-text-3xl); line-height: 1.15; }
+h3, .sk-h3 { font-size: var(--sk-text-2xl); line-height: var(--sk-leading-snug); font-variation-settings: "opsz" 36, "SOFT" 20, "WONK" 0; }
+h4, .sk-h4 { font-size: var(--sk-text-xl);  line-height: 1.3; font-variation-settings: "opsz" 24, "SOFT" 20, "WONK" 0; font-weight: var(--sk-weight-medium); }
+h5, .sk-h5 { font-family: var(--sk-font-sans); font-size: var(--sk-text-lg); font-weight: var(--sk-weight-semibold); letter-spacing: 0; }
+h6, .sk-h6 { font-family: var(--sk-font-sans); font-size: var(--sk-text-base); font-weight: var(--sk-weight-semibold); letter-spacing: 0; }
+
+@media (max-width: 720px) {
+  .sk-display-xl { font-size: var(--sk-text-5xl); }
+  .sk-display    { font-size: var(--sk-text-4xl); }
+  h1, .sk-h1     { font-size: var(--sk-text-3xl); }
+  h2, .sk-h2     { font-size: var(--sk-text-2xl); }
+}
+
+/* -----------------------------------------------------------------------------
+   Text styles
+   ----------------------------------------------------------------------------- */
+.sk-lead {
+  font-family: var(--sk-font-display);
+  font-size: var(--sk-text-xl);
+  font-weight: var(--sk-weight-light);
+  line-height: var(--sk-leading-relaxed);
+  color: var(--sk-text-secondary);
+  font-variation-settings: "opsz" 24, "SOFT" 50, "WONK" 0;
+}
+
+.sk-body-lg { font-size: var(--sk-text-lg); line-height: var(--sk-leading-relaxed); }
+.sk-body    { font-size: var(--sk-text-base); }
+.sk-ui      { font-size: var(--sk-text-md); line-height: var(--sk-leading-normal); }
+.sk-small   { font-size: var(--sk-text-sm); line-height: var(--sk-leading-normal); }
+.sk-caption { font-size: var(--sk-text-xs); line-height: var(--sk-leading-normal); color: var(--sk-text-muted); }
+
+/* Eyebrow — the small tracked uppercase label used across the brand */
+.sk-eyebrow {
+  font-family: var(--sk-font-sans);
+  font-size: var(--sk-text-2xs);
+  font-weight: var(--sk-weight-medium);
+  letter-spacing: var(--sk-tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--sk-text-muted);
+  line-height: 1.4;
+}
+
+/* Tagline — like “SMARTER EVERY DAY” */
+.sk-tagline {
+  font-family: var(--sk-font-sans);
+  font-size: var(--sk-text-sm);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--sk-text-secondary);
+  font-weight: var(--sk-weight-regular);
+}
+
+/* Numerals — Fraunces for large figures, tabular for alignment */
+.sk-numeral {
+  font-family: var(--sk-font-display);
+  font-variation-settings: "opsz" 48, "SOFT" 20, "WONK" 0;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.01em;
+  font-weight: var(--sk-weight-regular);
+}
+.sk-tabular { font-variant-numeric: tabular-nums lining-nums; }
+
+p + p { margin-top: var(--sk-space-4); }
+
+a {
+  color: var(--sk-text-link);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 0.15em;
+  transition: text-decoration-color var(--sk-duration-fast) var(--sk-ease-out);
+}
+a:hover { text-decoration-color: currentColor; }
+
+strong, b { font-weight: var(--sk-weight-semibold); }
+small { font-size: var(--sk-text-sm); }
+
+hr, .sk-divider {
+  border: 0;
+  border-top: 1px solid var(--sk-border);
+  margin: var(--sk-space-6) 0;
+}
+
+code, kbd, pre, samp {
+  font-family: var(--sk-font-mono);
+  font-size: 0.9em;
+}
+code {
+  background: var(--sk-bg-subtle);
+  color: var(--sk-text);
+  padding: 0.12em 0.4em;
+  border-radius: var(--sk-radius-xs);
+}
+pre {
+  background: var(--sk-surface-2);
+  border: 1px solid var(--sk-border-subtle);
+  border-radius: var(--sk-radius-md);
+  padding: var(--sk-space-4) var(--sk-space-5);
+  overflow: auto;
+  font-size: var(--sk-text-sm);
+  line-height: 1.6;
+  color: var(--sk-text-secondary);
+  tab-size: 2;
+}
+pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+
+kbd {
+  display: inline-block;
+  padding: 0.1em 0.45em;
+  border: 1px solid var(--sk-border);
+  border-bottom-width: 2px;
+  border-radius: var(--sk-radius-xs);
+  background: var(--sk-surface);
+  font-size: 0.8em;
+  line-height: 1.4;
+}
+
+blockquote {
+  font-family: var(--sk-font-display);
+  font-size: var(--sk-text-xl);
+  font-weight: var(--sk-weight-light);
+  font-variation-settings: "opsz" 24, "SOFT" 60, "WONK" 0;
+  line-height: var(--sk-leading-relaxed);
+  color: var(--sk-text-secondary);
+  border-left: 3px solid var(--sk-accent);
+  padding-left: var(--sk-space-5);
+}
+
+ul, ol { padding-left: 1.25em; }
+li + li { margin-top: var(--sk-space-1); }
+
+table { border-collapse: collapse; border-spacing: 0; width: 100%; }
+
+::selection { background: var(--sk-mint-300); color: var(--sk-forest-900); }
+
+:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--sk-shadow-focus);
+  border-radius: var(--sk-radius-xs);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Slim scrollbars that match the palette */
+@supports (scrollbar-width: thin) {
+  * { scrollbar-width: thin; scrollbar-color: var(--sk-border-strong) transparent; }
+}
+
+/* Theme islands always carry their own text colour, whatever they are placed in */
+.sk-theme-dark, .sk-theme-light { color: var(--sk-text); }
+
+/* the hidden attribute always wins, whatever display a component sets */
+[hidden] { display: none !important; }

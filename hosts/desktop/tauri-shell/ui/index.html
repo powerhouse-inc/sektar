@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Sektar</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #F5F7F3; --fg: #566159; --accent: #6B8F73;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0D1411;
+          --fg: #B5C4B9;
+          --accent: #BFD7BD;
+        }
+      }
+      body {
+        margin: 0; height: 100vh; overflow: hidden;
+        display: flex; align-items: center; justify-content: center;
+        font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--bg); color: var(--fg);
+      }
+      .box {
+        position: relative; z-index: 1;
+        text-align: center;
+        display: flex; flex-direction: column; align-items: center; gap: 20px;
+      }
+      .logo {
+        width: 128px; height: 128px;
+        object-fit: contain; display: block;
+      }
+      .splash {
+        width: min(720px, 80vw); max-height: 65vh;
+        object-fit: contain; display: block;
+      }
+      .corner {
+        position: fixed; right: 0; bottom: 0; z-index: 0;
+        width: clamp(220px, 30vw, 520px); line-height: 0; pointer-events: none;
+      }
+      .layers { position: fixed; inset: 0; z-index: 0; }
+      .art { width: 100%; height: auto; display: block; }
+      .dot {
+        width: 10px; height: 10px; border-radius: 50%;
+        background: var(--accent); display: inline-block; margin-right: 8px;
+        animation: pulse 1.2s ease-in-out infinite;
+      }
+      @keyframes pulse { 0%,100% { opacity: .35 } 50% { opacity: 1 } }
+      @media (prefers-reduced-motion: reduce) { .dot { animation: none; } }
+    </style>
+  </head>
+  <body>
+    <div class="box">
+      <div><span class="dot"></span>Opening your books…</div>
+    </div>
+    <div class="layers" aria-hidden="true">
+      <picture>
+        <source srcset="./bg-0-dark.svg" media="(prefers-color-scheme: dark)" />
+        <img src="./bg-0.svg" alt="" style="position: absolute; pointer-events: none; object-fit: contain; top: calc(50% - 120px); left: 50%; transform: translate(-50%, 0); width: 240px" />
+      </picture>
+      <picture>
+        <source srcset="./bg-1-dark.svg" media="(prefers-color-scheme: dark)" />
+        <img src="./bg-1.svg" alt="" style="position: absolute; pointer-events: none; object-fit: contain; right: 0px; bottom: 0px; width: 33%; opacity: 0.4" />
+      </picture>
+    </div>
+    </body>
+</html>

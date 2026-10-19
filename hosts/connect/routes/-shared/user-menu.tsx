@@ -1,0 +1,141 @@
+import { useRenownAuth } from "@powerhousedao/reactor-browser";
+import { useEffect, useRef, useState } from "react";
+import { Avatar, Icon } from "../../../../editors/sektar/kit/ui.js";
+
+// Who is signed in, via Renown — the same hook Connect's own sidebar uses.
+// Signed out: a "Sign in" button. With no wallet adapters configured (this
+// project) `login()` sends the tab to renown.id and Renown returns to this URL
+// with `?user=<did>`, which Connect consumes at boot. Signed in: the design
+// system's user chip with a small menu (profile, copy address, sign out).
+export function UserMenu() {
+  const auth = useRenownAuth();
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey, true);
+    };
+  }, [open]);
+
+  if (!auth.user) {
+    const busy = auth.pending || auth.status === "checking";
+    return (
+      <div className="sk-user-menu">
+        <button
+          type="button"
+          className="sk-btn sk-btn--primary sk-btn--sm"
+          onClick={() => auth.login()}
+          disabled={busy}
+          aria-busy={busy}
+          title={auth.error?.message ?? "Sign in with Renown"}
+        >
+          <Icon name="shield" size={16} />
+          {auth.pending
+            ? "Signing in…"
+            : auth.status === "checking"
+              ? "Checking…"
+              : "Sign in"}
+        </button>
+        {auth.error && (
+          <span className="sk-caption sk-text-danger sk-hide-mobile">
+            {auth.error.message}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  const name = auth.displayName ?? auth.displayAddress ?? "Signed in";
+  const meta =
+    auth.displayName && auth.displayAddress ? auth.displayAddress : "Renown";
+  const copy = () => {
+    if (!auth.address) return;
+    void navigator.clipboard.writeText(auth.address).then(() => {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  return (
+    <div className="sk-user-menu" ref={ref}>
+      <button
+        type="button"
+        className="sk-user sk-user--button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Avatar name={name} src={auth.avatarUrl} variant="sage" />
+        <span className="sk-user__text sk-hide-mobile">
+          <span className="sk-user__name">{name}</span>
+          <span className="sk-user__meta">{meta}</span>
+        </span>
+        <Icon name="chevron-down" size={16} mono className="sk-text-muted" />
+      </button>
+      {open && (
+        <ul className="sk-menu sk-user-menu__panel" role="menu">
+          <li className="sk-user-menu__head">
+            <div className="sk-weight-medium sk-truncate">{name}</div>
+            {auth.address && (
+              <div className="sk-caption sk-text-muted sk-truncate">
+                {auth.address}
+              </div>
+            )}
+          </li>
+          <li className="sk-menu__sep" role="separator" />
+          {auth.profileId && (
+            <li>
+              <button
+                type="button"
+                role="menuitem"
+                className="sk-menu__item"
+                onClick={() => {
+                  auth.openProfile();
+                  setOpen(false);
+                }}
+              >
+                <Icon name="arrow-up-right" mono /> Profile on Renown
+              </button>
+            </li>
+          )}
+          <li>
+            <button
+              type="button"
+              role="menuitem"
+              className="sk-menu__item"
+              onClick={copy}
+            >
+              <Icon name="copy" mono /> {copied ? "Copied" : "Copy address"}
+            </button>
+          </li>
+          <li className="sk-menu__sep" role="separator" />
+          <li>
+            <button
+              type="button"
+              role="menuitem"
+              className="sk-menu__item sk-menu__item--danger"
+              onClick={() => {
+                setOpen(false);
+                void auth.logout();
+              }}
+            >
+              <Icon name="close" mono /> Sign out
+            </button>
+          </li>
+        </ul>
+      )}
+    </div>
+  );
+}

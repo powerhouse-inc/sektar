@@ -1,0 +1,257 @@
+import type { DocumentModelGlobalState } from "document-model";
+
+export const documentModel: DocumentModelGlobalState = {
+  id: "sektar/invoice",
+  name: "Invoice",
+  author: {
+    name: "Sektar",
+    website: "https://sektar.example",
+  },
+  extension: "inv",
+  description:
+    "An incoming (payable) or outgoing (receivable) invoice: lines with VAT, issue and due dates, and the payments that settle it.",
+  specifications: [
+    {
+      version: 1,
+      changeLog: [],
+      state: {
+        global: {
+          schema:
+            "type InvoiceState {\n  direction: InvoiceDirection!\n  number: String\n  status: InvoiceStatus!\n  counterparty: Party!\n  issuedAt: DateTime\n  dueAt: DateTime\n  currency: String!\n  lines: [InvoiceLine!]!\n  payments: [Payment!]!\n  reference: String\n  notes: String\n  voidReason: String\n}\n\ntype Party {\n  name: String\n  contactId: String\n  email: String\n  vatId: String\n  address: String\n}\n\ntype InvoiceLine {\n  id: OID!\n  description: String!\n  quantity: Float!\n  unitPrice: Float!\n  vatRate: Float!\n}\n\ntype Payment {\n  id: OID!\n  paidAt: DateTime!\n  amount: Float!\n  method: PaymentMethod!\n  transactionId: String\n}\n\nenum InvoiceDirection {\n  OUTGOING\n  INCOMING\n}\n\nenum InvoiceStatus {\n  DRAFT\n  OPEN\n  PAID\n  VOID\n}\n\nenum PaymentMethod {\n  BANK_TRANSFER\n  CARD\n  CASH\n  OTHER\n}",
+          initialValue:
+            '{"direction": "OUTGOING", "number": null, "status": "DRAFT", "counterparty": {"name": null, "contactId": null, "email": null, "vatId": null, "address": null}, "issuedAt": null, "dueAt": null, "currency": "EUR", "lines": [], "payments": [], "reference": null, "notes": null, "voidReason": null}',
+          examples: [],
+        },
+        local: {
+          schema: "",
+          initialValue: "",
+          examples: [],
+        },
+      },
+      modules: [
+        {
+          id: "d50ad2d3-85e5-4600-909b-d3eca62a5887",
+          name: "details",
+          description: "Header and counterparty",
+          operations: [
+            {
+              id: "ab1325f7-f415-48c1-b264-f90d4d081c2d",
+              name: "SET_INVOICE_DETAILS",
+              description: "",
+              schema:
+                "input SetInvoiceDetailsInput {\n  direction: InvoiceDirection\n  number: String\n  counterpartyName: String\n  contactId: String\n  email: String\n  vatId: String\n  address: String\n  currency: String\n  reference: String\n  notes: String\n  dueAt: DateTime\n}",
+              template: "",
+              reducer:
+                'if (state.status === "PAID" || state.status === "VOID") throw new InvoiceClosedError("A paid or void invoice cannot change");\nconst i = action.input;\nif (i.direction !== undefined && i.direction !== null) {\n  if (state.status !== "DRAFT") throw new InvoiceIssuedError("The direction is fixed once the invoice is issued");\n  state.direction = i.direction;\n}\nif (i.currency !== undefined && i.currency !== null) {\n  if (state.status !== "DRAFT") throw new InvoiceIssuedError("The currency is fixed once the invoice is issued");\n  state.currency = i.currency;\n}\nif (i.number !== undefined) state.number = i.number;\nif (i.counterpartyName !== undefined) state.counterparty.name = i.counterpartyName;\nif (i.contactId !== undefined) state.counterparty.contactId = i.contactId;\nif (i.email !== undefined) state.counterparty.email = i.email;\nif (i.vatId !== undefined) state.counterparty.vatId = i.vatId;\nif (i.address !== undefined) state.counterparty.address = i.address;\nif (i.reference !== undefined) state.reference = i.reference;\nif (i.notes !== undefined) state.notes = i.notes;\nif (i.dueAt !== undefined) state.dueAt = i.dueAt;',
+              errors: [
+                {
+                  id: "63a2c1bf-b65d-40f6-b14c-9ab16fe1bc99",
+                  code: "INVOICE_CLOSED",
+                  name: "InvoiceClosedError",
+                  description: "The invoice is paid or void",
+                  template: "",
+                },
+                {
+                  id: "f3147dfe-faec-4599-a42a-bcfa058f5d94",
+                  code: "INVOICE_ISSUED",
+                  name: "InvoiceIssuedError",
+                  description: "The field is fixed after issuing",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+          ],
+        },
+        {
+          id: "f6e6ffa3-989b-41af-93e6-d77d4128e5d8",
+          name: "lines",
+          description: "Invoice lines",
+          operations: [
+            {
+              id: "f2db79a6-5f32-4e49-988b-69e845203d39",
+              name: "ADD_LINE",
+              description: "",
+              schema:
+                "input AddLineInput {\n  id: OID!\n  description: String!\n  quantity: Float!\n  unitPrice: Float!\n  vatRate: Float!\n}",
+              template: "",
+              reducer:
+                'if (state.status !== "DRAFT") throw new InvoiceNotDraftError("Lines can only change on a draft");\nif (action.input.quantity <= 0) throw new InvalidLineError("Quantity must be positive");\nstate.lines.push({\n  id: action.input.id,\n  description: action.input.description,\n  quantity: action.input.quantity,\n  unitPrice: action.input.unitPrice,\n  vatRate: action.input.vatRate,\n});',
+              errors: [
+                {
+                  id: "97332528-6333-4cff-b572-269e6ce68400",
+                  code: "INVOICE_NOT_DRAFT",
+                  name: "InvoiceNotDraftError",
+                  description: "Lines are locked once issued",
+                  template: "",
+                },
+                {
+                  id: "5c30cbad-7a7b-4405-b6da-2f5e1297006c",
+                  code: "INVALID_LINE",
+                  name: "InvalidLineError",
+                  description: "The line quantity is not positive",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+            {
+              id: "9bb40faf-8328-4828-bac9-82f5937f0b94",
+              name: "UPDATE_LINE",
+              description: "",
+              schema:
+                "input UpdateLineInput {\n  id: OID!\n  description: String\n  quantity: Float\n  unitPrice: Float\n  vatRate: Float\n}",
+              template: "",
+              reducer:
+                'if (state.status !== "DRAFT") throw new InvoiceNotDraftError("Lines can only change on a draft");\nconst line = state.lines.find((l) => l.id === action.input.id);\nif (!line) throw new LineNotFoundError(`Line ${action.input.id} not found`);\nif (action.input.quantity !== undefined && action.input.quantity !== null) {\n  if (action.input.quantity <= 0) throw new InvalidLineError("Quantity must be positive");\n  line.quantity = action.input.quantity;\n}\nif (action.input.description !== undefined && action.input.description !== null) line.description = action.input.description;\nif (action.input.unitPrice !== undefined && action.input.unitPrice !== null) line.unitPrice = action.input.unitPrice;\nif (action.input.vatRate !== undefined && action.input.vatRate !== null) line.vatRate = action.input.vatRate;',
+              errors: [
+                {
+                  id: "bbeaf2e9-3755-4841-987f-7707b1e98ce9",
+                  code: "INVOICE_NOT_DRAFT",
+                  name: "InvoiceNotDraftError",
+                  description: "Lines are locked once issued",
+                  template: "",
+                },
+                {
+                  id: "168a3d57-ced0-4c66-ae94-44ba1a96e818",
+                  code: "LINE_NOT_FOUND",
+                  name: "LineNotFoundError",
+                  description: "No line with that id",
+                  template: "",
+                },
+                {
+                  id: "2c69afd8-1bb3-401c-aff1-3d1340f7060f",
+                  code: "INVALID_LINE",
+                  name: "InvalidLineError",
+                  description: "The line quantity is not positive",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+            {
+              id: "955f8434-3dab-417c-b792-c66677411be3",
+              name: "REMOVE_LINE",
+              description: "",
+              schema: "input RemoveLineInput {\n  id: OID!\n}",
+              template: "",
+              reducer:
+                'if (state.status !== "DRAFT") throw new InvoiceNotDraftError("Lines can only change on a draft");\nconst index = state.lines.findIndex((l) => l.id === action.input.id);\nif (index === -1) throw new LineNotFoundError(`Line ${action.input.id} not found`);\nstate.lines.splice(index, 1);',
+              errors: [
+                {
+                  id: "33e3b580-9bf2-4006-90a1-4c86f77e6b32",
+                  code: "INVOICE_NOT_DRAFT",
+                  name: "InvoiceNotDraftError",
+                  description: "Lines are locked once issued",
+                  template: "",
+                },
+                {
+                  id: "dadbc332-26c8-4204-af27-e27cb1073e63",
+                  code: "LINE_NOT_FOUND",
+                  name: "LineNotFoundError",
+                  description: "No line with that id",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+          ],
+        },
+        {
+          id: "af62891d-2f7e-4a28-8b28-18637839617e",
+          name: "lifecycle",
+          description: "Issue, settle, void",
+          operations: [
+            {
+              id: "f374d4d9-48c0-4462-9568-8e0eb8715043",
+              name: "ISSUE_INVOICE",
+              description: "",
+              schema:
+                "input IssueInvoiceInput {\n  number: String!\n  issuedAt: DateTime!\n  dueAt: DateTime!\n}",
+              template: "",
+              reducer:
+                'if (state.status !== "DRAFT") throw new InvoiceNotDraftError("Only a draft can be issued");\nif (state.lines.length === 0) throw new NoLinesError("An invoice needs at least one line");\nstate.number = action.input.number;\nstate.issuedAt = action.input.issuedAt;\nstate.dueAt = action.input.dueAt;\nstate.status = "OPEN";',
+              errors: [
+                {
+                  id: "50dc2002-8367-4f8e-a7c9-ca725d2e4c59",
+                  code: "INVOICE_NOT_DRAFT",
+                  name: "InvoiceNotDraftError",
+                  description: "The invoice was issued before",
+                  template: "",
+                },
+                {
+                  id: "0cc6494c-b5e0-4799-ba74-19bfbabd8f41",
+                  code: "NO_LINES",
+                  name: "NoLinesError",
+                  description: "The invoice has no lines",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+            {
+              id: "e857958a-2f57-4406-a70e-ca09d8e4ea6d",
+              name: "RECORD_PAYMENT",
+              description: "",
+              schema:
+                "input RecordPaymentInput {\n  id: OID!\n  paidAt: DateTime!\n  amount: Float!\n  method: PaymentMethod!\n  transactionId: String\n}",
+              template: "",
+              reducer:
+                'if (state.status !== "OPEN") throw new InvoiceNotOpenError("Payments apply to open invoices only");\nif (action.input.amount <= 0) throw new InvalidPaymentError("A payment must be positive");\nstate.payments.push({\n  id: action.input.id,\n  paidAt: action.input.paidAt,\n  amount: action.input.amount,\n  method: action.input.method,\n  transactionId: action.input.transactionId || null,\n});\nconst total = state.lines.reduce((sum, l) => sum + l.quantity * l.unitPrice * (1 + l.vatRate / 100), 0);\nconst paid = state.payments.reduce((sum, p) => sum + p.amount, 0);\nif (paid >= total - 0.005) state.status = "PAID";',
+              errors: [
+                {
+                  id: "ab1a290d-4b1d-41b6-b8de-89084a5ed1a0",
+                  code: "INVOICE_NOT_OPEN",
+                  name: "InvoiceNotOpenError",
+                  description: "The invoice is not open",
+                  template: "",
+                },
+                {
+                  id: "e9ffe3b4-b3d4-468f-b69d-8cb02604062a",
+                  code: "INVALID_PAYMENT",
+                  name: "InvalidPaymentError",
+                  description: "The payment amount is not positive",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+            {
+              id: "b4ac2cb6-d95f-479c-86cb-0bc51e22362b",
+              name: "VOID_INVOICE",
+              description: "",
+              schema: "input VoidInvoiceInput {\n  reason: String!\n}",
+              template: "",
+              reducer:
+                'if (state.status === "PAID") throw new InvoicePaidError("A paid invoice cannot be voided");\nif (state.status === "VOID") throw new InvoiceVoidError("The invoice is already void");\nstate.status = "VOID";\nstate.voidReason = action.input.reason;',
+              errors: [
+                {
+                  id: "15464351-df9c-464e-a816-2aab371693b3",
+                  code: "INVOICE_PAID",
+                  name: "InvoicePaidError",
+                  description: "The invoice is paid",
+                  template: "",
+                },
+                {
+                  id: "91fb21d7-31da-43ac-ba41-1816f2f349e7",
+                  code: "INVOICE_VOID",
+                  name: "InvoiceVoidError",
+                  description: "The invoice is already void",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};

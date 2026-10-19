@@ -1,0 +1,172 @@
+{
+  "id": "sektar/bank-account",
+  "name": "Bank Account",
+  "author": {
+    "name": "Sektar",
+    "website": "https://sektar.example"
+  },
+  "extension": "bank",
+  "description": "A bank or credit-card account with its imported transaction feed, categorised and matched to invoices and expenses.",
+  "specifications": [
+    {
+      "version": 1,
+      "changeLog": [],
+      "state": {
+        "global": {
+          "schema": "type BankAccountState {\n  name: String\n  institution: String\n  iban: String\n  kind: AccountKind!\n  currency: String!\n  openingBalance: Float!\n  transactions: [Transaction!]!\n  lastImportedAt: DateTime\n}\n\ntype Transaction {\n  id: OID!\n  bookedAt: DateTime!\n  amount: Float!\n  counterparty: String!\n  description: String\n  reference: String\n  category: TransactionCategory!\n  contactId: String\n  matchedDocumentId: String\n  matchedKind: MatchKind\n  status: TransactionStatus!\n  importBatch: String\n}\n\nenum AccountKind {\n  CURRENT\n  SAVINGS\n  CREDIT_CARD\n}\n\nenum MatchKind {\n  INVOICE\n  EXPENSE\n}\n\nenum TransactionStatus {\n  NEW\n  CATEGORIZED\n  MATCHED\n  EXCLUDED\n}\n\nenum TransactionCategory {\n  UNCATEGORIZED\n  SALES\n  SUPPLIES\n  PAYROLL\n  RENT\n  SOFTWARE\n  TRAVEL\n  MARKETING\n  TAX\n  BANK_FEES\n  TRANSFER\n  OTHER\n}",
+          "initialValue": "{\"name\": null, \"institution\": null, \"iban\": null, \"kind\": \"CURRENT\", \"currency\": \"EUR\", \"openingBalance\": 0, \"transactions\": [], \"lastImportedAt\": null}",
+          "examples": []
+        },
+        "local": {
+          "schema": "",
+          "initialValue": "",
+          "examples": []
+        }
+      },
+      "modules": [
+        {
+          "id": "a8d8ae0b-6bfd-4dad-9632-420812e20262",
+          "name": "account",
+          "description": "Identity of the account",
+          "operations": [
+            {
+              "id": "7ac91655-417d-49c0-92e3-8f274b54e39b",
+              "name": "SET_ACCOUNT_DETAILS",
+              "description": "",
+              "schema": "input SetAccountDetailsInput {\n  name: String\n  institution: String\n  iban: String\n  kind: AccountKind\n  currency: String\n  openingBalance: Float\n}",
+              "template": "",
+              "reducer": "if (action.input.name !== undefined) state.name = action.input.name;\nif (action.input.institution !== undefined) state.institution = action.input.institution;\nif (action.input.iban !== undefined) state.iban = action.input.iban;\nif (action.input.kind !== undefined && action.input.kind !== null) state.kind = action.input.kind;\nif (action.input.currency !== undefined && action.input.currency !== null) {\n  if (state.transactions.length > 0 && action.input.currency !== state.currency) {\n    throw new CurrencyLockedError(\"The currency cannot change once transactions exist\");\n  }\n  state.currency = action.input.currency;\n}\nif (action.input.openingBalance !== undefined && action.input.openingBalance !== null) state.openingBalance = action.input.openingBalance;",
+              "errors": [
+                {
+                  "id": "a04f3bdb-603d-4157-97c8-1dc89b4f845f",
+                  "code": "CURRENCY_LOCKED",
+                  "name": "CurrencyLockedError",
+                  "description": "The account already holds transactions in another currency",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        },
+        {
+          "id": "3e7e1a19-dc86-4316-9b90-d3483cae2920",
+          "name": "feed",
+          "description": "The imported transaction feed",
+          "operations": [
+            {
+              "id": "f05b54b8-48bf-43af-9bb2-bccee18891a9",
+              "name": "IMPORT_TRANSACTIONS",
+              "description": "",
+              "schema": "input ImportTransactionsInput {\n  batchId: String!\n  importedAt: DateTime!\n  transactions: [ImportedTransactionInput!]!\n}\n\ninput ImportedTransactionInput {\n  id: OID!\n  bookedAt: DateTime!\n  amount: Float!\n  counterparty: String!\n  description: String\n  reference: String\n}",
+              "template": "",
+              "reducer": "if (action.input.transactions.length === 0) throw new EmptyImportError(\"Nothing to import\");\nconst known = new Set(state.transactions.map((t) => t.reference).filter((r) => r !== null));\nfor (const t of action.input.transactions) {\n  if (t.reference && known.has(t.reference)) {\n    throw new DuplicateTransactionError(`Transaction ${t.reference} was imported before`);\n  }\n  if (t.reference) known.add(t.reference);\n  state.transactions.push({\n    id: t.id,\n    bookedAt: t.bookedAt,\n    amount: t.amount,\n    counterparty: t.counterparty,\n    description: t.description || null,\n    reference: t.reference || null,\n    category: \"UNCATEGORIZED\",\n    contactId: null,\n    matchedDocumentId: null,\n    matchedKind: null,\n    status: \"NEW\",\n    importBatch: action.input.batchId,\n  });\n}\nstate.lastImportedAt = action.input.importedAt;",
+              "errors": [
+                {
+                  "id": "1d6fcd8e-c138-47c1-9645-196bd4092d5a",
+                  "code": "EMPTY_IMPORT",
+                  "name": "EmptyImportError",
+                  "description": "The import batch holds no transactions",
+                  "template": ""
+                },
+                {
+                  "id": "0286161d-cf28-4532-8340-7bff3c9afcbd",
+                  "code": "DUPLICATE_TRANSACTION",
+                  "name": "DuplicateTransactionError",
+                  "description": "A transaction with the same bank reference exists",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "c2436e72-4a56-4296-a352-96233c90d8c4",
+              "name": "CATEGORIZE_TRANSACTION",
+              "description": "",
+              "schema": "input CategorizeTransactionInput {\n  id: OID!\n  category: TransactionCategory!\n  contactId: String\n}",
+              "template": "",
+              "reducer": "const tx = state.transactions.find((t) => t.id === action.input.id);\nif (!tx) throw new TransactionNotFoundError(`Transaction ${action.input.id} not found`);\ntx.category = action.input.category;\nif (action.input.contactId !== undefined) tx.contactId = action.input.contactId;\nif (tx.status === \"NEW\") tx.status = \"CATEGORIZED\";",
+              "errors": [
+                {
+                  "id": "57fdb18a-fa1d-43e3-afcf-130015d44525",
+                  "code": "TRANSACTION_NOT_FOUND",
+                  "name": "TransactionNotFoundError",
+                  "description": "No transaction with that id",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "00ee7fcf-a3e5-4ee4-a893-5772bb414e3c",
+              "name": "MATCH_TRANSACTION",
+              "description": "",
+              "schema": "input MatchTransactionInput {\n  id: OID!\n  documentId: String!\n  kind: MatchKind!\n}",
+              "template": "",
+              "reducer": "const tx = state.transactions.find((t) => t.id === action.input.id);\nif (!tx) throw new TransactionNotFoundError(`Transaction ${action.input.id} not found`);\nif (tx.status === \"EXCLUDED\") throw new TransactionExcludedError(\"An excluded transaction cannot be matched\");\ntx.matchedDocumentId = action.input.documentId;\ntx.matchedKind = action.input.kind;\ntx.status = \"MATCHED\";",
+              "errors": [
+                {
+                  "id": "9703d8d1-a6d3-41a1-b130-8716f81ee28f",
+                  "code": "TRANSACTION_NOT_FOUND",
+                  "name": "TransactionNotFoundError",
+                  "description": "No transaction with that id",
+                  "template": ""
+                },
+                {
+                  "id": "a609837c-4939-4daa-8bed-47ccf382167e",
+                  "code": "TRANSACTION_EXCLUDED",
+                  "name": "TransactionExcludedError",
+                  "description": "The transaction is excluded from bookkeeping",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "92ffc36b-4c94-4c00-a26f-78c43e7a1451",
+              "name": "UNMATCH_TRANSACTION",
+              "description": "",
+              "schema": "input UnmatchTransactionInput {\n  id: OID!\n}",
+              "template": "",
+              "reducer": "const tx = state.transactions.find((t) => t.id === action.input.id);\nif (!tx) throw new TransactionNotFoundError(`Transaction ${action.input.id} not found`);\ntx.matchedDocumentId = null;\ntx.matchedKind = null;\ntx.status = tx.category === \"UNCATEGORIZED\" ? \"NEW\" : \"CATEGORIZED\";",
+              "errors": [
+                {
+                  "id": "a0fc0dda-7982-4d03-9f39-794d5909d0e8",
+                  "code": "TRANSACTION_NOT_FOUND",
+                  "name": "TransactionNotFoundError",
+                  "description": "No transaction with that id",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "9ba299f9-770d-47de-b937-2194dccb40f5",
+              "name": "EXCLUDE_TRANSACTION",
+              "description": "",
+              "schema": "input ExcludeTransactionInput {\n  id: OID!\n  excluded: Boolean!\n}",
+              "template": "",
+              "reducer": "const tx = state.transactions.find((t) => t.id === action.input.id);\nif (!tx) throw new TransactionNotFoundError(`Transaction ${action.input.id} not found`);\nif (action.input.excluded) {\n  tx.matchedDocumentId = null;\n  tx.matchedKind = null;\n  tx.status = \"EXCLUDED\";\n} else {\n  tx.status = tx.category === \"UNCATEGORIZED\" ? \"NEW\" : \"CATEGORIZED\";\n}",
+              "errors": [
+                {
+                  "id": "1c0dfd8c-12f7-45c3-b7a8-3b50aaeb949a",
+                  "code": "TRANSACTION_NOT_FOUND",
+                  "name": "TransactionNotFoundError",
+                  "description": "No transaction with that id",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

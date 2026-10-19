@@ -1,0 +1,74 @@
+{
+  "name": "sektar",
+  "description": "Document models, editors and integrations for invoicing.",
+  "category": "Finance",
+  "publisher": {
+    "name": "Acme Studio",
+    "url": "https://acme.example"
+  },
+  "documentModels": [
+    {
+      "id": "sektar/bank-account",
+      "name": "Bank Account"
+    },
+    {
+      "id": "sektar/invoice",
+      "name": "Invoice"
+    },
+    {
+      "id": "sektar/expense-report",
+      "name": "Expense Report"
+    },
+    {
+      "id": "sektar/contact",
+      "name": "Contact"
+    }
+  ],
+  "apps": [
+    {
+      "id": "sektar",
+      "name": "sektar",
+      "documentTypes": [
+        "powerhouse/document-drive"
+      ]
+    }
+  ],
+  "editors": [
+    {
+      "id": "invoice-editor",
+      "name": "invoice-editor",
+      "documentTypes": [
+        "sektar/invoice"
+      ]
+    },
+    {
+      "id": "expense-report-editor",
+      "name": "expense-report-editor",
+      "documentTypes": [
+        "sektar/expense-report"
+      ]
+    },
+    {
+      "id": "contact-editor",
+      "name": "contact-editor",
+      "documentTypes": [
+        "sektar/contact"
+      ]
+    },
+    {
+      "id": "bank-account-editor",
+      "name": "bank-account-editor",
+      "documentTypes": [
+        "sektar/bank-account"
+      ]
+    }
+  ],
+  "processors": [
+    {
+      "id": "search-index",
+      "name": "search-index"
+    }
+  ],
+  "subgraphs": [],
+  "config": []
+}

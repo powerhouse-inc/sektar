@@ -1,0 +1,133 @@
+{
+  "name": "sektar",
+  "version": "1.0.0",
+  "license": "AGPL-3.0-only",
+  "files": [
+    "/dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "browser": "./dist/browser/index.js",
+      "node": "./dist/node/index.mjs"
+    },
+    "./reactor": {
+      "types": "./dist/types/reactor/index.d.ts",
+      "browser": "./dist/browser/reactor/index.js"
+    },
+    "./document-models": {
+      "types": "./dist/types/document-models/index.d.ts",
+      "browser": "./dist/browser/document-models/index.js",
+      "node": "./dist/node/document-models/index.mjs"
+    },
+    "./document-models/*": {
+      "types": "./dist/types/document-models/*/index.d.ts",
+      "browser": "./dist/browser/document-models/*/index.js",
+      "node": "./dist/node/document-models/*/index.mjs"
+    },
+    "./editors": {
+      "types": "./dist/types/editors/index.d.ts",
+      "browser": "./dist/browser/editors/index.js",
+      "node": "./dist/node/editors/index.mjs"
+    },
+    "./editors/*": {
+      "types": "./dist/types/editors/*/editor.d.ts",
+      "browser": "./dist/browser/editors/*/editor.js",
+      "node": "./dist/node/editors/*/editor.mjs"
+    },
+    "./subgraphs": {
+      "types": "./dist/types/subgraphs/index.d.ts",
+      "node": "./dist/node/subgraphs/index.mjs"
+    },
+    "./processors": {
+      "types": "./dist/types/processors/index.d.ts",
+      "browser": "./dist/browser/processors/index.js",
+      "node": "./dist/node/processors/index.mjs"
+    },
+    "./pieces": {
+      "types": "./dist/types/pieces/index.d.ts",
+      "node": "./dist/node/pieces/index.mjs"
+    },
+    "./pieces/*": {
+      "types": "./dist/types/pieces/*/index.d.ts",
+      "node": "./dist/node/pieces/*/index.mjs"
+    },
+    "./manifest": "./dist/powerhouse.manifest.json",
+    "./style.css": "./dist/style.css"
+  },
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage --passWithNoTests",
+    "lint": "oxlint --type-aware --type-check",
+    "lint:fix": "oxlint --type-aware --type-check --fix",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "tsc": "tsc --noEmit --emitDeclarationOnly false",
+    "tsc:watch": "tsc --watch",
+    "check-circular-imports": "npx dpdm -T ./index.ts",
+    "generate": "ph-cli generate",
+    "connect": "ph-cli connect",
+    "build": "ph-cli build",
+    "reactor": "ph-cli reactor",
+    "service": "ph-cli service",
+    "vetra": "ph-cli vetra",
+    "service-startup": "bash ./node_modules/@powerhousedao/ph-cli/dist/scripts/service-startup.sh",
+    "service-unstartup": "bash ./node_modules/@powerhousedao/ph-cli/dist/scripts/service-unstartup.sh"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.3.15",
+    "@electric-sql/pglite-tools": "0.2.20",
+    "@powerhousedao/clint": "link:../powerhouse/packages/clint",
+    "@powerhousedao/connect": "link:../powerhouse/apps/connect",
+    "@powerhousedao/design-system": "link:../powerhouse/packages/design-system",
+    "@powerhousedao/desktop": "link:../powerhouse/packages/desktop",
+    "@powerhousedao/document-engineering": "1.40.5",
+    "@powerhousedao/host-core": "link:../powerhouse/packages/host-core",
+    "@powerhousedao/ph-cli": "link:../powerhouse/clis/ph-cli",
+    "@powerhousedao/reactor": "link:../powerhouse/packages/reactor",
+    "@powerhousedao/reactor-browser": "link:../powerhouse/packages/reactor-browser",
+    "@powerhousedao/shared": "link:../powerhouse/packages/shared",
+    "@powerhousedao/switchboard": "link:../powerhouse/apps/switchboard",
+    "@powerhousedao/vetra-studio": "link:../powerhouse/packages/vetra-studio",
+    "@tailwindcss/cli": "^4.1.18",
+    "@tailwindcss/vite": "^4.1.18",
+    "@tanstack/react-router": "^1.170.41",
+    "@tauri-apps/cli": "2.12.3",
+    "@types/node": "^24.9.2",
+    "@types/react": "^19.2.3",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/coverage-v8": "5.0.3",
+    "document-model": "link:../powerhouse/packages/document-model",
+    "graphql": "16.12.0",
+    "graphql-tag": "2.12.6",
+    "oxfmt": "0.68.0",
+    "oxlint": "1.70.0",
+    "oxlint-tsgolint": "0.23.0",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "tailwindcss": "^4.1.16",
+    "typescript": "~7.0.2",
+    "vite": "^8.0.10",
+    "vite-tsconfig-paths": "6.1.1",
+    "vitest": "5.0.3",
+    "zod": "4.6.5"
+  },
+  "peerDependencies": {
+    "@powerhousedao/reactor-browser": "*",
+    "document-model": "*",
+    "graphql": "^16",
+    "graphql-tag": "^2",
+    "react": "^19",
+    "react-dom": "^19",
+    "zod": "^4"
+  },
+  "resolutions": {
+    "**/date-fns": "4.3.0",
+    "**/rolldown": "1.0.2",
+    "**/vite": "8.0.14"
+  }
+}

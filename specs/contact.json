@@ -1,0 +1,216 @@
+{
+  "id": "sektar/contact",
+  "name": "Contact",
+  "author": {
+    "name": "Sektar",
+    "website": "https://sektar.example"
+  },
+  "extension": "cnt",
+  "description": "A supplier, customer or other business relation: identity, address, bank details, payment terms and the people behind it.",
+  "specifications": [
+    {
+      "version": 1,
+      "changeLog": [],
+      "state": {
+        "global": {
+          "schema": "type ContactState {\n  name: String\n  kind: ContactKind!\n  status: ContactStatus!\n  email: String\n  phone: String\n  website: String\n  vatId: String\n  registrationNumber: String\n  address: PostalAddress!\n  bank: BankDetails!\n  paymentTermsDays: Int!\n  defaultCategory: TransactionCategory!\n  tags: [String!]!\n  people: [ContactPerson!]!\n  notes: String\n}\n\ntype PostalAddress {\n  street: String\n  postalCode: String\n  city: String\n  country: String\n}\n\ntype BankDetails {\n  iban: String\n  bic: String\n  accountHolder: String\n}\n\ntype ContactPerson {\n  id: OID!\n  name: String!\n  role: String\n  email: String\n  phone: String\n}\n\nenum ContactKind {\n  SUPPLIER\n  CUSTOMER\n  BOTH\n  OTHER\n}\n\nenum ContactStatus {\n  ACTIVE\n  ARCHIVED\n}\n\nenum TransactionCategory {\n  UNCATEGORIZED\n  SALES\n  SUPPLIES\n  PAYROLL\n  RENT\n  SOFTWARE\n  TRAVEL\n  MARKETING\n  TAX\n  BANK_FEES\n  TRANSFER\n  OTHER\n}",
+          "initialValue": "{\"name\": null, \"kind\": \"SUPPLIER\", \"status\": \"ACTIVE\", \"email\": null, \"phone\": null, \"website\": null, \"vatId\": null, \"registrationNumber\": null, \"address\": {\"street\": null, \"postalCode\": null, \"city\": null, \"country\": null}, \"bank\": {\"iban\": null, \"bic\": null, \"accountHolder\": null}, \"paymentTermsDays\": 30, \"defaultCategory\": \"UNCATEGORIZED\", \"tags\": [], \"people\": [], \"notes\": null}",
+          "examples": []
+        },
+        "local": {
+          "schema": "",
+          "initialValue": "",
+          "examples": []
+        }
+      },
+      "modules": [
+        {
+          "id": "3a89633b-a240-4732-af1f-dd71d48bb38a",
+          "name": "profile",
+          "description": "Identity, address, bank, terms",
+          "operations": [
+            {
+              "id": "e0144cd4-0e9b-4264-b18a-c7f8a9b30c10",
+              "name": "SET_PROFILE",
+              "description": "",
+              "schema": "input SetProfileInput {\n  name: String\n  kind: ContactKind\n  email: String\n  phone: String\n  website: String\n  vatId: String\n  registrationNumber: String\n  notes: String\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nif (i.name !== undefined) state.name = i.name;\nif (i.kind !== undefined && i.kind !== null) state.kind = i.kind;\nif (i.email !== undefined) state.email = i.email;\nif (i.phone !== undefined) state.phone = i.phone;\nif (i.website !== undefined) state.website = i.website;\nif (i.vatId !== undefined) state.vatId = i.vatId;\nif (i.registrationNumber !== undefined) state.registrationNumber = i.registrationNumber;\nif (i.notes !== undefined) state.notes = i.notes;",
+              "errors": [],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "bbd51d8f-5eb3-4497-967e-745698daf117",
+              "name": "SET_ADDRESS",
+              "description": "",
+              "schema": "input SetAddressInput {\n  street: String\n  postalCode: String\n  city: String\n  country: String\n}",
+              "template": "",
+              "reducer": "state.address = {\n  street: action.input.street ?? null,\n  postalCode: action.input.postalCode ?? null,\n  city: action.input.city ?? null,\n  country: action.input.country ?? null,\n};",
+              "errors": [],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "20c22409-2f7e-4d2f-8089-a04c3c4b98e2",
+              "name": "SET_BANK_DETAILS",
+              "description": "",
+              "schema": "input SetBankDetailsInput {\n  iban: String\n  bic: String\n  accountHolder: String\n}",
+              "template": "",
+              "reducer": "state.bank = {\n  iban: action.input.iban ?? null,\n  bic: action.input.bic ?? null,\n  accountHolder: action.input.accountHolder ?? null,\n};",
+              "errors": [],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "9629bedc-bc3c-4f13-a4fc-69981e0ed67f",
+              "name": "SET_PAYMENT_TERMS",
+              "description": "",
+              "schema": "input SetPaymentTermsInput {\n  paymentTermsDays: Int!\n  defaultCategory: TransactionCategory\n}",
+              "template": "",
+              "reducer": "if (action.input.paymentTermsDays < 0) throw new InvalidTermsError(\"Payment terms cannot be negative\");\nstate.paymentTermsDays = action.input.paymentTermsDays;\nif (action.input.defaultCategory !== undefined && action.input.defaultCategory !== null) {\n  state.defaultCategory = action.input.defaultCategory;\n}",
+              "errors": [
+                {
+                  "id": "bb384526-8971-4dd9-aafa-c3e9a529fe7d",
+                  "code": "INVALID_TERMS",
+                  "name": "InvalidTermsError",
+                  "description": "Payment terms must be zero or more days",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "4f2cdd85-1f5a-4866-b1f3-5bd1ca1e6cd4",
+              "name": "ADD_TAG",
+              "description": "",
+              "schema": "input AddTagInput {\n  tag: String!\n}",
+              "template": "",
+              "reducer": "const tag = action.input.tag.trim();\nif (tag.length === 0) throw new InvalidTagError(\"A tag needs text\");\nif (state.tags.includes(tag)) throw new DuplicateTagError(`Tag ${tag} exists`);\nstate.tags.push(tag);",
+              "errors": [
+                {
+                  "id": "40f8e306-706e-4544-bd07-41c357c0b4a4",
+                  "code": "INVALID_TAG",
+                  "name": "InvalidTagError",
+                  "description": "The tag is empty",
+                  "template": ""
+                },
+                {
+                  "id": "178949ee-cdd2-49fa-9daf-7b50bb41c240",
+                  "code": "DUPLICATE_TAG",
+                  "name": "DuplicateTagError",
+                  "description": "The tag exists already",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "7816a537-cdfe-4c8c-86f5-96fe6b94ab2c",
+              "name": "REMOVE_TAG",
+              "description": "",
+              "schema": "input RemoveTagInput {\n  tag: String!\n}",
+              "template": "",
+              "reducer": "const index = state.tags.indexOf(action.input.tag);\nif (index === -1) throw new TagNotFoundError(`Tag ${action.input.tag} not found`);\nstate.tags.splice(index, 1);",
+              "errors": [
+                {
+                  "id": "31d8ab61-24f0-4e7b-9754-818cdb910586",
+                  "code": "TAG_NOT_FOUND",
+                  "name": "TagNotFoundError",
+                  "description": "No such tag",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        },
+        {
+          "id": "0e29d7b2-6962-4d64-ad4e-72469b434125",
+          "name": "people",
+          "description": "People at the contact",
+          "operations": [
+            {
+              "id": "1e8c8828-3d4d-40fc-9035-45ccb7d75d24",
+              "name": "ADD_PERSON",
+              "description": "",
+              "schema": "input AddPersonInput {\n  id: OID!\n  name: String!\n  role: String\n  email: String\n  phone: String\n}",
+              "template": "",
+              "reducer": "state.people.push({\n  id: action.input.id,\n  name: action.input.name,\n  role: action.input.role || null,\n  email: action.input.email || null,\n  phone: action.input.phone || null,\n});",
+              "errors": [],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "73c89b3b-97b8-47af-869d-25aa1546b7c9",
+              "name": "UPDATE_PERSON",
+              "description": "",
+              "schema": "input UpdatePersonInput {\n  id: OID!\n  name: String\n  role: String\n  email: String\n  phone: String\n}",
+              "template": "",
+              "reducer": "const person = state.people.find((p) => p.id === action.input.id);\nif (!person) throw new PersonNotFoundError(`Person ${action.input.id} not found`);\nif (action.input.name !== undefined && action.input.name !== null) person.name = action.input.name;\nif (action.input.role !== undefined) person.role = action.input.role;\nif (action.input.email !== undefined) person.email = action.input.email;\nif (action.input.phone !== undefined) person.phone = action.input.phone;",
+              "errors": [
+                {
+                  "id": "fa911580-c3cb-4ca9-8be0-cae83a78ee25",
+                  "code": "PERSON_NOT_FOUND",
+                  "name": "PersonNotFoundError",
+                  "description": "No person with that id",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "eca618ea-ef4f-46d9-9db2-2a340a09c445",
+              "name": "REMOVE_PERSON",
+              "description": "",
+              "schema": "input RemovePersonInput {\n  id: OID!\n}",
+              "template": "",
+              "reducer": "const index = state.people.findIndex((p) => p.id === action.input.id);\nif (index === -1) throw new PersonNotFoundError(`Person ${action.input.id} not found`);\nstate.people.splice(index, 1);",
+              "errors": [
+                {
+                  "id": "8ffb9738-1f79-4ac2-a010-c90d1a3a91b7",
+                  "code": "PERSON_NOT_FOUND",
+                  "name": "PersonNotFoundError",
+                  "description": "No person with that id",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        },
+        {
+          "id": "e9073218-508e-4052-9773-6cd50ca5333d",
+          "name": "lifecycle",
+          "description": "Archive and restore",
+          "operations": [
+            {
+              "id": "8a4c240f-6551-4a9d-942c-6ffb91c3f16c",
+              "name": "ARCHIVE_CONTACT",
+              "description": "",
+              "schema": "input ArchiveContactInput {\n  archived: Boolean!\n}",
+              "template": "",
+              "reducer": "const next = action.input.archived ? \"ARCHIVED\" : \"ACTIVE\";\nif (state.status === next) throw new StatusUnchangedError(`The contact is already ${next.toLowerCase()}`);\nstate.status = next;",
+              "errors": [
+                {
+                  "id": "986ae1a8-66c4-4652-958f-04777eab64d9",
+                  "code": "STATUS_UNCHANGED",
+                  "name": "StatusUnchangedError",
+                  "description": "The contact already has that status",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

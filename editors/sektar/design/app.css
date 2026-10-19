@@ -1,0 +1,783 @@
+/* =============================================================================
+   Sektar app layer — what the design system leaves to the product, plus the
+   part of base.css the app needs, scoped so Connect's own chrome (document
+   toolbar, drive view, settings) keeps its styles. The design system itself
+   (tokens, components, utilities) is vendored unmodified by
+   scripts/sync-design-system.mjs; nothing in this file restyles its classes
+   except where the shell lives inside Connect's scroll container.
+   ============================================================================= */
+
+/* --------------------------------------------------------------------------
+   Document defaults (base.css), scoped with :where so they never outrank a
+   design-system class.
+   -------------------------------------------------------------------------- */
+.sk-app {
+  font-family: var(--sk-font-sans);
+  font-size: var(--sk-text-md);
+  line-height: var(--sk-leading-normal);
+  color: var(--sk-text);
+  background: var(--sk-bg);
+  font-feature-settings: "cv11", "ss01", "calt";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.sk-app ::selection {
+  background: var(--sk-mint-300);
+  color: var(--sk-forest-900);
+}
+:where(.sk-app) :is(h1, h2, h3, h4, h5, h6, p, ul, ol, dl, dd, figure, blockquote) {
+  margin: 0;
+}
+:where(.sk-app) :is(input, button, textarea, select) {
+  font: inherit;
+  color: inherit;
+}
+:where(.sk-app) button {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+}
+:where(.sk-app) :is(img, svg) {
+  display: block;
+  max-width: 100%;
+}
+:where(.sk-app) img {
+  height: auto;
+}
+:where(.sk-app) :is(p, h1, h2, h3, h4, h5, h6) {
+  overflow-wrap: break-word;
+}
+
+/* Headings — Fraunces, soft optical size, WONK pinned to 0 (the Google build
+   keeps the wonky alternates on regardless; the setting is for the day the
+   font is self-hosted). */
+.sk-page h1,
+.sk-page h2,
+.sk-page h3,
+.sk-page h4,
+.sk-app .sk-display,
+.sk-app .sk-display-xl,
+.sk-app .sk-h1,
+.sk-app .sk-h2,
+.sk-app .sk-h3,
+.sk-app .sk-h4 {
+  font-family: var(--sk-font-display);
+  font-weight: var(--sk-weight-regular);
+  font-variation-settings:
+    "opsz" 72,
+    "SOFT" 30,
+    "WONK" 0;
+  letter-spacing: var(--sk-tracking-tight);
+  line-height: var(--sk-leading-tight);
+  color: var(--sk-text);
+  text-wrap: balance;
+}
+.sk-app .sk-display-xl {
+  font-size: var(--sk-text-6xl);
+  line-height: 1.02;
+  font-variation-settings:
+    "opsz" 144,
+    "SOFT" 40,
+    "WONK" 0;
+}
+.sk-app .sk-display {
+  font-size: var(--sk-text-5xl);
+  line-height: 1.06;
+  font-variation-settings:
+    "opsz" 120,
+    "SOFT" 40,
+    "WONK" 0;
+}
+.sk-page h1,
+.sk-app .sk-h1 {
+  font-size: var(--sk-text-4xl);
+}
+.sk-page h2,
+.sk-app .sk-h2 {
+  font-size: var(--sk-text-3xl);
+  line-height: 1.15;
+}
+.sk-page h3,
+.sk-app .sk-h3 {
+  font-size: var(--sk-text-2xl);
+  line-height: var(--sk-leading-snug);
+  font-variation-settings:
+    "opsz" 36,
+    "SOFT" 20,
+    "WONK" 0;
+}
+.sk-page h4,
+.sk-app .sk-h4 {
+  font-size: var(--sk-text-xl);
+  line-height: 1.3;
+  font-variation-settings:
+    "opsz" 24,
+    "SOFT" 20,
+    "WONK" 0;
+  font-weight: var(--sk-weight-medium);
+}
+.sk-page h5,
+.sk-app .sk-h5 {
+  font-family: var(--sk-font-sans);
+  font-size: var(--sk-text-lg);
+  font-weight: var(--sk-weight-semibold);
+  letter-spacing: 0;
+}
+.sk-page h6,
+.sk-app .sk-h6 {
+  font-family: var(--sk-font-sans);
+  font-size: var(--sk-text-base);
+  font-weight: var(--sk-weight-semibold);
+  letter-spacing: 0;
+}
+@media (max-width: 720px) {
+  .sk-app .sk-display-xl {
+    font-size: var(--sk-text-5xl);
+  }
+  .sk-app .sk-display {
+    font-size: var(--sk-text-4xl);
+  }
+  .sk-page h1,
+  .sk-app .sk-h1 {
+    font-size: var(--sk-text-3xl);
+  }
+  .sk-page h2,
+  .sk-app .sk-h2 {
+    font-size: var(--sk-text-2xl);
+  }
+}
+
+.sk-app .sk-lead {
+  font-family: var(--sk-font-display);
+  font-weight: var(--sk-weight-light);
+  font-size: var(--sk-text-xl);
+  line-height: var(--sk-leading-relaxed);
+  font-variation-settings:
+    "opsz" 36,
+    "SOFT" 50,
+    "WONK" 0;
+  color: var(--sk-text-secondary);
+}
+.sk-app .sk-body-lg {
+  font-size: var(--sk-text-lg);
+  line-height: var(--sk-leading-relaxed);
+}
+.sk-app .sk-ui {
+  font-size: var(--sk-text-md);
+  line-height: var(--sk-leading-normal);
+}
+.sk-app .sk-small {
+  font-size: var(--sk-text-sm);
+}
+.sk-app .sk-caption {
+  font-size: var(--sk-text-xs);
+  color: var(--sk-text-muted);
+}
+.sk-app .sk-eyebrow {
+  font-size: var(--sk-text-2xs);
+  font-weight: var(--sk-weight-medium);
+  letter-spacing: var(--sk-tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--sk-text-muted);
+}
+.sk-app .sk-tagline {
+  font-size: var(--sk-text-sm);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.sk-app .sk-numeral {
+  font-family: var(--sk-font-display);
+  font-variation-settings:
+    "opsz" 48,
+    "SOFT" 30,
+    "WONK" 0;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.01em;
+}
+.sk-app .sk-tabular {
+  font-variant-numeric: tabular-nums;
+}
+.sk-app kbd {
+  display: inline-block;
+  padding: 0.1em 0.45em;
+  border: 1px solid var(--sk-border);
+  border-bottom-width: 2px;
+  border-radius: var(--sk-radius-xs);
+  background: var(--sk-surface);
+  font-family: var(--sk-font-mono);
+  font-size: 0.8em;
+  line-height: 1.4;
+}
+
+.sk-app a {
+  color: var(--sk-text-link);
+  text-decoration: none;
+}
+.sk-app a:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.sk-app :is(.sk-nav__item, .sk-btn, .sk-list-item, .sk-lockup, .sk-chip):hover {
+  text-decoration: none;
+}
+.sk-app *:focus-visible {
+  outline: none;
+  box-shadow: var(--sk-shadow-focus);
+  border-radius: var(--sk-radius-xs);
+}
+.sk-app ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.sk-app ::-webkit-scrollbar-thumb {
+  background: var(--sk-border-strong);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sk-app *,
+  .sk-app *::before,
+  .sk-app *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Shell inside Connect. Connect scrolls its root element (`.h-screen
+   .overflow-auto`), not the window, so the sidebar and top bar stick inside
+   that container; a grid item only sticks when it is not stretched, hence
+   align-self: start.
+   -------------------------------------------------------------------------- */
+/* `.sk-app` and `.sk-shell` sit on the same element */
+.sk-app.sk-shell {
+  min-height: 100vh;
+}
+.sk-app.sk-shell > .sk-sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  min-height: 0;
+  max-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden; /* a floating menu must never scroll the sidebar sideways */
+  overscroll-behavior: contain;
+}
+.sk-app .sk-topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--sk-z-sticky);
+}
+.sk-app .sk-shell__content {
+  min-width: 0;
+}
+/* The menu button: drawer on phones, sidebar rail on larger screens (the
+   rail follows the design system: icons only, footer hidden) */
+.sk-app.sk-shell--rail > .sk-sidebar .sk-nav__item {
+  gap: 0;
+}
+.sk-app.sk-shell--rail > .sk-sidebar .sk-nav__group hr {
+  width: 24px;
+  margin-inline: auto;
+}
+/* The product switch on the rail: symbol only (the design system hides the
+   wordmark and product line), so the chevron goes too; the popover still
+   opens from the symbol */
+.sk-app.sk-shell--rail > .sk-sidebar .sk-product-switch__chevron {
+  display: none;
+}
+.sk-app.sk-shell--rail > .sk-sidebar .sk-product-switch__btn {
+  margin: 0;
+  padding: var(--sk-space-1);
+}
+/* The drawer covers the viewport (the shell lives in a scrolling container)
+   and sits above the sticky bars */
+.sk-app .sk-drawer {
+  position: fixed;
+  z-index: var(--sk-z-modal);
+}
+.sk-app .sk-drawer > .sk-sidebar {
+  overscroll-behavior: contain;
+}
+/* Phone: the search button swaps the title row for the search field */
+@container dash (max-width: 640px) {
+  .sk-app .sk-topbar.is-searching .sk-topbar__search {
+    display: block;
+    flex: 1 1 auto;
+    max-width: none;
+  }
+  .sk-app .sk-topbar.is-searching .sk-topbar__title,
+  .sk-app .sk-topbar.is-searching .sk-topbar__menu,
+  .sk-app .sk-topbar.is-searching .sk-topbar__actions > :not(.sk-topbar__search-btn) {
+    display: none;
+  }
+}
+/* Sidebar footer: promo card above the user menu */
+.sk-app .sk-sidebar__footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sk-space-4);
+}
+
+/* --------------------------------------------------------------------------
+   Dashboard grid (12 columns) — the product's own layout
+   -------------------------------------------------------------------------- */
+.sk-app .sk-dash-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--sk-space-4);
+}
+.sk-app .c3 {
+  grid-column: span 3;
+}
+.sk-app .c4 {
+  grid-column: span 4;
+}
+.sk-app .c6 {
+  grid-column: span 6;
+}
+.sk-app .c8 {
+  grid-column: span 8;
+}
+.sk-app .c12 {
+  grid-column: span 12;
+}
+@container dash (max-width: 1040px) {
+  .sk-app .c3,
+  .sk-app .c4 {
+    grid-column: span 6;
+  }
+  .sk-app .c6,
+  .sk-app .c8 {
+    grid-column: span 12;
+  }
+}
+@container dash (max-width: 560px) {
+  .sk-app .c3,
+  .sk-app .c4,
+  .sk-app .c6 {
+    grid-column: span 12;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Side panel (detail drawer) and overlay — the product's own
+   -------------------------------------------------------------------------- */
+.sk-app .sk-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--sk-overlay);
+  z-index: var(--sk-z-overlay);
+}
+.sk-app .sk-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(560px, 100vw);
+  background: var(--sk-surface);
+  box-shadow: var(--sk-shadow-lg);
+  z-index: var(--sk-z-modal);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.sk-app .sk-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sk-space-4);
+  padding: var(--sk-space-6) var(--sk-space-6) var(--sk-space-4);
+  border-bottom: 1px solid var(--sk-border-subtle);
+}
+/* Slim header: an eyebrow and the close button, when the body opens with a
+   detail header that carries the name itself */
+.sk-app .sk-panel__header--slim {
+  align-items: center;
+  padding: var(--sk-space-3) var(--sk-space-4) var(--sk-space-3) var(--sk-space-6);
+}
+.sk-app .sk-panel__body {
+  padding: var(--sk-space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sk-space-5);
+}
+.sk-app .sk-panel__footer {
+  margin-top: auto;
+  padding: var(--sk-space-4) var(--sk-space-6);
+  border-top: 1px solid var(--sk-border-subtle);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sk-space-2);
+}
+
+/* --------------------------------------------------------------------------
+   Board columns for invoices/expenses — the product's own
+   -------------------------------------------------------------------------- */
+.sk-app .sk-board {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(260px, 1fr);
+  gap: var(--sk-space-4);
+  overflow-x: auto;
+  padding-bottom: var(--sk-space-2);
+}
+.sk-app .sk-board__col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sk-space-3);
+  min-width: 0;
+}
+.sk-app .sk-board__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 var(--sk-space-1);
+}
+.sk-app .sk-board .sk-card--interactive.is-selected {
+  outline: 2px solid var(--sk-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   Rows, chips and controls rendered as buttons
+   -------------------------------------------------------------------------- */
+.sk-app button.sk-list-item {
+  width: 100%;
+  text-align: left;
+}
+.sk-app button.sk-list-item--rich {
+  border-bottom: 1px solid var(--sk-border-subtle);
+}
+.sk-app .sk-list--rich li:last-child button.sk-list-item--rich {
+  border-bottom: 0;
+}
+.sk-app .sk-list-item__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.sk-app .sk-list-item__title,
+.sk-app .sk-list-item__meta {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sk-app .sk-list-item__title {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.sk-app .sk-list-item--rich .sk-list-item__title {
+  display: block;
+  white-space: nowrap;
+}
+.sk-app .sk-list-item__value {
+  flex: none;
+  white-space: nowrap;
+}
+.sk-app .sk-stat {
+  align-content: start;
+}
+.sk-app .sk-menu button.sk-menu__item {
+  width: 100%;
+  text-align: left;
+}
+.sk-app .sk-menu__item.is-active,
+.sk-app .sk-menu__item.is-active:hover {
+  background: var(--sk-bg-subtle);
+}
+.sk-app .sk-selector__tiles,
+.sk-app .sk-pills {
+  flex-wrap: nowrap;
+}
+.sk-app .sk-pills {
+  overflow-x: auto;
+  scrollbar-width: none;
+  max-width: 100%;
+}
+.sk-app .sk-pill {
+  flex: none;
+}
+.sk-app .sk-kv dd {
+  text-align: right;
+}
+
+/* --------------------------------------------------------------------------
+   Top-bar search (design-system pill input group) and the user menu
+   -------------------------------------------------------------------------- */
+.sk-app .sk-topbar__search .sk-search {
+  width: 100%;
+}
+.sk-app .sk-search .sk-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+.sk-app .sk-search kbd {
+  flex: none;
+  color: var(--sk-text-muted);
+  white-space: nowrap;
+}
+.sk-app .sk-search:focus-within kbd {
+  display: none;
+}
+.sk-app .sk-search.is-open {
+  border-color: var(--sk-sage-500);
+  box-shadow: var(--sk-shadow-focus);
+}
+.sk-app .sk-input-group .sk-input:focus,
+.sk-app .sk-input-group .sk-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.sk-app .sk-search-results {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 70vh;
+  overflow-y: auto;
+  z-index: var(--sk-z-overlay);
+  padding: var(--sk-space-2);
+}
+.sk-app .sk-search-results__group {
+  padding: var(--sk-space-2) var(--sk-space-3) var(--sk-space-1);
+}
+.sk-app .sk-search-results__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.sk-app .sk-search-results kbd {
+  margin-left: auto;
+  color: var(--sk-text-muted);
+}
+.sk-app .sk-search-results .sk-tabular {
+  white-space: nowrap;
+  flex: none;
+}
+
+.sk-app .sk-user-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sk-space-2);
+}
+.sk-app .sk-user--button {
+  padding: var(--sk-space-1) var(--sk-space-2);
+  border-radius: var(--sk-radius-md);
+  max-width: 260px;
+}
+.sk-app .sk-user--button:hover,
+.sk-app .sk-user--button[aria-expanded="true"] {
+  background: var(--sk-bg-subtle);
+}
+.sk-app .sk-user__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+  text-align: left;
+}
+.sk-app .sk-user__name,
+.sk-app .sk-user__meta {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sk-app .sk-user-menu__panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: var(--sk-z-overlay);
+  min-width: 260px;
+  max-width: min(360px, calc(100vw - 2 * var(--sk-space-4)));
+}
+.sk-app .sk-user-menu__head {
+  padding: var(--sk-space-2) var(--sk-space-3);
+}
+/* In the sidebar footer: full width, panel opens upward */
+.sk-app .sk-sidebar .sk-user-menu {
+  width: 100%;
+}
+.sk-app .sk-sidebar .sk-user--button {
+  width: 100%;
+  max-width: none;
+}
+.sk-app .sk-sidebar .sk-user--button .sk-icon:last-child {
+  margin-left: auto;
+}
+.sk-app .sk-sidebar .sk-user-menu > .sk-btn {
+  width: 100%;
+  justify-content: center;
+}
+.sk-app .sk-sidebar .sk-user-menu__panel {
+  left: 0;
+  right: auto;
+  top: auto;
+  bottom: calc(100% + 6px);
+  /* Exactly the footer's width: the sidebar is a scroll container, so a
+     shrink-to-fit panel (the DID line is long) would widen it and be clipped;
+     the head lines ellipsize instead. */
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+/* The top-bar copy of the user menu exists only once the sidebar is a drawer */
+.sk-app .sk-topbar__user {
+  display: none;
+}
+@media (max-width: 960px) {
+  .sk-app .sk-topbar__user {
+    display: inline-flex;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Fit-ups inside the app: page-header art stays inside the header, a record's
+   actions drop under its name in the narrow side panel, and a link styled as
+   a button keeps the button's ink.
+   -------------------------------------------------------------------------- */
+/* Art: smaller than the reference and only when it is shown (the design
+   system hides it under 900px of content width) */
+.sk-app .sk-page-header__art {
+  width: 240px;
+  right: 200px;
+  top: -32px;
+}
+@container dash (min-width: 901px) {
+  .sk-app .sk-page-header:has(.sk-page-header__art) {
+    min-height: 124px;
+  }
+}
+.sk-app .sk-panel .sk-detail-header {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+.sk-app .sk-panel .sk-detail-header__actions {
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+}
+.sk-app a.sk-btn {
+  color: inherit;
+}
+.sk-app a.sk-btn--primary {
+  color: var(--sk-on-primary);
+}
+.sk-app a.sk-btn--secondary {
+  color: var(--sk-on-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   Inspection fit-ups (2026-10-18)
+   -------------------------------------------------------------------------- */
+/* Side panel: two-column grids stack, meta items go two per row and wrap */
+.sk-app .sk-panel .sk-grid--2 {
+  grid-template-columns: minmax(0, 1fr);
+}
+.sk-app .sk-panel .sk-meta__item {
+  flex: 1 1 40%;
+}
+.sk-app .sk-panel .sk-meta__value {
+  white-space: normal;
+}
+/* The category select in the feed keeps a readable width; the wrap scrolls */
+.sk-app .sk-table .sk-select.sk-input--sm {
+  min-width: 150px;
+}
+@container dash (max-width: 640px) {
+  /* Narrow grids: minmax(0, 1fr), so a nowrap row cannot widen the column */
+  .sk-app .sk-shell__content :is(.sk-grid--2, .sk-grid--3, .sk-grid--4) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* Only tables that opt in (date · description · category · amount) stack;
+     the others keep their columns and scroll inside .sk-table-wrap */
+  .sk-app .sk-shell__content .sk-table:not(.sk-table--stack) thead {
+    display: table-header-group;
+  }
+  .sk-app .sk-shell__content .sk-table:not(.sk-table--stack) tbody tr {
+    display: table-row;
+    padding: 0;
+    border-bottom: 0;
+  }
+  .sk-app .sk-shell__content .sk-table:not(.sk-table--stack) tbody td {
+    display: table-cell;
+    padding: var(--sk-space-3);
+    border-bottom: 1px solid var(--sk-border-subtle);
+    font-size: inherit;
+  }
+  .sk-app .sk-shell__content .sk-table--compact:not(.sk-table--stack) tbody td {
+    padding: var(--sk-space-2) var(--sk-space-3);
+  }
+  .sk-app .sk-shell__content .sk-table:not(.sk-table--stack) tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  /* Rows in panels wrap instead of squeezing their fields */
+  .sk-app .sk-panel .sk-row {
+    flex-wrap: wrap;
+  }
+  .sk-app .sk-panel .sk-row > .sk-input.sk-grow {
+    min-width: 160px;
+  }
+}
+/* The drive's folder tree has no room beside the contents on a phone */
+@container dash (max-width: 640px) {
+  .sk-app .sk-drive-tree {
+    display: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Second inspection pass (2026-10-18, evening)
+   -------------------------------------------------------------------------- */
+/* Dividers take the chrome's border colour (base.css is not vendored) */
+.sk-app hr,
+.sk-app .sk-divider {
+  border: 0;
+  border-top: 1px solid var(--sk-border-subtle);
+  margin: var(--sk-space-2) 0;
+}
+/* The search uses the whole top bar between the title and the actions */
+.sk-app .sk-topbar__search {
+  max-width: none;
+}
+.sk-app .sk-topbar__spacer {
+  display: none;
+}
+/* Sidebar and drawer: the brand and the footer stay put, the nav scrolls */
+.sk-app .sk-sidebar > .sk-nav {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.sk-app .sk-sidebar__footer {
+  flex: none;
+}
+/* Brand + seven nav items + promo + sign-in need ~865px; below that the
+   promo goes rather than the nav scrolling behind it */
+@media (max-height: 870px) {
+  .sk-app .sk-sidebar .sk-card--promo {
+    display: none;
+  }
+}
+/* Dashboard grid: every tile fills its row's height */
+.sk-app .sk-dash-grid > * {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.sk-app .sk-dash-grid > * > .sk-card,
+.sk-app .sk-dash-grid > * > .sk-card--hero {
+  flex: 1 1 auto;
+}
+.sk-app .sk-dash-grid .sk-stat {
+  align-content: start;
+}

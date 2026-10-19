@@ -1,0 +1,57 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Sektar",
+  "version": "0.1.0",
+  "identifier": "inc.powerhouse.desktop.sektar",
+  "build": {
+    "frontendDist": "./ui"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Sektar",
+        "width": 1600,
+        "height": 960,
+        "resizable": true,
+        "minWidth": 1180,
+        "minHeight": 720,
+        "visible": true,
+        "dragDropEnabled": false,
+        "create": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis",
+      "app",
+      "dmg"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "ext": [
+          "phd"
+        ],
+        "name": "Powerhouse Document",
+        "mimeType": "application/vnd.powerhouse.document+zip"
+      }
+    ],
+    "externalBin": [
+      "binaries/node"
+    ],
+    "resources": {
+      "./dist-stack": "stack"
+    }
+  }
+}

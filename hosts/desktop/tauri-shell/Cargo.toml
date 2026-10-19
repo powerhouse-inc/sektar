@@ -1,0 +1,26 @@
+# GENERATED from ../app.json by @powerhousedao/desktop — do not edit by
+# hand; edit app.json and re-run `ph run desktop dev|build`. Cargo.lock is
+# preserved across regens.
+[package]
+name = "sektar"
+version = "0.1.0"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "devtools"] }
+# Plugins must be DIRECT deps of the app crate: tauri-build only sees
+# permission manifests (shell:allow-spawn etc.) from direct dependencies.
+tauri-plugin-shell = "2"
+tauri-plugin-single-instance = "2"
+ph-desktop-shell = "0.1"
+
+[[bin]]
+name = "sektar"
+path = "src/main.rs"
+
+[profile.release]
+codegen-units = 1
+lto = true

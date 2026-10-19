@@ -1,0 +1,12 @@
+# Generated tauri shell — only Cargo.lock and app-icon.png are tracked.
+/target
+/gen
+/icons
+/ui/logo.png
+/ui/splash.png
+/ui/splash-dark.png
+/ui/art.*
+/ui/art-dark.*
+/ui/bg-*
+/dist-stack
+/binaries

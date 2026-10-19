@@ -1,0 +1,101 @@
+@import "@powerhousedao/design-system/theme.css";
+@custom-variant dark (&:where(.dark, .dark *));
+@import "tailwindcss";
+@import "@powerhousedao/connect/style.css";
+
+/* ---------------------------------------------------------------------------
+   Sektar design system — vendored unmodified by scripts/sync-design-system.mjs
+   (see editors/sektar/design/SNAPSHOT.md). Plain CSS, every class prefixed
+   `sk-`, every colour a semantic `--sk-*` token. Dark mode: the design system
+   reads `data-theme="dark"` on <html>; kit/theme.ts mirrors Connect's theme
+   onto that attribute.
+   --------------------------------------------------------------------------- */
+@import "./editors/sektar/design/tokens.css";
+@import "./editors/sektar/design/components.css";
+@import "./editors/sektar/design/utilities.css";
+@import "./editors/sektar/design/app.css";
+
+/* ---------------------------------------------------------------------------
+   Tailwind bridge. The Sektar tokens become Tailwind utilities under a `sk-`
+   namespace (bg-sk-surface, text-sk-muted, border-sk-border, font-sk-display,
+   rounded-sk-lg, shadow-sk-md). `inline` means the utilities reference the
+   --sk-* custom properties directly, so they follow the theme and survive the
+   planned `ph:` prefix of Connect's own compile unchanged.
+   --------------------------------------------------------------------------- */
+@theme inline {
+  --color-sk-bg: var(--sk-bg);
+  --color-sk-bg-subtle: var(--sk-bg-subtle);
+  --color-sk-surface: var(--sk-surface);
+  --color-sk-surface-2: var(--sk-surface-2);
+  --color-sk-surface-3: var(--sk-surface-3);
+  --color-sk-surface-inverse: var(--sk-surface-inverse);
+  --color-sk-border: var(--sk-border);
+  --color-sk-border-subtle: var(--sk-border-subtle);
+  --color-sk-border-strong: var(--sk-border-strong);
+  --color-sk-text: var(--sk-text);
+  --color-sk-text-secondary: var(--sk-text-secondary);
+  --color-sk-text-muted: var(--sk-text-muted);
+  --color-sk-text-disabled: var(--sk-text-disabled);
+  --color-sk-text-inverse: var(--sk-text-inverse);
+  --color-sk-text-brand: var(--sk-text-brand);
+  --color-sk-text-link: var(--sk-text-link);
+  --color-sk-primary: var(--sk-primary);
+  --color-sk-primary-hover: var(--sk-primary-hover);
+  --color-sk-on-primary: var(--sk-on-primary);
+  --color-sk-secondary: var(--sk-secondary);
+  --color-sk-on-secondary: var(--sk-on-secondary);
+  --color-sk-accent: var(--sk-accent);
+  --color-sk-accent-subtle: var(--sk-accent-subtle);
+  --color-sk-on-accent: var(--sk-on-accent);
+  --color-sk-success: var(--sk-success);
+  --color-sk-success-bg: var(--sk-success-bg);
+  --color-sk-success-text: var(--sk-success-text);
+  --color-sk-warning: var(--sk-warning);
+  --color-sk-warning-bg: var(--sk-warning-bg);
+  --color-sk-warning-text: var(--sk-warning-text);
+  --color-sk-danger: var(--sk-danger);
+  --color-sk-danger-bg: var(--sk-danger-bg);
+  --color-sk-danger-text: var(--sk-danger-text);
+  --color-sk-info: var(--sk-info);
+  --color-sk-info-bg: var(--sk-info-bg);
+  --color-sk-info-text: var(--sk-info-text);
+  --color-sk-positive: var(--sk-positive);
+  --color-sk-negative: var(--sk-negative);
+  --color-sk-icon-bg: var(--sk-icon-bg);
+  --color-sk-forest: var(--sk-forest);
+  --color-sk-sage: var(--sk-sage);
+  --color-sk-mint: var(--sk-mint);
+  --color-sk-cream: var(--sk-cream);
+  --color-sk-stone: var(--sk-stone);
+  --color-sk-charcoal: var(--sk-charcoal);
+  --color-sk-chart-1: var(--sk-chart-1);
+  --color-sk-chart-2: var(--sk-chart-2);
+  --color-sk-chart-3: var(--sk-chart-3);
+  --color-sk-chart-4: var(--sk-chart-4);
+  --color-sk-chart-5: var(--sk-chart-5);
+  --color-sk-chart-6: var(--sk-chart-6);
+
+  --font-sk-display: var(--sk-font-display);
+  --font-sk-sans: var(--sk-font-sans);
+  --font-sk-mono: var(--sk-font-mono);
+
+  --radius-sk-xs: var(--sk-radius-xs);
+  --radius-sk-sm: var(--sk-radius-sm);
+  --radius-sk-md: var(--sk-radius-md);
+  --radius-sk-lg: var(--sk-radius-lg);
+  --radius-sk-xl: var(--sk-radius-xl);
+  --radius-sk-2xl: var(--sk-radius-2xl);
+
+  --shadow-sk-xs: var(--sk-shadow-xs);
+  --shadow-sk-sm: var(--sk-shadow-sm);
+  --shadow-sk-md: var(--sk-shadow-md);
+  --shadow-sk-lg: var(--sk-shadow-lg);
+  /* brand marks and the live lockup */
+  --color-sk-text-accent: var(--sk-text-accent);
+  --color-sk-mark-1: var(--sk-mark-1);
+  --color-sk-mark-2: var(--sk-mark-2);
+  --color-sk-mark-3: var(--sk-mark-3);
+  --color-sk-mark-4: var(--sk-mark-4);
+  --color-sk-wordmark: var(--sk-wordmark);
+  --color-sk-tagline: var(--sk-tagline-color);
+}
