@@ -18,7 +18,7 @@ import {
   type EmailDocument,
   type Mailbox,
 } from "document-models/email";
-import { useMemo } from "react";
+import { useDeferredValue, useMemo } from "react";
 import { fileIds, folderNode } from "./data.js";
 
 export const EMAIL_TYPE = "sektar/email";
@@ -28,17 +28,32 @@ export type AttachmentClient = NonNullable<ReturnType<typeof useAttachments>>;
 
 /* -------------------------------------------------------------- reading */
 
-/** Every email in the drive, newest first. */
+/**
+ * Every captured email in the drive, newest first.
+ *
+ * The id list is read through a deferred value: `useDocumentsByIds` ends in
+ * `use(promise)`, and a new id makes that promise new and unresolved, so the
+ * component suspends. Suspending on a deferred value keeps the previous
+ * render on screen while the new one resolves; suspending on the live value
+ * made React hide the whole view and show the shell's skeleton for every
+ * message a backfill filed.
+ *
+ * A document that exists but has not been captured yet (created, capture
+ * still on its way) is left out: it has no sender, no subject and no
+ * mailbox, and would surface as an "unknown" inbox for a moment.
+ */
 export function useEmails(
   drive: DocumentDriveDocument | undefined,
 ): EmailDocument[] {
   const key = fileIds(drive, EMAIL_TYPE).join(",");
   const ids = useMemo(() => (key ? key.split(",") : []), [key]);
-  const docs = useDocumentsByIds(ids);
+  const settledIds = useDeferredValue(ids);
+  const docs = useDocumentsByIds(settledIds);
   return useMemo(
     () =>
       docs
         .filter(isEmailDocument)
+        .filter((d) => Boolean(d.state.global.externalId))
         .sort((a, b) => whenOf(b).localeCompare(whenOf(a))),
     [docs],
   );

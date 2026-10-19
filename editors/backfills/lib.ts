@@ -134,15 +134,66 @@ export function widthOf(seconds: number): string {
   return `${String(seconds)} seconds`;
 }
 
-/** A date for a span: the day, in the reader's locale. */
+/**
+ * A date for a span: the day, in the reader's locale but in UTC, because a
+ * backfill's bounds are UTC midnights and a local rendering would show the
+ * evening before to anyone east of Greenwich.
+ */
 export function day(iso: string): string {
   const at = Date.parse(iso);
   if (Number.isNaN(at)) return iso;
   return new Date(at).toLocaleDateString(undefined, {
+    timeZone: "UTC",
     day: "numeric",
     month: "short",
     year: "numeric",
   });
+}
+
+/** An instant as a person reads it: the day, plus the time unless it is midnight UTC. */
+export function when(iso: string): string {
+  const at = Date.parse(iso);
+  if (Number.isNaN(at)) return iso;
+  const d = new Date(at);
+  const midnight =
+    d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0;
+  if (midnight) return day(iso);
+  return `${day(iso)}, ${d.toLocaleTimeString(undefined, { timeZone: "UTC", hour: "2-digit", minute: "2-digit" })} UTC`;
+}
+
+/** What a loop currently reads, as a headline and a second line. */
+export function readingFor(
+  cursor: OsqCursor,
+  collections: OsqCollection[],
+): { main: string; sub: string | null } {
+  if (cursor.current === null || cursor.current === undefined) {
+    return { main: "Not started", sub: null };
+  }
+  if (isDateTimeCursor(cursor)) {
+    return {
+      main: when(cursor.current),
+      sub: cursor.next ? `until ${when(cursor.next)}` : null,
+    };
+  }
+  if (isCollectionCursor(cursor)) {
+    const queue = collections.find((c) => c.id === cursor.collection);
+    const values = queue?.values ?? [];
+    const at = (index: number) => str(values[index] ?? `#${String(index)}`);
+    return {
+      main: at(cursor.current),
+      sub:
+        cursor.next === null || cursor.next === undefined
+          ? null
+          : `next ${at(cursor.next)}`,
+    };
+  }
+  return {
+    main: String(cursor.current),
+    sub:
+      cursor.next === null || cursor.next === undefined
+        ? null
+        : `next ${String(cursor.next)}`,
+  };
 }
 
 /** One line on what a loop walks, and which way. */

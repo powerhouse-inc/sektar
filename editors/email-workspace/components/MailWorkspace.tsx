@@ -31,6 +31,7 @@ import {
   useEmails,
 } from "../../sektar/kit/mail.js";
 import { fileIds } from "../../sektar/kit/data.js";
+import { traceChange, traceRender, useDomDiagnostics } from "../../sektar/kit/diagnostics.js";
 import { Menu } from "../../sektar/kit/menu.js";
 import { useSearch } from "../../sektar/kit/search-context.js";
 import {
@@ -65,6 +66,7 @@ const VIEWS: { value: View; label: string }[] = [
 type Level = 0 | 1 | 2 | 3;
 
 export function MailWorkspace() {
+  traceRender("MailWorkspace");
   const [drive] = useSelectedDrive();
   const node = useSelectedNode();
   const client = useAttachments();
@@ -165,7 +167,23 @@ export function MailWorkspace() {
   const hasMail = emails.length > 0;
   const height = useFillHeight(root, hasMail);
   const narrow = useNarrow(root, 1000, hasMail);
+  // Opt-in: localStorage sk:mail-debug=1 or ?debug=mail (kit/diagnostics.ts)
+  useDomDiagnostics(root, hasMail);
   const previewCollapsed = previewPref ?? narrow;
+  traceChange("state", {
+    mail: emails.length,
+    visible: visible.length,
+    accounts: accounts.length,
+    selected: selectedId?.slice(0, 8) ?? null,
+    found: Boolean(selected),
+    files: selected?.state.global.attachments.length ?? null,
+    file: fileRef?.slice(-8) ?? null,
+    fileFound: Boolean(file),
+    collapsed: previewCollapsed,
+    narrow,
+    level,
+    height,
+  });
 
   if (emails.length === 0) {
     // The drive's node list arrives before the documents it names (a
@@ -382,8 +400,9 @@ const MessageRow = memo(MessageRowImpl, (a, b) =>
   a.selected === b.selected &&
   a.checked === b.checked &&
   a.doc.header.id === b.doc.header.id &&
-  a.doc.header.lastModifiedAtUtcIso === b.doc.header.lastModifiedAtUtcIso &&
-  a.doc.state.global === b.doc.state.global,
+  // Every sync hands out new state objects; the modification time is what
+  // says whether this message changed.
+  a.doc.header.lastModifiedAtUtcIso === b.doc.header.lastModifiedAtUtcIso,
 );
 
 function MessageRowImpl({
@@ -399,6 +418,7 @@ function MessageRowImpl({
   onCheck: () => void;
   onClick: () => void;
 }) {
+  traceRender("MessageRow");
   const s = doc.state.global;
   const sender = s.from[0];
   const name = sender ? mailboxLabel(sender) : "Unknown sender";
@@ -521,7 +541,9 @@ function useNarrow(
     const el = ref.current;
     if (!el) return;
     const ro = new ResizeObserver(([entry]) => {
-      setNarrow(entry.contentRect.width < px);
+      const width = entry.contentRect.width;
+      // Zero means hidden (a suspended subtree, a background tab), not narrow.
+      if (width > 0) setNarrow(width < px);
     });
     ro.observe(el);
     return () => ro.disconnect();

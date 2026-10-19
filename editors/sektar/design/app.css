@@ -1163,31 +1163,40 @@
 .sk-app .sk-backfills__status .sk-ring {
   flex: none;
 }
+/* One dial per loop, the pane's full width: the reading is the one thing a
+   person wants from a running backfill, so it gets display type and room */
 .sk-app .sk-backfills__odometer {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: var(--sk-space-2);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sk-space-3);
 }
 .sk-app .sk-backfills__dial {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--sk-space-2);
   min-width: 0;
+  padding: var(--sk-space-4) var(--sk-space-5);
 }
 .sk-app .sk-backfills__reading {
   font-family: var(--sk-font-display);
-  font-size: var(--sk-text-xl);
+  font-size: var(--sk-text-3xl);
   font-weight: var(--sk-weight-medium);
-  line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-variation-settings: "opsz" 24, "SOFT" 20, "WONK" 0;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  font-variation-settings: "opsz" 32, "SOFT" 30, "WONK" 0;
 }
 .sk-app .sk-backfills__next {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: var(--sk-text-md);
+  color: var(--sk-text-secondary);
+  overflow-wrap: anywhere;
+}
+.sk-app .sk-backfills__dial-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sk-space-3);
+  margin-top: var(--sk-space-1);
 }
 .sk-app .sk-backfills__failures {
   list-style: none;
@@ -1230,9 +1239,6 @@
 /* The status card's ring and text wrap rather than widen the pane */
 .sk-app .sk-backfills__status > .sk-row {
   flex-wrap: wrap;
-}
-.sk-app .sk-backfills__odometer {
-  grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
 }
 /* Under 640px of workspace the two-up grids stack, and a loop row wraps its
    count and reorder arrows onto a second line rather than squeezing the span */

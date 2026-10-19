@@ -22,6 +22,7 @@ import {
   mailboxLabel,
   type AttachmentKind,
 } from "../kit/mail.js";
+import { traceRender } from "../kit/diagnostics.js";
 import { Menu, type MenuItem } from "../kit/menu.js";
 import {
   Avatar,
@@ -214,6 +215,7 @@ export function EmailDetail({
   /** Standalone: the triage buttons beside the date */
   actions?: ReactNode;
 }) {
+  traceRender("EmailDetail");
   const s = doc.state.global;
   const sender = s.from[0];
   const [tab, setTab] = useState<"people" | "headers">("people");
@@ -396,6 +398,7 @@ export function AttachmentPreview({
   documentId: string;
   file: EmailAttachment | null;
 }) {
+  traceRender("AttachmentPreview");
   const client = useAttachments();
   const preview = useAttachmentPreview({ documentId, ref: file?.ref });
   // The hook's state lags one render behind a ref change, so the URL is only

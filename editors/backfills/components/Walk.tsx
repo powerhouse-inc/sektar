@@ -3,27 +3,26 @@
 // transitions the document will accept are offered; the reducers refuse the
 // rest by name, and a button certain to produce an error is worse than none.
 import type { OriginalSourceQueueDocument } from "document-models/original-source-queue";
-import {
-  actions,
-  cursorLabel,
-  isDateTimeCursor,
-} from "document-models/original-source-queue";
+import { actions, cursorLabel } from "document-models/original-source-queue";
 import { useState } from "react";
-import { readingOf } from "../../original-source-queue-editor/components/lib.js";
 import {
   Alert,
   Badge,
   Button,
   Dl,
+  Progress,
   Ring,
 } from "../../sektar/kit/ui.js";
 import { PaneSection } from "../../sektar/kit/workspace.js";
 import {
   count,
   iterationOf,
+  KIND,
+  kindOf,
   percentLabel,
   percentOf,
   plural,
+  readingFor,
   STATUS,
   str,
   totalOf,
@@ -44,11 +43,6 @@ export function Walk({
   const iteration = iterationOf(s);
   const [failuresOpen, setFailuresOpen] = useState(true);
   const [memoryOpen, setMemoryOpen] = useState(false);
-
-  const values: Record<string, unknown[]> = {};
-  for (const collection of s.collections) {
-    values[collection.id] = collection.values;
-  }
 
   return (
     <div className="sk-stack sk-stack--6 sk-backfills__walk">
@@ -89,27 +83,37 @@ export function Walk({
         ) : (
           <div className="sk-backfills__odometer">
             {s.cursors.map((cursor, depth) => {
-              const reading = readingOf(cursor, values);
+              const draft = s.status === "DRAFT";
+              const reading = draft
+                ? { main: "Not started", sub: null }
+                : readingFor(cursor, s.collections);
+              const at = cursor.count > 0 && !draft ? cursor.position + 1 : 0;
+              const share = cursor.count > 0 ? (at / cursor.count) * 100 : 0;
               return (
-                <div key={cursor.id} className="sk-card sk-card--subtle sk-card--compact sk-backfills__dial">
-                  <div className="sk-row sk-row--between">
-                    <span className="sk-small sk-weight-semibold">{cursorLabel(cursor)}</span>
-                    <span className="sk-caption">depth {depth + 1}</span>
+                <div key={cursor.id} className="sk-card sk-card--subtle sk-backfills__dial">
+                  <div className="sk-row sk-row--between sk-row--wrap">
+                    <span className="sk-row sk-row--2">
+                      <span className="sk-weight-semibold">{cursorLabel(cursor)}</span>
+                      <Badge tone="outline">{KIND[kindOf(cursor)].label}</Badge>
+                    </span>
+                    <span className="sk-caption">
+                      {s.cursors.length > 1 ? `depth ${String(depth + 1)}` : ""}
+                    </span>
                   </div>
-                  <div className="sk-backfills__reading sk-tabular" title={reading.current}>
-                    {s.status === "DRAFT" ? "—" : reading.current}
+                  <div className={draft ? "sk-backfills__reading sk-text-muted" : "sk-backfills__reading"}>
+                    {reading.main}
                   </div>
-                  {s.status !== "DRAFT" && reading.next !== null && (
-                    <div className="sk-caption sk-backfills__next" title={reading.next}>
-                      {isDateTimeCursor(cursor) ? "until " : "next "}
-                      {reading.next}
-                    </div>
+                  {reading.sub !== null && (
+                    <div className="sk-backfills__next">{reading.sub}</div>
                   )}
-                  <div className="sk-caption sk-tabular">
-                    {s.status === "DRAFT"
-                      ? `${count(cursor.count)} to walk`
-                      : `${count(cursor.count > 0 ? cursor.position + 1 : 0)} of ${count(cursor.count)}`}
-                    {cursor.finished && s.status !== "DRAFT" ? " · last" : ""}
+                  <div className="sk-backfills__dial-progress">
+                    <Progress value={share} variant={cursor.finished && !draft ? "mint" : undefined} />
+                    <span className="sk-caption sk-tabular">
+                      {draft
+                        ? `${count(cursor.count)} to walk`
+                        : `${count(at)} of ${count(cursor.count)}`}
+                      {cursor.finished && !draft ? " · last" : ""}
+                    </span>
                   </div>
                 </div>
               );
