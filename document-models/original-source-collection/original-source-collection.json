@@ -1,0 +1,557 @@
+{
+  "id": "distyra/original-source-collection",
+  "name": "OriginalSourceCollection",
+  "author": {
+    "name": "Powerhouse",
+    "website": "https://www.powerhouse.inc/"
+  },
+  "extension": "osc",
+  "description": "Holds original source data as it arrived, before anyone decided what it means. Capture never transforms and nothing is ever destroyed: DISCARDED is how you say ignore this, and there is no delete. Sources are resolved by namespaced identifier rather than by position, so re-running a backfill updates what it already captured instead of duplicating it, and a second sighting of the same object under a different id lands on the record that already exists. Companion to the Original Source Queue: the queue names the slices that failed, the collection holds what the rest produced.",
+  "specifications": [
+    {
+      "state": {
+        "local": {
+          "schema": "",
+          "examples": [],
+          "initialValue": ""
+        },
+        "global": {
+          "schema": "\"\"\"\nWhere a source, or a whole collection, stands.\n- NEW: captured, untouched.\n- PROCESSING: someone or something is working on it.\n- COMPLETED: done with.\n- DISCARDED: deliberately ignored, or folded into another source. Never\n  deleted: an original-source store that can forget is not one.\n\"\"\"\nenum OriginalSourceStatus {\n    NEW\n    PROCESSING\n    COMPLETED\n    DISCARDED\n}\n\nenum ProcessingTaskStatus {\n    DRAFT\n    TODO\n    IN_PROGRESS\n    DONE\n    CANCELLED\n}\n\n\"\"\"\nWhere this collection's contents came from, as a whole.\n\"\"\"\ntype OSCProvenance {\n    \"\"\"\n    The Original Source Queue that drove the capture, when one did. This is\n    what lets the two documents be read together: the queue names the slices\n    that failed, the collection holds what the rest produced. Neither answers\n    is this backfill complete on its own.\n    \"\"\"\n    queue: PHID\n    \"\"\"A short name for the source system: gmail, toggl, filesystem.\"\"\"\n    system: String\n    \"\"\"Anything else worth recording about the run, verbatim.\"\"\"\n    detail: Unknown\n}\n\n\"\"\"\nA file in the attachment store.\n\nOnly the ref and a name are required. A piece that wrote the file through\ncontext.files.write gets back a ref and usually a name, but not always a mime\ntype or a size; demanding fields the source does not supply would force a\nflow to invent them, and an invented mime type is worse than an absent one.\n\nRecording the ref here is also what makes the file readable: the attachment\nport refuses a download unless the document references it.\n\"\"\"\ntype OSCAttachment {\n    ref: AttachmentRef!\n    fileName: String!\n    sizeBytes: Int\n    mimeType: String\n}\n\n\"\"\"\nOne thing that was captured.\n\"\"\"\ntype OriginalSource {\n    id: OID!\n    status: OriginalSourceStatus!\n\n    \"\"\"\n    Canonical identifier, namespaced by its system: gmail:18f3a, sha256:9de1.\n    The namespace is required, because without it an id from one system and\n    an id from another are the same key.\n    \"\"\"\n    externalId: String!\n    \"\"\"\n    Every other identifier this object is known by, same shape. Capture\n    matches on these too, which is how a second sighting under a different id\n    lands on the record that already exists. No identifier belongs to more\n    than one source.\n    \"\"\"\n    aliases: [String!]!\n\n    title: String\n    origin: URL\n    \"\"\"Human-readable text, when the source has any.\"\"\"\n    content: String\n    \"\"\"The record exactly as received, untouched. The reason this model exists.\"\"\"\n    payload: Unknown\n\n    attachments: [OSCAttachment!]!\n    references: [URL!]!\n    tags: [String!]!\n\n    \"\"\"When the thing happened at the source.\"\"\"\n    occurredAt: DateTime\n    \"\"\"\n    When this object first entered the collection. It never moves: a merge\n    keeps the earliest sighting, so letting a re-capture push this forward\n    would make a long-known source lose a merge it should win.\n\n    A different question from occurredAt, and both are needed: a 2019 email\n    captured today is dated 2019 for analysis and today for what did this run\n    pick up.\n    \"\"\"\n    capturedAt: DateTime!\n    \"\"\"The most recent sighting. Equals capturedAt until it is seen again.\"\"\"\n    lastSeenAt: DateTime!\n\n    \"\"\"\n    Set when this source was folded into another. Its payload and attachments\n    stay here; only the identity moved.\n    \"\"\"\n    mergedInto: OID\n    mergedAt: DateTime\n    \"\"\"Calculated: the sources folded into this one, so the trail is walkable both ways.\"\"\"\n    mergedFrom: [OID!]!\n}\n\ntype ProcessingTask {\n    id: OID!\n    status: ProcessingTaskStatus!\n    owner: String\n    description: String\n    \"\"\"The source this is about. Absent means it is about the batch.\"\"\"\n    source: OID\n    createdAt: DateTime!\n}\n\n\"\"\"Calculated. What a person wants to know without counting a list.\"\"\"\ntype OSCCounts {\n    total: Int!\n    new: Int!\n    processing: Int!\n    completed: Int!\n    discarded: Int!\n    merged: Int!\n    openTasks: Int!\n}\n\ntype OriginalSourceCollectionState {\n    title: String\n    description: String\n    provenance: OSCProvenance\n\n    sources: [OriginalSource!]!\n    tasks: [ProcessingTask!]!\n\n    \"\"\"\n    Calculated from the sources, except DISCARDED which is set: abandoning a\n    whole collection is a decision, not a roll-up.\n    \"\"\"\n    status: OriginalSourceStatus!\n    counts: OSCCounts!\n}",
+          "examples": [],
+          "initialValue": "{\n    \"title\": null,\n    \"description\": null,\n    \"provenance\": null,\n    \"sources\": [],\n    \"tasks\": [],\n    \"status\": \"NEW\",\n    \"counts\": {\n        \"total\": 0,\n        \"new\": 0,\n        \"processing\": 0,\n        \"completed\": 0,\n        \"discarded\": 0,\n        \"merged\": 0,\n        \"openTasks\": 0\n    }\n}"
+        }
+      },
+      "modules": [
+        {
+          "id": "mod-collection",
+          "name": "collection",
+          "description": "The collection itself: what it is called, where it came from, and whether it is still live.",
+          "operations": [
+            {
+              "id": "op-set-title",
+              "name": "SET_TITLE",
+              "description": "Title the collection. Named SET_TITLE rather than SET_NAME because SET_NAME is a reserved base action — a model defining it would silently override the document's own rename.",
+              "schema": "input SetTitleInput {\n    title: String\n}",
+              "template": "Title the collection. Named SET_TITLE rather than SET_NAME because SET_NAME is a reserved base action — a model defining it would silently override the document's own rename.",
+              "reducer": "state.title = action.input.title ?? null;",
+              "errors": [],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "op-set-description",
+              "name": "SET_DESCRIPTION",
+              "description": "Describe what this collection holds.",
+              "schema": "input SetDescriptionInput {\n    description: String\n}",
+              "template": "Describe what this collection holds.",
+              "reducer": "state.description = action.input.description ?? null;",
+              "errors": [],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "op-set-provenance",
+              "name": "SET_PROVENANCE",
+              "description": "Record where the contents came from, and the queue that drove the capture.",
+              "schema": "input SetProvenanceInput {\n    queue: PHID\n    system: String\n    detail: Unknown\n}",
+              "template": "Record where the contents came from, and the queue that drove the capture.",
+              "reducer": "state.provenance = {\n  queue: action.input.queue ?? null,\n  system: action.input.system ?? null,\n  detail: action.input.detail ?? null,\n};",
+              "errors": [],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "op-discard-collection",
+              "name": "DISCARD_COLLECTION",
+              "description": "Abandon the whole collection. Nothing is deleted; capture into it is refused until it is restored.",
+              "schema": "input DiscardCollectionInput {\n    _: Boolean\n}",
+              "template": "Abandon the whole collection. Nothing is deleted; capture into it is refused until it is restored.",
+              "reducer": "// requires: import { recalculate } from \"../derived.js\";\nif (state.status === \"DISCARDED\") {\n  throw new CollectionAlreadyDiscardedError(\n    \"This collection has already been abandoned.\",\n  );\n}\n// Sticky: recalculate leaves DISCARDED alone, because abandoning a\n// collection is a decision and a roll-up would undo it on the next\n// operation.\nstate.status = \"DISCARDED\";\nrecalculate(state);",
+              "errors": [
+                {
+                  "id": "err-coll-already-discarded",
+                  "name": "CollectionAlreadyDiscardedError",
+                  "code": "COLLECTION_ALREADY_DISCARDED",
+                  "description": "This collection has already been abandoned.",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "op-restore-collection",
+              "name": "RESTORE_COLLECTION",
+              "description": "Undo a discard. The status goes back to being calculated from the sources.",
+              "schema": "input RestoreCollectionInput {\n    _: Boolean\n}",
+              "template": "Undo a discard. The status goes back to being calculated from the sources.",
+              "reducer": "// requires: import { recalculate } from \"../derived.js\";\nif (state.status !== \"DISCARDED\") {\n  throw new CollectionNotDiscardedError(\n    \"This collection is live, so there is nothing to restore; its status is calculated from its sources.\",\n  );\n}\n// Anything not DISCARDED lets the roll-up take over again.\nstate.status = \"NEW\";\nrecalculate(state);",
+              "errors": [
+                {
+                  "id": "err-coll-not-discarded",
+                  "name": "CollectionNotDiscardedError",
+                  "code": "COLLECTION_NOT_DISCARDED",
+                  "description": "This collection is live, so there is nothing to restore. Its status is calculated from its sources.",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        },
+        {
+          "id": "mod-capture",
+          "name": "capture",
+          "description": "Taking things in, exactly as they arrived. Nothing here transforms a payload.",
+          "operations": [
+            {
+              "id": "op-capture-source",
+              "name": "CAPTURE_SOURCE",
+              "description": "Take one record in, exactly as it arrived. Resolved by identifier, not by position: an unknown identifier creates a source, a known one updates it in place, and identifiers spanning several existing sources fold them together. This is what makes re-running a backfill safe.",
+              "schema": "input CapturedAttachmentInput {\n    ref: AttachmentRef!\n    fileName: String!\n    sizeBytes: Int\n    mimeType: String\n}\n\ninput CaptureSourceInput {\n    \"\"\"Used only when this capture creates a source; reducers cannot generate ids.\"\"\"\n    id: OID!\n    externalId: String!\n    aliases: [String!]\n    title: String\n    origin: URL\n    content: String\n    payload: Unknown\n    attachments: [CapturedAttachmentInput!]\n    references: [URL!]\n    tags: [String!]\n    occurredAt: DateTime\n    \"\"\"\n    When this sighting happened. Becomes capturedAt on a new source and\n    lastSeenAt on every sighting, including the first.\n    \"\"\"\n    capturedAt: DateTime!\n}",
+              "template": "Take one record in, exactly as it arrived. Resolved by identifier, not by position: an unknown identifier creates a source, a known one updates it in place, and identifiers spanning several existing sources fold them together. This is what makes re-running a backfill safe.",
+              "reducer": "// requires: import { recalculate } from \"../derived.js\";\n// requires: import { aliasesWith, claimantsOf, identifiersToAbsorb,\n//                    isNamespaced, pickWinner, union } from \"../identity.js\";\nif (state.status === \"DISCARDED\") {\n  throw new CaptureIntoDiscardedCollectionError(\n    \"This collection has been abandoned; capturing into it would add to something nobody is reading. Restore it first.\",\n  );\n}\n\nconst incoming = [action.input.externalId, ...(action.input.aliases ?? [])].map(\n  (value) => value.trim(),\n);\n\nfor (const identifier of incoming) {\n  if (!isNamespaced(identifier)) {\n    throw new CaptureUnnamespacedIdentifierError(\n      `Identifier \"${identifier}\" does not name the system it came from. Use system:value, for example gmail:18f3a — without it, an id from one system and an id from another are the same key.`,\n    );\n  }\n}\n\nconst claimants = claimantsOf(state.sources, incoming);\n\nif (claimants.length === 0) {\n  if (state.sources.some((source) => source.id === action.input.id)) {\n    throw new CaptureSourceIdTakenError(\n      `No source claims these identifiers, so this capture creates one — but OID ${action.input.id} is already taken. Supply a fresh id.`,\n    );\n  }\n  state.sources.push({\n    id: action.input.id,\n    status: \"NEW\",\n    externalId: action.input.externalId.trim(),\n    aliases: union([], action.input.aliases ?? []),\n    title: action.input.title ?? null,\n    origin: action.input.origin ?? null,\n    content: action.input.content ?? null,\n    payload: action.input.payload ?? null,\n    attachments: (action.input.attachments ?? []).map((file) => ({\n      ref: file.ref,\n      fileName: file.fileName,\n      sizeBytes: file.sizeBytes ?? null,\n      mimeType: file.mimeType ?? null,\n    })),\n    references: action.input.references ?? [],\n    tags: union([], action.input.tags ?? []),\n    occurredAt: action.input.occurredAt ?? null,\n    capturedAt: action.input.capturedAt,\n    mergedInto: null,\n    mergedAt: null,\n    mergedFrom: [],\n  });\n  recalculate(state);\n  return;\n}\n\n// More than one live source answers to these identifiers, so this record is\n// evidence they are the same object. Folding them together here was a\n// deliberate choice: the tombstones make it auditable, and SPLIT_SOURCE makes\n// it reversible, which is what keeps an automatic merge from being an\n// irreversible decision taken by a side effect.\nconst winner = pickWinner(claimants);\nfor (const loser of claimants) {\n  if (loser.id === winner.id) continue;\n  winner.aliases = aliasesWith(winner, identifiersToAbsorb(winner, loser));\n  loser.status = \"DISCARDED\";\n  loser.mergedInto = winner.id;\n  // From the input, never a clock: a reducer has to replay identically.\n  loser.mergedAt = action.input.capturedAt;\n}\n\n// Provided fields overwrite; absent ones are left alone. Sets are unioned and\n// never emptied by a capture — a later sighting that happens to omit a tag is\n// not a decision to remove it.\nconst target = winner;\ntarget.aliases = aliasesWith(target, incoming);\nif (action.input.title !== undefined && action.input.title !== null) {\n  target.title = action.input.title;\n}\nif (action.input.origin !== undefined && action.input.origin !== null) {\n  target.origin = action.input.origin;\n}\nif (action.input.content !== undefined && action.input.content !== null) {\n  target.content = action.input.content;\n}\nif (action.input.payload !== undefined && action.input.payload !== null) {\n  target.payload = action.input.payload;\n}\nif (action.input.occurredAt) target.occurredAt = action.input.occurredAt;\ntarget.capturedAt = action.input.capturedAt;\ntarget.tags = union(target.tags, action.input.tags ?? []);\ntarget.references = union(target.references, action.input.references ?? []);\nfor (const file of action.input.attachments ?? []) {\n  if (target.attachments.some((held) => held.ref === file.ref)) continue;\n  target.attachments.push({\n    ref: file.ref,\n    fileName: file.fileName,\n    sizeBytes: file.sizeBytes ?? null,\n    mimeType: file.mimeType ?? null,\n  });\n}\n\nrecalculate(state);",
+              "errors": [
+                {
+                  "id": "err-capture-discarded",
+                  "name": "CaptureIntoDiscardedCollectionError",
+                  "code": "CAPTURE_INTO_DISCARDED_COLLECTION",
+                  "description": "This collection has been abandoned, so capturing into it would quietly add to something nobody is reading. Restore it first.",
+                  "template": ""
+                },
+                {
+                  "id": "err-capture-unnamespaced",
+                  "name": "CaptureUnnamespacedIdentifierError",
+                  "code": "CAPTURE_UNNAMESPACED_IDENTIFIER",
+                  "description": "Every identifier must carry the system it came from, as system:value. Without it, an id from Gmail and an id from Toggl are the same key, and two unrelated objects would be treated as one.",
+                  "template": ""
+                },
+                {
+                  "id": "err-capture-id-taken",
+                  "name": "CaptureSourceIdTakenError",
+                  "code": "CAPTURE_SOURCE_ID_TAKEN",
+                  "description": "No existing source claims these identifiers, so this capture would create one — but the OID given already belongs to a different source. Supply a fresh id.",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "op-attach-to-source",
+              "name": "ATTACH_TO_SOURCE",
+              "description": "Add a file to a source after the fact. The ref must reach the document before its bytes can be downloaded, because the attachment port refuses a read the document does not reference.",
+              "schema": "input AttachToSourceInput {\n    source: OID!\n    ref: AttachmentRef!\n    fileName: String!\n    sizeBytes: Int\n    mimeType: String\n}",
+              "template": "Add a file to a source after the fact. The ref must reach the document before its bytes can be downloaded, because the attachment port refuses a read the document does not reference.",
+              "reducer": "const source = state.sources.find((s) => s.id === action.input.source);\nif (!source) {\n  throw new AttachSourceNotFoundError(\n    `There is no source ${action.input.source} to attach to.`,\n  );\n}\nif (source.attachments.some((held) => held.ref === action.input.ref)) {\n  throw new AttachRefAlreadyPresentError(\n    \"That file is already attached to this source; attachments are content-addressed, so the same ref is the same bytes.\",\n  );\n}\n\nsource.attachments.push({\n  ref: action.input.ref,\n  fileName: action.input.fileName,\n  sizeBytes: action.input.sizeBytes ?? null,\n  mimeType: action.input.mimeType ?? null,\n});",
+              "errors": [
+                {
+                  "id": "err-attach-no-source",
+                  "name": "AttachSourceNotFoundError",
+                  "code": "ATTACH_SOURCE_NOT_FOUND",
+                  "description": "There is no source with that id to attach to.",
+                  "template": ""
+                },
+                {
+                  "id": "err-attach-duplicate",
+                  "name": "AttachRefAlreadyPresentError",
+                  "code": "ATTACH_REF_ALREADY_PRESENT",
+                  "description": "That file is already attached to this source. Attachments are content-addressed, so the same ref twice is the same bytes twice.",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "op-detach-from-source",
+              "name": "DETACH_FROM_SOURCE",
+              "description": "Remove a file reference from a source, for one attached in error. The bytes stay in the store.",
+              "schema": "input DetachFromSourceInput {\n    source: OID!\n    ref: AttachmentRef!\n}",
+              "template": "Remove a file reference from a source, for one attached in error. The bytes stay in the store.",
+              "reducer": "const source = state.sources.find((s) => s.id === action.input.source);\nif (!source) {\n  throw new DetachSourceNotFoundError(\n    `There is no source ${action.input.source}.`,\n  );\n}\nconst index = source.attachments.findIndex(\n  (held) => held.ref === action.input.ref,\n);\nif (index === -1) {\n  throw new DetachRefNotFoundError(\n    \"That file is not attached to this source.\",\n  );\n}\n// Only the reference goes; the bytes stay in the store, because this\n// operation is for a mis-attachment, not for destroying evidence.\nsource.attachments.splice(index, 1);",
+              "errors": [
+                {
+                  "id": "err-detach-no-source",
+                  "name": "DetachSourceNotFoundError",
+                  "code": "DETACH_SOURCE_NOT_FOUND",
+                  "description": "There is no source with that id.",
+                  "template": ""
+                },
+                {
+                  "id": "err-detach-no-ref",
+                  "name": "DetachRefNotFoundError",
+                  "code": "DETACH_REF_NOT_FOUND",
+                  "description": "That file is not attached to this source.",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "op-add-source-reference",
+              "name": "ADD_SOURCE_REFERENCE",
+              "description": "Point a source at something related elsewhere.",
+              "schema": "input AddSourceReferenceInput {\n    source: OID!\n    reference: URL!\n}",
+              "template": "Point a source at something related elsewhere.",
+              "reducer": "// requires: import { union } from \"../identity.js\";\nconst source = state.sources.find((s) => s.id === action.input.source);\nif (!source) {\n  throw new ReferenceSourceNotFoundError(\n    `There is no source ${action.input.source}.`,\n  );\n}\nsource.references = union(source.references, [action.input.reference]);",
+              "errors": [
+                {
+                  "id": "err-ref-no-source",
+                  "name": "ReferenceSourceNotFoundError",
+                  "code": "REFERENCE_SOURCE_NOT_FOUND",
+                  "description": "There is no source with that id.",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        },
+        {
+          "id": "mod-identity",
+          "name": "identity",
+          "description": "Working out which captures are the same object, and folding them together without losing either.",
+          "operations": [
+            {
+              "id": "op-add-alias",
+              "name": "ADD_ALIAS",
+              "description": "Tell a source it is also known by this identifier, so a later capture under it lands here.",
+              "schema": "input AddAliasInput {\n    source: OID!\n    alias: String!\n}",
+              "template": "Tell a source it is also known by this identifier, so a later capture under it lands here.",
+              "reducer": "// requires: import { recalculate } from \"../derived.js\";\n// requires: import { aliasesWith, claimantOf, isNamespaced } from \"../identity.js\";\nconst source = state.sources.find((s) => s.id === action.input.source);\nif (!source) {\n  throw new AddAliasSourceNotFoundError(\n    `There is no source ${action.input.source}.`,\n  );\n}\nconst alias = action.input.alias.trim();\nif (!isNamespaced(alias)) {\n  throw new AddAliasUnnamespacedError(\n    `Alias \"${alias}\" does not name the system it came from. Use system:value, for example gmail:18f3a.`,\n  );\n}\n\nconst holder = claimantOf(state.sources, alias);\nif (holder && holder.id !== source.id) {\n  // Deliberately not an automatic merge. Capture folds sources together\n  // because a record arriving under both ids is evidence; someone typing an\n  // alias by hand is not, so this asks them to mean it.\n  throw new AliasAlreadyClaimedError(\n    `Source ${holder.id} already answers to \"${alias}\". An identifier belongs to one source; if these are the same object, merge them.`,\n  );\n}\n\nsource.aliases = aliasesWith(source, [alias]);\nrecalculate(state);",
+              "errors": [
+                {
+                  "id": "err-alias-no-source",
+                  "name": "AddAliasSourceNotFoundError",
+                  "code": "ADD_ALIAS_SOURCE_NOT_FOUND",
+                  "description": "There is no source with that id.",
+                  "template": ""
+                },
+                {
+                  "id": "err-alias-unnamespaced",
+                  "name": "AddAliasUnnamespacedError",
+                  "code": "ADD_ALIAS_UNNAMESPACED",
+                  "description": "An alias must carry the system it came from, as system:value.",
+                  "template": ""
+                },
+                {
+                  "id": "err-alias-claimed",
+                  "name": "AliasAlreadyClaimedError",
+                  "code": "ALIAS_ALREADY_CLAIMED",
+                  "description": "Another source already answers to that identifier. An identifier belongs to at most one source; if these are the same object, merge them instead.",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "op-remove-alias",
+              "name": "REMOVE_ALIAS",
+              "description": "Take back an identifier that turned out to belong to something else. The canonical externalId cannot be removed this way.",
+              "schema": "input RemoveAliasInput {\n    source: OID!\n    alias: String!\n}",
+              "template": "Take back an identifier that turned out to belong to something else. The canonical externalId cannot be removed this way.",
+              "reducer": "// requires: import { recalculate } from \"../derived.js\";\nconst source = state.sources.find((s) => s.id === action.input.source);\nif (!source) {\n  throw new RemoveAliasSourceNotFoundError(\n    `There is no source ${action.input.source}.`,\n  );\n}\nconst alias = action.input.alias.trim();\nif (alias === source.externalId) {\n  throw new CannotRemoveCanonicalIdentifierError(\n    `\"${alias}\" is this source's canonical externalId, not an alias. Removing it would leave the source unaddressable by the system it came from.`,\n  );\n}\nif (!source.aliases.includes(alias)) {\n  throw new AliasNotFoundError(`This source does not answer to \"${alias}\".`);\n}\nsource.aliases = source.aliases.filter((held) => held !== alias);\nrecalculate(state);",
+              "errors": [
+                {
+                  "id": "err-unalias-no-source",
+                  "name": "RemoveAliasSourceNotFoundError",
+                  "code": "REMOVE_ALIAS_SOURCE_NOT_FOUND",
+                  "description": "There is no source with that id.",
+                  "template": ""
+                },
+                {
+                  "id": "err-unalias-canonical",
+                  "name": "CannotRemoveCanonicalIdentifierError",
+                  "code": "CANNOT_REMOVE_CANONICAL_IDENTIFIER",
+                  "description": "That is the source's canonical externalId, not an alias. Removing it would leave the source unaddressable by the system it came from.",
+                  "template": ""
+                },
+                {
+                  "id": "err-unalias-not-found",
+                  "name": "AliasNotFoundError",
+                  "code": "ALIAS_NOT_FOUND",
+                  "description": "This source does not answer to that identifier.",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "op-merge-sources",
+              "name": "MERGE_SOURCES",
+              "description": "Fold sources into one because they are the same object. The losers are discarded carrying a pointer to the winner, and keep their own payloads and attachments — only the identity moves.",
+              "schema": "input MergeSourcesInput {\n    keep: OID!\n    merge: [OID!]!\n    mergedAt: DateTime!\n}",
+              "template": "Fold sources into one because they are the same object. The losers are discarded carrying a pointer to the winner, and keep their own payloads and attachments — only the identity moves.",
+              "reducer": "// requires: import { recalculate } from \"../derived.js\";\n// requires: import { aliasesWith, identifiersToAbsorb, isMerged } from \"../identity.js\";\nconst winner = state.sources.find((s) => s.id === action.input.keep);\nif (!winner) {\n  throw new MergeKeepNotFoundError(\n    `There is no source ${action.input.keep} to keep.`,\n  );\n}\n\n// Everything is validated before anything is written: a merge that fails\n// halfway would leave some sources folded and others not, with no record of\n// which.\nconst losers = action.input.merge.map((id) => {\n  if (id === winner.id) {\n    throw new CannotMergeSourceIntoItselfError(\n      `Source ${id} cannot be folded into itself.`,\n    );\n  }\n  const loser = state.sources.find((s) => s.id === id);\n  if (!loser) {\n    throw new MergeSourceNotFoundError(`There is no source ${id}.`);\n  }\n  if (isMerged(loser)) {\n    throw new MergeAlreadyMergedError(\n      `Source ${id} was already folded into ${String(loser.mergedInto)}. Split it first if that was wrong.`,\n    );\n  }\n  return loser;\n});\n\nfor (const loser of losers) {\n  winner.aliases = aliasesWith(winner, identifiersToAbsorb(winner, loser));\n  loser.status = \"DISCARDED\";\n  loser.mergedInto = winner.id;\n  loser.mergedAt = action.input.mergedAt;\n}\nrecalculate(state);",
+              "errors": [
+                {
+                  "id": "err-merge-no-keep",
+                  "name": "MergeKeepNotFoundError",
+                  "code": "MERGE_KEEP_NOT_FOUND",
+                  "description": "There is no source with the id given as the one to keep.",
+                  "template": ""
+                },
+                {
+                  "id": "err-merge-no-source",
+                  "name": "MergeSourceNotFoundError",
+                  "code": "MERGE_SOURCE_NOT_FOUND",
+                  "description": "One of the sources to fold in does not exist.",
+                  "template": ""
+                },
+                {
+                  "id": "err-merge-self",
+                  "name": "CannotMergeSourceIntoItselfError",
+                  "code": "CANNOT_MERGE_SOURCE_INTO_ITSELF",
+                  "description": "A source cannot be folded into itself.",
+                  "template": ""
+                },
+                {
+                  "id": "err-merge-already",
+                  "name": "MergeAlreadyMergedError",
+                  "code": "MERGE_ALREADY_MERGED",
+                  "description": "That source has already been folded into another one. Split it first if it was folded into the wrong place.",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "op-split-source",
+              "name": "SPLIT_SOURCE",
+              "description": "Undo a merge that was wrong. Restores the source and takes back from the winner exactly the identifiers this source still carries.",
+              "schema": "input SplitSourceInput {\n    source: OID!\n    status: OriginalSourceStatus\n}",
+              "template": "Undo a merge that was wrong. Restores the source and takes back from the winner exactly the identifiers this source still carries.",
+              "reducer": "// requires: import { recalculate } from \"../derived.js\";\n// requires: import { identifiersToReturn, isMerged } from \"../identity.js\";\nconst loser = state.sources.find((s) => s.id === action.input.source);\nif (!loser) {\n  throw new SplitSourceNotFoundError(\n    `There is no source ${action.input.source}.`,\n  );\n}\nif (!isMerged(loser)) {\n  throw new SourceNotMergedError(\n    \"That source stands on its own, so there is no merge to undo.\",\n  );\n}\n\nconst winner = state.sources.find((s) => s.id === loser.mergedInto);\nif (winner) {\n  // Take back only what this loser brought and nothing else still depends\n  // on — undoing one merge must not quietly break another.\n  const returning = new Set(identifiersToReturn(state.sources, winner, loser));\n  winner.aliases = winner.aliases.filter((alias) => !returning.has(alias));\n}\n\nloser.mergedInto = null;\nloser.mergedAt = null;\nloser.status = action.input.status ?? \"NEW\";\nrecalculate(state);",
+              "errors": [
+                {
+                  "id": "err-split-no-source",
+                  "name": "SplitSourceNotFoundError",
+                  "code": "SPLIT_SOURCE_NOT_FOUND",
+                  "description": "There is no source with that id.",
+                  "template": ""
+                },
+                {
+                  "id": "err-split-not-merged",
+                  "name": "SourceNotMergedError",
+                  "code": "SOURCE_NOT_MERGED",
+                  "description": "That source stands on its own, so there is no merge to undo.",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        },
+        {
+          "id": "mod-classify",
+          "name": "classify",
+          "description": "Saying what something is. Additive and reversible; none of it touches the payload.",
+          "operations": [
+            {
+              "id": "op-set-source-title",
+              "name": "SET_SOURCE_TITLE",
+              "description": "Title a source, when what it arrived with is unhelpful.",
+              "schema": "input SetSourceTitleInput {\n    source: OID!\n    title: String\n}",
+              "template": "Title a source, when what it arrived with is unhelpful.",
+              "reducer": "const source = state.sources.find((s) => s.id === action.input.source);\nif (!source) {\n  throw new SetSourceTitleNotFoundError(\n    `There is no source ${action.input.source}.`,\n  );\n}\nsource.title = action.input.title ?? null;",
+              "errors": [
+                {
+                  "id": "err-title-no-source",
+                  "name": "SetSourceTitleNotFoundError",
+                  "code": "SET_SOURCE_TITLE_NOT_FOUND",
+                  "description": "There is no source with that id.",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "op-tag-source",
+              "name": "TAG_SOURCE",
+              "description": "Add tags. Tags are a set, so tagging twice is not an error.",
+              "schema": "input TagSourceInput {\n    source: OID!\n    tags: [String!]!\n}",
+              "template": "Add tags. Tags are a set, so tagging twice is not an error.",
+              "reducer": "// requires: import { union } from \"../identity.js\";\nconst source = state.sources.find((s) => s.id === action.input.source);\nif (!source) {\n  throw new TagSourceNotFoundError(\n    `There is no source ${action.input.source}.`,\n  );\n}\n// A set: tagging twice is not an error, because a flow that re-runs should\n// not have to check first.\nsource.tags = union(source.tags, action.input.tags);",
+              "errors": [
+                {
+                  "id": "err-tag-no-source",
+                  "name": "TagSourceNotFoundError",
+                  "code": "TAG_SOURCE_NOT_FOUND",
+                  "description": "There is no source with that id.",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "op-untag-source",
+              "name": "UNTAG_SOURCE",
+              "description": "Remove tags. Removing one that is not there is not an error.",
+              "schema": "input UntagSourceInput {\n    source: OID!\n    tags: [String!]!\n}",
+              "template": "Remove tags. Removing one that is not there is not an error.",
+              "reducer": "const source = state.sources.find((s) => s.id === action.input.source);\nif (!source) {\n  throw new UntagSourceNotFoundError(\n    `There is no source ${action.input.source}.`,\n  );\n}\nconst removing = new Set(action.input.tags.map((tag) => tag.trim()));\nsource.tags = source.tags.filter((tag) => !removing.has(tag));",
+              "errors": [
+                {
+                  "id": "err-untag-no-source",
+                  "name": "UntagSourceNotFoundError",
+                  "code": "UNTAG_SOURCE_NOT_FOUND",
+                  "description": "There is no source with that id.",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "op-set-source-status",
+              "name": "SET_SOURCE_STATUS",
+              "description": "Move a source through NEW, PROCESSING and COMPLETED, or discard it.",
+              "schema": "input SetSourceStatusInput {\n    source: OID!\n    status: OriginalSourceStatus!\n}",
+              "template": "Move a source through NEW, PROCESSING and COMPLETED, or discard it.",
+              "reducer": "// requires: import { recalculate } from \"../derived.js\";\n// requires: import { isMerged } from \"../identity.js\";\nconst source = state.sources.find((s) => s.id === action.input.source);\nif (!source) {\n  throw new SetSourceStatusNotFoundError(\n    `There is no source ${action.input.source}.`,\n  );\n}\nif (isMerged(source)) {\n  // Its DISCARDED status IS the record of the merge. Letting this change it\n  // would leave a source that is folded into another while claiming to be\n  // live.\n  throw new CannotRestatusMergedSourceError(\n    `Source ${source.id} was folded into ${String(source.mergedInto)}, so its status records that. Split it first if it should stand on its own again.`,\n  );\n}\nsource.status = action.input.status;\nrecalculate(state);",
+              "errors": [
+                {
+                  "id": "err-status-no-source",
+                  "name": "SetSourceStatusNotFoundError",
+                  "code": "SET_SOURCE_STATUS_NOT_FOUND",
+                  "description": "There is no source with that id.",
+                  "template": ""
+                },
+                {
+                  "id": "err-status-merged",
+                  "name": "CannotRestatusMergedSourceError",
+                  "code": "CANNOT_RESTATUS_MERGED_SOURCE",
+                  "description": "That source has been folded into another, so its status records the merge. Split it first if it should stand on its own again.",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "op-discard-source",
+              "name": "DISCARD_SOURCE",
+              "description": "Ignore this one. A convenience for SET_SOURCE_STATUS, so the common decision is one obvious call.",
+              "schema": "input DiscardSourceInput {\n    source: OID!\n}",
+              "template": "Ignore this one. A convenience for SET_SOURCE_STATUS, so the common decision is one obvious call.",
+              "reducer": "// requires: import { recalculate } from \"../derived.js\";\nconst source = state.sources.find((s) => s.id === action.input.source);\nif (!source) {\n  throw new DiscardSourceNotFoundError(\n    `There is no source ${action.input.source}.`,\n  );\n}\n// Discarding something already folded in is harmless — it is already\n// discarded — so this one does not refuse.\nsource.status = \"DISCARDED\";\nrecalculate(state);",
+              "errors": [
+                {
+                  "id": "err-discard-no-source",
+                  "name": "DiscardSourceNotFoundError",
+                  "code": "DISCARD_SOURCE_NOT_FOUND",
+                  "description": "There is no source with that id.",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        },
+        {
+          "id": "mod-tasks",
+          "name": "tasks",
+          "description": "Work a person still has to do about a source, or about the batch.",
+          "operations": [
+            {
+              "id": "op-create-task",
+              "name": "CREATE_TASK",
+              "description": "Raise work for a person. Attach it to a source, or leave it about the batch.",
+              "schema": "input CreateTaskInput {\n    id: OID!\n    description: String\n    owner: String\n    source: OID\n    status: ProcessingTaskStatus\n    createdAt: DateTime!\n}",
+              "template": "Raise work for a person. Attach it to a source, or leave it about the batch.",
+              "reducer": "// requires: import { recalculate } from \"../derived.js\";\nif (state.tasks.some((task) => task.id === action.input.id)) {\n  throw new TaskIdTakenError(\n    `A task with id ${action.input.id} already exists.`,\n  );\n}\nconst source = action.input.source ?? null;\nif (source && !state.sources.some((s) => s.id === source)) {\n  throw new TaskSourceNotFoundError(\n    `This task points at source ${source}, which does not exist. Leave it out to raise a task about the whole batch.`,\n  );\n}\n\nstate.tasks.push({\n  id: action.input.id,\n  status: action.input.status ?? \"TODO\",\n  owner: action.input.owner ?? null,\n  description: action.input.description ?? null,\n  source,\n  createdAt: action.input.createdAt,\n});\nrecalculate(state);",
+              "errors": [
+                {
+                  "id": "err-task-id-taken",
+                  "name": "TaskIdTakenError",
+                  "code": "TASK_ID_TAKEN",
+                  "description": "A task with that id already exists.",
+                  "template": ""
+                },
+                {
+                  "id": "err-task-no-source",
+                  "name": "TaskSourceNotFoundError",
+                  "code": "TASK_SOURCE_NOT_FOUND",
+                  "description": "The task points at a source that does not exist. Leave it out to raise a task about the whole batch.",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "op-set-task-status",
+              "name": "SET_TASK_STATUS",
+              "description": "Move a task along, or cancel it. There is no delete: a cancelled task records that someone decided not to do it.",
+              "schema": "input SetTaskStatusInput {\n    task: OID!\n    status: ProcessingTaskStatus!\n}",
+              "template": "Move a task along, or cancel it. There is no delete: a cancelled task records that someone decided not to do it.",
+              "reducer": "// requires: import { recalculate } from \"../derived.js\";\nconst task = state.tasks.find((t) => t.id === action.input.task);\nif (!task) {\n  throw new SetTaskStatusNotFoundError(\n    `There is no task ${action.input.task}.`,\n  );\n}\ntask.status = action.input.status;\nrecalculate(state);",
+              "errors": [
+                {
+                  "id": "err-taskstatus-not-found",
+                  "name": "SetTaskStatusNotFoundError",
+                  "code": "SET_TASK_STATUS_NOT_FOUND",
+                  "description": "There is no task with that id.",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "op-assign-task",
+              "name": "ASSIGN_TASK",
+              "description": "Give a task an owner, or take one away.",
+              "schema": "input AssignTaskInput {\n    task: OID!\n    owner: String\n}",
+              "template": "Give a task an owner, or take one away.",
+              "reducer": "const task = state.tasks.find((t) => t.id === action.input.task);\nif (!task) {\n  throw new AssignTaskNotFoundError(`There is no task ${action.input.task}.`);\n}\n// Clearing an owner is a legitimate act, not a missing argument.\ntask.owner = action.input.owner ?? null;",
+              "errors": [
+                {
+                  "id": "err-assign-not-found",
+                  "name": "AssignTaskNotFoundError",
+                  "code": "ASSIGN_TASK_NOT_FOUND",
+                  "description": "There is no task with that id.",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "op-set-task-description",
+              "name": "SET_TASK_DESCRIPTION",
+              "description": "Say what the task actually is.",
+              "schema": "input SetTaskDescriptionInput {\n    task: OID!\n    description: String\n}",
+              "template": "Say what the task actually is.",
+              "reducer": "const task = state.tasks.find((t) => t.id === action.input.task);\nif (!task) {\n  throw new SetTaskDescriptionNotFoundError(\n    `There is no task ${action.input.task}.`,\n  );\n}\ntask.description = action.input.description ?? null;",
+              "errors": [
+                {
+                  "id": "err-taskdesc-not-found",
+                  "name": "SetTaskDescriptionNotFoundError",
+                  "code": "SET_TASK_DESCRIPTION_NOT_FOUND",
+                  "description": "There is no task with that id.",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        }
+      ],
+      "version": 1,
+      "changeLog": []
+    }
+  ]
+}

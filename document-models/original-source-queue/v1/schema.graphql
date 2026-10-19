@@ -1,0 +1,274 @@
+scalar Unknown
+scalar DateTime
+scalar Address
+scalar AttachmentRef
+scalar Amount_Tokens
+scalar EthereumAddress
+scalar EmailAddress
+scalar Amount_Percentage
+scalar Date
+scalar URL
+scalar Amount_Money
+scalar OLabel
+scalar Currency
+scalar PHID
+scalar OID
+scalar Amount_Fiat
+scalar Amount_Currency
+scalar Amount_Crypto
+scalar Amount
+scalar Upload
+
+"""
+Where the queue is in its life.
+- DRAFT: still being defined; cursors and collections may be changed.
+- IN_PROGRESS: walking. Only here may values be queued or errors reported.
+- PAUSED: stopped by hand, resumable exactly where it left off.
+- FINISHED: the space is walked, or it was terminated early.
+"""
+enum OSQStatus {
+    DRAFT
+    IN_PROGRESS
+    FINISHED
+    PAUSED
+}
+
+"""
+A queue of values a cursor can walk. Unlike a range, it is live: values may
+be pushed while the walk is running, which is what makes discover-then-drain
+backfills expressible.
+"""
+type OSQCollection {
+    id: OID!
+    name: String!
+    values: [Unknown!]!
+}
+
+"""
+A cursor over time, iterating INTERVALS rather than points.
+
+current and next are the half-open range [current, next) — exactly the
+after/before pair an API query wants. The final interval is clipped to last,
+so the intervals cover the span with no gap and no overhang.
+
+first and last set the direction of travel; counting down is the common case
+for a backfill (newest first). Direction reverses the ORDER intervals are
+visited in, never the orientation of one: current is always the earlier bound.
+"""
+type OSQDateTimeCursor {
+    id: OID!
+    name: String
+    description: String
+    first: DateTime!
+    last: DateTime!
+    deltaSeconds: Int!
+
+    position: Int!
+    current: DateTime
+    next: DateTime
+    finished: Boolean!
+    count: Int!
+}
+
+"""
+A cursor over whole numbers, iterating POINTS.
+
+first and last set the direction of travel, so 52 -> 1 counts down. step is
+therefore a magnitude and must be positive.
+"""
+type OSQNumberCursor {
+    id: OID!
+    name: String
+    description: String
+    first: Int!
+    last: Int!
+    step: Int!
+
+    position: Int!
+    current: Int
+    next: Int
+    finished: Boolean!
+    count: Int!
+}
+
+"""
+A cursor over a collection. current and next are INDICES into it; the value
+itself is read from the collection, because an index outlives a value and a
+value does not outlive a clear.
+"""
+type OSQCollectionCursor {
+    id: OID!
+    name: String
+    description: String
+    collection: OID!
+
+    position: Int!
+    current: Int
+    next: Int
+    finished: Boolean!
+    count: Int!
+}
+
+union OSQCursor = OSQDateTimeCursor | OSQNumberCursor | OSQCollectionCursor
+
+"""One cursor's reading at a moment, as recorded on an error."""
+type OSQCursorValue {
+    cursor: OID!
+    value: Unknown
+}
+
+"""
+A failure, stamped with where it happened.
+
+cursors is the full tuple at the moment the error was reported, which is what
+turns a bare failure into one located at 2024, week 31, Tuesday.
+"""
+type OSQError {
+    id: OID!
+    message: String!
+    data: Unknown
+    cursors: [OSQCursorValue!]!
+}
+
+"""A named scratchpad slot that survives an iteration boundary."""
+type OSQMemoryEntry {
+    key: String!
+    value: Unknown
+}
+
+type OriginalSourceQueueState {
+    description: String
+    cursors: [OSQCursor!]!
+    collections: [OSQCollection!]!
+    memory: [OSQMemoryEntry!]!
+
+    """
+    Every failure, in the order reported. The tuple on each one is what makes
+    a failed slice nameable rather than guessable.
+    """
+    errors: [OSQError!]!
+
+    """Fraction of the space walked. A live estimate while a queue is growing."""
+    progress: Float!
+    status: OSQStatus!
+
+    """
+    True when the walk is held up by an empty queue rather than finished.
+    Distinguishes having nothing to do yet from having nothing left to do, and
+    tells the ForEvery trigger to stay quiet without ending the run.
+    """
+    awaitingValues: Boolean!
+}
+
+# definition
+
+input CreateDateTimeCursorInput {
+    id: OID!
+    name: String
+    description: String
+    first: DateTime!
+    last: DateTime!
+    deltaSeconds: Int!
+}
+
+input CreateNumberCursorInput {
+    id: OID!
+    name: String
+    description: String
+    first: Int!
+    last: Int!
+    step: Int!
+}
+
+input CreateCollectionCursorInput {
+    id: OID!
+    name: String
+    description: String
+    collection: OID!
+}
+
+input ReorderCursorsInput {
+    order: [OID!]!
+}
+
+input SetCursorNameInput {
+    id: OID!
+    name: String
+}
+
+input CreateCollectionInput {
+    id: OID!
+    name: String!
+    values: [Unknown!]
+}
+
+# lifecycle
+
+input StartInput {
+    _: Boolean
+}
+
+input PauseInput {
+    _: Boolean
+}
+
+input UnpauseInput {
+    _: Boolean
+}
+
+input ResetInput {
+    _: Boolean
+}
+
+input TerminateInput {
+    _: Boolean
+}
+
+# advance
+
+input ProceedInput {
+    _: Boolean
+}
+
+input ProceedWithErrorInput {
+    id: OID!
+    message: String!
+    data: Unknown
+}
+
+# collections
+
+input AddCollectionValueInput {
+    collection: OID!
+    values: [Unknown!]!
+}
+
+input ClearCollectionInput {
+    collection: OID!
+}
+
+# errors
+
+input ReportErrorInput {
+    id: OID!
+    message: String!
+    data: Unknown
+}
+
+# memory
+
+input UpdateMemoryInput {
+    key: String!
+    value: Unknown
+}
+
+# meta
+
+input SetDescriptionInput {
+    description: String
+}
+
+input SetCursorDescriptionInput {
+    id: OID!
+    description: String
+}

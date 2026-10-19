@@ -1,0 +1,318 @@
+scalar Unknown
+scalar DateTime
+scalar Address
+scalar AttachmentRef
+scalar Amount_Tokens
+scalar EthereumAddress
+scalar EmailAddress
+scalar Amount_Percentage
+scalar Date
+scalar URL
+scalar Amount_Money
+scalar OLabel
+scalar Currency
+scalar PHID
+scalar OID
+scalar Amount_Fiat
+scalar Amount_Currency
+scalar Amount_Crypto
+scalar Amount
+scalar Upload
+
+"""
+Where a source, or a whole collection, stands.
+- NEW: captured, untouched.
+- PROCESSING: someone or something is working on it.
+- COMPLETED: done with.
+- DISCARDED: deliberately ignored, or folded into another source. Never
+  deleted: an original-source store that can forget is not one.
+"""
+enum OriginalSourceStatus {
+    NEW
+    PROCESSING
+    COMPLETED
+    DISCARDED
+}
+
+enum ProcessingTaskStatus {
+    DRAFT
+    TODO
+    IN_PROGRESS
+    DONE
+    CANCELLED
+}
+
+"""
+Where this collection's contents came from, as a whole.
+"""
+type OSCProvenance {
+    """
+    The Original Source Queue that drove the capture, when one did. This is
+    what lets the two documents be read together: the queue names the slices
+    that failed, the collection holds what the rest produced. Neither answers
+    is this backfill complete on its own.
+    """
+    queue: PHID
+    """A short name for the source system: gmail, toggl, filesystem."""
+    system: String
+    """Anything else worth recording about the run, verbatim."""
+    detail: Unknown
+}
+
+"""
+A file in the attachment store.
+
+Only the ref and a name are required. A piece that wrote the file through
+context.files.write gets back a ref and usually a name, but not always a mime
+type or a size; demanding fields the source does not supply would force a
+flow to invent them, and an invented mime type is worse than an absent one.
+
+Recording the ref here is also what makes the file readable: the attachment
+port refuses a download unless the document references it.
+"""
+type OSCAttachment {
+    ref: AttachmentRef!
+    fileName: String!
+    sizeBytes: Int
+    mimeType: String
+}
+
+"""
+One thing that was captured.
+"""
+type OriginalSource {
+    id: OID!
+    status: OriginalSourceStatus!
+
+    """
+    Canonical identifier, namespaced by its system: gmail:18f3a, sha256:9de1.
+    The namespace is required, because without it an id from one system and
+    an id from another are the same key.
+    """
+    externalId: String!
+    """
+    Every other identifier this object is known by, same shape. Capture
+    matches on these too, which is how a second sighting under a different id
+    lands on the record that already exists. No identifier belongs to more
+    than one source.
+    """
+    aliases: [String!]!
+
+    title: String
+    origin: URL
+    """Human-readable text, when the source has any."""
+    content: String
+    """The record exactly as received, untouched. The reason this model exists."""
+    payload: Unknown
+
+    attachments: [OSCAttachment!]!
+    references: [URL!]!
+    tags: [String!]!
+
+    """When the thing happened at the source."""
+    occurredAt: DateTime
+    """
+    When this object first entered the collection. It never moves: a merge
+    keeps the earliest sighting, so letting a re-capture push this forward
+    would make a long-known source lose a merge it should win.
+
+    A different question from occurredAt, and both are needed: a 2019 email
+    captured today is dated 2019 for analysis and today for what did this run
+    pick up.
+    """
+    capturedAt: DateTime!
+    """The most recent sighting. Equals capturedAt until it is seen again."""
+    lastSeenAt: DateTime!
+
+    """
+    Set when this source was folded into another. Its payload and attachments
+    stay here; only the identity moved.
+    """
+    mergedInto: OID
+    mergedAt: DateTime
+    """Calculated: the sources folded into this one, so the trail is walkable both ways."""
+    mergedFrom: [OID!]!
+}
+
+type ProcessingTask {
+    id: OID!
+    status: ProcessingTaskStatus!
+    owner: String
+    description: String
+    """The source this is about. Absent means it is about the batch."""
+    source: OID
+    createdAt: DateTime!
+}
+
+"""Calculated. What a person wants to know without counting a list."""
+type OSCCounts {
+    total: Int!
+    new: Int!
+    processing: Int!
+    completed: Int!
+    discarded: Int!
+    merged: Int!
+    openTasks: Int!
+}
+
+type OriginalSourceCollectionState {
+    title: String
+    description: String
+    provenance: OSCProvenance
+
+    sources: [OriginalSource!]!
+    tasks: [ProcessingTask!]!
+
+    """
+    Calculated from the sources, except DISCARDED which is set: abandoning a
+    whole collection is a decision, not a roll-up.
+    """
+    status: OriginalSourceStatus!
+    counts: OSCCounts!
+}
+
+# collection
+
+input SetTitleInput {
+    title: String
+}
+
+input SetDescriptionInput {
+    description: String
+}
+
+input SetProvenanceInput {
+    queue: PHID
+    system: String
+    detail: Unknown
+}
+
+input DiscardCollectionInput {
+    _: Boolean
+}
+
+input RestoreCollectionInput {
+    _: Boolean
+}
+
+# capture
+
+input CapturedAttachmentInput {
+    ref: AttachmentRef!
+    fileName: String!
+    sizeBytes: Int
+    mimeType: String
+}
+
+input CaptureSourceInput {
+    """Used only when this capture creates a source; reducers cannot generate ids."""
+    id: OID!
+    externalId: String!
+    aliases: [String!]
+    title: String
+    origin: URL
+    content: String
+    payload: Unknown
+    attachments: [CapturedAttachmentInput!]
+    references: [URL!]
+    tags: [String!]
+    occurredAt: DateTime
+    """
+    When this sighting happened. Becomes capturedAt on a new source and
+    lastSeenAt on every sighting, including the first.
+    """
+    capturedAt: DateTime!
+}
+
+input AttachToSourceInput {
+    source: OID!
+    ref: AttachmentRef!
+    fileName: String!
+    sizeBytes: Int
+    mimeType: String
+}
+
+input DetachFromSourceInput {
+    source: OID!
+    ref: AttachmentRef!
+}
+
+input AddSourceReferenceInput {
+    source: OID!
+    reference: URL!
+}
+
+# identity
+
+input AddAliasInput {
+    source: OID!
+    alias: String!
+}
+
+input RemoveAliasInput {
+    source: OID!
+    alias: String!
+}
+
+input MergeSourcesInput {
+    keep: OID!
+    merge: [OID!]!
+    mergedAt: DateTime!
+}
+
+input SplitSourceInput {
+    source: OID!
+    status: OriginalSourceStatus
+}
+
+# classify
+
+input SetSourceTitleInput {
+    source: OID!
+    title: String
+}
+
+input TagSourceInput {
+    source: OID!
+    tags: [String!]!
+}
+
+input UntagSourceInput {
+    source: OID!
+    tags: [String!]!
+}
+
+input SetSourceStatusInput {
+    source: OID!
+    status: OriginalSourceStatus!
+}
+
+input DiscardSourceInput {
+    source: OID!
+}
+
+# tasks
+
+input CreateTaskInput {
+    id: OID!
+    description: String
+    owner: String
+    source: OID
+    status: ProcessingTaskStatus
+    createdAt: DateTime!
+}
+
+input SetTaskStatusInput {
+    task: OID!
+    status: ProcessingTaskStatus!
+}
+
+input AssignTaskInput {
+    task: OID!
+    owner: String
+}
+
+input SetTaskDescriptionInput {
+    task: OID!
+    description: String
+}

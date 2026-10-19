@@ -85,9 +85,15 @@ importers:
       '@powerhousedao/ph-cli':
         specifier: link:../powerhouse/clis/ph-cli
         version: link:../powerhouse/clis/ph-cli
+      '@powerhousedao/pieces-framework':
+        specifier: link:../powerhouse/packages/pieces-framework
+        version: link:../powerhouse/packages/pieces-framework
       '@powerhousedao/reactor':
         specifier: link:../powerhouse/packages/reactor
         version: link:../powerhouse/packages/reactor
+      '@powerhousedao/reactor-api':
+        specifier: link:../powerhouse/packages/reactor-api
+        version: link:../powerhouse/packages/reactor-api
       '@powerhousedao/shared':
         specifier: link:../powerhouse/packages/shared
         version: link:../powerhouse/packages/shared

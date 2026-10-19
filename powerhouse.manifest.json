@@ -22,6 +22,14 @@
     {
       "id": "sektar/contact",
       "name": "Contact"
+    },
+    {
+      "id": "distyra/original-source-queue",
+      "name": "OriginalSourceQueue"
+    },
+    {
+      "id": "distyra/original-source-collection",
+      "name": "OriginalSourceCollection"
     }
   ],
   "apps": [
@@ -61,14 +69,43 @@
       "documentTypes": [
         "sektar/bank-account"
       ]
+    },
+    {
+      "id": "original-source-queue-editor",
+      "name": "OriginalSourceQueueEditor",
+      "documentTypes": [
+        "distyra/original-source-queue"
+      ]
+    },
+    {
+      "id": "original-source-collection-editor",
+      "name": "OriginalSourceCollectionEditor",
+      "documentTypes": [
+        "distyra/original-source-collection"
+      ]
     }
   ],
   "processors": [
     {
       "id": "search-index",
       "name": "search-index"
+    },
+    {
+      "id": "osc-index",
+      "name": "osc-index"
     }
   ],
-  "subgraphs": [],
-  "config": []
+  "subgraphs": [
+    {
+      "id": "osc-index",
+      "name": "osc-index"
+    }
+  ],
+  "config": [],
+  "pieces": [
+    {
+      "id": "@powerhousedao/distyra-piece",
+      "name": "Distyra"
+    }
+  ]
 }
