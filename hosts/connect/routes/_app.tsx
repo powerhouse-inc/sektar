@@ -221,7 +221,7 @@ function Sidebar({
         </li>
         <li>
           <Link
-            to="/settings/about"
+            to="/settings"
             className="sk-nav__item"
             onClick={onNavigate}
             activeProps={{
