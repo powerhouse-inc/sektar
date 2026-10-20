@@ -12,14 +12,10 @@ import config from "../../powerhouse.config.json" with { type: "json" };
 import switchboard from "../switchboard/host.js";
 import connect from "../connect/host.js";
 
-// The drives the studio switchboard serves to Connect over the network (a
-// subset of the switchboard host's list): Mail, whose attachments live in
-// the switchboard's store, and Backfills, whose queues the workflows advance
-// through the switchboard.
-const SERVED = new Set(["mail", "backfills"]);
-const mailDrives = (switchboard.reactor.drives ?? []).filter((d) =>
-  SERVED.has(d.slug),
-);
+// Every drive the switchboard host serves (the business drive, Mail,
+// Backfills): the studio switchboard serves the same list, and the studio
+// Connect attaches each one as a remote, being a remote client of it.
+const servedDrives = switchboard.reactor.drives ?? [];
 
 /** @satisfies {PHHost} */
 export default {
@@ -39,8 +35,10 @@ export default {
           { module: "@powerhousedao/vetra-studio/switchboard", verbs: ["dev"] },
         ],
       },
-      // The switchboard host's own drives (sektar) plus the studio drives,
-      // declared (projectHash keeps today's ids):
+      // The studio drives, declared (projectHash keeps today's ids), plus
+      // every drive the switchboard host serves: the studio Connect is a
+      // pure remote client of this member (below), so the business drive
+      // has to live here too.
       reactor: {
         ...switchboard.reactor,
         drives: [
@@ -52,10 +50,7 @@ export default {
             preferredEditor: "vetra-drive-app",
           },
           { slug: "vetra-preview", name: "Vetra Preview", projectHash: true },
-          // Mail and Backfills, served here so the studio Connect can attach
-          // them as remotes (the drive apps reach the attachment store and
-          // the workflow runtime through the switchboard behind the drive).
-          ...mailDrives,
+          ...servedDrives,
         ],
       },
     },
@@ -68,23 +63,26 @@ export default {
           { module: "@powerhousedao/vetra-studio/connect", verbs: ["dev"] },
         ],
       },
-      // The studio Connect keeps its own local drives (the business drive)
-      // but takes Mail and Backfills from the studio switchboard as REMOTES:
-      // the standalone host's local copies are dropped so each slug names
-      // one drive, the switchboard's.
+      // The studio Connect is a pure REMOTE CLIENT of the studio switchboard
+      // (as the cli host's Connect is): no reactor and no PGlite in the tab,
+      // every read and write proxied over GraphQL. A synchronized remote
+      // drive would replicate the Mail drive into the browser, thousands of
+      // messages with bodies, and re-derive the whole history into a sync
+      // outbox on every fresh tab, which stalled the switchboard for minutes.
+      // The studio drives (vetra, preview) are attached by the studio plugin.
       reactor: {
-        ...connect.reactor,
-        drives: [
-          ...(connect.reactor.drives ?? []).filter(
-            (d) => !mailDrives.some((m) => m.slug === d.slug),
-          ),
-          ...mailDrives.map((d) => ({
-            slug: d.slug,
-            remote: {
-              url: `http://127.0.0.1:${switchboard.runner.port}/d/${d.slug}`,
-            },
-          })),
-        ],
+        backends: {
+          sb: {
+            kind: "remote",
+            remote: { url: `http://127.0.0.1:${switchboard.runner.port}/graphql` },
+          },
+        },
+        drives: servedDrives.map((d) => ({
+          slug: d.slug,
+          remote: {
+            url: `http://127.0.0.1:${switchboard.runner.port}/d/${d.slug}`,
+          },
+        })),
       },
     },
   },

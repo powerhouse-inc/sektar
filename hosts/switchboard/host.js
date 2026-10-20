@@ -19,7 +19,15 @@ export default {
       // its own workflows plugin — one link, declared on both ends.
       {
         module: "@powerhousedao/switchboard/plugins/workflows",
-        config: { drive: { slug: "workflows", name: "Workflows" } },
+        // The id is pinned: without one the plugin derives it from the
+        // project path (workflows-<hash>) and announces that id, while the
+        // drive that already holds the workflows was created as
+        // workflows-36baa6c1 under an earlier hash. Seeding keys on the slug
+        // and would find it, but Connect attaches the announced id and got a
+        // 404 for a drive that does not exist.
+        config: {
+          drive: { slug: "workflows", name: "Workflows", id: "workflows-36baa6c1" },
+        },
       },
     ],
   },
