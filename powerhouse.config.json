@@ -36,20 +36,7 @@
       "liveReload": false
     },
     "drives": {
-      "allowAddDrive": true,
-      "defaultDrives": [],
-      "sections": {
-        "remote": {
-          "enabled": true,
-          "allowAdd": true,
-          "allowDelete": true
-        },
-        "local": {
-          "enabled": true,
-          "allowAdd": true,
-          "allowDelete": true
-        }
-      }
+      "defaultDrives": []
     },
     "renown": {
       "url": "https://www.renown.id",
