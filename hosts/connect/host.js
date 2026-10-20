@@ -65,8 +65,8 @@ export default {
       // be missing in production (desktop/serve) — in-page they are shared.
       main: { kind: "in-process" },
     },
-    // The drives the switchboard declares (Sektar, Mail, Backfills; read,
-    // not copied): standalone Connect keeps a local copy of each, the
+    // The drives the switchboard declares (Sektar, Mail, Backfills, Files;
+    // read, not copied): standalone Connect keeps a local copy of each, the
     // compounds (vetra, cli, desktop) replace them with the switchboard's.
     // The Workflows drive is not declared here: the workflows plugin above
     // attaches it (runner.plugins).

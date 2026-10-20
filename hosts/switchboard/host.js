@@ -66,6 +66,13 @@ export default {
         preferredEditor: "backfills",
         icon: "./icons/sektar_symbol_64x64.png",
       },
+      // Files: any document or file, opened by the Files drive app.
+      {
+        slug: "files",
+        name: "Files",
+        preferredEditor: "files",
+        icon: "./icons/sektar_symbol_64x64.png",
+      },
     ],
   },
 };

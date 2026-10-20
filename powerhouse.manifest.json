@@ -32,8 +32,8 @@
       "name": "OriginalSourceCollection"
     },
     {
-      "name": "Email",
-      "id": "sektar/email"
+      "id": "sektar/email",
+      "name": "Email"
     }
   ],
   "apps": [
@@ -54,6 +54,13 @@
     {
       "id": "backfills",
       "name": "Backfills",
+      "documentTypes": [
+        "powerhouse/document-drive"
+      ]
+    },
+    {
+      "name": "files",
+      "id": "files",
       "documentTypes": [
         "powerhouse/document-drive"
       ]

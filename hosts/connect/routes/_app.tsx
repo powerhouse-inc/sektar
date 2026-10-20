@@ -49,7 +49,9 @@ export const Route = createFileRoute("/_app")({
 });
 
 function pageTitle(pathname: string, product: Product) {
-  const nav = product.nav.find((n) => pathname.startsWith(n.to));
+  const nav = [...product.nav, ...(product.afterDrive ?? [])].find((n) =>
+    pathname.startsWith(n.to),
+  );
   if (nav) return nav.label;
   if (pathname.startsWith("/d/")) return product.drive.label;
   if (pathname.startsWith("/settings")) return "Settings";
@@ -223,6 +225,22 @@ function Sidebar({
             <span className="sk-nav__label">{product.drive.label}</span>
           </Link>
         </li>
+        {(product.afterDrive ?? []).map((item) => (
+          <li key={item.to}>
+            <Link
+              to={item.to}
+              className="sk-nav__item"
+              onClick={onNavigate}
+              activeProps={{
+                className: "sk-nav__item is-active",
+                "aria-current": "page",
+              }}
+            >
+              <Icon name={item.icon} />
+              <span className="sk-nav__label">{item.label}</span>
+            </Link>
+          </li>
+        ))}
         <li>
           <Link
             to="/settings"

@@ -28,6 +28,8 @@ export type Product = {
    * the drive app it is bound to (header.meta.preferredEditor).
    */
   drive: { slug: string; label: string; editor: string };
+  /** Below the drive's entry: the product's other machinery, e.g. Backfills */
+  afterDrive?: NavItem[];
 };
 
 export const PRODUCTS: readonly Product[] = [
@@ -41,14 +43,18 @@ export const PRODUCTS: readonly Product[] = [
       { to: "/productivity", label: "Welcome", icon: "dashboard" },
       // The Mail drive (hosts/*: slug "mail", drive app email-workspace)
       { to: "/d/mail", label: "Mail", icon: "mail" },
-      // The Backfills drive (hosts/*: slug "backfills", drive app backfills)
-      { to: "/d/backfills", label: "Backfills", icon: "download" },
+      // The Files drive (hosts/*: slug "files", drive app files)
+      { to: "/d/files", label: "Files", icon: "folder" },
     ],
     drive: {
       slug: "workflows",
-      label: "Workflows drive",
+      label: "Workflows",
       editor: "workflow-studio",
     },
+    afterDrive: [
+      // The Backfills drive (hosts/*: slug "backfills", drive app backfills)
+      { to: "/d/backfills", label: "Backfills", icon: "download" },
+    ],
   },
   {
     id: "finance",
@@ -142,6 +148,7 @@ export function productFor(
   const own = PRODUCTS.find(
     (p) =>
       p.nav.some((n) => pathname.startsWith(n.to)) ||
+      (p.afterDrive ?? []).some((n) => pathname.startsWith(n.to)) ||
       isProductDrive(pathname, p),
   );
   return (
