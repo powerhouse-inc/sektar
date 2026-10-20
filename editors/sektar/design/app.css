@@ -889,6 +889,15 @@
 .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--panes {
   overscroll-behavior: contain;
 }
+/* A windowed list: while rows remain below the window, the last rendered
+   row is not the last row, so it keeps its hairline. */
+.sk-app .sk-mail .sk-list--rich[data-sk-more] li:last-child .sk-list-item--rich {
+  border-bottom: 1px solid var(--sk-border-subtle);
+}
+.sk-app .sk-mail .sk-list--rich[data-sk-more] li:last-child .sk-list-item--rich.is-selected::before {
+  bottom: -1px;
+}
+
 .sk-app .sk-mail__unread {
   font-weight: var(--sk-weight-semibold);
 }

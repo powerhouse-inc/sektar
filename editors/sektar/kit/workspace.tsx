@@ -3,7 +3,7 @@
 // width the panes become a push navigation (`data-level` says which one
 // shows; a `--parent` pane is a level-0 chooser). Collapse and drill state is
 // React state here; the classes and attributes are the design system's.
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties, ReactNode, Ref } from "react";
 import { cx, Icon } from "./ui.js";
 
 export function Workspace({
@@ -55,6 +55,7 @@ export function Pane({
   tall,
   className,
   bodyClassName,
+  bodyRef,
   children,
 }: {
   /** Which edge the collapse chevron points at */
@@ -78,6 +79,8 @@ export function Pane({
   tall?: boolean;
   className?: string;
   bodyClassName?: string;
+  /** The scrolling body, for a window over a long list */
+  bodyRef?: Ref<HTMLDivElement>;
   children?: ReactNode;
 }) {
   return (
@@ -131,6 +134,7 @@ export function Pane({
         )}
       </header>
       <div
+        ref={bodyRef}
         className={cx(
           "sk-pane__body",
           flush && "sk-pane__body--flush",

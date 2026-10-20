@@ -118,12 +118,20 @@
     {
       "id": "osc-index",
       "name": "osc-index"
+    },
+    {
+      "id": "email-index",
+      "name": "email-index"
     }
   ],
   "subgraphs": [
     {
       "id": "osc-index",
       "name": "osc-index"
+    },
+    {
+      "id": "email-index",
+      "name": "email-index"
     }
   ],
   "pieces": [

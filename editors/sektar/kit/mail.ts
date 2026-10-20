@@ -1,25 +1,23 @@
-// Reading and writing captured emails. Reads are hooks over whatever drive
-// the Mail workspace is showing; writes are imperative helpers around
-// addDocument/dispatchActions, shaped so a Gmail search result maps onto
-// them field by field (see docs/specs/email.md).
+// Writing captured emails, and the small pure helpers the Mail surfaces
+// share. Writes are imperative helpers around addDocument/dispatchActions,
+// shaped so a Gmail search result maps onto them field by field (see
+// docs/specs/email.md). The list itself is read through the mailbox index
+// (kit/mail-index.ts), never by loading every document.
 import {
   addDocument,
   addFolder,
   dispatchActions,
-  useDocumentsByIds,
   type useAttachments,
 } from "@powerhousedao/reactor-browser";
 import type { DocumentDriveDocument } from "@powerhousedao/shared/document-drive";
 import { generateId } from "document-model";
 import {
   actions as emailActions,
-  isEmailDocument,
   type EmailAttachment,
   type EmailDocument,
   type Mailbox,
 } from "document-models/email";
-import { useDeferredValue, useMemo } from "react";
-import { fileIds, folderNode } from "./data.js";
+import { folderNode } from "./data.js";
 
 export const EMAIL_TYPE = "sektar/email";
 
@@ -27,37 +25,6 @@ export const EMAIL_TYPE = "sektar/email";
 export type AttachmentClient = NonNullable<ReturnType<typeof useAttachments>>;
 
 /* -------------------------------------------------------------- reading */
-
-/**
- * Every captured email in the drive, newest first.
- *
- * The id list is read through a deferred value: `useDocumentsByIds` ends in
- * `use(promise)`, and a new id makes that promise new and unresolved, so the
- * component suspends. Suspending on a deferred value keeps the previous
- * render on screen while the new one resolves; suspending on the live value
- * made React hide the whole view and show the shell's skeleton for every
- * message a backfill filed.
- *
- * A document that exists but has not been captured yet (created, capture
- * still on its way) is left out: it has no sender, no subject and no
- * mailbox, and would surface as an "unknown" inbox for a moment.
- */
-export function useEmails(
-  drive: DocumentDriveDocument | undefined,
-): EmailDocument[] {
-  const key = fileIds(drive, EMAIL_TYPE).join(",");
-  const ids = useMemo(() => (key ? key.split(",") : []), [key]);
-  const settledIds = useDeferredValue(ids);
-  const docs = useDocumentsByIds(settledIds);
-  return useMemo(
-    () =>
-      docs
-        .filter(isEmailDocument)
-        .filter((d) => Boolean(d.state.global.externalId))
-        .sort((a, b) => whenOf(b).localeCompare(whenOf(a))),
-    [docs],
-  );
-}
 
 /** The instant a message is listed by: sent, else received, else captured. */
 export function whenOf(doc: EmailDocument): string {

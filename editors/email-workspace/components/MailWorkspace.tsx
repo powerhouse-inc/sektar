@@ -5,13 +5,23 @@
 // navigation. The top bar's search filters the list; the inbox selector is
 // a second top-bar row wide, and the list's title is the switch to the
 // chooser when stacked.
+//
+// The list is rows from the mailbox index (kit/mail-index.ts), paged from
+// the switchboard as the reader scrolls and windowed so only a screenful is
+// in the DOM; the document itself is loaded for the open message alone.
+// That is what lets one mailbox hold tens of thousands of messages.
 import {
   isFileNodeKind,
   useAttachments,
+  useDocumentSafe,
   useSelectedDrive,
   useSelectedNode,
 } from "@powerhousedao/reactor-browser";
-import type { EmailAttachment, EmailDocument } from "document-models/email";
+import {
+  isEmailDocument,
+  type EmailAttachment,
+  type EmailDocument,
+} from "document-models/email";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   AttachmentPreview,
@@ -20,19 +30,23 @@ import {
   EmailMenu,
 } from "../../sektar/components/EmailDetail.js";
 import {
-  accountsOf,
+  traceChange,
+  traceRender,
+  useDomDiagnostics,
+} from "../../sektar/kit/diagnostics.js";
+import {
+  useMailAccounts,
+  useMailList,
+  type MailRow,
+  type MailView,
+} from "../../sektar/kit/mail-index.js";
+import {
   bytes,
-  EMAIL_TYPE,
   fmtWhen,
   mail,
-  mailboxLabel,
-  matchesMail,
   seedSampleMail,
   uniqueAttachments,
-  useEmails,
 } from "../../sektar/kit/mail.js";
-import { fileIds } from "../../sektar/kit/data.js";
-import { traceChange, traceRender, useDomDiagnostics } from "../../sektar/kit/diagnostics.js";
 import { Menu } from "../../sektar/kit/menu.js";
 import { useSearch } from "../../sektar/kit/search-context.js";
 import {
@@ -47,6 +61,7 @@ import {
   Selector,
   Skeleton,
 } from "../../sektar/kit/ui.js";
+import { useRowWindow } from "../../sektar/kit/virtual.js";
 import {
   Pane,
   PaneSwitch,
@@ -55,8 +70,7 @@ import {
 } from "../../sektar/kit/workspace.js";
 
 const ALL = "all";
-type View = "inbox" | "unread" | "flagged" | "archived";
-const VIEWS: { value: View; label: string }[] = [
+const VIEWS: { value: MailView; label: string }[] = [
   { value: "inbox", label: "Inbox" },
   { value: "unread", label: "Unread" },
   { value: "flagged", label: "Flagged" },
@@ -66,17 +80,18 @@ const VIEWS: { value: View; label: string }[] = [
 /** Which level a stacked workspace shows: 0 inboxes · 1 list · 2 message · 3 file */
 type Level = 0 | 1 | 2 | 3;
 
+/** Rows from the end of what is loaded at which the next page is asked for. */
+const LOAD_AHEAD = 30;
+
 export function MailWorkspace() {
   traceRender("MailWorkspace");
   const [drive] = useSelectedDrive();
   const node = useSelectedNode();
   const client = useAttachments();
-  const emails = useEmails(drive);
-  const accounts = useMemo(() => accountsOf(emails), [emails]);
   const { query } = useSearch();
 
   const [account, setAccount] = useState<string>(ALL);
-  const [view, setView] = useState<View>("inbox");
+  const [view, setView] = useState<MailView>("inbox");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [checked, setChecked] = useState<Set<string>>(() => new Set());
   const [fileRef, setFileRef] = useState<string | null>(null);
@@ -87,6 +102,20 @@ export function MailWorkspace() {
   // an explicitly picked file makes the choice explicit.
   const [previewPref, setPreviewPref] = useState<boolean | null>(null);
 
+  const list = useMailList(drive, {
+    account: account === ALL ? null : account,
+    view,
+    query,
+  });
+  const accounts = useMailAccounts(drive, list.version) ?? [];
+
+  // New mail is filed as nodes on the drive; the index follows a beat later.
+  const nodeCount = drive.state.global.nodes.length;
+  const { refreshSoon } = list;
+  useEffect(() => {
+    if (nodeCount > 0) refreshSoon();
+  }, [nodeCount, refreshSoon]);
+
   // A message opened by URL (/d/mail/<node>) is the selection.
   useEffect(() => {
     if (node && isFileNodeKind(node) && node.documentType === "sektar/email") {
@@ -95,22 +124,12 @@ export function MailWorkspace() {
     }
   }, [node]);
 
-  const visible = useMemo(
-    () =>
-      emails.filter((doc) => {
-        const s = doc.state.global;
-        if (account !== ALL && s.account.address !== account) return false;
-        if (view === "archived") {
-          if (s.status !== "ARCHIVED") return false;
-        } else if (s.status === "ARCHIVED") return false;
-        if (view === "unread" && s.read) return false;
-        if (view === "flagged" && !s.flagged) return false;
-        return matchesMail(query, doc);
-      }),
-    [emails, account, view, query],
-  );
-
-  const selected = emails.find((d) => d.header.id === selectedId);
+  // The open message is the one document this view loads.
+  const selectedQuery = useDocumentSafe(selectedId ?? undefined);
+  const selected: EmailDocument | undefined =
+    selectedQuery.data && isEmailDocument(selectedQuery.data)
+      ? selectedQuery.data
+      : undefined;
   const files = useMemo(
     () => (selected ? uniqueAttachments(selected.state.global.attachments) : []),
     [selected],
@@ -118,14 +137,37 @@ export function MailWorkspace() {
   const hasFiles = files.length > 0;
   const file = files.find((a) => a.ref === fileRef) ?? null;
 
-  const pick = (doc: EmailDocument) => {
-    setSelectedId(doc.header.id);
+  // Triage from the message pane (the more-menu, the badges) changes the
+  // document; the row follows at once, and the index soon after.
+  const revision = selected?.header.lastModifiedAtUtcIso;
+  const { patch } = list;
+  useEffect(() => {
+    if (!selected) return;
+    const s = selected.state.global;
+    patch(selected.header.id, {
+      read: s.read,
+      flagged: s.flagged,
+      status: s.status,
+      labels: s.labels,
+      attachmentCount: uniqueAttachments(s.attachments).length,
+      attachmentRefs: uniqueAttachments(s.attachments).map((a) => a.ref),
+    });
+    refreshSoon();
+    // the document's revision is what says something changed
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.header.id, revision, patch, refreshSoon]);
+
+  const pick = (row: MailRow) => {
+    setSelectedId(row.id);
     // Line up the first file so an open preview follows the selection, but
     // keep a collapsed preview collapsed: a pane that reopens itself is a
     // pane you cannot close.
-    setFileRef(uniqueAttachments(doc.state.global.attachments)[0]?.ref ?? null);
+    setFileRef(row.attachmentRefs[0] ?? null);
     setLevel(2);
-    if (!doc.state.global.read) void mail.markRead(doc.header.id);
+    if (!row.read) {
+      patch(row.id, { read: true });
+      void mail.markRead(row.id);
+    }
   };
 
   const pickFile = (a: EmailAttachment) => {
@@ -160,27 +202,44 @@ export function MailWorkspace() {
     ...accounts.map((a) => ({
       value: a.address,
       name: a.name,
-      meta: a.address,
+      meta: a.unread > 0 ? `${a.unread} unread · ${a.address}` : a.address,
       icon: "customers" as const,
     })),
   ];
 
-  // The root only exists once there is mail (the empty state renders
-  // without it), so the measuring hooks re-arm when it appears.
+  // The root only exists once the index has answered (the empty state
+  // renders without it), so the measuring hooks re-arm when it appears.
   const root = useRef<HTMLDivElement>(null);
-  const hasMail = emails.length > 0;
-  const height = useFillHeight(root, hasMail);
-  const narrow = useNarrow(root, 1000, hasMail);
+  const ready = list.loaded && (accounts.length > 0 || list.total > 0);
+  const height = useFillHeight(root, ready);
+  const narrow = useNarrow(root, 1000, ready);
   // Opt-in: localStorage sk:mail-debug=1 or ?debug=mail (kit/diagnostics.ts)
-  useDomDiagnostics(root, hasMail);
+  useDomDiagnostics(root, ready);
   const previewCollapsed = previewPref ?? narrow;
+
+  // The list pane's body scrolls; the window keeps a screenful of rows in it.
+  const listBody = useRef<HTMLDivElement>(null);
+  const rows = list.rows;
+  const win = useRowWindow(listBody, rows.length, { mounted: ready });
+  const { loadMore, hasMore, busy } = list;
+  useEffect(() => {
+    if (hasMore && !busy && win.end >= rows.length - LOAD_AHEAD) loadMore();
+  }, [win.end, rows.length, hasMore, busy, loadMore]);
+  // A new filter starts at the top.
+  const filterKey = `${account}|${view}|${query}`;
+  useEffect(() => {
+    if (listBody.current) listBody.current.scrollTop = 0;
+  }, [filterKey]);
+
   traceChange("state", {
-    mail: emails.length,
-    visible: visible.length,
+    mode: list.mode,
+    rows: rows.length,
+    total: list.total,
+    window: [win.start, win.end],
     accounts: accounts.length,
     selected: selectedId?.slice(0, 8) ?? null,
     found: Boolean(selected),
-    files: selected?.state.global.attachments.length ?? null,
+    files: files.length,
     file: fileRef?.slice(-8) ?? null,
     fileFound: Boolean(file),
     collapsed: previewCollapsed,
@@ -189,25 +248,27 @@ export function MailWorkspace() {
     height,
   });
 
-  if (emails.length === 0) {
-    // The drive's node list arrives before the documents it names (a
-    // remote drive syncs in that order), so for a few seconds there is mail
-    // on the way but none to show: a skeleton, not the empty state.
-    const expected = fileIds(drive, EMAIL_TYPE).length;
+  if (!ready) {
+    const unfiltered = account === ALL && view === "inbox" && !query;
     return (
       <div
         className="sk-page"
         style={{ padding: "var(--sk-space-10) var(--sk-space-6)" }}
       >
-        {expected > 0 ? (
+        {list.loaded && unfiltered && accounts.length === 0 ? (
+          <MailEmpty
+            drive={drive}
+            hasStore={Boolean(client)}
+            error={list.error}
+            indexed={list.mode !== "unknown"}
+          />
+        ) : (
           <div className="sk-stack sk-stack--4" style={{ maxWidth: 560, margin: "0 auto" }}>
             <Skeleton width={180} height={20} />
             {[0, 1, 2, 3, 4].map((i) => (
               <Skeleton key={i} height={64} />
             ))}
           </div>
-        ) : (
-          <MailEmpty drive={drive} hasStore={Boolean(client)} />
         )}
       </div>
     );
@@ -255,9 +316,10 @@ export function MailWorkspace() {
           side="start"
           grow={1}
           flush
+          bodyRef={listBody}
           collapsed={listCollapsed}
           onToggle={() => setListCollapsed((v) => !v)}
-          count={visible.length}
+          count={list.total}
           // The switch's own title is what the collapsed strip shows.
           title={single ? accountName : undefined}
           header={
@@ -271,45 +333,59 @@ export function MailWorkspace() {
           }
           trailing={
             <Menu
-                label="View"
-                items={VIEWS.map((v) => ({
-                  label: v.label,
-                  active: v.value === view,
-                  onSelect: () => setView(v.value),
-                }))}
-                trigger={(open, toggle) => (
-                  <button
-                    type="button"
-                    className="sk-btn sk-btn--ghost sk-btn--sm"
-                    aria-haspopup="menu"
-                    aria-expanded={open}
-                    onClick={toggle}
-                  >
-                    {VIEWS.find((v) => v.value === view)?.label}
-                    <Icon name="chevron-down" size={16} mono />
-                  </button>
-                )}
-              />
+              label="View"
+              items={VIEWS.map((v) => ({
+                label: v.label,
+                active: v.value === view,
+                onSelect: () => setView(v.value),
+              }))}
+              trigger={(open, toggle) => (
+                <button
+                  type="button"
+                  className="sk-btn sk-btn--ghost sk-btn--sm"
+                  aria-haspopup="menu"
+                  aria-expanded={open}
+                  onClick={toggle}
+                >
+                  {VIEWS.find((v) => v.value === view)?.label}
+                  <Icon name="chevron-down" size={16} mono />
+                </button>
+              )}
+            />
           }
         >
-          {visible.length === 0 ? (
+          {rows.length === 0 ? (
             <div style={{ padding: "var(--sk-space-6)" }}>
-              <EmptyState icon="mail" title="Nothing here">
-                {query
-                  ? "No message matches that search."
-                  : "No messages in this view."}
-              </EmptyState>
+              {list.loaded ? (
+                <EmptyState icon="mail" title="Nothing here">
+                  {list.error
+                    ? `The mailbox index did not answer: ${list.error}`
+                    : query
+                      ? "No message matches that search."
+                      : "No messages in this view."}
+                </EmptyState>
+              ) : (
+                <div className="sk-stack sk-stack--4">
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <Skeleton key={i} height={64} />
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
-            <ul className="sk-list sk-list--rich">
-              {visible.map((doc) => (
-                <li key={doc.header.id}>
+            <ul
+              className="sk-list sk-list--rich"
+              data-sk-more={win.end < rows.length || hasMore ? "" : undefined}
+              style={{ paddingTop: win.padTop, paddingBottom: win.padBottom }}
+            >
+              {rows.slice(win.start, win.end).map((row, i) => (
+                <li key={row.id} ref={i === 0 ? win.measure : undefined}>
                   <MessageRow
-                    doc={doc}
-                    selected={doc.header.id === selectedId}
-                    checked={checked.has(doc.header.id)}
-                    onCheck={() => toggleChecked(doc.header.id)}
-                    onClick={() => pick(doc)}
+                    row={row}
+                    selected={row.id === selectedId}
+                    checked={checked.has(row.id)}
+                    onCheck={() => toggleChecked(row.id)}
+                    onClick={() => pick(row)}
                   />
                 </li>
               ))}
@@ -343,6 +419,11 @@ export function MailWorkspace() {
               selectedRef={fileRef}
               onPickAttachment={pickFile}
             />
+          ) : selectedId && selectedQuery.isPending ? (
+            <div className="sk-stack sk-stack--4">
+              <Skeleton width={240} height={20} />
+              <Skeleton height={120} />
+            </div>
           ) : (
             <EmptyState icon="mail" title="Pick a message">
               The message opens here; its files open beside it.
@@ -394,39 +475,33 @@ export function MailWorkspace() {
 }
 
 /**
- * A row re-renders only when its own message, selection or checkbox changes.
- * The drive syncs one operation at a time while a backfill runs, and every
- * sync re-renders the workspace; React re-applies `type` and `name` on each
- * controlled checkbox it re-renders, which the browser paints as a blink.
- * Two hundred rows blinking once a second was the "flicker".
+ * A row re-renders only when its own row, selection or checkbox changes.
+ * Rows are replaced only when the index says they changed, so a refresh
+ * that confirms what is shown re-renders nothing. React re-applies `type`
+ * and `name` on each controlled checkbox it re-renders, which the browser
+ * paints as a blink — the reason this is worth guarding.
  */
-const MessageRow = memo(MessageRowImpl, (a, b) =>
-  a.selected === b.selected &&
-  a.checked === b.checked &&
-  a.doc.header.id === b.doc.header.id &&
-  // Every sync hands out new state objects; the modification time is what
-  // says whether this message changed.
-  a.doc.header.lastModifiedAtUtcIso === b.doc.header.lastModifiedAtUtcIso,
+const MessageRow = memo(
+  MessageRowImpl,
+  (a, b) => a.selected === b.selected && a.checked === b.checked && a.row === b.row,
 );
 
 function MessageRowImpl({
-  doc,
+  row,
   selected,
   checked,
   onCheck,
   onClick,
 }: {
-  doc: EmailDocument;
+  row: MailRow;
   selected: boolean;
   checked: boolean;
   onCheck: () => void;
   onClick: () => void;
 }) {
   traceRender("MessageRow");
-  const s = doc.state.global;
-  const sender = s.from[0];
-  const name = sender ? mailboxLabel(sender) : "Unknown sender";
-  const fileCount = uniqueAttachments(s.attachments).length;
+  const name = row.fromName?.trim() || row.fromAddress || "Unknown sender";
+  const fileCount = row.attachmentCount;
   return (
     <ListItem
       rich
@@ -445,9 +520,9 @@ function MessageRowImpl({
       }
       icon={<Avatar name={name} />}
       title={
-        <span className={cx(!s.read && "sk-mail__unread")}>
+        <span className={cx(!row.read && "sk-mail__unread")}>
           {name}
-          {!s.read && (
+          {!row.read && (
             <span
               className="sk-badge sk-badge--dot sk-badge--mint"
               style={{ marginLeft: 4 }}
@@ -458,13 +533,13 @@ function MessageRowImpl({
       }
       sub={[
         <span key="subject" style={{ color: "var(--sk-text)" }}>
-          {s.subject ?? "(no subject)"}
+          {row.subject ?? "(no subject)"}
         </span>,
-        s.snippet ?? "",
+        row.snippet ?? "",
       ]}
       aside={
         <>
-          <span>{fmtWhen(s.sentAt ?? s.receivedAt)}</span>
+          <span>{fmtWhen(row.when)}</span>
           {fileCount > 0 && (
             <span
               className="sk-mail__files"
@@ -474,7 +549,7 @@ function MessageRowImpl({
               {fileCount > 1 && fileCount}
             </span>
           )}
-          {s.flagged && (
+          {row.flagged && (
             <Badge tone="warning" dot pill>
               Flagged
             </Badge>
@@ -489,13 +564,18 @@ function MessageRowImpl({
 function MailEmpty({
   drive,
   hasStore,
+  error,
+  indexed,
 }: {
   drive: ReturnType<typeof useSelectedDrive>[0];
   hasStore: boolean;
+  error: string | null;
+  /** Whether a mailbox index could be reached at all. */
+  indexed: boolean;
 }) {
   const client = useAttachments();
   const [step, setStep] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [seedError, setSeedError] = useState<string | null>(null);
   const busy = step !== null && step !== "Done";
   return (
     <div
@@ -511,10 +591,10 @@ function MailEmpty({
               variant="primary"
               icon="leaf"
               onClick={() => {
-                setError(null);
+                setSeedError(null);
                 setStep("Starting");
                 seedSampleMail(drive, client, setStep).catch((e: unknown) => {
-                  setError(e instanceof Error ? e.message : String(e));
+                  setSeedError(e instanceof Error ? e.message : String(e));
                   setStep(null);
                 });
               }}
@@ -538,7 +618,15 @@ function MailEmpty({
           <span className="sk-caption">{step}…</span>
         </div>
       )}
-      {error && <p className="sk-text-danger sk-small">{error}</p>}
+      {!indexed && (
+        <p className="sk-text-muted sk-small">
+          No mailbox index answers for this drive: the switchboard behind it
+          needs the email-index processor and subgraph.
+        </p>
+      )}
+      {(error ?? seedError) && (
+        <p className="sk-text-danger sk-small">{error ?? seedError}</p>
+      )}
     </div>
   );
 }

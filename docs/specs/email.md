@@ -91,3 +91,25 @@ transforms" choice and can be revisited per workflow.
   `ADD_ATTACHMENT` with the ref → upload, in that order, because the store
   refuses bytes for a ref no document carries.
 - Productivity Center nav: "Mail" → `/d/mail`.
+
+## How a mailbox is listed
+
+The list never loads documents. `processors/email-index` keeps one lean row
+per message (`email_index`: account, sender, subject, snippet, listing
+instant, read/flagged/status, attachment refs, labels, a lower-cased search
+text) built off the operations themselves — the resulting state when an
+operation carries it, else the action applied as the reducer applies it — so
+a first install replays history without reading a body. The switchboard
+answers `emailIndex { messages(driveId, account, view, query, cursor, limit)
+accounts(driveId) }` (`subgraphs/email-index`), keyset-paged on
+`(when_at, document_id)` so page one hundred costs what page one does.
+
+Connect reads it through `editors/sektar/kit/mail-index.ts`: a remote drive
+is answered by its switchboard (found from the drive's channel URL, as the
+framework finds its own switchboard links), a drive in the tab's own reactor
+by the same queries run live on its database. `MailWorkspace` pages as the
+reader scrolls, keeps a screenful of rows in the DOM (`kit/virtual.ts`), and
+loads the one document that is open with `useDocumentSafe`. New mail shows
+when the drive's node list grows (the index follows within a second); a row
+this tab triaged is patched at once and confirmed by the next refresh.
+
