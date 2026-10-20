@@ -41,11 +41,11 @@ server), `vetra` (compound: both, dev mode — what `ph vetra` runs),
 The `reactor.backends` of a Connect host select which of four clients it
 runs — one field, derived from the backend topology:
 
-| host                       | backends                      | reactorClient | reactor + storage                                                                |
-| -------------------------- | ----------------------------- | ------------- | -------------------------------------------------------------------------------- |
-| `connect` (standalone)     | one `in-process`              | `in-process`  | the tab's own reactor on the main thread (PGlite in-page)                        |
-| `cli` → connect member     | one `remote`                  | `remote`      | NO local reactor — a pure client to the switchboard over GraphQL (no PGlite)     |
-| `desktop` → connect member | one `in-process` + remote drives | `in-process` | the tab's reactor PLUS SYNCHRONIZED remote drives (local replica, keeps PGlite) |
+| host                       | backends                         | reactorClient | reactor + storage                                                               |
+| -------------------------- | -------------------------------- | ------------- | ------------------------------------------------------------------------------- |
+| `connect` (standalone)     | one `in-process`                 | `in-process`  | the tab's own reactor on the main thread (PGlite in-page)                       |
+| `cli` → connect member     | one `remote`                     | `remote`      | NO local reactor — a pure client to the switchboard over GraphQL (no PGlite)    |
+| `desktop` → connect member | one `in-process` + remote drives | `in-process`  | the tab's reactor PLUS SYNCHRONIZED remote drives (local replica, keeps PGlite) |
 
 The lesson the `cli` vs `desktop` split teaches: a **remote client** proxies
 to the switchboard and stores nothing locally (no PGlite); a **synchronized

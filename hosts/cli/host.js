@@ -52,7 +52,10 @@ export default {
           slug: drive.slug,
           remote: {
             url: {
-              $output: { host: "switchboard", path: ["drives", drive.slug, "url"] },
+              $output: {
+                host: "switchboard",
+                path: ["drives", drive.slug, "url"],
+              },
             },
           },
         })),

@@ -99,7 +99,9 @@ export default {
         drives: serverDrives.map((d) => ({
           slug: d.slug,
           remote: {
-            url: { $output: { host: "switchboard", path: ["drives", d.slug, "url"] } },
+            url: {
+              $output: { host: "switchboard", path: ["drives", d.slug, "url"] },
+            },
           },
         })),
       },
