@@ -1,7 +1,14 @@
 // A window over a long list: only the rows near the viewport are in the
 // DOM, and padding stands in for the rest so the scrollbar is honest. Rows
-// are assumed to share a height (the design system's rich rows do); the
-// first rendered row is measured so the estimate corrects itself.
+// are assumed to share a height (the design system's rich rows do, give or
+// take a pixel); one rendered row is measured so the estimate corrects
+// itself.
+//
+// The measurement is taken once per list width, never per render. Rows
+// differ by a pixel (a badge, the last row's missing hairline), and
+// re-measuring whichever row heads the window fed back into the window:
+// a new height moved the window, a different row headed it, its height
+// differed — React's "maximum update depth" at the end of a fast scroll.
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 
 export interface RowWindow {
@@ -23,6 +30,8 @@ export function useRowWindow(
   const [rowHeight, setRowHeight] = useState(estimate);
   const [view, setView] = useState({ top: 0, height: 0 });
   const frame = useRef(0);
+  /** The list width the row height was measured at; null re-arms a measure. */
+  const measuredAt = useRef<number | null>(null);
 
   useEffect(() => {
     const el = scroller.current;
@@ -40,7 +49,12 @@ export function useRowWindow(
     };
     read();
     el.addEventListener("scroll", onScroll, { passive: true });
-    const ro = new ResizeObserver(onScroll);
+    const ro = new ResizeObserver(() => {
+      // Rows wrap differently at another width: measure again.
+      if (measuredAt.current !== null && measuredAt.current !== el.clientWidth)
+        measuredAt.current = null;
+      onScroll();
+    });
     ro.observe(el);
     return () => {
       el.removeEventListener("scroll", onScroll);
@@ -49,11 +63,17 @@ export function useRowWindow(
     };
   }, [scroller, mounted]);
 
-  const measure = useCallback((el: HTMLElement | null) => {
-    if (!el) return;
-    const h = el.getBoundingClientRect().height;
-    if (h > 0) setRowHeight((prev) => (Math.abs(prev - h) > 0.5 ? h : prev));
-  }, []);
+  const measure = useCallback(
+    (el: HTMLElement | null) => {
+      if (!el || measuredAt.current !== null) return;
+      const h = el.getBoundingClientRect().height;
+      // Zero means not laid out (a hidden pane): try again on the next row.
+      if (h <= 0) return;
+      measuredAt.current = scroller.current?.clientWidth ?? 0;
+      setRowHeight((prev) => (Math.abs(prev - h) > 0.5 ? h : prev));
+    },
+    [scroller],
+  );
 
   // A zero-height viewport (not laid out yet) shows the first screenful.
   const height = view.height || 600;

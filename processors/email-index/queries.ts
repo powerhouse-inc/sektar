@@ -95,14 +95,17 @@ function filtered(db: MailQueryBuilder, f: MailFilter) {
 }
 
 /**
- * One page, newest first, keyset-paged: the rows after `cursor` in
- * (when_at, document_id) order. Asks for one row more than the page so the
- * caller knows whether another page exists without a second query.
+ * One page, newest first: the rows after `cursor` in (when_at, document_id)
+ * order, or from row `offset` of that order. A cursor is for reading on from
+ * a page; an offset is for jumping to where the scrollbar was dragged, which
+ * a list sized to the whole mailbox needs. Both walk the (when_at,
+ * document_id) index. Asks for one row more than the page so the caller
+ * knows whether another page exists without a second query.
  */
 export function messagesQuery(
   db: MailQueryBuilder,
   f: MailFilter,
-  page: { cursor?: MailCursor | null; limit: number },
+  page: { cursor?: MailCursor | null; offset?: number | null; limit: number },
 ) {
   let q = filtered(db, f).selectAll();
   const cursor = page.cursor;
@@ -114,10 +117,11 @@ export function messagesQuery(
       ]),
     );
   }
-  return q
+  const ordered = q
     .orderBy("when_at", "desc")
     .orderBy("document_id", "desc")
     .limit(page.limit + 1);
+  return !cursor && page.offset ? ordered.offset(page.offset) : ordered;
 }
 
 /** How many rows the filters match. */

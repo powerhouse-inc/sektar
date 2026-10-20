@@ -32,6 +32,7 @@ interface MessagesArgs {
   view?: string | null;
   query?: string | null;
   cursor?: string | null;
+  offset?: number | null;
   limit?: number | null;
 }
 
@@ -48,7 +49,11 @@ export const getResolvers = (
     };
     const limit = Math.min(Math.max(args.limit ?? MAIL_PAGE, 1), MAIL_PAGE_MAX);
     const [rows, count] = await Promise.all([
-      messagesQuery(db, filter, { cursor: decodeCursor(args.cursor), limit }).execute(),
+      messagesQuery(db, filter, {
+        cursor: decodeCursor(args.cursor),
+        offset: Math.max(0, Math.floor(args.offset ?? 0)),
+        limit,
+      }).execute(),
       countQuery(db, filter).executeTakeFirst(),
     ]);
     const more = rows.length > limit;

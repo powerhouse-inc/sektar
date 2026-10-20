@@ -35,7 +35,6 @@ import {
   type DB,
   type EmailRow,
   type MailAccount,
-  type MailPageResult,
   type MailRow,
   type MailView,
 } from "../../../processors/email-index/index.js";
@@ -50,19 +49,28 @@ export interface MailListFilter {
   query: string;
 }
 
+/**
+ * A mailbox list sized to the whole filtered set. Rows arrive by page, so
+ * any index may not be loaded yet: `rowAt` answers undefined there and the
+ * view shows a placeholder until `ensure` has fetched it. That is what lets
+ * the scrollbar be the mailbox's real size from the first frame, and a drag
+ * to the middle fetch the middle rather than everything above it.
+ */
 export interface MailList {
-  rows: MailRow[];
-  /** Every message the filters match, not just the rows loaded. */
+  /** Every message the filters match. */
   total: number;
-  hasMore: boolean;
-  /** The first page of this filter has arrived (or failed). */
+  rowAt: (index: number) => MailRow | undefined;
+  /** Fetch the pages covering rows [start, end). */
+  ensure: (start: number, end: number) => void;
+  /** Some filter has answered (or failed) at least once. */
   loaded: boolean;
+  /** The rows shown belong to the previous filter; the new one is on its way. */
+  stale: boolean;
   /** A request is in flight. */
   busy: boolean;
   error: string | null;
-  /** Bumps when the top of the list was (re)read, for the counts beside it. */
+  /** Bumps when what the list holds changed, for the counts beside it. */
   version: number;
-  loadMore: () => void;
   /** Re-read the top of the list soon, coalescing bursts. */
   refreshSoon: () => void;
   /** Apply a change this tab just made, ahead of the index. */
@@ -124,10 +132,10 @@ export function useMailIndexMode(drive: DocumentDriveDocument | undefined): Mode
 
 /* -------------------------------------------------------------- remote */
 
-const MESSAGES_QUERY = `query ($d: String!, $a: String, $v: MailView, $q: String, $c: String, $l: Int) {
-  emailIndex { messages(driveId: $d, account: $a, view: $v, query: $q, cursor: $c, limit: $l) {
+const MESSAGES_QUERY = `query ($d: String!, $a: String, $v: MailView, $q: String, $o: Int, $l: Int) {
+  emailIndex { messages(driveId: $d, account: $a, view: $v, query: $q, offset: $o, limit: $l) {
     items { id accountAddress accountName subject fromName fromAddress snippet when read flagged status attachmentCount attachmentRefs labels threadId }
-    nextCursor total
+    total
   } }
 }`;
 
@@ -139,13 +147,11 @@ async function gql<T>(
   base: string,
   query: string,
   variables: Record<string, unknown>,
-  signal?: AbortSignal,
 ): Promise<T> {
   const response = await fetch(`${base}/graphql`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ query, variables }),
-    signal,
   });
   const json = (await response.json()) as {
     data?: T;
@@ -161,13 +167,87 @@ const REFRESH_DEBOUNCE_MS = 800;
 /** A quiet mailbox is still re-read now and then: triage from another tab. */
 const REFRESH_INTERVAL_MS = 30_000;
 
-interface Pages {
-  key: string;
+interface Page {
   rows: MailRow[];
+  /** The epoch the page was read in; an older one is shown but re-read. */
+  epoch: number;
+}
+
+/**
+ * What the list holds for one filter. The epoch moves when the set shifted
+ * under the loaded pages (new mail on top, a message leaving the view): a
+ * page from an older epoch is still shown, so nothing blanks, and is re-read
+ * the next time it is in view.
+ */
+export interface Held {
+  key: string;
   total: number;
-  next: string | null;
+  pages: Map<number, Page>;
+  epoch: number;
   loaded: boolean;
   version: number;
+}
+
+export const EMPTY_HELD: Held = {
+  key: "",
+  total: 0,
+  pages: new Map(),
+  epoch: 0,
+  loaded: false,
+  version: 0,
+};
+
+const sameIds = (a: readonly MailRow[], b: readonly MailRow[]) =>
+  a.length === b.length && a.every((r, i) => r.id === b[i].id);
+
+/** Keep a row object when the index says nothing about it changed: memoised rows stay put. */
+function reuse(prev: readonly MailRow[] | undefined, next: MailRow[]): MailRow[] {
+  if (!prev) return next;
+  const byId = new Map(prev.map((r) => [r.id, r]));
+  return next.map((r) => {
+    const old = byId.get(r.id);
+    return old && JSON.stringify(old) === JSON.stringify(r) ? old : r;
+  });
+}
+
+export interface PageAnswer {
+  items: MailRow[];
+  total: number;
+}
+
+/** Fold one page's answer into what is held for the current filter. */
+export function foldPage(prev: Held, key: string, page: number, answer: PageAnswer): Held {
+  // A new filter replaces what was held only when its first page lands.
+  if (prev.key !== key) {
+    if (page !== 0) return prev;
+    return {
+      key,
+      total: answer.total,
+      pages: new Map([[0, { rows: answer.items, epoch: 0 }]]),
+      epoch: 0,
+      loaded: true,
+      version: prev.version + 1,
+    };
+  }
+  const old = prev.pages.get(page);
+  const rows = reuse(old?.rows, answer.items);
+  const shifted =
+    answer.total !== prev.total || (old !== undefined && !sameIds(old.rows, rows));
+  const changed =
+    old === undefined || shifted || rows.some((r, i) => r !== old.rows[i]);
+  if (!changed && old.epoch === prev.epoch) return prev;
+  // The set moved under the other pages: they are re-read when next in view.
+  const epoch = shifted ? prev.epoch + 1 : prev.epoch;
+  const pages = new Map(prev.pages);
+  pages.set(page, { rows, epoch });
+  return {
+    ...prev,
+    total: answer.total,
+    pages,
+    epoch,
+    loaded: true,
+    version: changed ? prev.version + 1 : prev.version,
+  };
 }
 
 function useRemoteMail(
@@ -177,148 +257,91 @@ function useRemoteMail(
   words: readonly string[],
 ): MailList {
   const key = JSON.stringify([base, driveId, filter.account, filter.view, words]);
-  const [pages, setPages] = useState<Pages>({
-    key,
-    rows: [],
-    total: 0,
-    next: null,
-    loaded: false,
-    version: 0,
-  });
-  const [busy, setBusy] = useState(false);
+  const [held, setHeld] = useState<Held>(EMPTY_HELD);
+  const heldRef = useRef(held);
+  heldRef.current = held;
+  const [inflightCount, setInflightCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  // Answers for a filter that is no longer current are dropped.
-  const generation = useRef(0);
-  const inflight = useRef<AbortController | null>(null);
+  const inflight = useRef(new Set<string>());
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const variables = useCallback(
-    (cursor: string | null, limit = MAIL_PAGE) => ({
-      d: driveId,
-      a: filter.account,
-      v: filter.view.toUpperCase(),
-      q: words.join(" ") || null,
-      c: cursor,
-      l: limit,
-    }),
-    [driveId, filter.account, filter.view, words],
-  );
-
   const fetchPage = useCallback(
-    async (cursor: string | null, limit?: number) => {
-      if (!base) throw new Error("No switchboard for this drive");
-      inflight.current?.abort();
-      const controller = new AbortController();
-      inflight.current = controller;
-      const data = await gql<{ emailIndex: { messages: MailPageResult } }>(
+    async (page: number): Promise<PageAnswer> => {
+      if (!base || !driveId) throw new Error("No switchboard for this drive");
+      const data = await gql<{ emailIndex: { messages: PageAnswer } }>(
         base,
         MESSAGES_QUERY,
-        variables(cursor, limit),
-        controller.signal,
+        {
+          d: driveId,
+          a: filter.account,
+          v: filter.view.toUpperCase(),
+          q: words.join(" ") || null,
+          o: page * MAIL_PAGE,
+          l: MAIL_PAGE,
+        },
       );
       return data.emailIndex.messages;
     },
-    [base, variables],
+    [base, driveId, filter.account, filter.view, words],
   );
 
-  // A new filter: start over from the top.
+  /** Read one page and fold it in. One request per page and epoch at a time. */
+  const load = useCallback(
+    (page: number, refresh = false) => {
+      const h = heldRef.current;
+      const epoch = h.key === key ? h.epoch : -1;
+      const tag = `${key}|${page}|${refresh ? "refresh" : epoch}`;
+      if (inflight.current.has(tag)) return;
+      inflight.current.add(tag);
+      setInflightCount((n) => n + 1);
+      fetchPage(page)
+        .then((answer) => {
+          setError(null);
+          setHeld((prev) => foldPage(prev, key, page, answer));
+        })
+        .catch((e: unknown) => {
+          setError(e instanceof Error ? e.message : String(e));
+          // A filter that cannot answer still stops being "on its way".
+          if (page === 0) {
+            setHeld((prev) =>
+              prev.key === key
+                ? { ...prev, loaded: true }
+                : { ...EMPTY_HELD, key, loaded: true, version: prev.version + 1 },
+            );
+          }
+        })
+        .finally(() => {
+          inflight.current.delete(tag);
+          setInflightCount((n) => n - 1);
+        });
+    },
+    [key, fetchPage],
+  );
+
+  // A new filter: read its first page. The previous filter's rows stay on
+  // screen until it lands, so switching views never flashes a loader.
   useEffect(() => {
-    if (!base || !driveId) return;
-    const mine = ++generation.current;
-    setBusy(true);
-    setError(null);
-    fetchPage(null)
-      .then((page) => {
-        if (mine !== generation.current) return;
-        setPages((prev) => ({
-          key,
-          rows: page.items,
-          total: page.total,
-          next: page.nextCursor,
-          loaded: true,
-          version: prev.version + 1,
-        }));
-      })
-      .catch((e: unknown) => {
-        if (mine !== generation.current) return;
-        if (e instanceof DOMException && e.name === "AbortError") return;
-        setError(e instanceof Error ? e.message : String(e));
-        setPages((prev) => ({ ...prev, key, rows: [], total: 0, next: null, loaded: true }));
-      })
-      .finally(() => {
-        if (mine === generation.current) setBusy(false);
-      });
-  }, [key, base, driveId, fetchPage]);
+    if (base && driveId) load(0);
+  }, [key, base, driveId, load]);
 
-  const loadMore = useCallback(() => {
-    if (busy || !pages.next || pages.key !== key) return;
-    const mine = generation.current;
-    setBusy(true);
-    fetchPage(pages.next)
-      .then((page) => {
-        if (mine !== generation.current) return;
-        setPages((prev) => {
-          const seen = new Set(prev.rows.map((r) => r.id));
-          return {
-            ...prev,
-            rows: [...prev.rows, ...page.items.filter((r) => !seen.has(r.id))],
-            total: page.total,
-            next: page.nextCursor,
-            // a further page is not news: the counts beside it stand
-          };
-        });
-      })
-      .catch((e: unknown) => {
-        if (mine !== generation.current) return;
-        if (e instanceof DOMException && e.name === "AbortError") return;
-        setError(e instanceof Error ? e.message : String(e));
-      })
-      .finally(() => {
-        if (mine === generation.current) setBusy(false);
-      });
-  }, [busy, pages.next, pages.key, key, fetchPage]);
+  const ensure = useCallback(
+    (start: number, end: number) => {
+      const h = heldRef.current;
+      if (h.key !== key || h.total === 0) return;
+      const first = Math.max(0, Math.floor(start / MAIL_PAGE));
+      const last = Math.floor((Math.min(end, h.total) - 1) / MAIL_PAGE);
+      for (let p = first; p <= last; p++) {
+        const page = h.pages.get(p);
+        if (!page || page.epoch < h.epoch) load(p);
+      }
+    },
+    [key, load],
+  );
 
-  /**
-   * Re-read the top of the list and fold it in: new mail lands above what is
-   * loaded, rows already loaded take the index's current values. Rows a
-   * change elsewhere moved out of this view stay until the filter changes;
-   * a list that pulls rows from under the reader is worse than one that is
-   * briefly generous.
-   */
-  const refresh = useCallback(() => {
-    if (!base || !driveId || !pages.loaded) return;
-    const mine = generation.current;
-    const limit = Math.min(Math.max(pages.rows.length, MAIL_PAGE), 300);
-    gql<{ emailIndex: { messages: MailPageResult } }>(
-      base,
-      MESSAGES_QUERY,
-      variables(null, limit),
-    )
-      .then(({ emailIndex: { messages: page } }) => {
-        if (mine !== generation.current) return;
-        setPages((prev) => {
-          if (prev.key !== key) return prev;
-          const fresh = new Map(page.items.map((r) => [r.id, r]));
-          const kept = prev.rows.map((r) => fresh.get(r.id) ?? r);
-          const known = new Set(kept.map((r) => r.id));
-          const added = page.items.filter((r) => !known.has(r.id));
-          const rows = added.length
-            ? [...added, ...kept].sort(
-                (a, b) => b.when.localeCompare(a.when) || b.id.localeCompare(a.id),
-              )
-            : kept;
-          const next =
-            prev.rows.length === 0 ? page.nextCursor : prev.next;
-          return { ...prev, rows, total: page.total, next, version: prev.version + 1 };
-        });
-      })
-      .catch(() => {
-        // a missed refresh is caught by the next one
-      });
-  }, [base, driveId, pages.loaded, pages.rows.length, key, variables]);
-
-  const refreshRef = useRef(refresh);
-  refreshRef.current = refresh;
+  const refreshRef = useRef(() => {});
+  refreshRef.current = () => {
+    if (heldRef.current.key === key) load(0, true);
+  };
 
   const refreshSoon = useCallback(() => {
     clearTimeout(refreshTimer.current);
@@ -336,25 +359,36 @@ function useRemoteMail(
   }, []);
 
   const patch = useCallback((id: string, change: Partial<MailRow>) => {
-    setPages((prev) => {
-      const at = prev.rows.findIndex((r) => r.id === id);
-      if (at < 0) return prev;
-      const rows = prev.rows.slice();
-      rows[at] = { ...rows[at], ...change };
-      return { ...prev, rows };
+    setHeld((prev) => {
+      for (const [n, page] of prev.pages) {
+        const at = page.rows.findIndex((r) => r.id === id);
+        if (at < 0) continue;
+        const rows = page.rows.slice();
+        rows[at] = { ...rows[at], ...change };
+        const pages = new Map(prev.pages);
+        pages.set(n, { ...page, rows });
+        return { ...prev, pages };
+      }
+      return prev;
     });
   }, []);
 
-  const current = pages.key === key;
+  const pages = held.pages;
+  const rowAt = useCallback(
+    (index: number): MailRow | undefined =>
+      pages.get(Math.floor(index / MAIL_PAGE))?.rows[index % MAIL_PAGE],
+    [pages],
+  );
+
   return {
-    rows: current ? pages.rows : [],
-    total: current ? pages.total : 0,
-    hasMore: current && pages.next !== null,
-    loaded: current && pages.loaded,
-    busy,
+    total: held.total,
+    rowAt,
+    ensure,
+    loaded: held.loaded,
+    stale: held.key !== key,
+    busy: inflightCount > 0,
     error,
-    version: pages.version,
-    loadMore,
+    version: held.version,
     refreshSoon,
     patch,
   };
@@ -367,21 +401,29 @@ function useRemoteAccounts(
 ): MailAccount[] | null {
   const [accounts, setAccounts] = useState<{ key: string; list: MailAccount[] } | null>(null);
   const key = `${base ?? ""}|${driveId ?? ""}`;
+  const known = accounts?.key === key;
   useEffect(() => {
     if (!base || !driveId) return;
     let active = true;
-    gql<{ emailIndex: { accounts: MailAccount[] } }>(base, ACCOUNTS_QUERY, { d: driveId })
-      .then((data) => {
-        if (active) setAccounts({ key, list: data.emailIndex.accounts });
-      })
-      .catch(() => {
-        if (active) setAccounts((prev) => prev ?? { key, list: [] });
-      });
+    // Coalesced: a run of page loads asks once.
+    const timer = setTimeout(
+      () => {
+        gql<{ emailIndex: { accounts: MailAccount[] } }>(base, ACCOUNTS_QUERY, { d: driveId })
+          .then((data) => {
+            if (active) setAccounts({ key, list: data.emailIndex.accounts });
+          })
+          .catch(() => {
+            if (active) setAccounts((prev) => prev ?? { key, list: [] });
+          });
+      },
+      known ? 600 : 0,
+    );
     return () => {
       active = false;
+      clearTimeout(timer);
     };
-  }, [base, driveId, key, version]);
-  return accounts?.key === key ? accounts.list : null;
+  }, [base, driveId, key, version, known]);
+  return known ? accounts.list : null;
 }
 
 /* --------------------------------------------------------------- local */
@@ -390,30 +432,38 @@ type LocalParams = {
   account: string | null;
   view: MailView;
   words: string[];
+  offset: number;
   limit: number;
 };
 type LocalQB = Parameters<
   Parameters<typeof useRelationalQuery<DB, EmailRow, LocalParams>>[2]
 >[0];
 
+/**
+ * The same list over the tab's own database: a live query over the window
+ * in view, a page either side, so the database rather than the tab holds
+ * the mailbox.
+ */
 function useLocalMail(
   enabled: boolean,
   driveId: string | null,
   filter: MailListFilter,
   words: string[],
 ): MailList {
-  const [pagesWanted, setPagesWanted] = useState(1);
   const key = JSON.stringify([driveId, filter.account, filter.view, words]);
-  useEffect(() => setPagesWanted(1), [key]);
-  const limit = enabled ? pagesWanted * MAIL_PAGE : 1;
+  const [range, setRange] = useState({ key, offset: 0 });
+  const offset = range.key === key ? range.offset : 0;
+  const limit = enabled ? MAIL_PAGE * 3 : 1;
   const params = useMemo<LocalParams>(
-    () => ({ account: filter.account, view: filter.view, words, limit }),
-    [filter.account, filter.view, words, limit],
+    () => ({ account: filter.account, view: filter.view, words, offset, limit }),
+    [filter.account, filter.view, words, offset, limit],
   );
   const buildRows = useCallback(
-    (db: LocalQB, p?: LocalParams) =>
-      messagesQuery(db, p ?? params, { limit: p?.limit ?? limit }).compile(),
-    [params, limit],
+    (db: LocalQB, p?: LocalParams) => {
+      const q = p ?? params;
+      return messagesQuery(db, q, { offset: q.offset, limit: q.limit }).compile();
+    },
+    [params],
   );
   const buildCount = useCallback(
     (db: LocalQB, p?: LocalParams) => countQuery(db, p ?? params).compile(),
@@ -431,20 +481,49 @@ function useLocalMail(
     buildCount,
     params,
   );
+  // A result belongs to the window that was current when it arrived.
   const result = rowsQ.result;
-  const raw = useMemo(() => result?.rows ?? [], [result]);
-  const rows = useMemo(() => raw.slice(0, limit).map(toMailRow), [raw, limit]);
-  const loadMore = useCallback(() => setPagesWanted((n) => n + 1), []);
+  const offsetRef = useRef(offset);
+  offsetRef.current = offset;
+  const [shown, setShown] = useState<{ offset: number; rows: MailRow[] }>({
+    offset: 0,
+    rows: [],
+  });
+  useEffect(() => {
+    if (result) {
+      setShown({
+        offset: offsetRef.current,
+        rows: result.rows.slice(0, limit).map(toMailRow),
+      });
+    }
+  }, [result, limit]);
+  const total = Number(countQ.result?.rows[0]?.n ?? shown.rows.length);
+  const ensure = useCallback(
+    (start: number) => {
+      const want = Math.max(0, Math.floor(start / MAIL_PAGE) - 1) * MAIL_PAGE;
+      setRange((prev) =>
+        prev.key === key && prev.offset === want ? prev : { key, offset: want },
+      );
+    },
+    [key],
+  );
+  const rowAt = useCallback(
+    (index: number): MailRow | undefined => {
+      const at = index - shown.offset;
+      return at >= 0 && at < shown.rows.length ? shown.rows[at] : undefined;
+    },
+    [shown],
+  );
   const noop = useCallback(() => {}, []);
   return {
-    rows,
-    total: Number(countQ.result?.rows[0]?.n ?? rows.length),
-    hasMore: raw.length > limit,
-    loaded: enabled && !rowsQ.isLoading,
+    total,
+    rowAt,
+    ensure,
+    loaded: enabled && Boolean(result),
+    stale: false,
     busy: enabled && rowsQ.isLoading,
     error: rowsQ.error?.message ?? null,
-    version: raw.length,
-    loadMore,
+    version: total,
     // live queries refresh themselves, and a patch would be undone by one
     refreshSoon: noop,
     patch: noop,
@@ -476,7 +555,7 @@ function useLocalAccounts(enabled: boolean, driveId: string | null): MailAccount
 
 /* ---------------------------------------------------------------- api */
 
-/** A page-able, filtered list of the drive's mail, newest first. */
+/** The drive's mail, filtered, newest first, sized to the whole set. */
 export function useMailList(
   drive: DocumentDriveDocument | undefined,
   filter: MailListFilter,

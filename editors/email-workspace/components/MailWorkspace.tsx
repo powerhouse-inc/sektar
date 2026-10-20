@@ -6,9 +6,10 @@
 // a second top-bar row wide, and the list's title is the switch to the
 // chooser when stacked.
 //
-// The list is rows from the mailbox index (kit/mail-index.ts), paged from
-// the switchboard as the reader scrolls and windowed so only a screenful is
-// in the DOM; the document itself is loaded for the open message alone.
+// The list is rows from the mailbox index (kit/mail-index.ts), sized to the
+// whole mailbox from the first frame and fetched page by page where the
+// reader scrolls or drags, windowed so only a screenful is in the DOM; the
+// document itself is loaded for the open message alone.
 // That is what lets one mailbox hold tens of thousands of messages.
 import {
   isFileNodeKind,
@@ -80,8 +81,8 @@ const VIEWS: { value: MailView; label: string }[] = [
 /** Which level a stacked workspace shows: 0 inboxes · 1 list · 2 message · 3 file */
 type Level = 0 | 1 | 2 | 3;
 
-/** Rows from the end of what is loaded at which the next page is asked for. */
-const LOAD_AHEAD = 30;
+/** How long a scroll is left to settle before the pages under it are fetched. */
+const ENSURE_DEBOUNCE_MS = 60;
 
 export function MailWorkspace() {
   traceRender("MailWorkspace");
@@ -210,7 +211,11 @@ export function MailWorkspace() {
   // The root only exists once the index has answered (the empty state
   // renders without it), so the measuring hooks re-arm when it appears.
   const root = useRef<HTMLDivElement>(null);
-  const ready = list.loaded && (accounts.length > 0 || list.total > 0);
+  // Once shown, the workspace stays: a filter that is still loading, or one
+  // that matches nothing, is the list pane's business, not a page loader's.
+  const shownOnce = useRef(false);
+  if (list.loaded && (accounts.length > 0 || list.total > 0)) shownOnce.current = true;
+  const ready = shownOnce.current;
   const height = useFillHeight(root, ready);
   const narrow = useNarrow(root, 1000, ready);
   // Opt-in: localStorage sk:mail-debug=1 or ?debug=mail (kit/diagnostics.ts)
@@ -219,12 +224,20 @@ export function MailWorkspace() {
 
   // The list pane's body scrolls; the window keeps a screenful of rows in it.
   const listBody = useRef<HTMLDivElement>(null);
-  const rows = list.rows;
-  const win = useRowWindow(listBody, rows.length, { mounted: ready });
-  const { loadMore, hasMore, busy } = list;
+  const win = useRowWindow(listBody, list.total, { mounted: ready });
+  const { ensure, rowAt } = list;
+  // The pages under the window, once the scroll settles: a drag across the
+  // mailbox fetches where it stops, not every page it passed.
   useEffect(() => {
-    if (hasMore && !busy && win.end >= rows.length - LOAD_AHEAD) loadMore();
-  }, [win.end, rows.length, hasMore, busy, loadMore]);
+    const timer = setTimeout(() => ensure(win.start, win.end), ENSURE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [ensure, win.start, win.end, list.version]);
+  const windowRows = useMemo(() => {
+    const out: { index: number; row: MailRow | undefined }[] = [];
+    for (let i = win.start; i < win.end; i++) out.push({ index: i, row: rowAt(i) });
+    return out;
+  }, [win.start, win.end, rowAt]);
+  const firstReal = windowRows.find((r) => r.row)?.index;
   // A new filter starts at the top.
   const filterKey = `${account}|${view}|${query}`;
   useEffect(() => {
@@ -233,8 +246,8 @@ export function MailWorkspace() {
 
   traceChange("state", {
     mode: list.mode,
-    rows: rows.length,
     total: list.total,
+    stale: list.stale,
     window: [win.start, win.end],
     accounts: accounts.length,
     selected: selectedId?.slice(0, 8) ?? null,
@@ -354,7 +367,7 @@ export function MailWorkspace() {
             />
           }
         >
-          {rows.length === 0 ? (
+          {list.total === 0 ? (
             <div style={{ padding: "var(--sk-space-6)" }}>
               {list.loaded ? (
                 <EmptyState icon="mail" title="Nothing here">
@@ -375,20 +388,39 @@ export function MailWorkspace() {
           ) : (
             <ul
               className="sk-list sk-list--rich"
-              data-sk-more={win.end < rows.length || hasMore ? "" : undefined}
+              data-sk-more={win.end < list.total ? "" : undefined}
+              aria-busy={list.stale || undefined}
               style={{ paddingTop: win.padTop, paddingBottom: win.padBottom }}
             >
-              {rows.slice(win.start, win.end).map((row, i) => (
-                <li key={row.id} ref={i === 0 ? win.measure : undefined}>
-                  <MessageRow
-                    row={row}
-                    selected={row.id === selectedId}
-                    checked={checked.has(row.id)}
-                    onCheck={() => toggleChecked(row.id)}
-                    onClick={() => pick(row)}
-                  />
-                </li>
-              ))}
+              {windowRows.map(({ index, row }) =>
+                row ? (
+                  <li key={row.id} ref={index === firstReal ? win.measure : undefined}>
+                    <MessageRow
+                      row={row}
+                      selected={row.id === selectedId}
+                      checked={checked.has(row.id)}
+                      onCheck={() => toggleChecked(row.id)}
+                      onClick={() => pick(row)}
+                    />
+                  </li>
+                ) : (
+                  // Not fetched yet: a row's worth of placeholder, so the
+                  // list keeps its true length while the page arrives.
+                  <li
+                    key={`at-${index}`}
+                    className="sk-mail__placeholder"
+                    style={{ height: win.rowHeight }}
+                    aria-hidden="true"
+                  >
+                    <Skeleton width={36} height={36} circle />
+                    <span className="sk-mail__placeholder-lines">
+                      <Skeleton width="45%" height={12} />
+                      <Skeleton width="80%" height={12} />
+                      <Skeleton width="65%" height={12} />
+                    </span>
+                  </li>
+                ),
+              )}
             </ul>
           )}
         </Pane>

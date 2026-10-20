@@ -52,9 +52,11 @@ export const schema: DocumentNode = gql`
 
   type EmailIndexQueries {
     """
-    A page of a mailbox, newest first. Keyset-paged, so page one hundred
-    costs what page one does; \`query\` is a word search over subject, sender,
-    recipients, snippet, labels and file names.
+    A page of a mailbox, newest first. Read on from a page with \`cursor\`
+    (keyset: page one hundred costs what page one does), or jump to row
+    \`offset\` — where a scrollbar sized to the whole mailbox was dragged.
+    \`query\` is a word search over subject, sender, recipients, snippet,
+    labels and file names.
     """
     messages(
       driveId: String!
@@ -62,6 +64,7 @@ export const schema: DocumentNode = gql`
       view: MailView = INBOX
       query: String
       cursor: String
+      offset: Int
       limit: Int = 100
     ): MailPage!
 
