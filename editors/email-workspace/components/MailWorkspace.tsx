@@ -49,6 +49,7 @@ import {
   uniqueAttachments,
 } from "../../sektar/kit/mail.js";
 import { Menu } from "../../sektar/kit/menu.js";
+import { printEmail } from "../../sektar/kit/print-email.js";
 import { useSearch } from "../../sektar/kit/search-context.js";
 import {
   Avatar,
@@ -439,6 +440,15 @@ export function MailWorkspace() {
               <>
                 <EmailBadges doc={selected} />
                 <span className="sk-pane__spacer" />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  icon="invoice"
+                  title="Print the message, or save it as a PDF"
+                  onClick={() => void printEmail(selected, client)}
+                >
+                  Print
+                </Button>
                 <EmailMenu doc={selected} />
               </>
             )

@@ -24,6 +24,7 @@ import {
   type AttachmentKind,
 } from "../kit/mail.js";
 import { traceRender } from "../kit/diagnostics.js";
+import { printEmail } from "../kit/print-email.js";
 import { Menu, type MenuItem } from "../kit/menu.js";
 import {
   Avatar,
@@ -143,8 +144,8 @@ export function EmailBadges({ doc }: { doc: EmailDocument }) {
   );
 }
 
-/** The triage actions, as menu items. */
-export function emailMenuItems(doc: EmailDocument): MenuItem[] {
+/** The triage actions, as menu items; with `onPrint`, printing too. */
+export function emailMenuItems(doc: EmailDocument, onPrint?: () => void): MenuItem[] {
   const s = doc.state.global;
   const id = doc.header.id;
   return [
@@ -165,15 +166,26 @@ export function emailMenuItems(doc: EmailDocument): MenuItem[] {
       onSelect: () =>
         void (s.status === "ARCHIVED" ? mail.unarchive(id) : mail.archive(id)),
     },
+    ...(onPrint
+      ? [
+          {
+            label: "Print or save as PDF",
+            icon: "invoice" as const,
+            section: "This message",
+            onSelect: onPrint,
+          },
+        ]
+      : []),
   ];
 }
 
 /** The more button with the triage menu, for a pane header. */
 export function EmailMenu({ doc }: { doc: EmailDocument }) {
+  const client = useAttachments();
   return (
     <Menu
       label="Message actions"
-      items={emailMenuItems(doc)}
+      items={emailMenuItems(doc, () => void printEmail(doc, client))}
       trigger={(open, toggle) => (
         <More aria-expanded={open} onClick={toggle} />
       )}
@@ -183,9 +195,10 @@ export function EmailMenu({ doc }: { doc: EmailDocument }) {
 
 /** The triage buttons, for the standalone editor. */
 export function EmailActions({ doc }: { doc: EmailDocument }) {
+  const client = useAttachments();
   return (
     <div className="sk-btn-group">
-      {emailMenuItems(doc).map((it, i) => (
+      {emailMenuItems(doc, () => void printEmail(doc, client)).map((it, i) => (
         <Button
           key={i}
           size="sm"
