@@ -1,0 +1,144 @@
+scalar Unknown
+scalar DateTime
+scalar Address
+scalar AttachmentRef
+scalar Amount_Tokens
+scalar EthereumAddress
+scalar EmailAddress
+scalar Amount_Percentage
+scalar Date
+scalar URL
+scalar Amount_Money
+scalar OLabel
+scalar Currency
+scalar PHID
+scalar OID
+scalar Amount_Fiat
+scalar Amount_Currency
+scalar Amount_Crypto
+scalar Amount
+scalar Upload
+
+type FileState {
+  title: String
+  description: String
+  "The source of truth: a stored file, or another document. Null until set."
+  source: FileSource
+  "Content extracted from or rendered for the source: text, html, pdf, images"
+  renditions: [FileRendition!]!
+  tags: [FileTag!]!
+}
+
+enum FileSourceKind {
+  ATTACHMENT
+  DOCUMENT
+}
+
+type FileSource {
+  kind: FileSourceKind!
+  "ATTACHMENT: the stored bytes and what they are"
+  ref: AttachmentRef
+  fileName: String
+  mimeType: String
+  sizeBytes: Int
+  "DOCUMENT: the document this file stands for, its type and a cached name"
+  documentId: PHID
+  documentType: String
+  documentName: String
+  setAt: DateTime!
+}
+
+type FileRendition {
+  id: OID!
+  "Any MIME type: text/plain, text/html, application/pdf, image/png"
+  mimeType: String!
+  "A free-form role, e.g. preview, ocr, pdf-export, thumbnail"
+  type: String
+  label: String
+  "Stored content"
+  ref: AttachmentRef
+  fileName: String
+  sizeBytes: Int
+  "Or inline text content"
+  text: String
+  createdAt: DateTime!
+}
+
+type FileTag {
+  id: OID!
+  label: String!
+  "A colour name from the design system: forest, sage, mint, clay, amber, info, neutral"
+  color: String!
+}
+
+# content
+
+input SetTitleInput {
+  title: String
+}
+
+input SetDescriptionInput {
+  description: String
+}
+
+input SetAttachmentSourceInput {
+  ref: AttachmentRef!
+  fileName: String!
+  mimeType: String
+  sizeBytes: Int
+  setAt: DateTime!
+}
+
+input SetDocumentSourceInput {
+  documentId: PHID!
+  documentType: String!
+  documentName: String
+  setAt: DateTime!
+}
+
+input ClearSourceInput {
+  _: Boolean
+}
+
+# renditions
+
+input AddRenditionInput {
+  id: OID!
+  mimeType: String!
+  type: String
+  label: String
+  ref: AttachmentRef
+  fileName: String
+  sizeBytes: Int
+  text: String
+  createdAt: DateTime!
+}
+
+input UpdateRenditionInput {
+  id: OID!
+  mimeType: String
+  type: String
+  label: String
+}
+
+input RemoveRenditionInput {
+  id: OID!
+}
+
+# tags
+
+input AddTagInput {
+  id: OID!
+  label: String!
+  color: String!
+}
+
+input UpdateTagInput {
+  id: OID!
+  label: String
+  color: String
+}
+
+input RemoveTagInput {
+  id: OID!
+}

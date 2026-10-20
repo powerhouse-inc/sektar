@@ -34,6 +34,10 @@
     {
       "id": "sektar/email",
       "name": "Email"
+    },
+    {
+      "name": "File",
+      "id": "sektar/file"
     }
   ],
   "apps": [
@@ -59,8 +63,8 @@
       ]
     },
     {
-      "name": "files",
       "id": "files",
+      "name": "files",
       "documentTypes": [
         "powerhouse/document-drive"
       ]

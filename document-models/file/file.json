@@ -1,0 +1,278 @@
+{
+  "id": "sektar/file",
+  "name": "File",
+  "author": {
+    "name": "Sektar",
+    "website": "https://sektar.example"
+  },
+  "extension": "file",
+  "description": "A file in the Files drive: its source of truth (a stored attachment, or another document such as an invoice or a contact), the content extracted from or rendered for it in any MIME type (plain text, html, pdf, preview images), and a title, a description and coloured tags on top.",
+  "specifications": [
+    {
+      "version": 1,
+      "changeLog": [],
+      "state": {
+        "global": {
+          "schema": "type FileState {\n  title: String\n  description: String\n  \"The source of truth: a stored file, or another document. Null until set.\"\n  source: FileSource\n  \"Content extracted from or rendered for the source: text, html, pdf, images\"\n  renditions: [FileRendition!]!\n  tags: [FileTag!]!\n}\n\nenum FileSourceKind {\n  ATTACHMENT\n  DOCUMENT\n}\n\ntype FileSource {\n  kind: FileSourceKind!\n  \"ATTACHMENT: the stored bytes and what they are\"\n  ref: AttachmentRef\n  fileName: String\n  mimeType: String\n  sizeBytes: Int\n  \"DOCUMENT: the document this file stands for, its type and a cached name\"\n  documentId: PHID\n  documentType: String\n  documentName: String\n  setAt: DateTime!\n}\n\ntype FileRendition {\n  id: OID!\n  \"Any MIME type: text/plain, text/html, application/pdf, image/png\"\n  mimeType: String!\n  \"A free-form role, e.g. preview, ocr, pdf-export, thumbnail\"\n  type: String\n  label: String\n  \"Stored content\"\n  ref: AttachmentRef\n  fileName: String\n  sizeBytes: Int\n  \"Or inline text content\"\n  text: String\n  createdAt: DateTime!\n}\n\ntype FileTag {\n  id: OID!\n  label: String!\n  \"A colour name from the design system: forest, sage, mint, clay, amber, info, neutral\"\n  color: String!\n}",
+          "initialValue": "{\"title\": null, \"description\": null, \"source\": null, \"renditions\": [], \"tags\": []}",
+          "examples": []
+        },
+        "local": {
+          "schema": "",
+          "initialValue": "",
+          "examples": []
+        }
+      },
+      "modules": [
+        {
+          "id": "9e813ee6-4494-46dc-9e34-e60a2cc20cbe",
+          "name": "content",
+          "description": "Title, description and the source of truth",
+          "operations": [
+            {
+              "id": "e1ea9615-f591-44db-abf0-0236790d6549",
+              "name": "SET_TITLE",
+              "description": "Rename the file; empty clears it",
+              "schema": "input SetTitleInput {\n  title: String\n}",
+              "template": "",
+              "reducer": "const t = action.input.title?.trim();\nstate.title = t ? t : null;",
+              "errors": [],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "1bceb104-f06a-4d4a-83f8-b5a0866fde42",
+              "name": "SET_DESCRIPTION",
+              "description": "Describe the file; empty clears it",
+              "schema": "input SetDescriptionInput {\n  description: String\n}",
+              "template": "",
+              "reducer": "const d = action.input.description?.trim();\nstate.description = d ? d : null;",
+              "errors": [],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "17fd42fe-43d1-49e6-8840-6c2c4f4cc069",
+              "name": "SET_ATTACHMENT_SOURCE",
+              "description": "Make a stored file the source of truth, replacing any source",
+              "schema": "input SetAttachmentSourceInput {\n  ref: AttachmentRef!\n  fileName: String!\n  mimeType: String\n  sizeBytes: Int\n  setAt: DateTime!\n}",
+              "template": "",
+              "reducer": "const fileName = action.input.fileName.trim();\nif (!fileName) throw new InvalidSourceFileNameError(\"The file name is empty\");\nstate.source = {\n  kind: \"ATTACHMENT\",\n  ref: action.input.ref,\n  fileName,\n  mimeType: action.input.mimeType?.trim() || null,\n  sizeBytes: action.input.sizeBytes ?? null,\n  documentId: null,\n  documentType: null,\n  documentName: null,\n  setAt: action.input.setAt,\n};\nif (!state.title) state.title = fileName;",
+              "errors": [
+                {
+                  "id": "fc35aa6a-4d4e-4eb7-8071-b3f049a49130",
+                  "code": "INVALID_SOURCE_FILE_NAME",
+                  "name": "InvalidSourceFileNameError",
+                  "description": "The source file name is empty",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "2cb48198-c80c-48ad-bb38-0fb6e59f7dd1",
+              "name": "SET_DOCUMENT_SOURCE",
+              "description": "Make another document the source of truth, replacing any source",
+              "schema": "input SetDocumentSourceInput {\n  documentId: PHID!\n  documentType: String!\n  documentName: String\n  setAt: DateTime!\n}",
+              "template": "",
+              "reducer": "const documentType = action.input.documentType.trim();\nif (!documentType) throw new InvalidSourceDocumentTypeError(\"The document type is empty\");\nconst documentName = action.input.documentName?.trim() || null;\nstate.source = {\n  kind: \"DOCUMENT\",\n  ref: null,\n  fileName: null,\n  mimeType: null,\n  sizeBytes: null,\n  documentId: action.input.documentId,\n  documentType,\n  documentName,\n  setAt: action.input.setAt,\n};\nif (!state.title && documentName) state.title = documentName;",
+              "errors": [
+                {
+                  "id": "158a022c-8337-45ae-9d83-a5987b26d1e9",
+                  "code": "INVALID_SOURCE_DOCUMENT_TYPE",
+                  "name": "InvalidSourceDocumentTypeError",
+                  "description": "The source document type is empty",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "348bf0f1-b797-4f42-bed1-140197a08124",
+              "name": "CLEAR_SOURCE",
+              "description": "Remove the source; renditions and tags stay",
+              "schema": "input ClearSourceInput {\n  _: Boolean\n}",
+              "template": "",
+              "reducer": "state.source = null;",
+              "errors": [],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        },
+        {
+          "id": "be7e0b36-e3c7-4b29-b7c4-f01b6bae85ea",
+          "name": "renditions",
+          "description": "Extracted and rendered content",
+          "operations": [
+            {
+              "id": "2b78e246-242b-4fea-8c98-2438fb200da8",
+              "name": "ADD_RENDITION",
+              "description": "Add extracted or rendered content: stored (ref) or inline (text), exactly one",
+              "schema": "input AddRenditionInput {\n  id: OID!\n  mimeType: String!\n  type: String\n  label: String\n  ref: AttachmentRef\n  fileName: String\n  sizeBytes: Int\n  text: String\n  createdAt: DateTime!\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nif (state.renditions.some((r) => r.id === i.id))\n  throw new DuplicateRenditionError(`A rendition with id ${i.id} exists already`);\nconst mimeType = i.mimeType.trim().toLowerCase();\nif (!/^[a-z0-9][a-z0-9!#$&^_.+-]*\\/[a-z0-9][a-z0-9!#$&^_.+-]*(;.*)?$/i.test(mimeType))\n  throw new InvalidRenditionMimeTypeError(`\"${i.mimeType}\" is not a MIME type`);\nconst hasRef = Boolean(i.ref);\nconst hasText = i.text !== undefined && i.text !== null;\nif (hasRef === hasText)\n  throw new RenditionContentError(\"A rendition carries either stored content (ref) or inline text, exactly one\");\nstate.renditions.push({\n  id: i.id,\n  mimeType,\n  type: i.type?.trim() || null,\n  label: i.label?.trim() || null,\n  ref: i.ref ?? null,\n  fileName: i.fileName?.trim() || null,\n  sizeBytes: i.sizeBytes ?? null,\n  text: i.text ?? null,\n  createdAt: i.createdAt,\n});",
+              "errors": [
+                {
+                  "id": "c19c88fc-3f10-4aa7-a7c8-de3736808908",
+                  "code": "DUPLICATE_RENDITION",
+                  "name": "DuplicateRenditionError",
+                  "description": "A rendition with that id exists already",
+                  "template": ""
+                },
+                {
+                  "id": "57db3b50-ccf1-4874-9e75-f736b71aaa71",
+                  "code": "INVALID_RENDITION_MIME_TYPE",
+                  "name": "InvalidRenditionMimeTypeError",
+                  "description": "The MIME type is not of the form type/subtype",
+                  "template": ""
+                },
+                {
+                  "id": "33b5678e-93de-4cd9-b063-2b4af7f7b08c",
+                  "code": "RENDITION_CONTENT",
+                  "name": "RenditionContentError",
+                  "description": "A rendition needs exactly one of ref or text",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "0a7112c1-f543-426a-bccd-d9dd048acb52",
+              "name": "UPDATE_RENDITION",
+              "description": "Change a rendition's type, label or MIME type; an omitted field is kept, an empty one cleared",
+              "schema": "input UpdateRenditionInput {\n  id: OID!\n  mimeType: String\n  type: String\n  label: String\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nconst r = state.renditions.find((x) => x.id === i.id);\nif (!r) throw new UnknownRenditionError(`No rendition with id ${i.id}`);\nif (i.mimeType !== undefined && i.mimeType !== null) {\n  const mimeType = i.mimeType.trim().toLowerCase();\n  if (!/^[a-z0-9][a-z0-9!#$&^_.+-]*\\/[a-z0-9][a-z0-9!#$&^_.+-]*(;.*)?$/i.test(mimeType))\n    throw new InvalidUpdatedMimeTypeError(`\"${i.mimeType}\" is not a MIME type`);\n  r.mimeType = mimeType;\n}\nif (i.type !== undefined) r.type = i.type?.trim() || null;\nif (i.label !== undefined) r.label = i.label?.trim() || null;",
+              "errors": [
+                {
+                  "id": "234c37ed-100d-484d-95a0-12402ff3c957",
+                  "code": "UNKNOWN_RENDITION",
+                  "name": "UnknownRenditionError",
+                  "description": "No rendition with that id",
+                  "template": ""
+                },
+                {
+                  "id": "32332e4e-1ef1-4e7c-b230-4859aa293ae8",
+                  "code": "INVALID_UPDATED_MIME_TYPE",
+                  "name": "InvalidUpdatedMimeTypeError",
+                  "description": "The new MIME type is not of the form type/subtype",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "c0fcc263-496e-48ab-82d0-e0ed172cc2e0",
+              "name": "REMOVE_RENDITION",
+              "description": "Drop a rendition",
+              "schema": "input RemoveRenditionInput {\n  id: OID!\n}",
+              "template": "",
+              "reducer": "const at = state.renditions.findIndex((r) => r.id === action.input.id);\nif (at < 0) throw new RenditionNotFoundError(`No rendition with id ${action.input.id}`);\nstate.renditions.splice(at, 1);",
+              "errors": [
+                {
+                  "id": "268e08c7-0a38-415b-a427-3f5b3639f622",
+                  "code": "RENDITION_NOT_FOUND",
+                  "name": "RenditionNotFoundError",
+                  "description": "No rendition with that id",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        },
+        {
+          "id": "d2f8effd-d2a7-49fe-9deb-05f667e9f8f4",
+          "name": "tags",
+          "description": "Coloured labels",
+          "operations": [
+            {
+              "id": "884bb2e4-bef5-491f-b451-74f58066455b",
+              "name": "ADD_TAG",
+              "description": "Tag the file; a label is unique on the file, ignoring case",
+              "schema": "input AddTagInput {\n  id: OID!\n  label: String!\n  color: String!\n}",
+              "template": "",
+              "reducer": "const label = action.input.label.trim();\nif (!label) throw new InvalidTagLabelError(\"The tag label is empty\");\nconst taken = state.tags.some(\n  (t) => t.id === action.input.id || t.label.toLowerCase() === label.toLowerCase(),\n);\nif (taken) throw new DuplicateTagError(`The file is tagged \"${label}\" already`);\nstate.tags.push({ id: action.input.id, label, color: action.input.color.trim() || \"neutral\" });",
+              "errors": [
+                {
+                  "id": "c92755d2-f6d5-4b84-a05b-62e0e3845c5c",
+                  "code": "INVALID_TAG_LABEL",
+                  "name": "InvalidTagLabelError",
+                  "description": "The tag label is empty",
+                  "template": ""
+                },
+                {
+                  "id": "80d11e20-276a-476d-a71e-15dda06f8d8e",
+                  "code": "DUPLICATE_TAG",
+                  "name": "DuplicateTagError",
+                  "description": "The file carries that tag id or label already",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "a983aa0a-3ef4-4e90-860b-7719a9d8d90a",
+              "name": "UPDATE_TAG",
+              "description": "Rename or recolour a tag; an omitted field is kept",
+              "schema": "input UpdateTagInput {\n  id: OID!\n  label: String\n  color: String\n}",
+              "template": "",
+              "reducer": "const tag = state.tags.find((t) => t.id === action.input.id);\nif (!tag) throw new UnknownTagError(`No tag with id ${action.input.id}`);\nif (action.input.label !== undefined && action.input.label !== null) {\n  const label = action.input.label.trim();\n  if (!label) throw new EmptyTagLabelError(\"The tag label is empty\");\n  if (state.tags.some((t) => t.id !== tag.id && t.label.toLowerCase() === label.toLowerCase()))\n    throw new TagLabelTakenError(`The file is tagged \"${label}\" already`);\n  tag.label = label;\n}\nconst color = action.input.color?.trim();\nif (color) tag.color = color;",
+              "errors": [
+                {
+                  "id": "3bf34535-ba95-4183-8adc-025ba9e54a7e",
+                  "code": "UNKNOWN_TAG",
+                  "name": "UnknownTagError",
+                  "description": "No tag with that id",
+                  "template": ""
+                },
+                {
+                  "id": "d7ffa2ae-1e21-4aee-a358-f59a1e0d7556",
+                  "code": "EMPTY_TAG_LABEL",
+                  "name": "EmptyTagLabelError",
+                  "description": "The new tag label is empty",
+                  "template": ""
+                },
+                {
+                  "id": "5a8eec44-c5c2-481a-a8c3-c00c3dfd9e15",
+                  "code": "TAG_LABEL_TAKEN",
+                  "name": "TagLabelTakenError",
+                  "description": "Another tag on the file has that label",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "9d815660-66f6-45c0-a377-ebd502104b7b",
+              "name": "REMOVE_TAG",
+              "description": "Untag the file",
+              "schema": "input RemoveTagInput {\n  id: OID!\n}",
+              "template": "",
+              "reducer": "const at = state.tags.findIndex((t) => t.id === action.input.id);\nif (at < 0) throw new TagNotFoundError(`No tag with id ${action.input.id}`);\nstate.tags.splice(at, 1);",
+              "errors": [
+                {
+                  "id": "3ab53efb-b3e7-42d4-af5d-8da4b2b92235",
+                  "code": "TAG_NOT_FOUND",
+                  "name": "TagNotFoundError",
+                  "description": "No tag with that id",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
