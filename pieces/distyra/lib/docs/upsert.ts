@@ -14,16 +14,35 @@
  * and one drive write for every ADD_FILE; the lookup pages through find,
  * which filters on type and parent only, so the key comparison happens here.
  */
-import { toGlobalAction } from "../osc/client.js";
+import { createHash } from "node:crypto";
+import { switchboardUrl, toGlobalAction } from "../osc/client.js";
 import { asText, valueAt, type Template } from "./template.js";
 
 export const DEFAULT_LIMIT = 100;
 const PAGE = 100;
 const BRANCH = "main";
 
+/**
+ * How existing documents are found.
+ *
+ * `index`: the switchboard's key index (processors/key-index), a table of
+ * (type, key, document) kept from the operations that set a key, so it
+ * knows every document whatever created it — one small query per batch.
+ * `slug`: every document this step creates carries a slug derived from its
+ * key, and a batch is looked up by those slugs — an indexed read of at most
+ * the batch's size, but blind to documents made any other way. `scan`:
+ * every document of the type in the drive is read with its state and
+ * compared on the key path. The scan is what the first version did, and at
+ * a thousand emails it read a hundred megabytes of bodies per run and
+ * journaled every id it touched; it should not be used on a schedule.
+ */
+export type Lookup = "index" | "slug" | "scan";
+
+export type Fetch = typeof fetch;
+
 /** The slice of a document this step reads or makes. */
 export interface DocumentLike {
-  header: { id: string; name: string; documentType: string };
+  header: { id: string; name: string; documentType: string; slug?: string };
   state: unknown;
 }
 
@@ -41,7 +60,7 @@ export interface ActionLike {
 export interface UpsertReactor {
   get(identifier: string): Promise<DocumentLike>;
   find(
-    search: { type?: string; parentId?: string },
+    search: { type?: string; parentId?: string; slugs?: string[] },
     view: undefined,
     paging: { cursor: string; limit: number },
   ): Promise<{ results: DocumentLike[]; nextCursor?: string }>;
@@ -74,6 +93,10 @@ export interface UpsertOptions {
   updateActions?: Template;
   limit?: number;
   stopOnError?: boolean;
+  lookup?: Lookup;
+  /** The switchboard the key index is asked at; defaults to the host's. */
+  indexUrl?: string;
+  fetchImpl?: Fetch;
 }
 
 export interface Skipped {
@@ -178,6 +201,114 @@ export function planUpsert(
     entries.push({ index, item, key });
   });
   return { entries, skipped };
+}
+
+/**
+ * The slug a document carries for its key: readable, URL-safe, and unique
+ * per drive and key. The hash is what keeps two keys that sanitise to the
+ * same text apart ("gmail:ab" and "gmail-ab"), and what keeps the slug
+ * stable however the readable part is trimmed.
+ */
+export function slugFor(driveId: string, key: string): string {
+  const readable = key
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  const hash = createHash("sha1").update(`${driveId}\u0000${key}`).digest("hex").slice(0, 10);
+  return `${readable || "doc"}-${hash}`;
+}
+
+/** The documents of a batch that already exist, by key, found by their slugs. */
+export async function indexBySlug(
+  reactor: UpsertReactor,
+  documentType: string,
+  driveId: string,
+  keys: string[],
+): Promise<Map<string, DocumentLike>> {
+  const index = new Map<string, DocumentLike>();
+  const keyOfSlug = new Map(keys.map((key) => [slugFor(driveId, key), key]));
+  const slugs = [...keyOfSlug.keys()];
+  for (let at = 0; at < slugs.length; at += PAGE) {
+    const chunk = slugs.slice(at, at + PAGE);
+    let cursor = "";
+    for (;;) {
+      const page = await reactor.find(
+        { type: documentType, parentId: driveId, slugs: chunk },
+        undefined,
+        { cursor, limit: PAGE },
+      );
+      for (const document of page.results) {
+        const key = document.header.slug
+          ? keyOfSlug.get(document.header.slug)
+          : undefined;
+        if (key !== undefined && !index.has(key)) index.set(key, document);
+      }
+      if (!page.nextCursor || page.results.length === 0) break;
+      cursor = page.nextCursor;
+    }
+  }
+  return index;
+}
+
+/**
+ * The documents of a batch that already exist, by key, asked of the key
+ * index over HTTP. A failure here is a failure: answering "nothing exists"
+ * when the index could not be reached would turn every item into a twin.
+ */
+export async function indexByRemote(options: {
+  driveId: string;
+  documentType: string;
+  keys: string[];
+  indexUrl?: string;
+  fetchImpl?: Fetch;
+}): Promise<Map<string, DocumentLike>> {
+  const index = new Map<string, DocumentLike>();
+  const keys = [...new Set(options.keys)];
+  if (keys.length === 0) return index;
+  const base = (options.indexUrl ?? switchboardUrl()).replace(/\/+$/, "");
+  const url = `${base}/graphql`;
+  const doFetch = options.fetchImpl ?? fetch;
+  let payload: {
+    data?: { keyIndex?: { find?: { key: string; documentId: string }[] } };
+    errors?: { message: string }[];
+  };
+  try {
+    const response = await doFetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        query:
+          "query ($d: String!, $t: String!, $k: [String!]!) { keyIndex { find(driveId: $d, documentType: $t, keys: $k) { key documentId } } }",
+        variables: { d: options.driveId, t: options.documentType, k: keys },
+      }),
+    });
+    payload = (await response.json()) as typeof payload;
+  } catch (error) {
+    throw new Error(
+      `The key index at ${url} could not be reached (${error instanceof Error ? error.message : String(error)}); nothing was written. Is the key-index subgraph installed on the switchboard?`,
+    );
+  }
+  if (payload.errors?.length) {
+    throw new Error(
+      `The key index refused the lookup: ${payload.errors.map((e) => e.message).join("; ")}`,
+    );
+  }
+  for (const hit of payload.data?.keyIndex?.find ?? []) {
+    // First wins: two documents under one key is a problem the index cannot
+    // fix, and updating one of them is the predictable choice.
+    if (!index.has(hit.key)) {
+      index.set(hit.key, {
+        header: {
+          id: hit.documentId,
+          name: hit.key,
+          documentType: options.documentType,
+        },
+        state: undefined,
+      });
+    }
+  }
+  return index;
 }
 
 /** The global state, whether the reactor wrapped it in its scope or not. */
@@ -285,6 +416,26 @@ function actionsFrom(value: unknown, label: string): ActionLike[] {
   });
 }
 
+/**
+ * A name the drive will accept: no control characters (a subject with a line
+ * break in it is an ordinary email), whitespace collapsed, bounded, and never
+ * empty. The key stands in for a name that sanitises to nothing.
+ */
+export function safeName(name: string, fallback: string): string {
+  const cleaned = stripControl(name).replace(/\s+/g, " ").trim().slice(0, 200);
+  return cleaned || fallback;
+}
+
+/** Control characters (C0, DEL, C1) become spaces; everything else stays. */
+export function stripControl(text: string): string {
+  let out = "";
+  for (const ch of text) {
+    const code = ch.charCodeAt(0);
+    out += code < 32 || (code >= 127 && code <= 159) ? " " : ch;
+  }
+  return out;
+}
+
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -316,12 +467,29 @@ export async function runUpsert(
   };
   if (plan.entries.length === 0) return finish(result);
 
-  const index = await indexByKey(
-    reactor,
-    options.documentType,
-    options.driveId,
-    options.documentKeyPath,
-  );
+  const keys = plan.entries.map((entry) => entry.key);
+  const index =
+    options.lookup === "scan"
+      ? await indexByKey(
+          reactor,
+          options.documentType,
+          options.driveId,
+          options.documentKeyPath,
+        )
+      : options.lookup === "slug"
+        ? await indexBySlug(
+            reactor,
+            options.documentType,
+            options.driveId,
+            keys,
+          )
+        : await indexByRemote({
+            driveId: options.driveId,
+            documentType: options.documentType,
+            keys,
+            indexUrl: options.indexUrl,
+            fetchImpl: options.fetchImpl,
+          });
   const folders = new Folders(reactor, options.driveId);
   // Fetched lazily: a batch that only updates never needs the model.
   let module: ModuleLike | undefined;
@@ -355,7 +523,7 @@ export async function runUpsert(
         options.createActions?.(item, position),
         "createActions",
       );
-      const name = asText(options.name?.(item, position)).trim() || key;
+      const name = safeName(asText(options.name?.(item, position)), key);
       let folder = options.folderId;
       if (options.folderName) {
         const folderName = asText(options.folderName(item, position)).trim();
@@ -366,6 +534,8 @@ export async function runUpsert(
 
       const draft = module.utils.createDocument();
       draft.header.name = name;
+      // The slug is what the next run finds this document by.
+      draft.header.slug = slugFor(options.driveId, key);
       const created = await reactor.create(draft, options.driveId);
       await reactor.execute(options.driveId, BRANCH, [
         toGlobalAction({

@@ -14,8 +14,11 @@ import {
   asKey,
   asList,
   indexByKey,
+  indexByRemote,
+  indexBySlug,
   planUpsert,
   runUpsert,
+  slugFor,
   type DocumentLike,
   type UpsertReactor,
 } from "./upsert.js";
@@ -27,6 +30,7 @@ interface Call {
   method: string;
   target: string;
   actions?: { type: string; input?: unknown }[];
+  slugs?: string[];
 }
 
 interface Fake extends UpsertReactor {
@@ -35,13 +39,13 @@ interface Fake extends UpsertReactor {
 }
 
 function fakeReactor(
-  existing: { id: string; state: Record<string, unknown> }[] = [],
+  existing: { id: string; state: Record<string, unknown>; slug?: string }[] = [],
   options: { failOn?: string; pageSize?: number; nodes?: unknown[] } = {},
 ): Fake {
   const documents = new Map<string, DocumentLike>();
   for (const doc of existing) {
     documents.set(doc.id, {
-      header: { id: doc.id, name: `doc ${doc.id}`, documentType: TYPE },
+      header: { id: doc.id, name: `doc ${doc.id}`, documentType: TYPE, slug: doc.slug },
       state: { global: doc.state },
     });
   }
@@ -62,9 +66,11 @@ function fakeReactor(
       return Promise.resolve(found);
     },
     find(search, _view, paging) {
-      calls.push({ method: "find", target: `${search.type ?? ""}@${search.parentId ?? ""}` });
+      calls.push({ method: "find", target: `${search.type ?? ""}@${search.parentId ?? ""}`, slugs: search.slugs });
       const all = [...documents.values()].filter(
-        (doc) => doc.header.documentType === search.type,
+        (doc) =>
+          doc.header.documentType === search.type &&
+          (!search.slugs || (doc.header.slug !== undefined && search.slugs.includes(doc.header.slug))),
       );
       const start = paging.cursor === "" ? 0 : Number(paging.cursor);
       const results = all.slice(start, start + Math.min(paging.limit, pageSize));
@@ -80,6 +86,7 @@ function fakeReactor(
         return Promise.reject(new Error(`refused ${document.header.name}`));
       }
       created += 1;
+      // The slug the draft carried is what the reactor stores and indexes.
       const stored: DocumentLike = {
         header: { ...document.header, id: `new-${created}` },
         state: { global: {} },
@@ -141,9 +148,27 @@ const message = (id: string, subject = `Mail ${id}`) => ({
   ],
 });
 
+/** A key index that knows these keys, as the switchboard would answer. */
+function fakeIndex(known: Record<string, string>, fail?: string) {
+  const calls: { url: string; variables: unknown }[] = [];
+  const fetchImpl = ((url: string | URL | Request, init?: RequestInit) => {
+    const raw = typeof init?.body === "string" ? init.body : "{}";
+    const body = JSON.parse(raw) as { variables: { k: string[]; d: string; t: string } };
+    const target = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+    calls.push({ url: target, variables: body.variables });
+    if (fail) return Promise.resolve(new Response(JSON.stringify({ errors: [{ message: fail }] })));
+    const find = body.variables.k
+      .filter((key) => key in known)
+      .map((key) => ({ key, documentId: known[key] }));
+    return Promise.resolve(new Response(JSON.stringify({ data: { keyIndex: { find } } })));
+  }) as typeof fetch;
+  return { fetchImpl, calls };
+}
+
 const baseOptions = {
   documentType: TYPE,
   driveId: DRIVE,
+  lookup: "slug" as const,
   itemKeyPath: "key",
   documentKeyPath: "externalId",
   name: compileTemplate("$item.name", "name"),
@@ -187,6 +212,63 @@ describe("planning", () => {
 });
 
 describe("the lookup", () => {
+  it("makes a slug that is readable, stable and unique per drive and key", () => {
+    const slug = slugFor(DRIVE, "gmail:1a0f2fea08d25027");
+    expect(slug).toMatch(/^gmail-1a0f2fea08d25027-[0-9a-f]{10}$/);
+    expect(slugFor(DRIVE, "gmail:1a0f2fea08d25027")).toBe(slug);
+    // Two keys that sanitise alike stay apart, as do two drives.
+    expect(slugFor(DRIVE, "gmail-1a0f2fea08d25027")).not.toBe(slug);
+    expect(slugFor("other", "gmail:1a0f2fea08d25027")).not.toBe(slug);
+    // A long key keeps a bounded readable part and the hash.
+    expect(slugFor(DRIVE, "x".repeat(400)).length).toBeLessThan(80);
+  });
+
+  it("finds a batch by its slugs, one indexed read, never the whole drive", async () => {
+    const reactor = fakeReactor([
+      { id: "d1", state: { externalId: "gmail:1" }, slug: slugFor(DRIVE, "gmail:1") },
+      { id: "d2", state: { externalId: "gmail:2" }, slug: slugFor(DRIVE, "gmail:2") },
+      { id: "d3", state: { externalId: "gmail:3" }, slug: slugFor(DRIVE, "gmail:3") },
+    ]);
+    const index = await indexBySlug(reactor, TYPE, DRIVE, ["gmail:1", "gmail:3", "gmail:9"]);
+    expect([...index.keys()]).toEqual(["gmail:1", "gmail:3"]);
+    const finds = reactor.calls.filter((c) => c.method === "find");
+    expect(finds).toHaveLength(1);
+    expect(finds[0].slugs).toEqual(["gmail:1", "gmail:3", "gmail:9"].map((k) => slugFor(DRIVE, k)));
+  });
+
+  it("ignores a document created before slugs unless asked to scan", async () => {
+    const reactor = fakeReactor([{ id: "old", state: { externalId: "gmail:1" } }]);
+    expect((await indexBySlug(reactor, TYPE, DRIVE, ["gmail:1"])).size).toBe(0);
+    expect((await indexByKey(reactor, TYPE, DRIVE, "externalId")).size).toBe(1);
+  });
+
+  it("asks the key index for a batch, one query, and trusts its answer", async () => {
+    const { fetchImpl, calls } = fakeIndex({ "gmail:1": "d1", "gmail:3": "d3" });
+    const index = await indexByRemote({
+      driveId: DRIVE,
+      documentType: TYPE,
+      keys: ["gmail:1", "gmail:2", "gmail:3", "gmail:1"],
+      indexUrl: "http://switchboard.test/",
+      fetchImpl,
+    });
+    expect([...index.keys()]).toEqual(["gmail:1", "gmail:3"]);
+    expect(index.get("gmail:3")?.header.id).toBe("d3");
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe("http://switchboard.test/graphql");
+    expect(calls[0].variables).toEqual({ d: DRIVE, t: TYPE, k: ["gmail:1", "gmail:2", "gmail:3"] });
+  });
+
+  it("fails loudly when the key index cannot answer, rather than creating twins", async () => {
+    const { fetchImpl } = fakeIndex({}, "no such drive");
+    await expect(
+      indexByRemote({ driveId: DRIVE, documentType: TYPE, keys: ["gmail:1"], fetchImpl }),
+    ).rejects.toThrow(/key index refused the lookup: no such drive/);
+    const down = (() => Promise.reject(new Error("ECONNREFUSED"))) as typeof fetch;
+    await expect(
+      indexByRemote({ driveId: DRIVE, documentType: TYPE, keys: ["gmail:1"], fetchImpl: down }),
+    ).rejects.toThrow(/could not be reached \(ECONNREFUSED\); nothing was written/);
+  });
+
   it("pages through every document of the type and keys them by state", async () => {
     const reactor = fakeReactor(
       [
@@ -233,7 +315,9 @@ describe("writing a batch", () => {
   });
 
   it("updates what exists with the update actions, never creating a twin", async () => {
-    const reactor = fakeReactor([{ id: "d1", state: { externalId: "gmail:1" } }]);
+    const reactor = fakeReactor([
+      { id: "d1", state: { externalId: "gmail:1" }, slug: slugFor(DRIVE, "gmail:1") },
+    ]);
     const result = await runUpsert(reactor, {
       ...baseOptions,
       items: [message("1", "Renamed"), message("2")],
@@ -246,13 +330,46 @@ describe("writing a batch", () => {
     expect(reactor.calls.filter((c) => c.method === "create")).toHaveLength(1);
   });
 
-  it("converges on a rerun", async () => {
+  it("converges on a rerun, finding its own documents by slug", async () => {
     const reactor = fakeReactor();
     const items = [message("1"), message("2")];
     await runUpsert(reactor, { ...baseOptions, items });
+    const created = [...reactor.documents.values()].map((d) => d.header.slug);
+    expect(created).toEqual([slugFor(DRIVE, "gmail:1"), slugFor(DRIVE, "gmail:2")]);
     const again = await runUpsert(reactor, { ...baseOptions, items });
     expect(again.counts).toMatchObject({ created: 0, updated: 2 });
     expect(reactor.documents.size).toBe(2);
+  });
+
+  it("updates a document the key index knows, whatever created it", async () => {
+    // A document from before slugs: no slug, but the index saw its capture.
+    const reactor = fakeReactor([{ id: "old", state: { externalId: "gmail:1" } }]);
+    const { fetchImpl } = fakeIndex({ "gmail:1": "old" });
+    const result = await runUpsert(reactor, {
+      ...baseOptions,
+      lookup: "index",
+      fetchImpl,
+      items: [message("1"), message("2")],
+    });
+    expect(result.counts).toMatchObject({ created: 1, updated: 1, failed: 0 });
+    expect(result.updated[0]).toMatchObject({ key: "gmail:1", documentId: "old" });
+    // No drive scan happened: the only find is none at all.
+    expect(reactor.calls.filter((c) => c.method === "find")).toHaveLength(0);
+  });
+
+  it("writes nothing when the key index is unreachable", async () => {
+    const reactor = fakeReactor();
+    const down = (() => Promise.reject(new Error("ECONNREFUSED"))) as typeof fetch;
+    await expect(
+      runUpsert(reactor, { ...baseOptions, lookup: "index", fetchImpl: down, items: [message("1")] }),
+    ).rejects.toThrow(/could not be reached/);
+    expect(reactor.calls.filter((c) => c.method === "create")).toHaveLength(0);
+  });
+
+  it("can still scan for documents created before slugs", async () => {
+    const reactor = fakeReactor([{ id: "old", state: { externalId: "gmail:1" } }]);
+    const result = await runUpsert(reactor, { ...baseOptions, items: [message("1")], lookup: "scan" });
+    expect(result.counts).toMatchObject({ created: 0, updated: 1 });
   });
 
   it("files into a folder by name, creating it once per batch", async () => {
@@ -289,6 +406,7 @@ describe("writing a batch", () => {
     const result = await runUpsert(reactor, {
       documentType: TYPE,
       driveId: DRIVE,
+      lookup: "slug",
       itemKeyPath: "id",
       keyPrefix: "gmail:",
       documentKeyPath: "externalId",
@@ -319,6 +437,15 @@ describe("writing a batch", () => {
       }),
     ).rejects.toThrow(/Item 1 \(gmail:2\) failed: refused Mail 2\. 1 created/);
     expect(reactor.calls.filter((c) => c.method === "create")).toHaveLength(2);
+  });
+
+  it("files a document under a name the drive accepts, whatever the subject held", async () => {
+    const reactor = fakeReactor();
+    const result = await runUpsert(reactor, {
+      ...baseOptions,
+      items: [message("1", "Still here?\r\nCrypto has a\u0000moment"), message("2", "\u001f\u001f")],
+    });
+    expect(result.created.map((w) => w.name)).toEqual(["Still here? Crypto has a moment", "gmail:2"]);
   });
 
   it("rejects a template that does not yield actions before writing anything", async () => {

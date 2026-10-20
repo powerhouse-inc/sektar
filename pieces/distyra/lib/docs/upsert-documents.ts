@@ -23,7 +23,7 @@ export const distyraUpsertDocumentsAction = createAction({
   requireReactor: "write",
   displayName: "Upsert Documents",
   description:
-    "One document per item of a list, deduplicated on a key: an item whose key is already held by a document of the type in the drive updates that document, any other is created and filed in the folder. Templates use $item.<path> and $index. Safe to rerun — the lookup precedes every create. Outputs references by outcome: created, updated, skipped, failed.",
+    "One document per item of a list, deduplicated on a key: an item whose key is already held by a document of the type in the drive updates that document, any other is created and filed in the folder. Documents are found by a slug made from their key, so a batch costs one indexed read. Templates use $item.<path> and $index. Safe to rerun — the lookup precedes every create. Outputs references by outcome: created, updated, skipped, failed.",
   props: {
     items: Property.Json({
       displayName: "Items",
@@ -102,6 +102,27 @@ export const distyraUpsertDocumentsAction = createAction({
         "Off by default: a failing item is reported and the batch carries on. On, the step fails at the first item that does, naming it.",
       required: false,
     }),
+    lookup: Property.StaticDropdown({
+      displayName: "Find existing documents by",
+      description:
+        "Key index (default): the switchboard's key index knows every document of the type that holds a key, whatever created it — one small query per batch. Slug: documents this step creates carry a slug made from their key and are found by it; blind to documents made any other way. Scan: every document of the type in the drive is read with its state — a thousand emails is a hundred megabytes per run; never on a schedule.",
+      required: false,
+      defaultValue: "index",
+      options: {
+        options: [
+          { label: "Key index (switchboard)", value: "index" },
+          { label: "Slug (documents this step created)", value: "slug" },
+          { label: "Scan every document (slow, legacy)", value: "scan" },
+        ],
+      },
+    }),
+    indexUrl: Property.ShortText({
+      displayName: "Key index URL",
+      description:
+        "The switchboard that hosts the key index. Leave blank for this reactor's own.",
+      required: false,
+      advanced: true,
+    }),
   },
   async run(context) {
     const p = context.propsValue;
@@ -123,6 +144,9 @@ export const distyraUpsertDocumentsAction = createAction({
       updateActions: compileTemplate(p.updateActions, "Actions on update"),
       limit: typeof p.limit === "number" ? p.limit : undefined,
       stopOnError: p.stopOnError === true,
+      lookup:
+        p.lookup === "scan" ? "scan" : p.lookup === "slug" ? "slug" : "index",
+      indexUrl: text(p.indexUrl),
     });
   },
 });

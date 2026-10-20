@@ -114,6 +114,9 @@ describe("field helpers", () => {
 
   it("names a document by subject, else by sender", () => {
     expect(emailName("  Hello ", [])).toBe("Hello");
+    // A subject with a line break in it is an ordinary email; the drive
+    // refuses a node name with one in.
+    expect(emailName("Still here?\r\nCrypto has a\tmoment", [])).toBe("Still here? Crypto has a moment");
     expect(emailName(null, [{ address: "a@b.c", name: "A" }])).toBe("(no subject) from A");
     expect(emailName("", [{ address: "a@b.c", name: null }])).toBe("(no subject) from a@b.c");
     expect(emailName(null, [])).toBe("(no subject)");
@@ -167,6 +170,11 @@ describe("mapping messages", () => {
       sizeBytes: 48213,
       inline: false,
     });
+  });
+
+  it("drops NUL characters the store would refuse", () => {
+    const { items } = mapGmailMessages([gmailMessage({ text: "before\u0000after", subject: "a\u0000b" })], options);
+    expect(items[0].actions[1].input).toMatchObject({ text: "beforeafter", subject: "ab" });
   });
 
   it("can leave the html and the headers behind", () => {

@@ -120,6 +120,10 @@
       "name": "osc-index"
     },
     {
+      "id": "key-index",
+      "name": "key-index"
+    },
+    {
       "id": "email-index",
       "name": "email-index"
     }
@@ -128,6 +132,10 @@
     {
       "id": "osc-index",
       "name": "osc-index"
+    },
+    {
+      "id": "key-index",
+      "name": "key-index"
     },
     {
       "id": "email-index",

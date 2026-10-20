@@ -36,7 +36,7 @@ export function toGlobalAction(action: { type: string; input?: unknown }) {
 }
 
 /** Where the switchboard is, as best as a piece can tell. */
-function switchboardUrl(): string {
+export function switchboardUrl(): string {
   const env = process.env;
   const explicit = env.PH_SWITCHBOARD_PUBLIC_URL ?? env.REACTOR_GRAPHQL_URL;
   if (explicit) {
