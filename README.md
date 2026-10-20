@@ -51,7 +51,8 @@ ph run connect build && pnpm build                # connect build empties dist/,
 FEATURE_UNIFORM_RUNNERS_ENABLED=true ph run desktop dev
 ```
 
-Assistant (OpenAI-compatible chat API on :4910, reactor = the project switchboard).
+Assistant (OpenAI-compatible chat API on :4910 — `assistant.port` in
+`powerhouse.config.json` — reactor = the project switchboard).
 The agent has read tools over that switchboard — `listDrives`, `listDocuments`
 (by drive and document type) and `getDocument` — so it answers from the actual
 documents ("which invoices are overdue?" names them with amounts). Writes stay

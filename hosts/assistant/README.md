@@ -1,7 +1,8 @@
 # Sektar assistant
 
 `ph run assistant` starts a headless agent (Mastra, OpenAI-compatible chat API on
-port 4910) whose reactor is the project's switchboard — start that first
+port 4910, `assistant.port` in powerhouse.config.json) whose reactor is the
+project's switchboard — start that first
 (`ph run switchboard`, or any compound that members it).
 
 The model is routed through OpenRouter. Put the key in the environment before

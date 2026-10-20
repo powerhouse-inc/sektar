@@ -77,5 +77,8 @@
   },
   "vetra": {
     "connectPort": 2540
+  },
+  "assistant": {
+    "port": 4910
   }
 }
