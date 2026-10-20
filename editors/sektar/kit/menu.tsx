@@ -10,6 +10,8 @@ export type MenuItem = {
   danger?: boolean;
   /** Shown, not pickable: an action that does not apply right now */
   disabled?: boolean;
+  /** Starts a group: a separator (unless first) and this heading above the item */
+  section?: string;
   onSelect: () => void;
 };
 
@@ -52,7 +54,13 @@ export function Menu({
           aria-label={label}
         >
           {items.map((it, i) => (
-            <li key={i}>
+            <li key={i} className={it.section ? "sk-menu__group" : undefined}>
+              {it.section && (
+                <>
+                  {i > 0 && <hr className="sk-menu__sep" />}
+                  <span className="sk-menu__heading">{it.section}</span>
+                </>
+              )}
               <button
                 type="button"
                 role="menuitem"

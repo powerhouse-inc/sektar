@@ -1570,3 +1570,26 @@
   .sk-app .sk-files .sk-list-item--rich.is-picked::before { display: none; }
   .sk-app .sk-files .sk-list-item--rich.is-picked:hover { background: var(--sk-bg-subtle); }
 }
+
+/* Menu groups: a quiet heading over each, the design system's separator between. */
+.sk-app .sk-menu__heading {
+  display: block;
+  padding: var(--sk-space-2) var(--sk-space-3) var(--sk-space-1);
+  font-size: 11px;
+  font-weight: var(--sk-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sk-text-muted);
+}
+.sk-app .sk-menu__group > .sk-menu__sep { margin: var(--sk-space-1) 0; border: 0; }
+/* Files: where a document lives, in a view that includes subfolders */
+.sk-app .sk-files-where {
+  display: inline-flex; align-items: center; gap: 4px;
+  max-width: 100%; min-width: 0;
+  font-size: var(--sk-text-xs); color: var(--sk-text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sk-app .sk-files-where .sk-icon { width: 12px; height: 12px; flex: none; }
+.sk-app .sk-files-scope { white-space: nowrap; }
+/* The settings button says when the view is not the plain default */
+.sk-app .sk-files-settings--on { color: var(--sk-text-brand); background: var(--sk-accent-subtle); }

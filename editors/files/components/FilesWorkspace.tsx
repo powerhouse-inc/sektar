@@ -51,7 +51,6 @@ import {
   EmptyState,
   Icon,
   Modal,
-  Segmented,
   Selector,
 } from "../../sektar/kit/ui.js";
 import { Pane, Workspace } from "../../sektar/kit/workspace.js";
@@ -64,6 +63,17 @@ function storedView(): ViewMode {
     return localStorage.getItem(VIEW_KEY) === "grid" ? "grid" : "list";
   } catch {
     return "list";
+  }
+}
+
+const DEEP_KEY = "sk:files-deep";
+
+/** Whether the contents include every folder below the open one. */
+function storedDeep(): boolean {
+  try {
+    return localStorage.getItem(DEEP_KEY) === "1";
+  } catch {
+    return false;
   }
 }
 
@@ -80,6 +90,7 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
 
   const [picked, setPicked] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>(storedView);
+  const [deep, setDeep] = useState<boolean>(storedDeep);
   // Stacked, one screen at a time; the design system counts screens from 1:
   // 1 folders · 2 the folder's contents · 3 the preview.
   const [level, setLevel] = useState(2);
@@ -98,20 +109,48 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
   useEffect(() => {
     try {
       localStorage.setItem(VIEW_KEY, view);
+      localStorage.setItem(DEEP_KEY, deep ? "1" : "0");
     } catch {
       // no storage, no memory
     }
-  }, [view]);
+  }, [view, deep]);
   // A new folder starts with nothing picked.
   useEffect(() => setPicked(null), [currentId]);
 
   /* -- the folder's contents, and the File documents among them -- */
-  const here = useMemo(
-    () => nodes.filter((n) => (n.parentFolder ?? null) === currentId),
-    [nodes, currentId],
+  // One folder, or (deep) the folder and every folder below it. Deep, the
+  // documents are the list: folders are only where they live, not items.
+  const below = useMemo(
+    () => (deep ? descendantFolders(nodes, currentId) : null),
+    [deep, nodes, currentId],
   );
-  const folders = useMemo(() => here.filter(isFolderNodeKind).sort(byName), [here]);
+  const here = useMemo(
+    () =>
+      nodes.filter((n) => {
+        const parent = n.parentFolder ?? null;
+        if (parent === currentId) return true;
+        return below !== null && parent !== null && below.has(parent);
+      }),
+    [nodes, currentId, below],
+  );
+  const folders = useMemo(
+    () => (deep ? [] : here.filter(isFolderNodeKind).sort(byName)),
+    [here, deep],
+  );
   const docs = useMemo(() => here.filter(isFileNodeKind).sort(byName), [here]);
+  /** Where a document lives below the open folder; null when it is right here. */
+  const whereOf = (n: Node): string | null => {
+    const parent = n.parentFolder ?? null;
+    if (!deep || parent === currentId) return null;
+    const path = folderPath(nodes, parent);
+    const at = path.findIndex((f) => f.id === currentId);
+    return (
+      path
+        .slice(at + 1)
+        .map((f) => f.name)
+        .join(" / ") || null
+    );
+  };
   const fileKey = docs.filter((n) => n.documentType === FILE_TYPE).map((n) => n.id).join(",");
   const fileIds = useMemo(() => (fileKey ? fileKey.split(",") : []), [fileKey]);
   // Deferred: a new id makes the batch suspend, and suspending on the live
@@ -259,18 +298,56 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
                 <h2 className="sk-pane__title">{path.at(-1)?.name ?? driveName}</h2>
               </span>
               <span className="sk-pane__count">{total}</span>
+              {deep && <span className="sk-caption sk-files-scope">incl. subfolders</span>}
             </>
           }
           trailing={
             <span className="sk-row" style={{ gap: "var(--sk-space-2)", flexWrap: "nowrap" }}>
               {status && <span className="sk-caption sk-files-status">{status}</span>}
-              <Segmented
-                value={view}
-                onChange={setView}
-                options={[
-                  { value: "list", label: "List" },
-                  { value: "grid", label: "Grid" },
+              <Menu
+                label="View settings"
+                items={[
+                  {
+                    section: "Layout",
+                    label: "List",
+                    icon: "menu",
+                    active: view === "list",
+                    onSelect: () => setView("list"),
+                  },
+                  {
+                    label: "Grid",
+                    icon: "dashboard",
+                    active: view === "grid",
+                    onSelect: () => setView("grid"),
+                  },
+                  {
+                    section: "Show",
+                    label: "This folder only",
+                    icon: "folder",
+                    active: !deep,
+                    onSelect: () => setDeep(false),
+                  },
+                  {
+                    label: "Include subfolders",
+                    icon: "copy",
+                    active: deep,
+                    onSelect: () => setDeep(true),
+                  },
                 ]}
+                trigger={(open, toggle) => (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    iconOnly
+                    icon="settings"
+                    className={cx(deep && "sk-files-settings--on")}
+                    aria-haspopup="menu"
+                    aria-expanded={open}
+                    aria-label="View settings"
+                    title="View settings"
+                    onClick={toggle}
+                  />
+                )}
               />
               <Menu
                 label="New"
@@ -296,7 +373,13 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
               <div style={{ padding: "var(--sk-space-10) var(--sk-space-6)" }}>
                 <EmptyState
                   icon={words.length ? "search" : "upload"}
-                  title={words.length ? "Nothing matches" : "This folder is empty"}
+                  title={
+                    words.length
+                      ? "Nothing matches"
+                      : deep
+                        ? "No documents here or below"
+                        : "This folder is empty"
+                  }
                   action={
                     !words.length && (
                       <Button variant="secondary" icon="upload" onClick={() => input.current?.click()} disabled={!client}>
@@ -316,7 +399,7 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
                   <FolderCard key={f.id} folder={f} nodes={nodes} picked={picked === f.id} onPick={() => pick(f)} onOpen={() => goFolder(f.id)} />
                 ))}
                 {shownDocs.map((n) => (
-                  <DocCard key={n.id} node={n} file={files.get(n.id)} picked={picked === n.id} onPick={() => pick(n)} onOpen={() => openNode(n)} />
+                  <DocCard key={n.id} node={n} file={files.get(n.id)} where={whereOf(n)} picked={picked === n.id} onPick={() => pick(n)} onOpen={() => openNode(n)} />
                 ))}
               </div>
             ) : (
@@ -328,7 +411,7 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
                 ))}
                 {shownDocs.map((n) => (
                   <li key={n.id}>
-                    <DocRow node={n} file={files.get(n.id)} picked={picked === n.id} onPick={() => pick(n)} onOpen={() => openNode(n)} />
+                    <DocRow node={n} file={files.get(n.id)} where={whereOf(n)} picked={picked === n.id} onPick={() => pick(n)} onOpen={() => openNode(n)} />
                   </li>
                 ))}
               </ul>
@@ -414,6 +497,24 @@ function folderPath(nodes: readonly Node[], id: string | null): FolderNode[] {
     if (!n || !isFolderNodeKind(n)) break;
     out.unshift(n);
     cur = n.parentFolder ?? null;
+  }
+  return out;
+}
+
+/** Every folder below `id` (below the drive's root when null). */
+function descendantFolders(nodes: readonly Node[], id: string | null): Set<string> {
+  const kids = new Map<string | null, string[]>();
+  for (const n of nodes) {
+    if (!isFolderNodeKind(n)) continue;
+    const k = n.parentFolder ?? null;
+    kids.set(k, [...(kids.get(k) ?? []), n.id]);
+  }
+  const out = new Set<string>();
+  const queue = [...(kids.get(id) ?? [])];
+  for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
+    if (out.has(next)) continue;
+    out.add(next);
+    queue.push(...(kids.get(next) ?? []));
   }
   return out;
 }
@@ -609,12 +710,15 @@ function DocTile({ node, file }: { node: FileNode; file: FileDocument | undefine
 function DocRow({
   node,
   file,
+  where,
   picked,
   onPick,
   onOpen,
 }: {
   node: FileNode;
   file: FileDocument | undefined;
+  /** The subfolder it lives in, when the view includes subfolders */
+  where?: string | null;
   picked: boolean;
   onPick: () => void;
   onOpen: () => void;
@@ -635,6 +739,7 @@ function DocRow({
         )}
       </div>
       <div className="sk-list-item__aside">
+        {where && <Where path={where} />}
         {isFile ? (
           s && s.renditions.length > 0 && (
             <span title={s.renditions.map(renditionName).join(", ")}>
@@ -741,15 +846,27 @@ function FolderCard({
   );
 }
 
+/** The subfolder a document lives in, in a view that includes subfolders. */
+function Where({ path }: { path: string }) {
+  return (
+    <span className="sk-files-where" title={path}>
+      <Icon name="folder" size={16} />
+      {path}
+    </span>
+  );
+}
+
 function DocCard({
   node,
   file,
+  where,
   picked,
   onPick,
   onOpen,
 }: {
   node: FileNode;
   file: FileDocument | undefined;
+  where?: string | null;
   picked: boolean;
   onPick: () => void;
   onOpen: () => void;
@@ -766,7 +883,14 @@ function DocCard({
       thumb={ref ? <Thumb documentId={node.id} refId={ref} fallback={tile} /> : tile}
       name={s?.title ?? node.name}
       meta={node.documentType === FILE_TYPE ? fileSubline(file, node.name) : typeName}
-      extra={s && s.tags.length > 0 ? <TagBadges tags={s.tags} max={2} /> : undefined}
+      extra={
+        where || (s && s.tags.length > 0) ? (
+          <>
+            {where && <Where path={where} />}
+            {s && s.tags.length > 0 && <TagBadges tags={s.tags} max={2} />}
+          </>
+        ) : undefined
+      }
     />
   );
 }
