@@ -57,7 +57,11 @@ export const STATUS: Record<
   },
 };
 
-/** The order a list reads best in: what is moving first, what is done last. */
+/**
+ * The order of the status groups, in the list and in the status tabs alike:
+ * walking, then paused, then drafts, then finished. Within a group the list
+ * is alphabetical.
+ */
 export const STATUS_ORDER: OsqStatus[] = [
   "IN_PROGRESS",
   "PAUSED",
@@ -272,7 +276,10 @@ export function matchesQueue(query: string, doc: OriginalSourceQueueDocument) {
   return q.split(/\s+/).every((word) => hay.includes(word));
 }
 
-/** Walking first, then paused, drafts, finished; by name within a status. */
+/**
+ * Grouped by status in STATUS_ORDER, alphabetical within a group: case is
+ * ignored and numbers compare as numbers, so "Q2" sorts before "Q10".
+ */
 export function sortQueues(
   docs: OriginalSourceQueueDocument[],
 ): OriginalSourceQueueDocument[] {
@@ -281,7 +288,10 @@ export function sortQueues(
       STATUS_ORDER.indexOf(a.state.global.status) -
       STATUS_ORDER.indexOf(b.state.global.status);
     if (order !== 0) return order;
-    return a.header.name.localeCompare(b.header.name);
+    return a.header.name.localeCompare(b.header.name, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
   });
 }
 
