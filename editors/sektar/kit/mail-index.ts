@@ -451,17 +451,24 @@ function useRemoteMail(
   };
 }
 
+/** How long after a failed account count to ask again. */
+const ACCOUNTS_RETRY_MS = 5_000;
+
 function useRemoteAccounts(
   base: string | null,
   driveId: string | null,
   version: number,
 ): MailAccount[] | null {
   const [accounts, setAccounts] = useState<{ key: string; list: MailAccount[] } | null>(null);
+  // Bumped to ask again after a failure: a switchboard that was busy or
+  // restarting must not leave the inbox tabs empty until the next change.
+  const [attempt, setAttempt] = useState(0);
   const key = `${base ?? ""}|${driveId ?? ""}`;
   const known = accounts?.key === key;
   useEffect(() => {
     if (!base || !driveId) return;
     let active = true;
+    let retry: ReturnType<typeof setTimeout> | undefined;
     // Coalesced: a run of page loads asks once.
     const timer = setTimeout(
       () => {
@@ -470,7 +477,8 @@ function useRemoteAccounts(
             if (active) setAccounts({ key, list: data.emailIndex.accounts });
           })
           .catch(() => {
-            if (active) setAccounts((prev) => prev ?? { key, list: [] });
+            // Keep what was known; ask again shortly.
+            if (active) retry = setTimeout(() => setAttempt((n) => n + 1), ACCOUNTS_RETRY_MS);
           });
       },
       known ? 600 : 0,
@@ -478,8 +486,9 @@ function useRemoteAccounts(
     return () => {
       active = false;
       clearTimeout(timer);
+      clearTimeout(retry);
     };
-  }, [base, driveId, key, version, known]);
+  }, [base, driveId, key, version, known, attempt]);
   return known ? accounts.list : null;
 }
 

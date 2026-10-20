@@ -62,10 +62,25 @@ export class SearchIndex extends RelationalDbProcessor<DB> {
         .deleteFrom("search_entries")
         .where("document_id", "=", documentId)
         .execute();
-      if (rows.length > 0) {
+      const unique = uniqueEntries(rows);
+      for (let at = 0; at < unique.length; at += INSERT_BATCH) {
         await this.relationalDb
           .insertInto("search_entries")
-          .values(rows)
+          .values(unique.slice(at, at + INSERT_BATCH))
+          // The delete above cleared the document; a conflict can only be a
+          // row another batch wrote meanwhile, and the newer one wins.
+          .onConflict((oc) =>
+            oc.columns(["document_id", "entity_id"]).doUpdateSet((eb) => ({
+              document_type: eb.ref("excluded.document_type"),
+              kind: eb.ref("excluded.kind"),
+              title: eb.ref("excluded.title"),
+              subtitle: eb.ref("excluded.subtitle"),
+              body: eb.ref("excluded.body"),
+              amount: eb.ref("excluded.amount"),
+              status: eb.ref("excluded.status"),
+              at: eb.ref("excluded.at"),
+            })),
+          )
           .execute();
       }
     }
@@ -91,6 +106,22 @@ export class SearchIndex extends RelationalDbProcessor<DB> {
   override async initAndUpgrade(): Promise<void> {
     await up(this.relationalDb);
   }
+}
+
+/** Rows per INSERT: ten columns, so far under any bind-parameter cap. */
+const INSERT_BATCH = 500;
+
+/**
+ * One row per (document, entity). A document can name an entity twice — a
+ * bank account imported with two transactions under one id — and a second
+ * row with the same key made the whole insert fail, which stopped the index
+ * at that operation in every drive. The last row for a key wins, as the last
+ * transaction would in a list read top to bottom.
+ */
+export function uniqueEntries(rows: readonly SearchEntry[]): SearchEntry[] {
+  const byKey = new Map<string, SearchEntry>();
+  for (const row of rows) byKey.set(`${row.document_id}\u0000${row.entity_id}`, row);
+  return [...byKey.values()];
 }
 
 function parseState(json: string | undefined): Record<string, unknown> | null {
