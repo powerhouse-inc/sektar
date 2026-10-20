@@ -1593,3 +1593,10 @@
 .sk-app .sk-files-scope { white-space: nowrap; }
 /* The settings button says when the view is not the plain default */
 .sk-app .sk-files-settings--on { color: var(--sk-text-brand); background: var(--sk-accent-subtle); }
+
+/* The windowed grid: a column of lines, each its own grid of cards. The gap
+   below a line is padding, so a measured line is the full step between two. */
+.sk-app .sk-files-grid--windowed { display: block; padding-inline: var(--sk-space-4); }
+.sk-app .sk-files-grid__line { display: grid; gap: 16px; padding-bottom: 16px; box-sizing: border-box; }
+.sk-app .sk-files-card--placeholder { cursor: default; pointer-events: none; }
+.sk-app .sk-files-card--placeholder .sk-files-card__body { gap: var(--sk-space-2); }

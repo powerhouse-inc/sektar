@@ -71,12 +71,18 @@ export const KIND_LABEL: Record<FileKind, string> = {
   file: "FILE",
 };
 
-/** Text that can be read in the browser as is. */
+/**
+ * Text that can be read in the browser as is. Matched on whole types: a
+ * loose "xml" also matches Office's "openxmlformats", whose files are zip
+ * archives — read as text they are noise, and stored as text their NUL
+ * bytes are refused by the database.
+ */
 export function isTextual(mimeType?: string | null): boolean {
-  const mime = (mimeType ?? "").toLowerCase();
+  const mime = (mimeType ?? "").toLowerCase().split(";")[0].trim();
   return (
     mime.startsWith("text/") ||
-    /json|xml|yaml|javascript|csv|markdown/.test(mime)
+    /^application\/(json|xml|x-yaml|yaml|javascript|ld\+json|x-ndjson)$/.test(mime) ||
+    /\+(json|xml)$/.test(mime)
   );
 }
 

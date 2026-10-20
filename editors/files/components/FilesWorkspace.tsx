@@ -1,12 +1,16 @@
 // The Files drive app: the design system's panes workspace over a drive.
 // Folders on the left, the folder's contents (a list or a grid of cards with
 // thumbnails) in the middle, the picked item previewed on the right; stacked
-// under 640px of width as a push navigation. Files dropped anywhere on the
+// under 800px of width as a push navigation. Files dropped anywhere on the
 // contents become File documents; a document that is opened fills the app.
+//
+// The contents come from the Files index (kit/files-index.ts), sized to the
+// whole folder and paged where the reader is, with only a screenful in the
+// DOM; a File document is loaded for the preview alone. That is what lets a
+// drive hold tens of thousands of files.
 import {
   addFolder,
   isFileNodeKind,
-  isFolderNodeKind,
   renameDriveNode,
   setSelectedNode,
   showCreateDocumentModal,
@@ -14,14 +18,14 @@ import {
   useAllowedDocumentModelModules,
   useAttachmentPreview,
   useAttachments,
-  useDocumentsByIds,
+  useDocumentSafe,
   useEditorFileDrop,
   useSelectedDrive,
   useSelectedFolder,
 } from "@powerhousedao/reactor-browser";
-import type { FileNode, FolderNode, Node } from "@powerhousedao/shared/document-drive";
-import { isFileDocument, type FileDocument } from "document-models/file";
-import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type { FolderNode, Node } from "@powerhousedao/shared/document-drive";
+import { isFileDocument } from "document-models/file";
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFillHeight, useNarrow } from "../../backfills/components/measure.js";
 import { rememberTags, TagBadges } from "../../sektar/components/FileDetail.js";
 import {
@@ -36,44 +40,29 @@ import {
   useTypeName,
   type PreviewItem,
 } from "../../sektar/components/FilePreview.js";
-import {
-  bytes,
-  createEmptyFile,
-  createFileFromUpload,
-  FILE_TYPE,
-  fileKind,
-} from "../../sektar/kit/files.js";
+import { useFilesList, type FileListRow } from "../../sektar/kit/files-index.js";
+import { bytes, createEmptyFile, createFileFromUpload, FILE_TYPE, fileKind } from "../../sektar/kit/files.js";
 import { Menu } from "../../sektar/kit/menu.js";
 import { useSearch } from "../../sektar/kit/search-context.js";
-import {
-  Button,
-  cx,
-  EmptyState,
-  Icon,
-  Modal,
-  Selector,
-} from "../../sektar/kit/ui.js";
+import { Button, cx, EmptyState, Icon, Modal, Selector, Skeleton } from "../../sektar/kit/ui.js";
+import { useRowWindow } from "../../sektar/kit/virtual.js";
 import { Pane, Workspace } from "../../sektar/kit/workspace.js";
 
 type ViewMode = "list" | "grid";
 const VIEW_KEY = "sk:files-view";
-
-function storedView(): ViewMode {
-  try {
-    return localStorage.getItem(VIEW_KEY) === "grid" ? "grid" : "list";
-  } catch {
-    return "list";
-  }
-}
-
 const DEEP_KEY = "sk:files-deep";
 
-/** Whether the contents include every folder below the open one. */
-function storedDeep(): boolean {
+/** How long a scroll is left to settle before the pages under it are fetched. */
+const ENSURE_DEBOUNCE_MS = 60;
+/** A grid card's minimum width and the gap between cards (as the stylesheet sets them). */
+const CARD_MIN = 168;
+const CARD_GAP = 16;
+
+function stored(key: string, fallback: string): string {
   try {
-    return localStorage.getItem(DEEP_KEY) === "1";
+    return localStorage.getItem(key) ?? fallback;
   } catch {
-    return false;
+    return fallback;
   }
 }
 
@@ -88,18 +77,19 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
   const nodes = drive.state.global.nodes;
   const currentId = folder?.id ?? null;
 
-  const [picked, setPicked] = useState<string | null>(null);
-  const [view, setView] = useState<ViewMode>(storedView);
-  const [deep, setDeep] = useState<boolean>(storedDeep);
+  const [picked, setPicked] = useState<FileListRow | null>(null);
+  const [view, setView] = useState<ViewMode>(() => (stored(VIEW_KEY, "list") === "grid" ? "grid" : "list"));
+  const [deep, setDeep] = useState<boolean>(() => stored(DEEP_KEY, "0") === "1");
   // Stacked, one screen at a time; the design system counts screens from 1:
   // 1 folders · 2 the folder's contents · 3 the preview.
   const [level, setLevel] = useState(2);
   const [treeCollapsed, setTreeCollapsed] = useState(false);
   const [previewPref, setPreviewPref] = useState<boolean | null>(null);
   const [status, setStatus] = useState<string | null>(null);
-  const [naming, setNaming] = useState<{ kind: "folder" } | { kind: "rename"; node: Node } | null>(null);
+  const [naming, setNaming] = useState<{ kind: "folder" } | { kind: "rename"; row: FileListRow } | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const root = useRef<HTMLDivElement>(null);
+  const body = useRef<HTMLDivElement>(null);
   const height = useFillHeight(root, !children);
   const narrow = useNarrow(root, 1100, !children);
   // Stacked (under 800px of workspace) every pane is a full screen: none collapses.
@@ -114,101 +104,124 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
       // no storage, no memory
     }
   }, [view, deep]);
-  // A new folder starts with nothing picked.
-  useEffect(() => setPicked(null), [currentId]);
-
-  /* -- the folder's contents, and the File documents among them -- */
-  // One folder, or (deep) the folder and every folder below it. Deep, the
-  // documents are the list: folders are only where they live, not items.
-  const below = useMemo(
-    () => (deep ? descendantFolders(nodes, currentId) : null),
-    [deep, nodes, currentId],
-  );
-  const here = useMemo(
-    () =>
-      nodes.filter((n) => {
-        const parent = n.parentFolder ?? null;
-        if (parent === currentId) return true;
-        return below !== null && parent !== null && below.has(parent);
-      }),
-    [nodes, currentId, below],
-  );
-  const folders = useMemo(
-    () => (deep ? [] : here.filter(isFolderNodeKind).sort(byName)),
-    [here, deep],
-  );
-  const docs = useMemo(() => here.filter(isFileNodeKind).sort(byName), [here]);
-  /** Where a document lives below the open folder; null when it is right here. */
-  const whereOf = (n: Node): string | null => {
-    const parent = n.parentFolder ?? null;
-    if (!deep || parent === currentId) return null;
-    const path = folderPath(nodes, parent);
-    const at = path.findIndex((f) => f.id === currentId);
-    return (
-      path
-        .slice(at + 1)
-        .map((f) => f.name)
-        .join(" / ") || null
-    );
-  };
-  const fileKey = docs.filter((n) => n.documentType === FILE_TYPE).map((n) => n.id).join(",");
-  const fileIds = useMemo(() => (fileKey ? fileKey.split(",") : []), [fileKey]);
-  // Deferred: a new id makes the batch suspend, and suspending on the live
-  // value would blank the workspace for every file that arrives.
-  const settled = useDeferredValue(fileIds);
-  const fileDocs = useDocumentsByIds(settled);
-  const files = useMemo(() => {
-    const map = new Map<string, FileDocument>();
-    for (const d of fileDocs) if (isFileDocument(d)) map.set(d.header.id, d);
-    return map;
-  }, [fileDocs]);
+  // A new folder starts with nothing picked; a new folder, scope, search or
+  // layout starts at the top (a scroll position from a long list would land
+  // past the end of a shorter one).
   useEffect(() => {
-    for (const f of files.values()) rememberTags(f.state.global.tags);
-  }, [files]);
+    setPicked(null);
+  }, [currentId, deep]);
+  useEffect(() => {
+    if (body.current) body.current.scrollTop = 0;
+  }, [currentId, deep, query, view]);
 
-  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const matches = (n: Node) => {
-    if (words.length === 0) return true;
-    const f = files.get(n.id);
-    const hay = [
-      n.name,
-      f?.state.global.title,
-      f?.state.global.description,
-      ...(f?.state.global.tags.map((t) => t.label) ?? []),
-      f?.state.global.source?.fileName,
-      f?.state.global.source?.documentName,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-    return words.every((w) => hay.includes(w));
+  /* -- the listing, from the index -- */
+  const list = useFilesList(drive, { folderId: currentId, deep, query });
+  // The drive changed (a node added, moved, renamed, deleted): the index
+  // follows within a beat, and any page in view may have moved.
+  const { invalidate } = list;
+  const driveRevision = drive.header.lastModifiedAtUtcIso;
+  useEffect(() => {
+    invalidate();
+  }, [driveRevision, invalidate]);
+
+  /* -- the drive's folders: the tree, counts, paths (small next to the files) -- */
+  const folderInfo = useMemo(() => {
+    const byId = new Map<string, FolderNode>();
+    const counts = new Map<string | null, number>();
+    for (const n of nodes) {
+      if (n.kind === "folder") byId.set(n.id, n as FolderNode);
+      const p = n.parentFolder ?? null;
+      counts.set(p, (counts.get(p) ?? 0) + 1);
+    }
+    return { byId, counts };
+  }, [nodes]);
+  const pathTo = (id: string | null): FolderNode[] => {
+    const out: FolderNode[] = [];
+    const seen = new Set<string>();
+    for (let cur = id; cur && !seen.has(cur); ) {
+      seen.add(cur);
+      const f = folderInfo.byId.get(cur);
+      if (!f) break;
+      out.unshift(f);
+      cur = f.parentFolder ?? null;
+    }
+    return out;
   };
-  const shownFolders = folders.filter(matches);
-  const shownDocs = docs.filter(matches);
-  const total = shownFolders.length + shownDocs.length;
+  /** Where a document lives below the open folder, in a view that includes subfolders. */
+  const whereOf = (row: FileListRow): string | null => {
+    if (!deep || row.parentId === currentId) return null;
+    const path = pathTo(row.parentId);
+    const at = path.findIndex((f) => f.id === currentId);
+    return path.slice(at + 1).map((f) => f.name).join(" / ") || null;
+  };
 
-  const pickedNode = nodes.find((n) => n.id === picked) ?? null;
+  /* -- the window -- */
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const el = body.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [children]);
+  const cols = view === "grid" ? Math.max(1, Math.floor((Math.max(width, CARD_MIN) - CARD_GAP * 2 + CARD_GAP) / (CARD_MIN + CARD_GAP))) : 1;
+  const lineCount = view === "grid" ? Math.ceil(list.total / cols) : list.total;
+  const win = useRowWindow(body, lineCount, { estimate: view === "grid" ? 268 : 76, mounted: `${view}|${cols}` });
+  const { ensure, rowAt } = list;
+  useEffect(() => {
+    const timer = setTimeout(() => ensure(win.start * cols, win.end * cols), ENSURE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [ensure, win.start, win.end, cols, list.version]);
+  const lines = useMemo(() => {
+    const out: { line: number; items: { index: number; row: FileListRow | undefined }[] }[] = [];
+    // While rows are added, pages read at different moments overlap: the
+    // same row can sit at the end of one and the start of the next. It is
+    // shown once (a second copy would also be a duplicate React key) and
+    // its second slot shows a placeholder until that page is re-read.
+    const seen = new Set<string>();
+    for (let l = win.start; l < win.end; l++) {
+      const items = [];
+      for (let c = 0; c < cols; c++) {
+        const index = l * cols + c;
+        if (index >= list.total) break;
+        const row = rowAt(index);
+        if (row && seen.has(row.id)) {
+          items.push({ index, row: undefined });
+          continue;
+        }
+        if (row) seen.add(row.id);
+        items.push({ index, row });
+      }
+      out.push({ line: l, items });
+    }
+    return out;
+  }, [win.start, win.end, cols, list.total, rowAt]);
+  const firstReal = lines.find((l) => l.items.some((i) => i.row))?.line;
+  useEffect(() => {
+    rememberTags(lines.flatMap((l) => l.items.flatMap((i) => i.row?.tags ?? [])));
+  }, [lines]);
 
   /* -- actions -- */
-  const openNode = (n: Node) => setSelectedNode(n.id);
+  const openRow = (row: FileListRow) => setSelectedNode(row.id);
   const goFolder = (id: string | null) => {
     setSelectedNode(id ?? undefined);
     setLevel(2);
   };
-  const pick = (n: Node) => {
-    setPicked(n.id);
+  const pick = (row: FileListRow) => {
+    setPicked(row);
     setLevel(3);
   };
+  const activate = (row: FileListRow) => (row.kind === "folder" ? goFolder(row.id) : openRow(row));
 
-  const upload = (list: File[]) => {
-    if (list.length === 0) return;
-    setStatus(list.length === 1 ? `Adding ${list[0].name}…` : `Adding ${list.length} files…`);
-    list
+  const upload = (files: File[]) => {
+    if (files.length === 0) return;
+    setStatus(files.length === 1 ? `Adding ${files[0].name}…` : `Adding ${files.length} files…`);
+    files
       .reduce<Promise<string | void>>(
         (p, f) => p.then(() => createFileFromUpload(client, drive.header.id, currentId ?? undefined, f)),
         Promise.resolve(),
       )
-      .then(() => setStatus(list.length === 1 ? `Added ${list[0].name}` : `Added ${list.length} files`))
+      .then(() => setStatus(files.length === 1 ? `Added ${files[0].name}` : `Added ${files.length} files`))
       .catch((e: unknown) => setStatus(`Could not add: ${e instanceof Error ? e.message : String(e)}`))
       .finally(() => setTimeout(() => setStatus(null), 3000));
   };
@@ -220,8 +233,7 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
     {
       label: "File",
       icon: "reports" as const,
-      onSelect: () =>
-        void createEmptyFile(drive.header.id, currentId ?? undefined).then((id) => setSelectedNode(id)),
+      onSelect: () => void createEmptyFile(drive.header.id, currentId ?? undefined).then((id) => setSelectedNode(id)),
     },
     { label: "Upload files…", icon: "upload" as const, onSelect: () => input.current?.click() },
     ...(modules ?? [])
@@ -241,8 +253,10 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
     return <div className="sk-files-doc">{children}</div>;
   }
 
-  const path = folderPath(nodes, currentId);
+  const path = pathTo(currentId);
   const driveName = drive.header.name || drive.state.global.name || "Files";
+  const words = query.trim();
+  const pickedNode = picked ? nodes.find((n) => n.id === picked.id) : undefined;
 
   return (
     <div ref={root} className="sk-files" style={{ height: height ? `${height}px` : undefined }}>
@@ -265,17 +279,13 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
           onToggle={() => setTreeCollapsed((v) => !v)}
           title="Folders"
         >
-          <FolderTree
-            nodes={nodes}
-            driveName={driveName}
-            currentId={currentId}
-            onGo={goFolder}
-          />
+          <FolderTree nodes={nodes} counts={folderInfo.counts} driveName={driveName} currentId={currentId} onGo={goFolder} />
         </Pane>
 
         <Pane
           grow={1.5}
           flush
+          bodyRef={body}
           onBack={() => setLevel(1)}
           backLabel="Back to folders"
           header={
@@ -297,7 +307,7 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
                 {path.length > 0 && <Icon name="chevron-right" mono />}
                 <h2 className="sk-pane__title">{path.at(-1)?.name ?? driveName}</h2>
               </span>
-              <span className="sk-pane__count">{total}</span>
+              <span className="sk-pane__count">{list.total.toLocaleString()}</span>
               {deep && <span className="sk-caption sk-files-scope">incl. subfolders</span>}
             </>
           }
@@ -307,32 +317,10 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
               <Menu
                 label="View settings"
                 items={[
-                  {
-                    section: "Layout",
-                    label: "List",
-                    icon: "menu",
-                    active: view === "list",
-                    onSelect: () => setView("list"),
-                  },
-                  {
-                    label: "Grid",
-                    icon: "dashboard",
-                    active: view === "grid",
-                    onSelect: () => setView("grid"),
-                  },
-                  {
-                    section: "Show",
-                    label: "This folder only",
-                    icon: "folder",
-                    active: !deep,
-                    onSelect: () => setDeep(false),
-                  },
-                  {
-                    label: "Include subfolders",
-                    icon: "copy",
-                    active: deep,
-                    onSelect: () => setDeep(true),
-                  },
+                  { section: "Layout", label: "List", icon: "menu", active: view === "list", onSelect: () => setView("list") },
+                  { label: "Grid", icon: "dashboard", active: view === "grid", onSelect: () => setView("grid") },
+                  { section: "Show", label: "This folder only", icon: "folder", active: !deep, onSelect: () => setDeep(false) },
+                  { label: "Include subfolders", icon: "copy", active: deep, onSelect: () => setDeep(true) },
                 ]}
                 trigger={(open, toggle) => (
                   <Button
@@ -353,14 +341,7 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
                 label="New"
                 items={newItems}
                 trigger={(open, toggle) => (
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    icon="plus"
-                    aria-haspopup="menu"
-                    aria-expanded={open}
-                    onClick={toggle}
-                  >
+                  <Button size="sm" variant="primary" icon="plus" aria-haspopup="menu" aria-expanded={open} onClick={toggle}>
                     New
                   </Button>
                 )}
@@ -369,51 +350,86 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
           }
         >
           <div {...dragProps} className={cx("sk-files-contents", isDragOver && "is-over")}>
-            {total === 0 ? (
+            {list.total === 0 ? (
               <div style={{ padding: "var(--sk-space-10) var(--sk-space-6)" }}>
-                <EmptyState
-                  icon={words.length ? "search" : "upload"}
-                  title={
-                    words.length
-                      ? "Nothing matches"
-                      : deep
-                        ? "No documents here or below"
-                        : "This folder is empty"
-                  }
-                  action={
-                    !words.length && (
-                      <Button variant="secondary" icon="upload" onClick={() => input.current?.click()} disabled={!client}>
-                        Upload files
-                      </Button>
-                    )
-                  }
-                >
-                  {words.length
-                    ? "No file or folder here matches that search."
-                    : "Drop files here, or upload them: each becomes a File you can describe, tag and extract content into."}
-                </EmptyState>
+                {list.loaded ? (
+                  <EmptyState
+                    icon={words ? "search" : "upload"}
+                    title={words ? "Nothing matches" : deep ? "No documents here or below" : "This folder is empty"}
+                    action={
+                      !words && (
+                        <Button variant="secondary" icon="upload" onClick={() => input.current?.click()} disabled={!client}>
+                          Upload files
+                        </Button>
+                      )
+                    }
+                  >
+                    {list.error
+                      ? `The files index did not answer: ${list.error}`
+                      : words
+                        ? "No file or folder here matches that search."
+                        : "Drop files here, or upload them: each becomes a File you can describe, tag and extract content into."}
+                  </EmptyState>
+                ) : (
+                  <div className="sk-stack sk-stack--4">
+                    {[0, 1, 2, 3, 4].map((i) => (
+                      <Skeleton key={i} height={60} />
+                    ))}
+                  </div>
+                )}
               </div>
             ) : view === "grid" ? (
-              <div className="sk-files-grid">
-                {shownFolders.map((f) => (
-                  <FolderCard key={f.id} folder={f} nodes={nodes} picked={picked === f.id} onPick={() => pick(f)} onOpen={() => goFolder(f.id)} />
-                ))}
-                {shownDocs.map((n) => (
-                  <DocCard key={n.id} node={n} file={files.get(n.id)} where={whereOf(n)} picked={picked === n.id} onPick={() => pick(n)} onOpen={() => openNode(n)} />
+              <div
+                className="sk-files-grid sk-files-grid--windowed"
+                aria-busy={list.stale || undefined}
+                style={{ paddingTop: win.padTop + CARD_GAP, paddingBottom: win.padBottom }}
+              >
+                {lines.map(({ line, items }) => (
+                  <div
+                    key={line}
+                    className="sk-files-grid__line"
+                    style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+                    ref={line === firstReal ? win.measure : undefined}
+                  >
+                    {items.map(({ index, row }) =>
+                      row ? (
+                        <Card key={row.id} row={row} where={whereOf(row)} childCount={folderInfo.counts.get(row.id) ?? 0} picked={picked?.id === row.id} onPick={() => pick(row)} onOpen={() => activate(row)} />
+                      ) : (
+                        <div key={`at-${index}`} className="sk-files-card sk-files-card--placeholder" aria-hidden="true">
+                          <span className="sk-files-card__thumb" />
+                          <span className="sk-files-card__body">
+                            <Skeleton width="70%" height={12} />
+                            <Skeleton width="45%" height={10} />
+                          </span>
+                        </div>
+                      ),
+                    )}
+                  </div>
                 ))}
               </div>
             ) : (
-              <ul className="sk-list sk-list--rich">
-                {shownFolders.map((f) => (
-                  <li key={f.id}>
-                    <FolderRow folder={f} nodes={nodes} picked={picked === f.id} onPick={() => pick(f)} onOpen={() => goFolder(f.id)} />
-                  </li>
-                ))}
-                {shownDocs.map((n) => (
-                  <li key={n.id}>
-                    <DocRow node={n} file={files.get(n.id)} where={whereOf(n)} picked={picked === n.id} onPick={() => pick(n)} onOpen={() => openNode(n)} />
-                  </li>
-                ))}
+              <ul
+                className="sk-list sk-list--rich"
+                data-sk-more={win.end < list.total ? "" : undefined}
+                aria-busy={list.stale || undefined}
+                style={{ paddingTop: win.padTop, paddingBottom: win.padBottom }}
+              >
+                {lines.map(({ line, items }) => {
+                  const { row } = items[0] ?? { row: undefined };
+                  return row ? (
+                    <li key={row.id} ref={line === firstReal ? win.measure : undefined}>
+                      <Row row={row} where={whereOf(row)} childCount={folderInfo.counts.get(row.id) ?? 0} picked={picked?.id === row.id} onPick={() => pick(row)} onOpen={() => activate(row)} />
+                    </li>
+                  ) : (
+                    <li key={`at-${line}`} className="sk-mail__placeholder" style={{ height: win.rowHeight }} aria-hidden="true">
+                      <Skeleton width={34} height={40} />
+                      <span className="sk-mail__placeholder-lines">
+                        <Skeleton width="45%" height={12} />
+                        <Skeleton width="70%" height={12} />
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
@@ -427,21 +443,25 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
           onBack={() => setLevel(2)}
           backLabel="Back to the folder"
           collapsedTitle="Preview"
-          title={pickedNode ? undefined : "Preview"}
+          title={picked ? undefined : "Preview"}
           header={
-            pickedNode && (
+            picked && (
               <>
-                <h2 className="sk-pane__title">{pickedNode.name}</h2>
+                <h2 className="sk-pane__title">{picked.title ?? picked.name}</h2>
                 <span className="sk-pane__spacer" />
                 <Menu
                   label="Item actions"
                   items={[
+                    { label: "Open", onSelect: () => activate(picked) },
+                    { label: "Rename…", onSelect: () => setNaming({ kind: "rename", row: picked }) },
                     {
-                      label: "Open",
-                      onSelect: () => (isFolderNodeKind(pickedNode) ? goFolder(pickedNode.id) : openNode(pickedNode)),
+                      label: "Delete…",
+                      danger: true,
+                      disabled: !pickedNode,
+                      onSelect: () => {
+                        if (pickedNode) showDeleteNodeModal(pickedNode);
+                      },
                     },
-                    { label: "Rename…", onSelect: () => setNaming({ kind: "rename", node: pickedNode }) },
-                    { label: "Delete…", danger: true, onSelect: () => showDeleteNodeModal(pickedNode) },
                   ]}
                   trigger={(open, toggle) => (
                     <button type="button" className="sk-more" aria-haspopup="menu" aria-expanded={open} aria-label="Item actions" onClick={toggle}>
@@ -453,13 +473,8 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
             )
           }
         >
-          {pickedNode ? (
-            <ItemPreview
-              node={pickedNode}
-              file={files.get(pickedNode.id)}
-              nodes={nodes}
-              onOpen={() => (isFolderNodeKind(pickedNode) ? goFolder(pickedNode.id) : openNode(pickedNode))}
-            />
+          {picked ? (
+            <ItemPreview key={picked.id} row={picked} childCount={folderInfo.counts.get(picked.id) ?? 0} nodes={nodes} onOpen={() => activate(picked)} />
           ) : (
             <EmptyState icon="reports" title="Pick something">
               A file's source and its extracted content preview here. Double-click to open it.
@@ -471,12 +486,12 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
       {naming && (
         <NameModal
           title={naming.kind === "folder" ? "New folder" : "Rename"}
-          initial={naming.kind === "rename" ? naming.node.name : ""}
+          initial={naming.kind === "rename" ? naming.row.name : ""}
           action={naming.kind === "folder" ? "Create" : "Rename"}
           onClose={() => setNaming(null)}
           onSave={(name) => {
             if (naming.kind === "folder") void addFolder(drive.header.id, name, currentId ?? undefined);
-            else void renameDriveNode(drive.header.id, naming.node.id, name);
+            else void renameDriveNode(drive.header.id, naming.row.id, name);
             setNaming(null);
           }}
         />
@@ -487,45 +502,15 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
 
 /* ---------------------------------------------------------------- tree */
 
-function folderPath(nodes: readonly Node[], id: string | null): FolderNode[] {
-  const out: FolderNode[] = [];
-  let cur = id;
-  const seen = new Set<string>();
-  while (cur && !seen.has(cur)) {
-    seen.add(cur);
-    const n = nodes.find((x) => x.id === cur);
-    if (!n || !isFolderNodeKind(n)) break;
-    out.unshift(n);
-    cur = n.parentFolder ?? null;
-  }
-  return out;
-}
-
-/** Every folder below `id` (below the drive's root when null). */
-function descendantFolders(nodes: readonly Node[], id: string | null): Set<string> {
-  const kids = new Map<string | null, string[]>();
-  for (const n of nodes) {
-    if (!isFolderNodeKind(n)) continue;
-    const k = n.parentFolder ?? null;
-    kids.set(k, [...(kids.get(k) ?? []), n.id]);
-  }
-  const out = new Set<string>();
-  const queue = [...(kids.get(id) ?? [])];
-  for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
-    if (out.has(next)) continue;
-    out.add(next);
-    queue.push(...(kids.get(next) ?? []));
-  }
-  return out;
-}
-
 function FolderTree({
   nodes,
+  counts,
   driveName,
   currentId,
   onGo,
 }: {
   nodes: readonly Node[];
+  counts: Map<string | null, number>;
   driveName: string;
   currentId: string | null;
   onGo: (id: string | null) => void;
@@ -533,25 +518,38 @@ function FolderTree({
   const children = useMemo(() => {
     const map = new Map<string | null, FolderNode[]>();
     for (const n of nodes) {
-      if (!isFolderNodeKind(n)) continue;
+      if (n.kind !== "folder") continue;
       const k = n.parentFolder ?? null;
-      map.set(k, [...(map.get(k) ?? []), n]);
+      const list = map.get(k);
+      if (list) list.push(n as FolderNode);
+      else map.set(k, [n as FolderNode]);
     }
     for (const list of map.values()) list.sort(byName);
     return map;
   }, [nodes]);
-  const countIn = (id: string | null) => nodes.filter((n) => (n.parentFolder ?? null) === id).length;
-  // The path to the open folder is open; the rest as the reader leaves it.
+  const parentOf = useMemo(() => {
+    const m = new Map<string, string | null>();
+    for (const n of nodes) if (n.kind === "folder") m.set(n.id, n.parentFolder ?? null);
+    return m;
+  }, [nodes]);
+  // Opening a folder opens the path to it, once; after that the tree is as
+  // the reader leaves it. Re-opening the path whenever the drive changed
+  // (any node added anywhere hands out a new node list) undid a collapse a
+  // moment after it was made.
   const [open, setOpen] = useState<Set<string>>(() => new Set());
+  const expandedFor = useRef<string | null>(null);
   useEffect(() => {
-    const path = folderPath(nodes, currentId);
-    if (path.length === 0) return;
+    if (!currentId || expandedFor.current === currentId) return;
+    // The folder may not be in the list yet (a URL opened before the drive
+    // arrived); expand once it is.
+    if (!parentOf.has(currentId)) return;
+    expandedFor.current = currentId;
     setOpen((prev) => {
       const next = new Set(prev);
-      for (const f of path) next.add(f.id);
+      for (let cur: string | null | undefined = currentId; cur; cur = parentOf.get(cur)) next.add(cur);
       return next;
     });
-  }, [nodes, currentId]);
+  }, [currentId, parentOf]);
 
   const render = (parent: string | null, depth: number): ReactNode =>
     (children.get(parent) ?? []).map((f) => {
@@ -585,7 +583,7 @@ function FolderTree({
             </span>
             <Icon name="folder" size={16} />
             <span className="sk-files-tree__name">{f.name}</span>
-            <span className="sk-files-tree__count">{countIn(f.id) || ""}</span>
+            <span className="sk-files-tree__count">{counts.get(f.id) || ""}</span>
           </button>
           {kids > 0 && isOpen && <ul className="sk-files-tree">{render(f.id, depth + 1)}</ul>}
         </li>
@@ -604,7 +602,7 @@ function FolderTree({
           <span className="sk-files-tree__twist" />
           <Icon name="folder" size={16} />
           <span className="sk-files-tree__name">{driveName}</span>
-          <span className="sk-files-tree__count">{countIn(null) || ""}</span>
+          <span className="sk-files-tree__count">{counts.get(null) || ""}</span>
         </button>
       </li>
       {render(null, 1)}
@@ -612,241 +610,46 @@ function FolderTree({
   );
 }
 
-/* ---------------------------------------------------------------- rows */
-
-/** A rich row that picks on click and opens on double-click or Enter. */
-function RowButton({
-  picked,
-  onPick,
-  onOpen,
-  children,
-}: {
-  picked: boolean;
-  onPick: () => void;
-  onOpen: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      className={cx("sk-list-item sk-list-item--rich", picked && "is-picked")}
-      aria-pressed={picked}
-      data-sk-drill={3}
-      onClick={onPick}
-      onDoubleClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          onOpen();
-        }
-      }}
-    >
-      {children}
-      <Icon name="chevron-right" className="sk-drill-chevron" />
-    </button>
-  );
-}
-
-function FolderRow({
-  folder,
-  nodes,
-  picked,
-  onPick,
-  onOpen,
-}: {
-  folder: FolderNode;
-  nodes: readonly Node[];
-  picked: boolean;
-  onPick: () => void;
-  onOpen: () => void;
-}) {
-  const count = nodes.filter((n) => n.parentFolder === folder.id).length;
-  return (
-    <RowButton picked={picked} onPick={onPick} onOpen={onOpen}>
-      <span className="sk-icon-tile">
-        <Icon name="folder" />
-      </span>
-      <div className="sk-list-item__body">
-        <div className="sk-list-item__title">{folder.name}</div>
-        <div className="sk-list-item__sub">{count === 1 ? "1 item" : `${count} items`}</div>
-      </div>
-    </RowButton>
-  );
-}
+/* ----------------------------------------------------------- the rows */
 
 /** What a File is, in one line: its description, else its source. */
-function fileSubline(f: FileDocument | undefined, fallback: string): string {
-  if (!f) return fallback;
-  const s = f.state.global;
-  if (s.description) return s.description;
-  if (s.source?.kind === "DOCUMENT") return `Linked: ${s.source.documentName ?? s.source.documentType ?? "document"}`;
-  if (s.source?.kind === "ATTACHMENT") {
+function subline(row: FileListRow): string {
+  if (row.description) return row.description;
+  if (row.sourceKind === "DOCUMENT") return `Linked: ${row.sourceDocumentName ?? row.sourceDocumentType ?? "document"}`;
+  if (row.sourceKind === "ATTACHMENT") {
     // The name is the title already when the file was dropped as is: say what it is instead.
-    const name = s.source.fileName && s.source.fileName !== (s.title ?? fallback) ? s.source.fileName : s.source.mimeType;
-    return [name, bytes(s.source.sizeBytes)].filter(Boolean).join(" · ");
+    const shown = row.title ?? row.name;
+    const name = row.sourceName && row.sourceName !== shown ? row.sourceName : row.sourceMime;
+    return [name, bytes(row.sourceSize)].filter(Boolean).join(" · ");
   }
   return "No source yet";
 }
 
-function DocTile({ node, file }: { node: FileNode; file: FileDocument | undefined }) {
-  if (node.documentType !== FILE_TYPE) {
+function Tile({ row }: { row: FileListRow }) {
+  if (row.kind === "folder") {
     return (
       <span className="sk-icon-tile">
-        <Icon name={iconForType(node.documentType)} />
+        <Icon name="folder" />
       </span>
     );
   }
-  const src = file?.state.global.source;
-  if (src?.kind === "DOCUMENT") {
+  if (row.documentType !== FILE_TYPE) {
     return (
       <span className="sk-icon-tile">
-        <Icon name={iconForType(src.documentType)} />
+        <Icon name={iconForType(row.documentType)} />
       </span>
     );
   }
-  return <FileTypeTile kind={fileKind(src?.mimeType, src?.fileName ?? node.name)} />;
-}
-
-function DocRow({
-  node,
-  file,
-  where,
-  picked,
-  onPick,
-  onOpen,
-}: {
-  node: FileNode;
-  file: FileDocument | undefined;
-  /** The subfolder it lives in, when the view includes subfolders */
-  where?: string | null;
-  picked: boolean;
-  onPick: () => void;
-  onOpen: () => void;
-}) {
-  const typeName = useTypeName(node.documentType);
-  const s = file?.state.global;
-  const isFile = node.documentType === FILE_TYPE;
-  return (
-    <RowButton picked={picked} onPick={onPick} onOpen={onOpen}>
-      <DocTile node={node} file={file} />
-      <div className="sk-list-item__body">
-        <div className="sk-list-item__title">{s?.title ?? node.name}</div>
-        <div className="sk-list-item__sub">{isFile ? fileSubline(file, node.name) : typeName}</div>
-        {s && s.tags.length > 0 && (
-          <div className="sk-list-item__tags">
-            <TagBadges tags={s.tags} />
-          </div>
-        )}
-      </div>
-      <div className="sk-list-item__aside">
-        {where && <Where path={where} />}
-        {isFile ? (
-          s && s.renditions.length > 0 && (
-            <span title={s.renditions.map(renditionName).join(", ")}>
-              {s.renditions.length} {s.renditions.length === 1 ? "version" : "versions"}
-            </span>
-          )
-        ) : (
-          <span>{typeName}</span>
-        )}
-      </div>
-    </RowButton>
-  );
-}
-
-/* ---------------------------------------------------------------- grid */
-
-/** The image a card shows: a preview or thumbnail rendition, else an image source. */
-function thumbRef(f: FileDocument | undefined): string | null {
-  if (!f) return null;
-  const s = f.state.global;
-  const img = (m: string | null | undefined) => (m ?? "").startsWith("image/");
-  const preferred =
-    s.renditions.find((r) => r.ref && img(r.mimeType) && /preview|thumb/i.test(r.type ?? "")) ??
-    s.renditions.find((r) => r.ref && img(r.mimeType));
-  if (preferred?.ref) return preferred.ref;
-  if (s.source?.kind === "ATTACHMENT" && s.source.ref && img(s.source.mimeType)) return s.source.ref;
-  return null;
-}
-
-function Thumb({ documentId, refId, fallback }: { documentId: string; refId: string; fallback: ReactNode }) {
-  const preview = useAttachmentPreview({ documentId, ref: refId as `attachment://v${number}:${string}` });
-  const url = preview.stage === "done" && !preview.loading ? preview.url : undefined;
-  return url ? <img src={url} alt="" loading="lazy" /> : <>{fallback}</>;
-}
-
-function CardButton({
-  picked,
-  onPick,
-  onOpen,
-  thumb,
-  name,
-  meta,
-  extra,
-}: {
-  picked: boolean;
-  onPick: () => void;
-  onOpen: () => void;
-  thumb: ReactNode;
-  name: ReactNode;
-  meta: ReactNode;
-  extra?: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      className={cx("sk-files-card", picked && "is-picked")}
-      aria-pressed={picked}
-      onClick={onPick}
-      onDoubleClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          onOpen();
-        }
-      }}
-    >
-      <span className="sk-files-card__thumb">{thumb}</span>
-      <span className="sk-files-card__body">
-        <span className="sk-files-card__name">{name}</span>
-        <span className="sk-files-card__meta">{meta}</span>
-        {extra}
+  if (row.sourceKind === "DOCUMENT") {
+    return (
+      <span className="sk-icon-tile">
+        <Icon name={iconForType(row.sourceDocumentType)} />
       </span>
-    </button>
-  );
+    );
+  }
+  return <FileTypeTile kind={fileKind(row.sourceMime, row.sourceName ?? row.name)} />;
 }
 
-function FolderCard({
-  folder,
-  nodes,
-  picked,
-  onPick,
-  onOpen,
-}: {
-  folder: FolderNode;
-  nodes: readonly Node[];
-  picked: boolean;
-  onPick: () => void;
-  onOpen: () => void;
-}) {
-  const count = nodes.filter((n) => n.parentFolder === folder.id).length;
-  return (
-    <CardButton
-      picked={picked}
-      onPick={onPick}
-      onOpen={onOpen}
-      thumb={
-        <span className="sk-icon-tile">
-          <Icon name="folder" />
-        </span>
-      }
-      name={folder.name}
-      meta={count === 1 ? "1 item" : `${count} items`}
-    />
-  );
-}
-
-/** The subfolder a document lives in, in a view that includes subfolders. */
 function Where({ path }: { path: string }) {
   return (
     <span className="sk-files-where" title={path}>
@@ -856,64 +659,124 @@ function Where({ path }: { path: string }) {
   );
 }
 
-function DocCard({
-  node,
-  file,
-  where,
-  picked,
-  onPick,
-  onOpen,
-}: {
-  node: FileNode;
-  file: FileDocument | undefined;
-  where?: string | null;
+interface ItemProps {
+  row: FileListRow;
+  where: string | null;
+  childCount: number;
   picked: boolean;
   onPick: () => void;
   onOpen: () => void;
-}) {
-  const typeName = useTypeName(node.documentType);
-  const tile = <DocTile node={node} file={file} />;
-  const ref = thumbRef(file);
-  const s = file?.state.global;
+}
+
+const keyOpens = (onOpen: () => void) => (e: React.KeyboardEvent) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    onOpen();
+  }
+};
+
+/** A rich row that picks on click and opens on double-click or Enter. Re-renders only for its own row. */
+const Row = memo(function Row({ row, where, childCount, picked, onPick, onOpen }: ItemProps) {
+  const typeName = useTypeName(row.documentType);
+  const isFile = row.documentType === FILE_TYPE;
   return (
-    <CardButton
-      picked={picked}
-      onPick={onPick}
-      onOpen={onOpen}
-      thumb={ref ? <Thumb documentId={node.id} refId={ref} fallback={tile} /> : tile}
-      name={s?.title ?? node.name}
-      meta={node.documentType === FILE_TYPE ? fileSubline(file, node.name) : typeName}
-      extra={
-        where || (s && s.tags.length > 0) ? (
+    <button
+      type="button"
+      className={cx("sk-list-item sk-list-item--rich", picked && "is-picked")}
+      aria-pressed={picked}
+      data-sk-drill={3}
+      onClick={onPick}
+      onDoubleClick={onOpen}
+      onKeyDown={keyOpens(onOpen)}
+    >
+      <Tile row={row} />
+      <div className="sk-list-item__body">
+        <div className="sk-list-item__title">{row.title ?? row.name}</div>
+        <div className="sk-list-item__sub">
+          {row.kind === "folder" ? (childCount === 1 ? "1 item" : `${childCount.toLocaleString()} items`) : isFile ? subline(row) : typeName}
+        </div>
+        {row.tags.length > 0 && (
+          <div className="sk-list-item__tags">
+            <TagBadges tags={row.tags} />
+          </div>
+        )}
+      </div>
+      <div className="sk-list-item__aside">
+        {where && <Where path={where} />}
+        {isFile && row.renditionCount > 0 && (
+          <span>
+            {row.renditionCount} {row.renditionCount === 1 ? "version" : "versions"}
+          </span>
+        )}
+        {row.kind === "file" && !isFile && <span>{typeName}</span>}
+      </div>
+      <Icon name="chevron-right" className="sk-drill-chevron" />
+    </button>
+  );
+}, sameItem);
+
+function Thumb({ documentId, refId, fallback }: { documentId: string; refId: string; fallback: ReactNode }) {
+  const preview = useAttachmentPreview({ documentId, ref: refId as `attachment://v${number}:${string}` });
+  const url = preview.stage === "done" && !preview.loading ? preview.url : undefined;
+  return url ? <img src={url} alt="" loading="lazy" /> : <>{fallback}</>;
+}
+
+const Card = memo(function Card({ row, where, childCount, picked, onPick, onOpen }: ItemProps) {
+  const typeName = useTypeName(row.documentType);
+  const tile = <Tile row={row} />;
+  return (
+    <button
+      type="button"
+      className={cx("sk-files-card", picked && "is-picked")}
+      aria-pressed={picked}
+      onClick={onPick}
+      onDoubleClick={onOpen}
+      onKeyDown={keyOpens(onOpen)}
+    >
+      <span className="sk-files-card__thumb">
+        {row.thumbRef ? <Thumb documentId={row.id} refId={row.thumbRef} fallback={tile} /> : tile}
+      </span>
+      <span className="sk-files-card__body">
+        <span className="sk-files-card__name">{row.title ?? row.name}</span>
+        <span className="sk-files-card__meta">
+          {row.kind === "folder"
+            ? childCount === 1
+              ? "1 item"
+              : `${childCount.toLocaleString()} items`
+            : row.documentType === FILE_TYPE
+              ? subline(row)
+              : typeName}
+        </span>
+        {(where || row.tags.length > 0) && (
           <>
             {where && <Where path={where} />}
-            {s && s.tags.length > 0 && <TagBadges tags={s.tags} max={2} />}
+            {row.tags.length > 0 && <TagBadges tags={row.tags} max={2} />}
           </>
-        ) : undefined
-      }
-    />
+        )}
+      </span>
+    </button>
   );
+}, sameItem);
+
+function sameItem(a: ItemProps, b: ItemProps): boolean {
+  return a.row === b.row && a.picked === b.picked && a.where === b.where && a.childCount === b.childCount;
 }
 
 /* ------------------------------------------------------------- preview */
 
 function ItemPreview({
-  node,
-  file,
+  row,
+  childCount,
   nodes,
   onOpen,
 }: {
-  node: Node;
-  file: FileDocument | undefined;
+  row: FileListRow;
+  childCount: number;
   nodes: readonly Node[];
   onOpen: () => void;
 }) {
-  const [item, setItem] = useState<PreviewItem>(SOURCE_ITEM);
-  useEffect(() => setItem(SOURCE_ITEM), [node.id]);
-
-  if (isFolderNodeKind(node)) {
-    const inside = nodes.filter((n) => n.parentFolder === node.id);
-    const sub = inside.filter(isFolderNodeKind).length;
+  if (row.kind === "folder") {
+    const sub = nodes.filter((n) => n.kind === "folder" && n.parentFolder === row.id).length;
     return (
       <div className="sk-files-preview">
         <div className="sk-file-linked">
@@ -922,9 +785,9 @@ function ItemPreview({
           </span>
           <div className="sk-file-linked__body">
             <div className="sk-eyebrow">Folder</div>
-            <div className="sk-file-linked__name">{node.name}</div>
+            <div className="sk-file-linked__name">{row.name}</div>
             <div className="sk-caption">
-              {inside.length - sub} {inside.length - sub === 1 ? "document" : "documents"} · {sub}{" "}
+              {(childCount - sub).toLocaleString()} {childCount - sub === 1 ? "document" : "documents"} · {sub}{" "}
               {sub === 1 ? "folder" : "folders"}
             </div>
           </div>
@@ -935,23 +798,41 @@ function ItemPreview({
       </div>
     );
   }
+  if (row.documentType !== FILE_TYPE) {
+    return <LinkedDocumentPreview documentId={row.id} documentType={row.documentType} documentName={row.name} />;
+  }
+  return <FilePreviewPanel row={row} nodes={nodes} onOpen={onOpen} />;
+}
 
-  // Not a folder, so a document; the guard above narrows a FolderNode-only
-  // union here, hence the explicit view.
-  const doc = node as unknown as FileNode;
-  if (doc.documentType !== FILE_TYPE) {
+/** A File in the preview pane: the one document this view loads. */
+function FilePreviewPanel({ row, nodes, onOpen }: { row: FileListRow; nodes: readonly Node[]; onOpen: () => void }) {
+  const q = useDocumentSafe(row.id);
+  const doc = q.data && isFileDocument(q.data) ? q.data : undefined;
+  const [item, setItem] = useState<PreviewItem>(SOURCE_ITEM);
+  const known = nodes.some((n) => n.id === row.id && isFileNodeKind(n));
+  if (!doc) {
     return (
-      <LinkedDocumentPreview documentId={doc.id} documentType={doc.documentType} documentName={doc.name} />
+      <div className="sk-files-preview">
+        <h3 className="sk-files-preview__title">{row.title ?? row.name}</h3>
+        {q.error && known ? (
+          <p className="sk-small sk-text-danger">The file could not be read.</p>
+        ) : (
+          <div className="sk-stack sk-stack--3">
+            <Skeleton height={14} width="60%" />
+            <Skeleton height={240} />
+          </div>
+        )}
+      </div>
     );
   }
-
-  if (!file) {
-    return <p className="sk-small sk-text-muted">Loading the file…</p>;
-  }
-
-  const s = file.state.global;
+  const s = doc.state.global;
   const options = [
-    { value: "source", name: "Source", meta: s.source ? (s.source.kind === "DOCUMENT" ? "Document" : (s.source.mimeType ?? "File")) : "Not set", icon: "upload" as const },
+    {
+      value: "source",
+      name: "Source",
+      meta: s.source ? (s.source.kind === "DOCUMENT" ? "Document" : (s.source.mimeType ?? "File")) : "Not set",
+      icon: "upload" as const,
+    },
     ...s.renditions.map((r) => ({
       value: itemKey({ kind: "rendition", id: r.id }),
       name: renditionName(r),
@@ -962,7 +843,7 @@ function ItemPreview({
   return (
     <div className="sk-files-preview">
       <div className="sk-stack sk-stack--2">
-        <h3 className="sk-files-preview__title">{s.title ?? doc.name}</h3>
+        <h3 className="sk-files-preview__title">{s.title ?? doc.header.name}</h3>
         {s.description && <p className="sk-files-preview__desc">{s.description}</p>}
         <TagBadges tags={s.tags} max={8} />
       </div>
@@ -976,7 +857,7 @@ function ItemPreview({
           Open
         </Button>
       </div>
-      <FileItemPreview doc={file} item={item} />
+      <FileItemPreview doc={doc} item={item} />
     </div>
   );
 }

@@ -144,6 +144,10 @@
     {
       "id": "email-index",
       "name": "email-index"
+    },
+    {
+      "id": "files-index",
+      "name": "files-index"
     }
   ],
   "subgraphs": [
@@ -158,6 +162,10 @@
     {
       "id": "email-index",
       "name": "email-index"
+    },
+    {
+      "id": "files-index",
+      "name": "files-index"
     }
   ],
   "pieces": [

@@ -63,6 +63,25 @@ export function useRowWindow(
     };
   }, [scroller, mounted]);
 
+  // A new layout (`mounted` names it: list or grid, a column count) has rows
+  // of another height: measure again.
+  useEffect(() => {
+    measuredAt.current = null;
+  }, [mounted]);
+
+  // A shorter list can clamp the scroll position without a scroll event:
+  // read it again whenever the count changes.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const id = requestAnimationFrame(() => {
+      const top = el.scrollTop;
+      const height = el.clientHeight;
+      setView((prev) => (prev.top === top && prev.height === height ? prev : { top, height }));
+    });
+    return () => cancelAnimationFrame(id);
+  }, [scroller, count]);
+
   const measure = useCallback(
     (el: HTMLElement | null) => {
       if (!el || measuredAt.current !== null) return;
