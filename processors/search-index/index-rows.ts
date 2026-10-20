@@ -53,7 +53,12 @@ export function rowsFromState(
   const row = base(documentId, documentType);
   switch (documentType) {
     case "sektar/invoice": {
-      const party = (state.counterparty ?? {}) as Json;
+      // v1 has one counterparty; v2 a seller and a buyer, the other party
+      // being the buyer of a sales invoice and the seller of a bill.
+      const party = (state.counterparty ??
+        (state.direction === "INCOMING" ? state.seller : state.buyer) ??
+        {}) as Json;
+      const refs = (state.references ?? {}) as Json;
       const lines = (state.lines ?? []) as Json[];
       const gross = lines.reduce(
         (s, l) =>
@@ -74,6 +79,9 @@ export function rowsFromState(
         party.email,
         party.vatId,
         state.reference,
+        state.subject,
+        refs.buyerReference,
+        refs.orderReference,
         state.notes,
         state.direction,
         state.status,
@@ -187,6 +195,15 @@ export function applyAction(
           input.notes,
         ],
       );
+      break;
+    case "SET_BUYER":
+    case "SET_SELLER":
+      // Which party is the other one depends on the direction, which the
+      // action does not carry: index the text, leave the subtitle.
+      touch({}, [input.name, input.email, input.vatId]);
+      break;
+    case "SET_HEADER":
+      touch({}, [input.subject, input.buyerReference, input.notes]);
       break;
     case "ISSUE_INVOICE":
       touch(

@@ -18,6 +18,7 @@ import {
   CATEGORY_ORDER,
   expenseReimbursable,
   fmtDate,
+  counterparty,
   invoiceTotals,
   money,
   TX_STATUS,
@@ -64,7 +65,7 @@ export function TransactionDetail({ row }: { row: TransactionRow }) {
         return {
           kind: "INVOICE" as const,
           id: i.header.id,
-          label: `${i.state.global.number ?? "Draft"} · ${i.state.global.counterparty.name ?? ""}`,
+          label: `${i.state.global.number ?? "Draft"} · ${counterparty(i.state.global).name ?? ""}`,
           amount: t.outstanding,
           distance: Math.abs(t.outstanding - amount),
         };

@@ -14,6 +14,8 @@ import {
 } from "../../../../../editors/sektar/kit/data.js";
 import {
   fmtShortDate,
+  counterparty,
+  bookTotals,
   invoiceTotals,
   isOverdue,
   money,
@@ -99,8 +101,9 @@ function InvoicesBoard() {
       matches(
         query,
         i.state.global.number,
-        i.state.global.counterparty.name,
-        i.state.global.reference,
+        counterparty(i.state.global).name,
+        i.state.global.subject,
+        i.state.global.references.buyerReference,
         invoiceTotals(i.state.global).gross,
       ),
     )
@@ -112,7 +115,7 @@ function InvoicesBoard() {
   const selected = invoices.find((i) => i.header.id === selectedId);
   const open = mine.filter((i) => i.state.global.status === "OPEN");
   const outstanding = open.reduce(
-    (s, i) => s + invoiceTotals(i.state.global).outstanding,
+    (s, i) => s + bookTotals(i.state.global).outstanding,
     0,
   );
   const overdue = mine.filter((i) => isOverdue(i.state.global, now));
@@ -124,7 +127,7 @@ function InvoicesBoard() {
           (p) => Date.parse(p.paidAt) > now - 90 * 86_400_000,
         ),
     )
-    .reduce((s, i) => s + invoiceTotals(i.state.global).paid, 0);
+    .reduce((s, i) => s + bookTotals(i.state.global).paid, 0);
 
   if (!drive || invoices.length === 0) return <SetupState what="invoices" />;
 
@@ -189,7 +192,7 @@ function InvoicesBoard() {
           label="Overdue"
           value={money(
             overdue.reduce(
-              (s, i) => s + invoiceTotals(i.state.global).outstanding,
+              (s, i) => s + bookTotals(i.state.global).outstanding,
               0,
             ),
             "EUR",
@@ -225,7 +228,7 @@ function InvoicesBoard() {
                 <div className="sk-caption sk-tabular">
                   {money(
                     items.reduce(
-                      (s, i) => s + invoiceTotals(i.state.global).gross,
+                      (s, i) => s + bookTotals(i.state.global).gross,
                       0,
                     ),
                     "EUR",
@@ -316,12 +319,12 @@ function InvoiceCard({
       </div>
       <div className="sk-row sk-row--2">
         <Avatar
-          name={s.counterparty.name}
+          name={counterparty(s).name}
           size="sm"
           variant={s.direction === "OUTGOING" ? "sage" : "forest"}
         />
         <span className="sk-truncate sk-weight-medium">
-          {s.counterparty.name}
+          {counterparty(s).name}
         </span>
       </div>
       <div className="sk-caption sk-truncate">

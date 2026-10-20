@@ -40,7 +40,12 @@ import {
   isInvoiceDocument,
   type InvoiceDirection,
   type InvoiceDocument,
+  type InvoiceParty,
+  type InvoiceState,
   type PaymentMethod,
+  type SetBuyerInput,
+  type SetSellerInput,
+  type VatCategory,
 } from "document-models/invoice";
 import { useMemo } from "react";
 
@@ -294,16 +299,18 @@ export type NewInvoiceLine = {
   quantity: number;
   unitPrice: number;
   vatRate: number;
+  /** Defaults to standard-rated above 0 %, zero-rated at 0 %. */
+  vatCategory?: VatCategory;
 };
 
 export type NewInvoice = {
   direction: InvoiceDirection;
-  counterpartyName: string;
-  contactId?: string | null;
-  email?: string | null;
-  vatId?: string | null;
-  address?: string | null;
+  /** The other party: the buyer of a sales invoice, the seller of a bill. */
+  party: SetBuyerInput;
+  /** Our own details; defaults to the ones on the latest invoice in the same direction. */
+  us?: SetSellerInput;
   currency?: string;
+  subject?: string | null;
   reference?: string | null;
   notes?: string | null;
   dueAt?: string | null;
@@ -311,9 +318,60 @@ export type NewInvoice = {
   lines: NewInvoiceLine[];
 };
 
-export function invoiceDocumentName(inv: NewInvoice): string {
-  const who = inv.counterpartyName || "Untitled";
+export function invoiceDocumentName(inv: { number?: string | null; party: { name?: string | null } }): string {
+  const who = inv.party.name || "Untitled";
   return inv.number ? `${inv.number} · ${who}` : `Draft · ${who}`;
+}
+
+/** A contact as an invoice party: the fields an invoice copies. */
+export function partyFromContact(c: ContactDocument): SetBuyerInput {
+  const s = c.state.global;
+  return {
+    name: s.name,
+    contactId: c.header.id,
+    email: s.email,
+    phone: s.phone,
+    vatId: s.vatId,
+    registrationId: s.registrationNumber,
+    street: s.address.street,
+    postalCode: s.address.postalCode,
+    city: s.address.city,
+    country: s.address.country,
+  };
+}
+
+/** Our side of an invoice (the seller of a sales invoice, the buyer of a bill). */
+export function ourParty(state: InvoiceState): InvoiceParty {
+  return state.direction === "OUTGOING" ? state.seller : state.buyer;
+}
+
+/**
+ * Our details as the latest invoice in that direction has them: there is no
+ * company profile yet, so each new invoice starts from the last one.
+ */
+export function latestOurParty(
+  invoices: readonly InvoiceDocument[],
+  direction: InvoiceDirection,
+): SetSellerInput | undefined {
+  const latest = invoices
+    .filter((i) => i.state.global.direction === direction && ourParty(i.state.global).name)
+    .sort((a, b) =>
+      (b.state.global.issuedAt ?? b.header.createdAtUtcIso).localeCompare(
+        a.state.global.issuedAt ?? a.header.createdAtUtcIso,
+      ),
+    )
+    .at(0);
+  if (!latest) return undefined;
+  const { contactId: _contactId, ...rest } = ourParty(latest.state.global);
+  return rest;
+}
+
+export function newLineAction(line: NewInvoiceLine) {
+  return invoiceActions.addLine({
+    id: generateId(),
+    ...line,
+    vatCategory: line.vatCategory ?? (line.vatRate > 0 ? "STANDARD" : "ZERO_RATED"),
+  });
 }
 
 export async function createInvoice(
@@ -327,54 +385,99 @@ export async function createInvoice(
     DOC_TYPES.invoice,
     folder,
   );
+  const outgoing = input.direction === "OUTGOING";
   await dispatchActions(
     [
-      invoiceActions.setInvoiceDetails({
+      invoiceActions.setHeader({
         direction: input.direction,
-        number: input.number ?? null,
-        counterpartyName: input.counterpartyName,
-        contactId: input.contactId ?? null,
-        email: input.email ?? null,
-        vatId: input.vatId ?? null,
-        address: input.address ?? null,
-        currency: input.currency ?? "EUR",
-        reference: input.reference ?? null,
+        subject: input.subject ?? null,
+        buyerReference: input.reference ?? null,
         notes: input.notes ?? null,
         dueAt: input.dueAt ?? null,
       }),
-      ...input.lines.map((line) =>
-        invoiceActions.addLine({ id: generateId(), ...line }),
-      ),
+      ...(input.currency && input.currency !== "EUR"
+        ? [invoiceActions.setCurrency({ currency: input.currency })]
+        : []),
+      outgoing
+        ? invoiceActions.setBuyer(input.party)
+        : invoiceActions.setSeller(input.party),
+      ...(input.us
+        ? [outgoing ? invoiceActions.setSeller(input.us) : invoiceActions.setBuyer(input.us)]
+        : []),
+      ...input.lines.map(newLineAction),
     ],
     node.id,
   );
   return node.id;
 }
 
-export function addInvoiceLine(invoiceId: string, line: NewInvoiceLine) {
-  return dispatchActions(
-    invoiceActions.addLine({ id: generateId(), ...line }),
-    invoiceId,
+/**
+ * A new draft from an existing invoice: parties, currency and rates, lines,
+ * VAT mentions and payment instructions carry over; numbers, dates,
+ * payments and documents do not. As a credit note it references the source.
+ */
+export async function duplicateInvoice(
+  driveId: string,
+  parentFolder: string | null | undefined,
+  source: InvoiceDocument,
+  opts: { credit?: boolean } = {},
+) {
+  const s = source.state.global;
+  const other = s.direction === "OUTGOING" ? s.buyer : s.seller;
+  const name = invoiceDocumentName({ number: null, party: other }).replace(
+    "Draft",
+    opts.credit ? "Credit note" : "Draft",
   );
-}
-
-export function updateInvoiceLine(
-  invoiceId: string,
-  id: string,
-  line: Partial<NewInvoiceLine>,
-) {
-  return dispatchActions(invoiceActions.updateLine({ id, ...line }), invoiceId);
-}
-
-export function removeInvoiceLine(invoiceId: string, id: string) {
-  return dispatchActions(invoiceActions.removeLine({ id }), invoiceId);
-}
-
-export function setInvoiceDetails(
-  invoiceId: string,
-  details: Partial<Omit<NewInvoice, "lines">>,
-) {
-  return dispatchActions(invoiceActions.setInvoiceDetails(details), invoiceId);
+  const node = await addDocument(driveId, name, DOC_TYPES.invoice, parentFolder ?? undefined);
+  await dispatchActions(
+    [
+      invoiceActions.setHeader({
+        kind: opts.credit ? "CREDIT_NOTE" : s.kind,
+        direction: s.direction,
+        subject: s.subject,
+        paymentTerms: s.paymentTerms,
+        notes: s.notes,
+        buyerReference: s.references.buyerReference,
+        orderReference: s.references.orderReference,
+        contractReference: s.references.contractReference,
+        projectReference: s.references.projectReference,
+      }),
+      invoiceActions.setSeller({ ...s.seller }),
+      invoiceActions.setBuyer({ ...s.buyer }),
+      invoiceActions.setCurrency({ currency: s.currency, vatCurrency: s.vatCurrency }),
+      ...s.exchangeRates.map((r) => invoiceActions.setExchangeRate({ ...r })),
+      ...s.lines.map((l) =>
+        invoiceActions.addLine({
+          id: generateId(),
+          description: l.description,
+          note: l.note,
+          quantity: l.quantity,
+          unitCode: l.unitCode,
+          unitPrice: l.unitPrice,
+          vatCategory: l.vatCategory,
+          vatRate: l.vatRate,
+          category: l.category,
+          originalAmount: l.original?.amount,
+          originalCurrency: l.original?.currency,
+          originalRate: l.original?.rate,
+        }),
+      ),
+      ...s.vatReasons.map((r) => invoiceActions.setVatReason({ ...r })),
+      invoiceActions.setPaymentInstructions({ ...s.paymentInstructions, remittance: null }),
+      ...(opts.credit && s.number
+        ? [
+            invoiceActions.addPrecedingInvoice({
+              id: generateId(),
+              number: s.number,
+              issuedAt: s.issuedAt,
+              documentId: source.header.id,
+            }),
+          ]
+        : []),
+    ],
+    node.id,
+  );
+  return node;
 }
 
 export function issueInvoice(

@@ -4,11 +4,14 @@
 import type { TransactionCategory } from "document-models/bank-account";
 import type { ExpenseStatus, PaidWith } from "document-models/expense-report";
 import type { ContactKind } from "document-models/contact";
-import type {
-  InvoiceDirection,
-  InvoiceState,
-  InvoiceStatus,
-  PaymentMethod,
+import {
+  computeTotals,
+  findRate,
+  type InvoiceDirection,
+  type InvoiceParty,
+  type InvoiceState,
+  type InvoiceStatus,
+  type PaymentMethod,
 } from "document-models/invoice";
 import type {
   TransactionStatus,
@@ -250,23 +253,50 @@ export type InvoiceTotals = {
   outstanding: number;
 };
 
+/** The totals the boards show, computed the EN 16931 way by the model (lines rounded, VAT per category). */
 export function invoiceTotals(state: InvoiceState): InvoiceTotals {
-  let net = 0;
-  let vat = 0;
-  for (const line of state.lines) {
-    const lineNet = line.quantity * line.unitPrice;
-    net += lineNet;
-    vat += lineNet * (line.vatRate / 100);
-  }
-  const gross = round2(net + vat);
-  const paid = round2(state.payments.reduce((sum, p) => sum + p.amount, 0));
+  const t = computeTotals(state);
   return {
-    net: round2(net),
-    vat: round2(vat),
-    gross,
-    paid,
-    outstanding: round2(Math.max(0, gross - paid)),
+    net: t.net,
+    vat: t.vat,
+    gross: t.gross,
+    paid: t.paid,
+    outstanding: round2(Math.max(0, t.due)),
   };
+}
+
+/** The currency the books are kept in: what the boards add up in. */
+export const BOOK_CURRENCY = "EUR";
+
+/**
+ * An invoice's totals in the book currency, at the invoice's own rate (the
+ * one its VAT is reported at). Without a rate the amounts stay as they are:
+ * close enough for a board, never for the books.
+ */
+export function bookTotals(state: InvoiceState): InvoiceTotals {
+  const t = invoiceTotals(state);
+  if (state.currency === BOOK_CURRENCY) return t;
+  const rate = findRate(state.exchangeRates, state.currency, BOOK_CURRENCY);
+  if (rate === null) return t;
+  return {
+    net: round2(t.net * rate),
+    vat: round2(t.vat * rate),
+    gross: round2(t.gross * rate),
+    paid: round2(t.paid * rate),
+    outstanding: round2(t.outstanding * rate),
+  };
+}
+
+/** The other party: the buyer of a sales invoice, the seller of a bill. */
+export function counterparty(state: InvoiceState): InvoiceParty {
+  return state.direction === "OUTGOING" ? state.buyer : state.seller;
+}
+
+/** A party's address on one line. */
+export function partyAddress(p: InvoiceParty): string | null {
+  const city = [p.postalCode, p.city].filter(Boolean).join(" ");
+  const parts = [p.street, p.additionalStreet, city, p.region, p.country].filter(Boolean);
+  return parts.length ? parts.join(", ") : null;
 }
 
 export function isOverdue(state: InvoiceState, now = Date.now()): boolean {

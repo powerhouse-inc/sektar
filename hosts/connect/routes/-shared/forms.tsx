@@ -12,6 +12,8 @@ import {
   createContact,
   createExpenseReport,
   createInvoice,
+  latestOurParty,
+  partyFromContact,
   importTransactions,
   useAccounts,
   useContacts,
@@ -53,6 +55,7 @@ export function NewInvoicePanel({
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
+  const invoices = useInvoices();
   const contacts = useContacts().filter(
     (c) => c.state.global.status === "ACTIVE",
   );
@@ -83,23 +86,10 @@ export function NewInvoicePanel({
   const submit = () => {
     if (!valid) return;
     setBusy(true);
-    const c = contact?.state.global;
     void createInvoice(drive, {
       direction,
-      counterpartyName: partyName.trim(),
-      contactId: contact?.header.id ?? null,
-      email: c?.email ?? null,
-      vatId: c?.vatId ?? null,
-      address: c
-        ? [
-            c.address.street,
-            c.address.postalCode,
-            c.address.city,
-            c.address.country,
-          ]
-            .filter(Boolean)
-            .join(", ") || null
-        : null,
+      party: contact ? partyFromContact(contact) : { name: partyName.trim() },
+      us: latestOurParty(invoices, direction),
       reference: reference.trim() || null,
       notes: notes.trim() || null,
       lines: lines

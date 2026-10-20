@@ -21,6 +21,8 @@ import {
   CATEGORY_ORDER,
   CONTACT_KIND,
   fmtDate,
+  counterparty,
+  bookTotals,
   invoiceTotals,
   money,
   plural,
@@ -54,7 +56,7 @@ export function ContactDetail({
   const s = doc.state.global;
   const id = doc.header.id;
   const invoices = useInvoices().filter(
-    (i) => i.state.global.counterparty.contactId === id,
+    (i) => counterparty(i.state.global).contactId === id,
   );
   const transactions = useTransactions().filter(
     ({ tx }) => tx.contactId === id,
@@ -62,7 +64,7 @@ export function ContactDetail({
   const [editing, setEditing] = useState(false);
   const open = invoices.filter((i) => i.state.global.status === "OPEN");
   const openTotal = open.reduce(
-    (sum, i) => sum + invoiceTotals(i.state.global).outstanding,
+    (sum, i) => sum + bookTotals(i.state.global).outstanding,
     0,
   );
 

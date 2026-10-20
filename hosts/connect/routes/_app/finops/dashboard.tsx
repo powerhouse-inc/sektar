@@ -15,6 +15,8 @@ import {
   expenseTotal,
   fmtMonth,
   fmtShortDate,
+  counterparty,
+  bookTotals,
   invoiceTotals,
   isOverdue,
   money,
@@ -86,14 +88,14 @@ function Dashboard() {
           i.state.global.direction === "OUTGOING" &&
           i.state.global.status === "OPEN",
       )
-      .reduce((s, i) => s + invoiceTotals(i.state.global).outstanding, 0);
+      .reduce((s, i) => s + bookTotals(i.state.global).outstanding, 0);
     const payable = invoices
       .filter(
         (i) =>
           i.state.global.direction === "INCOMING" &&
           i.state.global.status === "OPEN",
       )
-      .reduce((s, i) => s + invoiceTotals(i.state.global).outstanding, 0);
+      .reduce((s, i) => s + bookTotals(i.state.global).outstanding, 0);
     const overdue = invoices.filter((i) => isOverdue(i.state.global, now));
     const toReview = rows.filter((r) => r.tx.status === "NEW").length;
     const awaiting = reports.filter(
@@ -200,8 +202,8 @@ function Dashboard() {
       key: i.header.id,
       icon: "invoice" as const,
       title: `${i.state.global.number} is overdue`,
-      meta: `${i.state.global.counterparty.name} · due ${relativeDays(i.state.global.dueAt)}`,
-      value: money(invoiceTotals(i.state.global).outstanding),
+      meta: `${counterparty(i.state.global).name ?? ""} · due ${relativeDays(i.state.global.dueAt)}`,
+      value: money(invoiceTotals(i.state.global).outstanding, i.state.global.currency),
       to: "/finops/invoices" as const,
     })),
     ...(stats.toReview > 0

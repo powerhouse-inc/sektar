@@ -1,28 +1,21 @@
 import { DocumentToolbar } from "@powerhousedao/design-system/connect";
 import { useSelectedInvoiceDocument } from "document-models/invoice";
-import { InvoiceDetail } from "../sektar/components/InvoiceDetail.js";
+import { InvoiceWorkspace } from "../sektar/components/invoice/InvoiceWorkspace.js";
 import { Sprite } from "../sektar/kit/ui.js";
 
-/** The invoice as a document: Connect's toolbar on top, the Sektar detail view below. */
+/**
+ * The invoice as a document: Connect's toolbar on top, then the design
+ * system's workspace: the invoice's details beside a preview of the invoice
+ * as the customer reads it, its Peppol checks and its documents.
+ */
 export default function Editor() {
-  const [document] = useSelectedInvoiceDocument();
+  const [document, dispatch] = useSelectedInvoiceDocument();
   return (
     <>
-      {/* Connect's toolbar keeps Connect's styling; the Sektar styles start below it. */}
       <DocumentToolbar />
-      <div
-        className="sk-app sk-page"
-        style={{ minHeight: "100%", background: "transparent" }}
-      >
+      <div className="sk-app sk-inv-app" style={{ background: "transparent" }}>
         <Sprite />
-        <div
-          className="sk-container sk-stack sk-stack--6"
-          style={{ maxWidth: 960, paddingBlock: "var(--sk-space-6)" }}
-        >
-          <div className="sk-card">
-            <InvoiceDetail doc={document} />
-          </div>
-        </div>
+        <InvoiceWorkspace doc={document} dispatch={dispatch} />
       </div>
     </>
   );

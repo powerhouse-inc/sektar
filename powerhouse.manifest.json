@@ -121,8 +121,8 @@
       ]
     },
     {
-      "name": "file-editor",
       "id": "file-editor",
+      "name": "file-editor",
       "documentTypes": [
         "sektar/file"
       ]

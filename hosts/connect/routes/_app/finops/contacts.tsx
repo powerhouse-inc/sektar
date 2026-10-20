@@ -15,6 +15,8 @@ import {
   useTransactions,
 } from "../../../../../editors/sektar/kit/data.js";
 import {
+  counterparty,
+  bookTotals,
   invoiceTotals,
   money,
   plural,
@@ -96,7 +98,7 @@ function ContactsPage() {
   const openFor = (id: string) =>
     invoices.filter(
       (i) =>
-        i.state.global.counterparty.contactId === id &&
+        counterparty(i.state.global).contactId === id &&
         i.state.global.status === "OPEN",
     );
   const activityFor = (id: string) =>
@@ -154,7 +156,7 @@ function ContactsPage() {
               const s = c.state.global;
               const open = openFor(c.header.id);
               const outstanding = open.reduce(
-                (sum, i) => sum + invoiceTotals(i.state.global).outstanding,
+                (sum, i) => sum + bookTotals(i.state.global).outstanding,
                 0,
               );
               return (

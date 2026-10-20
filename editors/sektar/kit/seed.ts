@@ -867,20 +867,17 @@ export async function seedDemoCompany(
           : null;
       const id = await createInvoice(drive, {
         direction: inv.direction,
-        counterpartyName: contactName(inv.contact),
-        contactId: contactId(inv.contact),
-        email: c?.email ?? null,
-        vatId: c?.vatId ?? null,
-        address: c?.address
-          ? [
-              c.address.street,
-              c.address.postalCode,
-              c.address.city,
-              c.address.country,
-            ]
-              .filter(Boolean)
-              .join(", ")
-          : null,
+        party: {
+          name: contactName(inv.contact),
+          contactId: contactId(inv.contact),
+          email: c?.email ?? null,
+          vatId: c?.vatId ?? null,
+          street: c?.address?.street ?? null,
+          postalCode: c?.address?.postalCode ?? null,
+          city: c?.address?.city ?? null,
+          country: c?.address?.country ?? null,
+        },
+        us: { name: COMPANY.name, city: COMPANY.city, country: "NL" },
         reference: inv.reference ?? null,
         notes: inv.notes ?? null,
         lines: inv.lines,
