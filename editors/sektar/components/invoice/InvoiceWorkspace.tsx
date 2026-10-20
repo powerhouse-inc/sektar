@@ -28,6 +28,7 @@ import { InvoicePaper } from "./InvoicePaper.js";
 import { AttachmentSection, CurrencySection, DetailsSection, NotesSection, PaymentSection, VatSection } from "./InvoiceSections.js";
 import { LineList } from "./LineEditor.js";
 import { PartyCards } from "./PartyEditor.js";
+import { SendActions } from "./SendActions.js";
 import { Section } from "./fields.js";
 import { useDocumentLocation } from "../FilePreview.js";
 
@@ -314,6 +315,7 @@ function Details({
               Record a payment
             </Button>
           )}
+          {s.direction === "OUTGOING" && <SendActions doc={doc} />}
           {showPreview && (
             <Button variant="secondary" icon="invoice" onClick={() => onShow("invoice")}>
               Preview

@@ -8,6 +8,7 @@ import { invoiceChecks } from "../kit/invoice.js";
 import { Avatar, Badge, Button, DetailHeader, EmptyState, MetaStrip } from "../kit/ui.js";
 import { InvoicePaper } from "./invoice/InvoicePaper.js";
 import { useDocumentLocation } from "./FilePreview.js";
+import { SendActions } from "./invoice/SendActions.js";
 
 const isCurrent = (state: unknown): state is InvoiceState =>
   typeof state === "object" && state !== null && "buyer" in state;
@@ -73,9 +74,12 @@ export function InvoiceDetail({ doc }: { doc: InvoiceDocument }) {
           </>
         }
         actions={
-          <Button variant="primary" icon="arrow-up-right" disabled={!location} onClick={open}>
-            Open the invoice
-          </Button>
+          <>
+            <Button variant="primary" icon="arrow-up-right" disabled={!location} onClick={open}>
+              Open the invoice
+            </Button>
+            {s.direction === "OUTGOING" && <SendActions doc={doc} />}
+          </>
         }
       />
       <MetaStrip
