@@ -11,7 +11,8 @@ starting:
 OPENROUTER_API_KEY=sk-or-… ph run assistant
 ```
 
-Without the key the host answers as the demo agent. Prompts live in `agents/`;
+The host reads it as `apiKey: { $env: "OPENROUTER_API_KEY" }`: without the key
+`ph run assistant` fails before starting, naming the variable. Prompts live in `agents/`;
 `ph run assistant build` compiles them to `dist/skills`.
 
 Smoke test:

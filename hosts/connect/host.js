@@ -1,8 +1,11 @@
 // @ts-check
-// Static projection of powerhouse.config.json — only that import is allowed;
+// Static projection of powerhouse.config.json and the switchboard sibling;
 // runtime behavior lives in the runner module named below.
 import config from "../../powerhouse.config.json" with { type: "json" };
+import switchboardHost from "../switchboard/host.js";
+import { outputs as switchboard } from "../switchboard/outputs.js";
 
+/** @satisfies {PHHost} */
 export default {
   name: "sektar-connect",
 
@@ -28,12 +31,12 @@ export default {
       // and attaches the Workflows drive the switchboard's workflows plugin
       // serves (hosts/switchboard/host.js). The drive must be the
       // switchboard's — the studio reaches its runtime through the drive's
-      // switchboard — so the URL points at the project's reactor port.
+      // switchboard — so its URL is the switchboard's output: the running
+      // switchboard's record standalone (start it first), the switchboard
+      // member's live outputs inside cli/desktop/vetra.
       {
         module: "@powerhousedao/connect/plugins/workflows",
-        config: {
-          drive: `http://localhost:${config.reactor?.port ?? 4001}/d/workflows`,
-        },
+        config: { drive: switchboard.drives.workflows.url },
       },
     ],
   },
@@ -62,15 +65,9 @@ export default {
       // be missing in production (desktop/serve) — in-page they are shared.
       main: { kind: "in-process" },
     },
-    drives: [
-      {
-        slug: "sektar",
-        name: "Sektar",
-        preferredEditor: "sektar",
-        icon: "./icons/sektar_symbol_64x64.png",
-      },
-      // The Workflows drive is not declared here: the workflows plugin above
-      // attaches it (runner.plugins).
-    ],
+    // The same Sektar drive the switchboard declares (read, not copied).
+    // The Workflows drive is not declared here: the workflows plugin above
+    // attaches it (runner.plugins).
+    drives: switchboardHost.reactor.drives,
   },
 };

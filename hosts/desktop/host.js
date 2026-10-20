@@ -14,7 +14,6 @@ import connect from "../connect/host.js";
 // Declared once: the server member serves these locally; the connect member
 // attaches the SAME list as remote drives (a compound's Connect must not
 // duplicate-declare the local drives the server owns).
-const serverPort = switchboard.runner.port;
 const serverDrives = [
   {
     slug: "sektar",
@@ -24,6 +23,7 @@ const serverDrives = [
   },
 ];
 
+/** @satisfies {PHHost} */
 export default {
   name: "desktop",
 
@@ -90,15 +90,17 @@ export default {
         port: config.studio?.port ?? 3000,
         plugins: [...connect.runner.plugins],
       },
-      // Attach the server's drives as remotes (replaces the old implicit
-      // projectDrivesIntoConnect flag with legible derivation):
+      // Attach the server's drives as remotes, each by the URL the server
+      // member reports for it (its drives.<slug>.url output). (The Workflows
+      // drive rides the connect host's workflows plugin, inherited above
+      // through its plugins list.)
       reactor: {
         ...connect.reactor,
-        // (The Workflows drive rides the connect host's workflows plugin,
-        // inherited above through its plugins list.)
         drives: serverDrives.map((d) => ({
           slug: d.slug,
-          remote: { url: `http://127.0.0.1:${serverPort}/d/${d.slug}` },
+          remote: {
+            url: { $output: { host: "switchboard", path: ["drives", d.slug, "url"] } },
+          },
         })),
       },
     },

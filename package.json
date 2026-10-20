@@ -65,7 +65,7 @@
     "lint:fix": "oxlint --type-aware --type-check --fix",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "tsc": "tsc --noEmit --emitDeclarationOnly false",
+    "tsc": "tsc --noEmit --emitDeclarationOnly false && tsc -p hosts",
     "tsc:watch": "tsc --watch",
     "check-circular-imports": "npx dpdm -T ./index.ts",
     "generate": "ph-cli generate",

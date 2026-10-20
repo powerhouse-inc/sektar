@@ -6,14 +6,15 @@
 // API; without a model configured it answers as the demo agent.
 // Requires @powerhousedao/clint in devDependencies (the scaffold includes it).
 import config from "../../powerhouse.config.json" with { type: "json" };
+import { outputs as switchboard } from "../switchboard/outputs.js";
 
+/** @satisfies {PHHost} */
 export default {
   name: "sektar-assistant",
 
   runner: {
     module: "@powerhousedao/clint/mastra-runner",
     port: 4910,
-    workdir: "${userData}/assistant",
   },
 
   profile: {
@@ -29,21 +30,20 @@ export default {
     backends: {
       switchboard: {
         kind: "remote",
-        remote: { host: "switchboard" }, // sibling host reference; use
-        // { url: "https://…/graphql" } for
-        // an external switchboard
+        // The running switchboard's GraphQL endpoint (its output); a literal
+        // URL attaches to an external switchboard.
+        remote: { url: switchboard.endpoints.graphql },
       },
     },
     protocol: config.connect?.reactor ?? {},
   },
 
   config: {
-    // Mastra's model router: "openrouter/<vendor>/<model>", keyed by
-    // OPENROUTER_API_KEY in the environment (see hosts/assistant/README.md).
-    // Without the key the runner answers as the demo agent.
-    model: process.env.OPENROUTER_API_KEY
-      ? "openrouter/anthropic/claude-sonnet-4.5"
-      : undefined,
+    // Mastra's model router: "openrouter/<vendor>/<model>". The key is read
+    // from the environment when the host starts; without OPENROUTER_API_KEY
+    // `ph run assistant` fails naming it (see hosts/assistant/README.md).
+    model: "openrouter/anthropic/claude-sonnet-4.5",
+    apiKey: { $env: "OPENROUTER_API_KEY" },
     instructions: [
       "You are the Sektar assistant for Juniper Studio, a nine-person design studio in Amsterdam.",
       "Sektar keeps the studio's books as Powerhouse documents on the Sektar drive: bank and card accounts (sektar/bank-account) with an imported transaction feed that is categorised and matched; invoices (sektar/invoice) in both directions — outgoing sales invoices and incoming supplier bills — with lines, VAT, issue/due dates and payments; expense claims (sektar/expense-report) that are submitted, approved and reimbursed; and contacts (sektar/contact) for customers and suppliers with terms, bank details and people.",

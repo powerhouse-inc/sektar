@@ -1,6 +1,7 @@
 // @ts-check
 import config from "../../powerhouse.config.json" with { type: "json" };
 
+/** @satisfies {PHHost} */
 export default {
   name: "sektar-switchboard",
 

@@ -7,13 +7,15 @@
 // a SYNCHRONIZED remote drive — a local replica, which keeps PGlite by
 // design. remote client = no local store; synchronized remote drive = local
 // store.) Standalone `ph run connect` is untouched — still a local reactor.
-import switchboard from "../switchboard/host.js";
+import switchboardHost from "../switchboard/host.js";
+import { outputs as switchboard } from "../switchboard/outputs.js";
 
-// The drive(s) the switchboard serves, and its port — the single source
-// Connect's remote attachment derives from.
-const serverPort = switchboard.runner.port;
-const serverDrives = switchboard.reactor.drives ?? [];
+// The drive(s) the switchboard declares — the single source Connect's
+// remote attachment derives from. (T4: `$map` over the switchboard's
+// `drives` output also attaches plugin-created drives such as workflows.)
+const serverDrives = switchboardHost.reactor.drives ?? [];
 
+/** @satisfies {PHHost} */
 export default {
   name: "cli",
 
@@ -37,16 +39,22 @@ export default {
     // give the client the Switchboard URL to proxy to.
     "cli-connect": {
       host: "connect",
+      // Every URL is the switchboard member's output (what it actually
+      // bound), so the compound starts it first.
       reactor: {
         backends: {
           sb: {
             kind: "remote",
-            remote: { url: `http://127.0.0.1:${serverPort}/graphql` },
+            remote: { url: switchboard.endpoints.graphql },
           },
         },
         drives: serverDrives.map((drive) => ({
           slug: drive.slug,
-          remote: { url: `http://127.0.0.1:${serverPort}/d/${drive.slug}` },
+          remote: {
+            url: {
+              $output: { host: "switchboard", path: ["drives", drive.slug, "url"] },
+            },
+          },
         })),
       },
     },
