@@ -9,6 +9,7 @@ import { ContactEditor } from "./contact-editor/module.js";
 import { EmailEditor } from "./email-editor/module.js";
 import { EmailWorkspace } from "./email-workspace/module.js";
 import { ExpenseReportEditor } from "./expense-report-editor/module.js";
+import { FileEditor } from "./file-editor/module.js";
 import { Files } from "./files/module.js";
 import { InvoiceEditor } from "./invoice-editor/module.js";
 import { OriginalSourceCollectionEditor } from "./original-source-collection-editor/module.js";
@@ -22,6 +23,7 @@ export const editors: EditorModule[] = [
   EmailEditor,
   EmailWorkspace,
   ExpenseReportEditor,
+  FileEditor,
   Files,
   InvoiceEditor,
   OriginalSourceCollectionEditor,

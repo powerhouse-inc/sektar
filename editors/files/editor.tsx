@@ -1,21 +1,20 @@
-
-/**
- * WARNING: DO NOT EDIT
- * This file is auto-generated and updated by codegen
- */
 import { useSetPHAppConfig } from "@powerhousedao/reactor-browser";
 import type { EditorProps } from "document-model";
-import { DriveExplorer } from "./components/DriveExplorer.js";
+import { Sprite } from "../sektar/kit/ui.js";
+import { FilesWorkspace } from "./components/FilesWorkspace.js";
 import { editorConfig } from "./config.js";
 
-/** Editor component for the app */
-export default function Editor(props: EditorProps) {
-  // set the config for this app
-  // you can update these configs in `./config.ts`
+/**
+ * The Files drive app: folders, the folder's contents and a preview, as the
+ * design system's panes workspace. A document that is opened (Connect passes
+ * its editor as children) fills the app.
+ */
+export default function Editor({ children }: EditorProps) {
   useSetPHAppConfig(editorConfig);
   return (
-    <div className="bg-background p-6">
-      <DriveExplorer {...props} />
+    <div className="sk-app sk-files-app" style={{ background: "transparent" }}>
+      <Sprite />
+      <FilesWorkspace>{children}</FilesWorkspace>
     </div>
   );
 }

@@ -36,8 +36,8 @@
       "name": "Email"
     },
     {
-      "name": "File",
-      "id": "sektar/file"
+      "id": "sektar/file",
+      "name": "File"
     }
   ],
   "apps": [
@@ -118,6 +118,13 @@
       "name": "email-editor",
       "documentTypes": [
         "sektar/email"
+      ]
+    },
+    {
+      "name": "file-editor",
+      "id": "file-editor",
+      "documentTypes": [
+        "sektar/file"
       ]
     }
   ],

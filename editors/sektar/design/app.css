@@ -825,7 +825,7 @@
    filling the content area. The height is measured by the app; the panes
    scroll inside it.
    --------------------------------------------------------------------------- */
-.sk-app :is(.sk-mail, .sk-backfills) {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) {
   display: flex;
   flex-direction: column;
   /* Explicit, not left to flex stretch: a size container that is only
@@ -838,41 +838,41 @@
   container-type: inline-size;
   container-name: drive-app;
 }
-.sk-app :is(.sk-mail, .sk-backfills) > .sk-workspace--stack {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) > .sk-workspace--stack {
   width: 100%;
 }
 /* The design system folds a panes workspace into a column under 960px of
    viewport (its docs rule); a stacked workspace is a horizontal track of
    screens and must stay one, whatever the viewport. */
 @media (max-width: 1063px) {
-  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack {
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack {
     flex-direction: row;
   }
-  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack > .sk-pane {
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack > .sk-pane {
     border-top: 0;
     border-left: 1px solid var(--sk-border-subtle);
   }
-  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack > .sk-pane:first-child,
-  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--has-parent > .sk-pane--parent + .sk-pane {
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack > .sk-pane:first-child,
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--has-parent > .sk-pane--parent + .sk-pane {
     border-left: 0;
   }
 }
 
-.sk-app :is(.sk-mail, .sk-backfills) > .sk-subbar {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) > .sk-subbar {
   flex: none;
   /* flush: the first tile's underline starts on the content's left edge */
   padding-inline: 0;
 }
 /* The chooser is the first pane but hidden side by side, so the list pane
    would keep its left hairline and double the sidebar's edge. */
-.sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--has-parent > .sk-pane--parent + .sk-pane {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--has-parent > .sk-pane--parent + .sk-pane {
   border-left: 0;
 }
-.sk-app :is(.sk-mail, .sk-backfills) > .sk-workspace--panes {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) > .sk-workspace--panes {
   flex: 1;
   min-height: 0;
 }
-.sk-app :is(.sk-mail, .sk-backfills) .sk-pane__body {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-pane__body {
   overflow: auto;
   /* Each pane scrolls on its own, with the platform's own physics: momentum
      stays inside the pane instead of chaining into Connect's page scroller
@@ -885,8 +885,8 @@
   scrollbar-width: thin;
   scrollbar-color: var(--sk-border-strong) transparent;
 }
-.sk-app :is(.sk-mail, .sk-backfills) .sk-pane--parent .sk-pane__body,
-.sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--panes {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-pane--parent .sk-pane__body,
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--panes {
   overscroll-behavior: contain;
 }
 /* A row not fetched yet: same height and hairline as a rich row. */
@@ -946,7 +946,7 @@
 /* Side by side, the list keeps a readable width; the message pane gives way.
    (Stacked, the design system's 100% basis applies instead.) */
 @container panes (min-width: 641px) {
-  .sk-app :is(.sk-mail, .sk-backfills) .sk-pane--start:not(.is-collapsed) {
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-pane--start:not(.is-collapsed) {
     min-width: 300px;
   }
 }
@@ -962,21 +962,21 @@
    system's own block (components.css, "@container panes (max-width: 640px)")
    so the two states are identical; keep them in step when it changes. */
 @container panes (640px < width < 800px) {
-  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack > .sk-pane { --sk-stacked: 1; display: flex; flex: 0 0 100%; min-width: 100%; border-left: 0; border-top: 0; transform: translateX(calc(var(--sk-level-offset) * -100%)); transition: transform var(--sk-duration-slow, 320ms) var(--sk-ease-out, ease-out); }
-  @media (prefers-reduced-motion: reduce) { .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack > .sk-pane { transition: none; } }
-  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-pane__toggle { display: none; }
-  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-pane__back { display: grid; }
-  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-pane.is-collapsed { flex-basis: auto; }
-  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__body { display: block; }
-  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__header { flex-direction: row; padding: 0 var(--sk-space-3) 0 var(--sk-space-4); min-height: 52px; border-bottom: 1px solid var(--sk-border-subtle); }
-  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__header > * { display: flex; }
-  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__title { writing-mode: horizontal-tb; transform: none; font-size: var(--sk-text-md); color: inherit; }
-  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-pane__title--collapsed-only { display: none; }
-  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack [data-sk-drill] .sk-drill-chevron { display: block; }
-  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack > .sk-pane--parent { display: flex; }
-  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-pane__switch { cursor: pointer; }
-  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-pane__switch .sk-icon { display: block; }
-  .sk-app :is(.sk-mail, .sk-backfills) .sk-workspace--stack .sk-stack-only { display: block; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack > .sk-pane { --sk-stacked: 1; display: flex; flex: 0 0 100%; min-width: 100%; border-left: 0; border-top: 0; transform: translateX(calc(var(--sk-level-offset) * -100%)); transition: transform var(--sk-duration-slow, 320ms) var(--sk-ease-out, ease-out); }
+  @media (prefers-reduced-motion: reduce) { .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack > .sk-pane { transition: none; } }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-pane__toggle { display: none; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-pane__back { display: grid; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-pane.is-collapsed { flex-basis: auto; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__body { display: block; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__header { flex-direction: row; padding: 0 var(--sk-space-3) 0 var(--sk-space-4); min-height: 52px; border-bottom: 1px solid var(--sk-border-subtle); }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__header > * { display: flex; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__title { writing-mode: horizontal-tb; transform: none; font-size: var(--sk-text-md); color: inherit; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-pane__title--collapsed-only { display: none; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack [data-sk-drill] .sk-drill-chevron { display: block; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack > .sk-pane--parent { display: flex; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-pane__switch { cursor: pointer; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-pane__switch .sk-icon { display: block; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-stack-only { display: block; }
   .sk-app .sk-mail .sk-workspace--stack .sk-stack-hide { display: none; }
   .sk-app .sk-mail .sk-pane--start:not(.is-collapsed) { min-width: 100%; }
 }
@@ -1303,4 +1303,270 @@
   .sk-app .sk-backfills__fields {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Files (editors/files, editors/file-editor): the File document and the drive
+   that holds them. Tokens only; the design system's file tiles, chips, rows
+   and badges, plus the few patterns it lacks (a big inline title, a source
+   chooser, file rows with actions, a preview stage, a property sheet).
+   --------------------------------------------------------------------------- */
+
+/* the tiles the design system has no colour for */
+.sk-app .sk-ftile--text,
+.sk-app .sk-ftile--data { background: var(--sk-forest-700); }
+.sk-app .sk-ftile--html { background: var(--sk-sage-500); }
+.sk-app .sk-ftile--audio,
+.sk-app .sk-ftile--video { background: var(--sk-forest-600); }
+.sk-app .sk-ftile--archive { background: var(--sk-neutral-500); }
+.sk-app .sk-file-type--sm.sk-ftile--html,
+.sk-app .sk-file-type--sm.sk-ftile--data { font-size: 6px; }
+
+/* ----- the File editor's details pane ------------------------------------ */
+.sk-app .sk-file-view .sk-pane__body { padding: var(--sk-space-6); }
+.sk-app .sk-file-heading { display: inline-flex; align-items: baseline; gap: var(--sk-space-3); min-width: 0; }
+.sk-app .sk-file-heading .sk-eyebrow { margin: 0; }
+.sk-app .sk-file-details { display: flex; flex-direction: column; gap: var(--sk-space-5); max-width: 760px; }
+
+.sk-app .sk-file-title {
+  font-family: var(--sk-font-display);
+  font-size: clamp(26px, 3.2vw, 34px);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--sk-text);
+  background: transparent;
+  border: 0;
+  border-radius: var(--sk-radius-md);
+  padding: var(--sk-space-1) var(--sk-space-2);
+  margin: 0 calc(-1 * var(--sk-space-2));
+  width: calc(100% + 2 * var(--sk-space-2));
+  font-variation-settings: "WONK" 0;
+  resize: none;
+  overflow: hidden;
+  display: block;
+}
+.sk-app .sk-file-title::placeholder { color: var(--sk-text-muted); }
+.sk-app :is(.sk-file-title, .sk-file-description):hover { background: var(--sk-bg-subtle); }
+.sk-app :is(.sk-file-title, .sk-file-description):focus {
+  outline: none;
+  background: var(--sk-surface);
+  box-shadow: 0 0 0 1px var(--sk-border), 0 0 0 4px var(--sk-accent-subtle);
+}
+.sk-app .sk-file-description {
+  font: inherit;
+  font-size: var(--sk-text-md);
+  line-height: 1.55;
+  color: var(--sk-text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--sk-radius-md);
+  padding: var(--sk-space-1) var(--sk-space-2);
+  margin: calc(-1 * var(--sk-space-3)) calc(-1 * var(--sk-space-2)) 0;
+  width: calc(100% + 2 * var(--sk-space-2));
+  resize: none;
+  overflow: hidden;
+  min-height: 32px;
+}
+.sk-app .sk-file-description::placeholder { color: var(--sk-text-muted); }
+
+/* tags */
+.sk-app .sk-file-tags { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sk-space-2); }
+.sk-app .sk-file-tags--inline { gap: var(--sk-space-1); }
+.sk-app button.sk-file-tag { cursor: pointer; border: 0; font: inherit; font-size: var(--sk-text-xs); transition: filter var(--sk-duration-fast); }
+.sk-app button.sk-file-tag:hover { filter: brightness(0.95); }
+.sk-app button.sk-file-tag.sk-badge--outline { border: 1px solid var(--sk-border); }
+.sk-app .sk-file-tag-add {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 24px; padding: 0 var(--sk-space-3);
+  border: 1px dashed var(--sk-border-strong);
+  border-radius: var(--sk-radius-full);
+  background: transparent;
+  color: var(--sk-text-secondary);
+  font: inherit; font-size: var(--sk-text-xs);
+  cursor: pointer;
+}
+.sk-app .sk-file-tag-add:hover { color: var(--sk-text); border-color: var(--sk-primary); background: var(--sk-bg-subtle); }
+.sk-app .sk-file-swatches { display: flex; flex-wrap: wrap; gap: var(--sk-space-2); }
+.sk-app .sk-file-swatch {
+  width: 28px; height: 28px; border-radius: var(--sk-radius-full);
+  border: 2px solid var(--sk-surface);
+  box-shadow: 0 0 0 1px var(--sk-border);
+  cursor: pointer; padding: 0;
+}
+.sk-app .sk-file-swatch.is-active { box-shadow: 0 0 0 2px var(--sk-primary); }
+.sk-app .sk-file-swatch--forest { background: var(--sk-forest-600); }
+.sk-app .sk-file-swatch--sage { background: var(--sk-sage-500); }
+.sk-app .sk-file-swatch--mint { background: var(--sk-mint-400, var(--sk-mint-500)); }
+.sk-app .sk-file-swatch--info { background: var(--sk-chart-4); }
+.sk-app .sk-file-swatch--amber { background: var(--sk-warning); }
+.sk-app .sk-file-swatch--clay { background: var(--sk-danger); }
+.sk-app .sk-file-swatch--neutral { background: var(--sk-neutral-300, var(--sk-border-strong)); }
+
+/* sections */
+.sk-app .sk-file-section { display: flex; flex-direction: column; gap: var(--sk-space-3); padding-top: var(--sk-space-5); border-top: 1px solid var(--sk-border-subtle); }
+.sk-app .sk-file-section__header { display: flex; flex-direction: column; gap: 2px; }
+.sk-app .sk-file-section__title { margin: 0; font-size: var(--sk-text-md); font-weight: var(--sk-weight-semibold); display: inline-flex; align-items: center; gap: var(--sk-space-2); }
+
+/* the source: a chooser when empty, a row when set; both take a drop */
+.sk-app .sk-file-drop { position: relative; border-radius: var(--sk-radius-lg); transition: background var(--sk-duration-fast), box-shadow var(--sk-duration-fast); }
+.sk-app .sk-file-drop:not(.sk-file-drop--filled) { border: 1px dashed var(--sk-border-strong); padding: var(--sk-space-4); background: var(--sk-bg-subtle); display: flex; flex-direction: column; gap: var(--sk-space-3); }
+.sk-app :is(.sk-file-drop, .sk-file-renditions).is-over { box-shadow: 0 0 0 2px var(--sk-primary); background: var(--sk-accent-subtle); }
+.sk-app .sk-file-drop__choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sk-space-3); }
+.sk-app .sk-file-choice {
+  display: flex; align-items: center; gap: var(--sk-space-3);
+  padding: var(--sk-space-4);
+  background: var(--sk-surface);
+  border: 1px solid var(--sk-border-subtle);
+  border-radius: var(--sk-radius-lg);
+  text-align: left; font: inherit; color: inherit; cursor: pointer;
+  transition: border-color var(--sk-duration-fast), box-shadow var(--sk-duration-fast);
+}
+.sk-app .sk-file-choice:hover:not(:disabled) { border-color: var(--sk-primary); box-shadow: var(--sk-shadow-sm); }
+.sk-app .sk-file-choice:disabled { opacity: 0.55; cursor: not-allowed; }
+.sk-app .sk-file-choice__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sk-app .sk-file-choice__title { font-weight: var(--sk-weight-semibold); }
+
+/* file rows: a tile, a name, a meta line, actions on the right */
+.sk-app .sk-file-rows { list-style: none; margin: 0; padding: 0; border: 1px solid var(--sk-border-subtle); border-radius: var(--sk-radius-lg); overflow: hidden; background: var(--sk-surface); }
+.sk-app .sk-file-rows > .sk-file-row + .sk-file-row { border-top: 1px solid var(--sk-border-subtle); }
+.sk-app .sk-file-drop--filled > .sk-file-row { border: 1px solid var(--sk-border-subtle); border-radius: var(--sk-radius-lg); background: var(--sk-surface); }
+.sk-app .sk-file-row { display: flex; align-items: center; gap: var(--sk-space-2); padding-right: var(--sk-space-2); position: relative; }
+.sk-app .sk-file-row.is-active { background: var(--sk-surface-3); }
+.sk-app .sk-file-row.is-active::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--sk-primary); }
+.sk-app .sk-file-drop--filled > .sk-file-row.is-active::before { border-radius: var(--sk-radius-lg) 0 0 var(--sk-radius-lg); }
+.sk-app .sk-file-row__main {
+  flex: 1 1 0; min-width: 0;
+  display: flex; align-items: center; gap: var(--sk-space-3);
+  padding: var(--sk-space-3) var(--sk-space-4);
+  background: transparent; border: 0; text-align: left; font: inherit; color: inherit; cursor: pointer;
+}
+.sk-app .sk-file-row:not(.is-active):hover { background: var(--sk-bg-subtle); }
+.sk-app .sk-file-row__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sk-app .sk-file-row__name { font-weight: var(--sk-weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-flex; align-items: center; gap: var(--sk-space-2); }
+.sk-app .sk-file-row__meta { font-size: var(--sk-text-xs); color: var(--sk-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-app .sk-file-row__flag { font-size: 10px; font-weight: var(--sk-weight-medium); text-transform: uppercase; letter-spacing: 0.06em; color: var(--sk-text-muted); border: 1px solid var(--sk-border); border-radius: var(--sk-radius-full); padding: 0 6px; line-height: 16px; }
+.sk-app .sk-file-row__actions { display: inline-flex; align-items: center; gap: var(--sk-space-1); flex: none; }
+
+.sk-app .sk-file-renditions { display: flex; flex-direction: column; gap: var(--sk-space-3); border-radius: var(--sk-radius-lg); }
+.sk-app .sk-file-renditions__empty { margin: 0; padding: var(--sk-space-4); border: 1px dashed var(--sk-border); border-radius: var(--sk-radius-lg); background: var(--sk-bg-subtle); }
+.sk-app .sk-file-renditions__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sk-space-2); }
+
+.sk-app .sk-file-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--sk-space-3) var(--sk-space-6); margin: 0; padding-top: var(--sk-space-5); border-top: 1px solid var(--sk-border-subtle); }
+.sk-app .sk-file-meta dt { font-size: var(--sk-text-xs); color: var(--sk-text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.sk-app .sk-file-meta dd { margin: 2px 0 0; font-size: var(--sk-text-sm); overflow-wrap: anywhere; }
+
+/* modals */
+.sk-modal:has(.sk-file-picker) { width: min(640px, calc(100vw - 32px)); }
+.sk-app .sk-file-picker { min-width: 0; }
+.sk-app .sk-file-picker__list { max-height: min(46vh, 420px); overflow: auto; border: 1px solid var(--sk-border-subtle); border-radius: var(--sk-radius-md); }
+.sk-app .sk-file-picker__list:empty { display: none; }
+.sk-modal:has(.sk-file-text-modal) { width: min(680px, calc(100vw - 32px)); }
+
+/* ----- previews ---------------------------------------------------------- */
+.sk-app .sk-file-preview { display: flex; flex-direction: column; gap: var(--sk-space-3); min-width: 0; }
+.sk-app .sk-file-preview__name { font-size: var(--sk-text-sm); font-weight: var(--sk-weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.sk-app .sk-file-preview__stage {
+  border: 1px solid var(--sk-border-subtle); border-radius: var(--sk-radius-lg);
+  background-color: var(--sk-bg-subtle);
+  background-image: linear-gradient(45deg, var(--sk-surface-2) 25%, transparent 25%, transparent 75%, var(--sk-surface-2) 75%), linear-gradient(45deg, var(--sk-surface-2) 25%, transparent 25%, transparent 75%, var(--sk-surface-2) 75%);
+  background-size: 16px 16px; background-position: 0 0, 8px 8px;
+  display: grid; place-items: center; padding: var(--sk-space-4); min-height: 240px;
+}
+.sk-app .sk-file-preview__image { max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: var(--sk-radius-md); box-shadow: var(--sk-shadow-sm); }
+.sk-app .sk-file-preview__sheet { border: 1px solid var(--sk-border-subtle); border-radius: var(--sk-radius-lg); background: var(--sk-surface); box-shadow: var(--sk-shadow-sm); overflow: hidden; }
+.sk-app .sk-file-preview__sheet--frame { aspect-ratio: 4 / 5; min-height: 360px; }
+.sk-app .sk-file-preview__sheet--loading { padding: var(--sk-space-5); display: flex; flex-direction: column; gap: var(--sk-space-3); }
+.sk-app .sk-file-preview__frame { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+.sk-app .sk-file-preview__text {
+  margin: 0; padding: var(--sk-space-5) var(--sk-space-6);
+  font-family: var(--sk-font-sans); font-size: var(--sk-text-sm); line-height: 1.65;
+  white-space: pre-wrap; overflow-wrap: anywhere; max-height: 70vh; overflow: auto; color: var(--sk-text);
+}
+.sk-app .sk-file-preview__text.sk-font-mono { font-family: var(--sk-font-mono, ui-monospace, monospace); font-size: 12px; }
+.sk-app .sk-file-preview__empty { display: flex; flex-direction: column; align-items: center; gap: var(--sk-space-3); text-align: center; padding: var(--sk-space-10) var(--sk-space-6); border: 1px dashed var(--sk-border); border-radius: var(--sk-radius-lg); }
+.sk-app .sk-file-preview__empty p { margin: 0; max-width: 34ch; }
+.sk-app .sk-file-linked { display: flex; align-items: center; gap: var(--sk-space-3); padding: var(--sk-space-4); border: 1px solid var(--sk-border-subtle); border-radius: var(--sk-radius-lg); background: var(--sk-surface); }
+.sk-app .sk-file-linked__body { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sk-app .sk-file-linked__body .sk-eyebrow { margin: 0; }
+.sk-app .sk-file-linked__name { font-family: var(--sk-font-display); font-size: var(--sk-text-lg, 18px); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-app .sk-icon-tile--lg { width: 44px; height: 44px; }
+.sk-app .sk-file-props { margin: 0; border: 1px solid var(--sk-border-subtle); border-radius: var(--sk-radius-lg); overflow: hidden; background: var(--sk-bg-subtle); }
+.sk-app .sk-file-props__row { display: grid; grid-template-columns: minmax(110px, 38%) 1fr; gap: var(--sk-space-3); padding: var(--sk-space-2) var(--sk-space-4); font-size: var(--sk-text-sm); }
+.sk-app .sk-file-props__row + .sk-file-props__row { border-top: 1px solid var(--sk-border-subtle); }
+.sk-app .sk-file-props__row dt { color: var(--sk-text-muted); }
+.sk-app .sk-file-props__row dd { margin: 0; overflow-wrap: anywhere; min-width: 0; }
+.sk-app .sk-file-props__chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+
+/* ----- the Files drive app ------------------------------------------------ */
+.sk-app .sk-files .sk-pane--start .sk-pane__body { padding: var(--sk-space-2) 0; }
+.sk-app .sk-files-tree { list-style: none; margin: 0; padding: 0; }
+.sk-app .sk-files-tree__item {
+  display: flex; align-items: center; gap: var(--sk-space-2);
+  width: 100%; min-height: 36px;
+  padding: 0 var(--sk-space-3) 0 calc(var(--sk-space-3) + var(--depth, 0) * 16px);
+  background: transparent; border: 0; font: inherit; font-size: var(--sk-text-sm); color: var(--sk-text-secondary);
+  text-align: left; cursor: pointer; position: relative;
+}
+.sk-app .sk-files-tree__item:hover { background: var(--sk-bg-subtle); color: var(--sk-text); }
+.sk-app .sk-files-tree__item.is-active { background: var(--sk-surface-3); color: var(--sk-text); font-weight: var(--sk-weight-medium); }
+.sk-app .sk-files-tree__item.is-active::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--sk-primary); }
+.sk-app .sk-files-tree__twist { width: 16px; height: 16px; display: grid; place-items: center; flex: none; color: var(--sk-text-muted); }
+.sk-app .sk-files-tree__twist .sk-icon { width: 14px; height: 14px; transition: transform var(--sk-duration-fast); }
+.sk-app .sk-files-tree__twist.is-open .sk-icon { transform: rotate(90deg); }
+.sk-app .sk-files-tree__name { flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-app .sk-files-tree__count { font-size: var(--sk-text-xs); color: var(--sk-text-muted); }
+
+.sk-app .sk-files-crumbs { display: inline-flex; align-items: center; gap: 2px; min-width: 0; overflow: hidden; }
+.sk-app .sk-files-crumbs button { background: transparent; border: 0; font: inherit; color: var(--sk-text-muted); cursor: pointer; padding: 2px 4px; border-radius: var(--sk-radius-sm, 4px); white-space: nowrap; }
+.sk-app .sk-files-crumbs button:hover { color: var(--sk-text); background: var(--sk-bg-subtle); }
+.sk-app .sk-files-crumbs .sk-pane__title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-app .sk-files-crumbs .sk-icon { width: 14px; height: 14px; color: var(--sk-text-muted); flex: none; }
+
+.sk-app .sk-files-contents { position: relative; min-height: 100%; }
+.sk-app .sk-files-contents.is-over::after {
+  content: "Drop to add files here"; position: absolute; inset: var(--sk-space-3);
+  display: grid; place-items: center;
+  border: 2px dashed var(--sk-primary); border-radius: var(--sk-radius-lg);
+  background: color-mix(in srgb, var(--sk-accent-subtle) 85%, transparent);
+  color: var(--sk-text-brand); font-weight: var(--sk-weight-semibold);
+  pointer-events: none; z-index: 2;
+}
+.sk-app .sk-files-group { padding: var(--sk-space-3) var(--sk-space-4) var(--sk-space-1); font-size: var(--sk-text-xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--sk-text-muted); }
+.sk-app .sk-files .sk-list-item--rich .sk-file-type { margin-top: 2px; }
+.sk-app .sk-files .sk-list-item--rich .sk-icon-tile { flex: none; }
+.sk-app .sk-files .sk-list-item--rich.is-picked { background: var(--sk-surface-3); }
+.sk-app .sk-files .sk-list-item--rich.is-picked::before { content: ""; position: absolute; left: 0; top: -1px; bottom: -1px; width: 3px; background: var(--sk-primary); }
+
+.sk-app .sk-files-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: var(--sk-space-4); padding: var(--sk-space-4); }
+.sk-app .sk-files-card {
+  display: flex; flex-direction: column; min-width: 0;
+  border: 1px solid var(--sk-border-subtle); border-radius: var(--sk-radius-lg);
+  background: var(--sk-surface); overflow: hidden;
+  font: inherit; color: inherit; text-align: left; cursor: pointer; padding: 0;
+  transition: border-color var(--sk-duration-fast), box-shadow var(--sk-duration-fast), transform var(--sk-duration-fast);
+}
+.sk-app .sk-files-card:hover { border-color: var(--sk-border-strong); box-shadow: var(--sk-shadow-sm); }
+.sk-app .sk-files-card.is-picked { border-color: var(--sk-primary); box-shadow: 0 0 0 1px var(--sk-primary); }
+.sk-app .sk-files-card__thumb { aspect-ratio: 4 / 3; background: var(--sk-bg-subtle); display: grid; place-items: center; overflow: hidden; border-bottom: 1px solid var(--sk-border-subtle); }
+.sk-app .sk-files-card__thumb img { width: 100%; height: 100%; object-fit: cover; }
+.sk-app .sk-files-card__thumb .sk-file-type { transform: scale(1.35); }
+.sk-app .sk-files-card__thumb .sk-icon-tile { transform: scale(1.25); }
+.sk-app .sk-files-card__body { padding: var(--sk-space-3); display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sk-app .sk-files-card__name { font-weight: var(--sk-weight-medium); font-size: var(--sk-text-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-app .sk-files-card__meta { font-size: var(--sk-text-xs); color: var(--sk-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.sk-app .sk-files-preview { display: flex; flex-direction: column; gap: var(--sk-space-4); }
+.sk-app .sk-files-preview__title { margin: 0; font-family: var(--sk-font-display); font-size: 22px; font-weight: 500; line-height: 1.2; }
+.sk-app .sk-files-preview__desc { margin: 0; color: var(--sk-text-secondary); font-size: var(--sk-text-sm); line-height: 1.55; }
+
+/* the open document fills the app below Connect's toolbar */
+.sk-app .sk-files-doc { width: 100%; }
+.sk-app .sk-files-card__thumb > .sk-icon-tile { width: 56px; height: 56px; transform: none; }
+.sk-app .sk-files-card__thumb > .sk-icon-tile .sk-icon { width: 28px; height: 28px; }
+/* Stacked, a picked row's preview is a screen away: no selected look (as Mail). */
+@container panes (width < 800px) {
+  .sk-app .sk-files .sk-list-item--rich.is-picked { background: transparent; }
+  .sk-app .sk-files .sk-list-item--rich.is-picked::before { display: none; }
+  .sk-app .sk-files .sk-list-item--rich.is-picked:hover { background: var(--sk-bg-subtle); }
 }

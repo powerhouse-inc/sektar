@@ -8,6 +8,8 @@ export type MenuItem = {
   icon?: IconName;
   active?: boolean;
   danger?: boolean;
+  /** Shown, not pickable: an action that does not apply right now */
+  disabled?: boolean;
   onSelect: () => void;
 };
 
@@ -60,6 +62,7 @@ export function Menu({
                   it.danger && "sk-menu__item--danger",
                 )}
                 aria-checked={it.active}
+                disabled={it.disabled}
                 onClick={() => {
                   setOpen(false);
                   it.onSelect();
