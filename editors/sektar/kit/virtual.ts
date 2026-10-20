@@ -75,8 +75,13 @@ export function useRowWindow(
     [scroller],
   );
 
+  // The viewport is never taller than the screen. Before the pane has its
+  // height (the first frame, before the workspace measures itself) its body
+  // is as tall as its content, and taking that at face value rendered every
+  // row of the mailbox and asked for every page of it on the first frame.
   // A zero-height viewport (not laid out yet) shows the first screenful.
-  const height = view.height || 600;
+  const screen = typeof window === "undefined" ? 1000 : window.innerHeight;
+  const height = Math.min(view.height || screen, screen);
   const first = Math.floor(view.top / rowHeight);
   const visible = Math.ceil(height / rowHeight) + 1;
   const start = Math.max(0, Math.min(count, first - overscan));

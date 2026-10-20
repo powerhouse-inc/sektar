@@ -25,7 +25,6 @@ import {
   accountUnreadQuery,
   countQuery,
   EmailIndex,
-  MAIL_PAGE,
   mergeAccounts,
   messagesQuery,
   searchWords,
@@ -162,6 +161,48 @@ async function gql<T>(
   return json.data;
 }
 
+/**
+ * Rows per request. A screen shows a dozen rows, so fifty is a few screens:
+ * small enough that the first answer is quick on a slow link, large enough
+ * that a steady scroll asks rarely.
+ */
+export const MAIL_PAGE = 50;
+
+/**
+ * Answers this tab already has, shared by every mount. Opening Mail again
+ * paints the last first page on the first frame and revalidates behind it;
+ * two mounts asking for the same page at once (a remount, a second pane)
+ * share one request.
+ */
+const answered = new Map<string, PageAnswer>();
+const asking = new Map<string, Promise<PageAnswer>>();
+/** Filters remembered; the oldest is forgotten past this many. */
+const ANSWERED_MAX = 24;
+
+function remember(tag: string, answer: PageAnswer): void {
+  answered.delete(tag);
+  answered.set(tag, answer);
+  while (answered.size > ANSWERED_MAX) {
+    const oldest = answered.keys().next().value;
+    if (oldest === undefined) break;
+    answered.delete(oldest);
+  }
+}
+
+/** What a mount starts from: the remembered first page of its filter, if any. */
+function seeded(key: string): Held {
+  const first = answered.get(`${key}|0`);
+  if (!first) return EMPTY_HELD;
+  return {
+    key,
+    total: first.total,
+    pages: new Map([[0, { rows: first.items, epoch: 0 }]]),
+    epoch: 0,
+    loaded: true,
+    version: 1,
+  };
+}
+
 /** How long a burst of changes is left to settle before the top is re-read. */
 const REFRESH_DEBOUNCE_MS = 800;
 /** A quiet mailbox is still re-read now and then: triage from another tab. */
@@ -257,7 +298,7 @@ function useRemoteMail(
   words: readonly string[],
 ): MailList {
   const key = JSON.stringify([base, driveId, filter.account, filter.view, words]);
-  const [held, setHeld] = useState<Held>(EMPTY_HELD);
+  const [held, setHeld] = useState<Held>(() => seeded(key));
   const heldRef = useRef(held);
   heldRef.current = held;
   const [inflightCount, setInflightCount] = useState(0);
@@ -266,9 +307,12 @@ function useRemoteMail(
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const fetchPage = useCallback(
-    async (page: number): Promise<PageAnswer> => {
-      if (!base || !driveId) throw new Error("No switchboard for this drive");
-      const data = await gql<{ emailIndex: { messages: PageAnswer } }>(
+    (page: number): Promise<PageAnswer> => {
+      if (!base || !driveId) return Promise.reject(new Error("No switchboard for this drive"));
+      const tag = `${key}|${page}`;
+      const pending = asking.get(tag);
+      if (pending) return pending;
+      const request = gql<{ emailIndex: { messages: PageAnswer } }>(
         base,
         MESSAGES_QUERY,
         {
@@ -279,10 +323,16 @@ function useRemoteMail(
           o: page * MAIL_PAGE,
           l: MAIL_PAGE,
         },
-      );
-      return data.emailIndex.messages;
+      )
+        .then((data) => {
+          remember(tag, data.emailIndex.messages);
+          return data.emailIndex.messages;
+        })
+        .finally(() => asking.delete(tag));
+      asking.set(tag, request);
+      return request;
     },
-    [base, driveId, filter.account, filter.view, words],
+    [key, base, driveId, filter.account, filter.view, words],
   );
 
   /** Read one page and fold it in. One request per page and epoch at a time. */
@@ -318,10 +368,17 @@ function useRemoteMail(
     [key, fetchPage],
   );
 
-  // A new filter: read its first page. The previous filter's rows stay on
-  // screen until it lands, so switching views never flashes a loader.
+  // A new filter: show what this tab remembers of it at once, then read its
+  // first page. Without a memory, the previous filter's rows stay on screen
+  // until the page lands, so switching views never flashes a loader.
   useEffect(() => {
-    if (base && driveId) load(0);
+    if (!base || !driveId) return;
+    setHeld((prev) => {
+      if (prev.key === key) return prev;
+      const memory = seeded(key);
+      return memory.loaded ? { ...memory, version: prev.version + 1 } : prev;
+    });
+    load(0, true);
   }, [key, base, driveId, load]);
 
   const ensure = useCallback(
