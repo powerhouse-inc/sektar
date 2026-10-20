@@ -26,7 +26,10 @@ Another host's outputs (URLs, drive ids, …) are read with output tokens:
 literally `{ $output: { host: "switchboard", path: ["drives", "workflows", "url"] } }`.
 They resolve when the host starts — from the producer's live run record when
 run alone (`ph run switchboard` first), from the member's live outputs inside
-a compound. `ph generate hosts` regenerates each producer's `outputs.js` and
+a compound. `{ $map: { over, to } }` renders a list from a collection output:
+the `cli` and `desktop` Connect members attach one remote drive per drive the
+switchboard serves (`slug: { $key: true }`, `url: switchboard.drives.$item.url`).
+`ph generate hosts` regenerates each producer's `outputs.js` and
 `types.d.ts`; every host carries `/** @satisfies {PHHost} */`, and
 `npm run tsc` type-checks them (`tsc -p hosts`).
 
@@ -41,11 +44,11 @@ server), `vetra` (compound: both, dev mode — what `ph vetra` runs),
 The `reactor.backends` of a Connect host select which of four clients it
 runs — one field, derived from the backend topology:
 
-| host                       | backends                         | reactorClient | reactor + storage                                                               |
-| -------------------------- | -------------------------------- | ------------- | ------------------------------------------------------------------------------- |
-| `connect` (standalone)     | one `in-process`                 | `in-process`  | the tab's own reactor on the main thread (PGlite in-page)                       |
-| `cli` → connect member     | one `remote`                     | `remote`      | NO local reactor — a pure client to the switchboard over GraphQL (no PGlite)    |
-| `desktop` → connect member | one `in-process` + remote drives | `in-process`  | the tab's reactor PLUS SYNCHRONIZED remote drives (local replica, keeps PGlite) |
+| host                       | backends                                | reactorClient | reactor + storage                                                               |
+| -------------------------- | --------------------------------------- | ------------- | ------------------------------------------------------------------------------- |
+| `connect` (standalone)     | one `in-process`                        | `in-process`  | the tab's own reactor on the main thread (PGlite in-page)                       |
+| `cli` → connect member     | one `remote`                            | `remote`      | NO local reactor — a pure client to the switchboard over GraphQL (no PGlite)    |
+| `desktop` → connect member | one `in-process` + `$map` remote drives | `in-process`  | the tab's reactor PLUS SYNCHRONIZED remote drives (local replica, keeps PGlite) |
 
 The lesson the `cli` vs `desktop` split teaches: a **remote client** proxies
 to the switchboard and stores nothing locally (no PGlite); a **synchronized
@@ -56,4 +59,6 @@ import the local package.
 
 The project drive (`sektar`) is OWNED by the switchboard; standalone Connect
 has its own local copy (the same declaration, read from the switchboard
-host); the `cli`/`desktop` compounds re-point Connect at the switchboard's.
+host); the `cli`/`desktop` compounds re-point Connect at the switchboard's —
+every drive it serves, the plugin-created Workflows drive included. `vetra`'s
+switchboard member serves the same drives plus the studio ones.

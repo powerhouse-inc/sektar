@@ -5,23 +5,13 @@
 // the shippable stack). Run `ph run connect build` once, then
 // `ph run desktop`. At `run`, each member uses its own default mode below;
 // `ph run desktop <verb>` forwards uniformly. Members derive from the sibling
-// hosts (full inclusion); the server's drive list is hoisted once and the
-// connect member attaches it as REMOTES (one declaration, two projections).
+// hosts (full inclusion); the server member serves the switchboard host's
+// drives, and the connect member attaches every drive the server reports
+// (declared and plugin-created) as REMOTES, by `$map` over its outputs.
 import config from "../../powerhouse.config.json" with { type: "json" };
 import switchboard from "../switchboard/host.js";
 import connect from "../connect/host.js";
-
-// Declared once: the server member serves these locally; the connect member
-// attaches the SAME list as remote drives (a compound's Connect must not
-// duplicate-declare the local drives the server owns).
-const serverDrives = [
-  {
-    slug: "sektar",
-    name: "Sektar",
-    preferredEditor: "sektar",
-    icon: "./icons/sektar_symbol_64x64.png",
-  },
-];
+import { outputs as server } from "../switchboard/outputs.js";
 
 /** @satisfies {PHHost} */
 export default {
@@ -61,7 +51,8 @@ export default {
   children: {
     "desktop-switchboard": {
       host: "switchboard",
-      runner: { plugins: [...switchboard.runner.plugins] },
+      // (runner key-merges over the switchboard host's own: its plugins
+      // are inherited.)
       reactor: {
         protocol: switchboard.reactor.protocol,
         backends: {
@@ -78,7 +69,8 @@ export default {
             packages: { dynamic: true },
           },
         },
-        drives: serverDrives,
+        // the reactor section is a full statement: keep the host's drives
+        drives: switchboard.reactor.drives,
       },
     },
     "desktop-connect": {
@@ -88,22 +80,22 @@ export default {
       runner: {
         defaultVerb: "serve",
         port: config.studio?.port ?? 3000,
-        plugins: [...connect.runner.plugins],
       },
-      // Attach the server's drives as remotes, each by the URL the server
-      // member reports for it (its drives.<slug>.url output). (The Workflows
-      // drive rides the connect host's workflows plugin, inherited above
-      // through its plugins list.)
+      // Attach every drive the server member serves as a remote, by the URL
+      // it reports (key-sorted). The Workflows drive is among them; the
+      // inherited workflows plugin names the same URL, and Connect attaches
+      // a URL once.
       reactor: {
         ...connect.reactor,
-        drives: serverDrives.map((d) => ({
-          slug: d.slug,
-          remote: {
-            url: {
-              $output: { host: "switchboard", path: ["drives", d.slug, "url"] },
+        drives: {
+          $map: {
+            over: { $output: { host: "switchboard", path: ["drives"] } },
+            to: {
+              slug: { $key: true },
+              remote: { url: server.drives.$item.url },
             },
           },
-        })),
+        },
       },
     },
   },
