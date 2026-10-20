@@ -62,3 +62,29 @@ has its own local copy (the same declaration, read from the switchboard
 host); the `cli`/`desktop` compounds re-point Connect at the switchboard's —
 every drive it serves, the plugin-created Workflows drive included. `vetra`'s
 switchboard member serves the same drives plus the studio ones.
+
+### Building Sektar.app against a local monorepo checkout
+
+`ph run desktop build` vendors ph-cli and its runtime into the app's stack
+from the npm registry. Until the code these hosts need is released, vendor
+it from a monorepo checkout instead: pack it, then point the build at the
+tarballs with `PH_DESKTOP_LOCAL_PACKAGES` (an env var, so no machine path
+lands in a host file; a relative path resolves against this project).
+
+```sh
+# from this project's root; MONOREPO is the checkout, its dists built
+# 1. pack ph-cli, host-core and every workspace package they depend on
+rm -rf .ph/local-packages
+pnpm -C "$MONOREPO" pack:desktop-stack --pack-destination "$PWD/.ph/local-packages"
+# 2. build members, stage the stack, produce Sektar.app (+ .dmg) and launch it
+PH_DESKTOP_LOCAL_PACKAGES=.ph/local-packages FEATURE_UNIFORM_RUNNERS_ENABLED=true \
+  npx ph-cli run desktop build
+open hosts/desktop/tauri-shell/target/release/bundle/macos/Sektar.app
+```
+
+Every tarball overrides its package throughout the stack, as the local and
+registry builds share a version number. Re-pack after rebuilding the
+monorepo's dists; the build refuses two tarballs of one package, so clear
+the directory first. `desktop-connect` precedes `desktop-switchboard` in
+`children` because `build` runs members in that order and Connect's build
+clears `dist/`, the package's `dist/node` included.

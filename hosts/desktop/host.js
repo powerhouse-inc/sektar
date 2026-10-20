@@ -49,30 +49,9 @@ export default {
   },
 
   children: {
-    "desktop-switchboard": {
-      host: "switchboard",
-      // (runner key-merges over the switchboard host's own: its plugins
-      // are inherited.)
-      reactor: {
-        protocol: switchboard.reactor.protocol,
-        backends: {
-          main: {
-            // the switchboard's own reactor; backend kind is required
-            kind: "in-process",
-            // Per-user data dir; ${userData} resolves at the runner (a shell
-            // points it at the OS profile via PH_USER_DATA_DIR).
-            storage: {
-              kind: "path",
-              dataDir: "${userData}/.ph/reactor-storage",
-            },
-            // the reactor can fetch models Connect installs at runtime
-            packages: { dynamic: true },
-          },
-        },
-        // the reactor section is a full statement: keep the host's drives
-        drives: switchboard.reactor.drives,
-      },
-    },
+    // `build` builds members in this order: Connect's build clears dist/
+    // (the package's dist/node with it), so the switchboard's package build
+    // runs after it. `config.startOrder` orders the running members.
     "desktop-connect": {
       host: "connect",
       // serve the BUILT Connect; the loopback port doubles as a shell's
@@ -96,6 +75,30 @@ export default {
             },
           },
         },
+      },
+    },
+    "desktop-switchboard": {
+      host: "switchboard",
+      // (runner key-merges over the switchboard host's own: its plugins
+      // are inherited.)
+      reactor: {
+        protocol: switchboard.reactor.protocol,
+        backends: {
+          main: {
+            // the switchboard's own reactor; backend kind is required
+            kind: "in-process",
+            // Per-user data dir; ${userData} resolves at the runner (a shell
+            // points it at the OS profile via PH_USER_DATA_DIR).
+            storage: {
+              kind: "path",
+              dataDir: "${userData}/.ph/reactor-storage",
+            },
+            // the reactor can fetch models Connect installs at runtime
+            packages: { dynamic: true },
+          },
+        },
+        // the reactor section is a full statement: keep the host's drives
+        drives: switchboard.reactor.drives,
       },
     },
   },
