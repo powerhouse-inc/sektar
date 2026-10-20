@@ -15,6 +15,8 @@ import { InvoiceEditor } from "./invoice-editor/module.js";
 import { OriginalSourceCollectionEditor } from "./original-source-collection-editor/module.js";
 import { OriginalSourceQueueEditor } from "./original-source-queue-editor/module.js";
 import { Sektar } from "./sektar/module.js";
+import { TripEditor } from "./trip-editor/module.js";
+import { Trips } from "./trips/module.js";
 
 export const editors: EditorModule[] = [
   BackfillsWorkspace,
@@ -29,4 +31,6 @@ export const editors: EditorModule[] = [
   OriginalSourceCollectionEditor,
   OriginalSourceQueueEditor,
   Sektar,
+  TripEditor,
+  Trips,
 ];

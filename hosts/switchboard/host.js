@@ -73,6 +73,13 @@ export default {
         preferredEditor: "files",
         icon: "./icons/sektar_symbol_64x64.png",
       },
+      // Trips: business trips (sektar/trip), opened by the Trips drive app.
+      {
+        slug: "trips",
+        name: "Trips",
+        preferredEditor: "trips",
+        icon: "./icons/sektar_symbol_64x64.png",
+      },
     ],
   },
 };

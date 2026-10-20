@@ -25,6 +25,7 @@ import { openAsBlob, readFileSync, existsSync } from "node:fs";
 import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { parseInvoicePdf } from "./invoice-pdf.mjs";
 
 /* ------------------------------------------------------------- options */
 
@@ -48,6 +49,8 @@ const FOLDER_NAME = opt("folder", "Invoices");
 const SWITCHBOARD = opt("switchboard", "http://localhost:7540").replace(/\/+$/, "");
 const JOURNAL = resolve(opt("journal", ".ph/import-invoices.journal.json"));
 const PLAN_OUT = opt("plan-out", null);
+// --settle: mark the invoices of a closed year paid (method OTHER, an "assumed" reference)
+const SETTLE_ARCHIVE = flag("settle");
 const YEAR_DIR = args[0] && resolve(args[0]);
 if (!YEAR_DIR) {
   console.error("usage: node scripts/import-invoices.mjs <year-dir> [--plan]");
@@ -360,25 +363,149 @@ function periodOf(subject) {
     const m0 = (Number(q[1]) - 1) * 3;
     return { start: new Date(Date.UTC(y, m0, 1, 12)).toISOString(), end: new Date(Date.UTC(y, m0 + 3, 0, 12)).toISOString() };
   }
-  const m = new RegExp(`(${MONTH_NAMES.join("|")}) (\\d{4})`).exec(subject ?? "");
+  const DUTCH = ["januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus", "september", "oktober", "november", "december"];
+  const m = new RegExp(`(${[...MONTH_NAMES, ...DUTCH].join("|")}) (\\d{4})`, "i").exec(subject ?? "");
   if (m) {
     const y = Number(m[2]);
-    const i = MONTH_NAMES.indexOf(m[1]);
+    const i = [...MONTH_NAMES, ...DUTCH].findIndex((n) => n.toLowerCase() === m[1].toLowerCase()) % 12;
     return { start: new Date(Date.UTC(y, i, 1, 12)).toISOString(), end: new Date(Date.UTC(y, i + 1, 0, 12)).toISOString() };
   }
   return null;
 }
 
+/* ------------------------------------------------- the earlier years */
+
+// Before 2026 the sheets follow no one naming, and before 2021 there are
+// none: the issued PDF is the record. Every customer of those years becomes a
+// contact; the 2026 ones keep their keys.
+const customerKey = (name) =>
+  /^Powerhouse Genesis/i.test(name) ? "PH" : /^Dai Fonden/i.test(name) ? "DAIF" : name.normalize("NFKD").replace(/[^\w]+/g, "-").replace(/^-|-$/g, "").toUpperCase();
+
+/** KSDC as the invoice prints it: bvba until the 2019 reform, Belzele until the move to Gent. */
+function sellerAsPrinted(text) {
+  const seller = { ...KSDC, name: /KSDC bvba/i.test(text) ? "KSDC bvba" : "KSDC bv" };
+  if (/Biezenstraat 13/i.test(text)) Object.assign(seller, { street: "Biezenstraat 13", postalCode: "9940", city: "Evergem (Belzele)" });
+  if (/wouter@ksdc\.be/i.test(text)) seller.email = "wouter@ksdc.be";
+  return seller;
+}
+
+/** "Software - Toggl - 185,13 EUR" → the category, the description, the cost billed on. */
+function splitLine(raw, usd) {
+  const cat = /^(Software|Travel|Restaurant|Hotel|Hardware|Office|Offsite)(?:\s*\(([^)]*)\))?\s*-\s*(.*)$/i.exec(raw);
+  let description = cat ? cat[3] : raw;
+  const note = cat?.[2] ? cat[2] : null;
+  const orig = / - ([\d.,]+) ?(EUR|DKK|CAD|PLN|ARS|CHF|GBP|SEK|NOK|USD|JPY|AUD|MXN|BRL|TRY|CZK|HUF)\$?$/i.exec(description) ?? /\/ ([\d.,]+) ([A-Z]{3})$/.exec(description) ?? /\(([\d.,]+) ([A-Z]{3})\)$/.exec(description);
+  let original = null;
+  if (orig) {
+    description = description.slice(0, orig.index).trim();
+    const amount = parseAmountLoose(orig[1]);
+    if (amount !== null && (usd || orig[2].toUpperCase() !== "EUR")) original = { amount, currency: orig[2].toUpperCase() };
+  }
+  if (cat && /^\d{1,2}[-/][A-Z]{3}$/i.test(description.trim())) description = `${cat[1]} ${description.trim()}`;
+  const category = cat ? (/^offsite$/i.test(cat[1]) ? "Travel" : cat[1][0].toUpperCase() + cat[1].slice(1).toLowerCase()) : null;
+  return { description: (note ? `${description} (${note})` : description).trim(), category, original };
+}
+const parseAmountLoose = (s) => {
+  const t = s.replace(/\s/g, "");
+  const last = Math.max(t.lastIndexOf("."), t.lastIndexOf(","));
+  const n = last >= 0 && t.length - last - 1 !== 3 ? Number(t.slice(0, last).replace(/[.,]/g, "") + "." + t.slice(last + 1)) : Number(t.replace(/[.,]/g, ""));
+  return Number.isFinite(n) ? n : null;
+};
+
+async function planFromPdf(pdf, files) {
+  const stem = pdf.slice(0, -4);
+  const number = stem.slice(0, 7);
+  const file = join(YEAR_DIR, pdf);
+  const p = parseInvoicePdf(file);
+  const text = pdfText(file);
+  const usd = p.currency === "USD";
+  const key = customerKey(p.buyer.name ?? stem);
+  CUSTOMERS[key] ??= {
+    party: Object.fromEntries(Object.entries(p.buyer).filter(([, v]) => v)),
+    contact: { email: p.buyer.email ?? null, website: null },
+  };
+  const legal = p.legal ?? (p.lines.every((l) => l.vatRate === 0) ? { category: "OUTSIDE_SCOPE", code: "VATEX-EU-O", text: "Not subject to VAT" } : null);
+  const lines = p.lines.map((l) => {
+    const split = l.recovered ? { description: l.description, category: null, original: null } : splitLine(l.description, usd);
+    // a deduction ("Voorschot reeds betaald", a reimbursement): the model wants a negative quantity
+    const negative = l.unitPrice < 0;
+    if (negative && split.original) split.original.amount = Math.abs(split.original.amount);
+    // The model prices a re-billed line from its cost and the rate. A line
+    // billed at another rate (another month's, or 1:1 as 2023011's seat
+    // reservation) carries the rate it was billed at, so its price stays.
+    if (split.original && usd) {
+      const docRate = split.original.currency === "EUR" ? p.rate : null;
+      const price = Math.abs(l.unitPrice);
+      if (!docRate || round2(split.original.amount * docRate) !== round2(price)) split.original.rate = price / split.original.amount;
+    }
+    return {
+      description: split.description,
+      category: split.category,
+      quantity: negative ? -Math.abs(l.quantity) : l.quantity,
+      unitPrice: Math.abs(l.unitPrice),
+      vatRate: l.vatRate,
+      vatCategory: l.vatRate > 0 ? "STANDARD" : legal?.category ?? "OUTSIDE_SCOPE",
+      original: split.original,
+      note: l.note ?? null,
+    };
+  });
+  const net = round2(lines.reduce((s, l) => s + round2(l.quantity * l.unitPrice), 0));
+  const rounding = p.totalExcl === null ? 0 : round2(p.totalExcl - net);
+  // the PDFs that share the invoice's number: timesheets, worklogs, attachments
+  const companions = files.filter((n) => n !== pdf && n.startsWith(number) && /\.pdf$/i.test(n) && (/attachment/i.test(n) || !parseInvoicePdf(join(YEAR_DIR, n)).number));
+  const receiptDir = join(ORIGINALS, `${number}-supporting-materials`);
+  const receipts = usd ? matchReceipts(lines, (await walk(receiptDir)).filter((f) => /\.pdf$/i.test(f))) : [];
+  const zip = files.find((n) => n.startsWith(number) && /supporting-(materials|documents)\.zip$/i.test(n));
+  const docs = [
+    { file, role: "ISSUED_COPY", description: p.kind === "CREDIT_NOTE" ? "The credit note as sent" : "The invoice as sent" },
+    existsSync(join(ORIGINALS, `${stem}.docx`)) && { file: join(ORIGINALS, `${stem}.docx`), role: "SOURCE", description: "The editable original" },
+    zip && { file: join(YEAR_DIR, zip), role: "SUPPORTING", description: "Every receipt behind the re-billed costs, as sent with the invoice" },
+    ...companions.map((n) => ({ file: join(YEAR_DIR, n), role: "SUPPORTING", description: "Sent with the invoice" })),
+    ...receipts.filter((r) => r.line === null).map((r) => ({ file: r.file, role: "RECEIPT", description: `Not matched to a line: ${r.why}` })),
+  ].filter(Boolean);
+  return {
+    key: stem,
+    number,
+    kind: p.kind,
+    customer: key,
+    seller: sellerAsPrinted(text),
+    legal,
+    currency: p.currency,
+    rate: p.rate,
+    issuedAt: p.issuedAt,
+    deliveredAt: p.deliveredAt,
+    dueAt: p.dueAt,
+    paidAt: p.paidAt,
+    subject: p.subject,
+    period: periodOf(p.subject),
+    lines,
+    sheetTotal: p.totalExcl,
+    totalIncl: p.totalIncl ?? (p.vatTotal === 0 && p.totalExcl !== null ? p.totalExcl : null),
+    net,
+    rounding,
+    receipts: receipts.filter((r) => r.line !== null),
+    docs,
+    archived: true,
+  };
+}
+
 async function makePlan() {
-  const sheets = readXlsx(join(ORIGINALS, "prijscalculatie.xlsx"));
-  const pdfs = (await readdir(YEAR_DIR)).filter((n) => /^\d{7}-.*\.pdf$/.test(n)).sort();
+  const sheets = existsSync(join(ORIGINALS, "prijscalculatie.xlsx")) ? readXlsx(join(ORIGINALS, "prijscalculatie.xlsx")) : {};
+  const files = (await readdir(YEAR_DIR)).sort();
+  const pdfs = files.filter((n) => /^\d{7}-.*\.pdf$/.test(n));
   const plan = [];
   for (const pdf of pdfs) {
     const stem = pdf.slice(0, -4);
     const number = stem.slice(0, 7);
     const customer = /-ph-/.test(stem) ? "PH" : "DAIF";
     const sheet = sheets[sheetName(stem)];
-    if (!sheet) throw new Error(`No sheet for ${stem}`);
+    if (!sheet) {
+      // a timesheet or an attachment goes with its invoice, not on its own
+      // (an attachment can be someone else's invoice: "2021010-attachment-google-workspaces")
+      if (/attachment/i.test(pdf) || !parseInvoicePdf(join(YEAR_DIR, pdf)).number) continue;
+      plan.push(await planFromPdf(pdf, files));
+      continue;
+    }
     const usd = customer === "PH";
     const { lines, rate, sheetTotal } = linesFrom(sheet, usd);
     const h = header(join(YEAR_DIR, pdf));
@@ -592,14 +719,14 @@ async function importOne(p, where) {
     entry.filed = true;
     await saveJournal();
   }
-  const vat = VAT[p.customer];
+  const vat = p.archived ? p.legal : VAT[p.customer];
   if (!entry.drafted) {
     const ops = [
       [
         "setHeader",
         "SetHeader",
         {
-          kind: "INVOICE",
+          kind: p.kind ?? "INVOICE",
           direction: "OUTGOING",
           subject: p.subject,
           deliveredAt: p.deliveredAt,
@@ -609,12 +736,12 @@ async function importOne(p, where) {
           ...(p.rounding ? { roundingAmount: p.rounding } : {}),
         },
       ],
-      ["setSeller", "SetSeller", KSDC],
+      ["setSeller", "SetSeller", p.seller ?? KSDC],
       ["setBuyer", "SetBuyer", { ...CUSTOMERS[p.customer].party, contactId }],
     ];
     if (p.currency !== "EUR") {
       ops.push(["setCurrency", "SetCurrency", { currency: p.currency, vatCurrency: "EUR" }]);
-      ops.push(["setExchangeRate", "SetExchangeRate", { base: "EUR", quote: p.currency, rate: p.rate, date: p.deliveredAt, source: "The month's rate, as on the invoice" }]);
+      if (p.rate) ops.push(["setExchangeRate", "SetExchangeRate", { base: "EUR", quote: p.currency, rate: p.rate, date: p.deliveredAt, source: "The month's rate, as on the invoice" }]);
     }
     p.lines.forEach((l, i) => {
       l.id = entry.lineIds?.[i] ?? randomUUID();
@@ -626,15 +753,17 @@ async function importOne(p, where) {
           description: l.description,
           quantity: l.quantity,
           unitPrice: l.unitPrice,
-          vatCategory: vat.category,
-          vatRate: 0,
+          vatCategory: l.vatCategory ?? vat.category,
+          vatRate: l.vatRate ?? 0,
           category: l.category,
-          ...(l.original ? { originalAmount: l.original.amount, originalCurrency: l.original.currency } : {}),
+          ...(l.note ? { note: l.note } : {}),
+          ...(l.original ? { originalAmount: l.original.amount, originalCurrency: l.original.currency, ...(l.original.rate ? { originalRate: l.original.rate } : {}) } : {}),
         },
       ]);
     });
     entry.lineIds = p.lines.map((l) => l.id);
-    ops.push(["setVatReason", "SetVatReason", { category: vat.category, code: vat.code, text: vat.text }]);
+    if (vat && p.lines.some((l) => (l.vatCategory ?? vat.category) === vat.category))
+      ops.push(["setVatReason", "SetVatReason", { category: vat.category, code: vat.code, text: vat.text }]);
     ops.push([
       "setPaymentInstructions",
       "SetPaymentInstructions",
@@ -668,6 +797,12 @@ async function importOne(p, where) {
   if (p.paidAt && !entry.paid) {
     const total = round2(p.net + p.rounding);
     await invoice(id, [["recordPayment", "RecordPayment", { id: randomUUID(), paidAt: p.paidAt, amount: total, method: "BANK_TRANSFER" }]]);
+    entry.paid = true;
+  } else if (p.archived && SETTLE_ARCHIVE && p.kind !== "CREDIT_NOTE" && !entry.paid && p.totalIncl) {
+    // The books of these years are closed: the invoice was settled, but no
+    // bank line of the time is in the Sektar drive to say when. The payment
+    // says so in its reference, so a later bank import can replace it.
+    await invoice(id, [["recordPayment", "RecordPayment", { id: randomUUID(), paidAt: p.dueAt ?? p.issuedAt, amount: p.totalIncl, method: "OTHER", transactionId: "assumed: closed year, no bank line matched" }]]);
     entry.paid = true;
   }
   const errors = await opErrors(id);

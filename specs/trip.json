@@ -1,0 +1,513 @@
+{
+  "id": "sektar/trip",
+  "name": "Trip",
+  "author": {
+    "name": "Sektar",
+    "website": "https://sektar.app"
+  },
+  "extension": "trip",
+  "description": "A business trip: why, when and where, the transport, the stays, the meals and the other costs, with the bookings and receipts behind them and the invoice lines they were billed on with.",
+  "specifications": [
+    {
+      "version": 1,
+      "changeLog": [],
+      "state": {
+        "global": {
+          "schema": "type TripState {\n  \"What the trip is called, e.g. Copenhagen – Sky offsite\"\n  title: String\n  \"Why the trip is made: the meeting, the event, the client\"\n  purpose: String\n  purposeKind: TripPurposeKind\n  status: TripStatus!\n  \"The first and last day away\"\n  startDate: Date\n  endDate: Date\n  traveler: TripTraveler\n  destinations: [TripDestination!]!\n  \"Who pays: the customer the costs are billed on to\"\n  billing: TripBilling\n  \"The currency the trip is reported in\"\n  currency: String!\n  transport: [TripTransport!]!\n  stays: [TripStay!]!\n  meals: [TripMeal!]!\n  extras: [TripExtra!]!\n  attachments: [TripAttachment!]!\n  \"Where what is known about the trip came from: mails, invoice lines, files\"\n  sources: [TripSource!]!\n  notes: String\n}\n\nenum TripPurposeKind {\n  CLIENT_VISIT\n  CONFERENCE\n  OFFSITE\n  WORKSHOP\n  SALES\n  TRAINING\n  OTHER\n}\n\nenum TripStatus {\n  PLANNED\n  BOOKED\n  COMPLETED\n  CANCELLED\n}\n\ntype TripTraveler {\n  name: String\n  email: String\n}\n\ntype TripDestination {\n  id: OID!\n  city: String!\n  \"ISO 3166-1 alpha-2\"\n  country: String\n  arriveOn: Date\n  leaveOn: Date\n}\n\ntype TripBilling {\n  billable: Boolean!\n  customerId: PHID\n  customerName: String\n}\n\n\"A cost, in the currency it was paid in and in the trip's currency\"\ntype TripCost {\n  amount: Float!\n  currency: String!\n  \"The amount in the trip's currency, when it differs\"\n  converted: Float\n}\n\n\"The invoice line a cost was billed on with\"\ntype TripInvoiceLink {\n  invoiceId: PHID!\n  lineId: OID\n  number: String\n}\n\nenum TripTransportMode {\n  FLIGHT\n  TRAIN\n  CAR\n  TAXI\n  RIDE_HAIL\n  BUS\n  FERRY\n  PUBLIC_TRANSPORT\n  PARKING\n  OTHER\n}\n\ntype TripTransport {\n  id: OID!\n  mode: TripTransportMode!\n  \"The airline, the railway, the taxi company\"\n  carrier: String\n  \"The flight or train number\"\n  number: String\n  from: String\n  to: String\n  departAt: DateTime\n  arriveAt: DateTime\n  \"The booking or PNR code\"\n  bookingReference: String\n  seat: String\n  cost: TripCost\n  invoice: TripInvoiceLink\n  note: String\n}\n\ntype TripStay {\n  id: OID!\n  name: String!\n  address: String\n  city: String\n  checkIn: Date\n  checkOut: Date\n  bookingReference: String\n  \"Through whom it was booked: Booking.com, Airbnb, the hotel\"\n  bookedVia: String\n  cost: TripCost\n  invoice: TripInvoiceLink\n  note: String\n}\n\nenum TripMealKind {\n  BREAKFAST\n  LUNCH\n  DINNER\n  COFFEE\n  DRINKS\n  SNACK\n  OTHER\n}\n\ntype TripMeal {\n  id: OID!\n  kind: TripMealKind!\n  venue: String\n  at: DateTime\n  \"With whom: a client dinner, the team\"\n  attendees: String\n  cost: TripCost\n  invoice: TripInvoiceLink\n  note: String\n}\n\nenum TripExtraKind {\n  EVENT_TICKET\n  COWORKING\n  CONNECTIVITY\n  VISA\n  INSURANCE\n  SUPPLIES\n  OTHER\n}\n\ntype TripExtra {\n  id: OID!\n  kind: TripExtraKind!\n  description: String!\n  at: DateTime\n  cost: TripCost\n  invoice: TripInvoiceLink\n  note: String\n}\n\nenum TripAttachmentRole {\n  BOOKING\n  TICKET\n  RECEIPT\n  INVOICE\n  ITINERARY\n  OTHER\n}\n\ntype TripAttachment {\n  id: OID!\n  \"The transport leg, stay, meal or extra it belongs to; none for the trip as a whole\"\n  itemId: OID\n  role: TripAttachmentRole!\n  fileName: String!\n  mimeType: String\n  ref: String\n  sizeBytes: Int\n  \"The document it is kept in: an email or a File\"\n  documentId: PHID\n  addedAt: DateTime!\n}\n\nenum TripSourceKind {\n  EMAIL\n  INVOICE_LINE\n  FILE\n  CALENDAR\n  MANUAL\n}\n\ntype TripSource {\n  id: OID!\n  kind: TripSourceKind!\n  documentId: PHID\n  lineId: OID\n  label: String\n  at: DateTime\n}",
+          "initialValue": "{\n  \"title\": null,\n  \"purpose\": null,\n  \"purposeKind\": null,\n  \"status\": \"PLANNED\",\n  \"startDate\": null,\n  \"endDate\": null,\n  \"traveler\": null,\n  \"destinations\": [],\n  \"billing\": null,\n  \"currency\": \"EUR\",\n  \"transport\": [],\n  \"stays\": [],\n  \"meals\": [],\n  \"extras\": [],\n  \"attachments\": [],\n  \"sources\": [],\n  \"notes\": null\n}",
+          "examples": []
+        },
+        "local": {
+          "schema": "",
+          "initialValue": "",
+          "examples": []
+        }
+      },
+      "modules": [
+        {
+          "id": "5319d606-ea5b-4bf0-b665-d8b2a6a42546",
+          "name": "trip",
+          "description": "What the trip is, when and where",
+          "operations": [
+            {
+              "id": "448a0a29-c6bd-4150-ae18-58cabd24fb50",
+              "name": "SET_DETAILS",
+              "description": "",
+              "schema": "input SetDetailsInput {\n  title: String\n  purpose: String\n  purposeKind: TripPurposeKind\n  startDate: Date\n  endDate: Date\n  currency: String\n  notes: String\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nconst start = i.startDate !== undefined ? i.startDate ?? null : state.startDate;\nconst end = i.endDate !== undefined ? i.endDate ?? null : state.endDate;\nif (start && end && end < start) throw new InvalidDatesError(`${end} is before ${start}`);\nif (i.title !== undefined) state.title = i.title ?? null;\nif (i.purpose !== undefined) state.purpose = i.purpose ?? null;\nif (i.purposeKind !== undefined) state.purposeKind = i.purposeKind ?? null;\nstate.startDate = start;\nstate.endDate = end;\nif (i.currency) state.currency = i.currency;\nif (i.notes !== undefined) state.notes = i.notes ?? null;",
+              "errors": [
+                {
+                  "id": "82e14bbf-4371-4d9e-9888-1e8e5d1544a6",
+                  "code": "INVALID_DATES",
+                  "name": "InvalidDatesError",
+                  "description": "The trip cannot end before it starts",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "0ada68a6-06b3-41cb-8977-12a4c7ff45f7",
+              "name": "SET_STATUS",
+              "description": "",
+              "schema": "input SetStatusInput {\n  status: TripStatus!\n}",
+              "template": "",
+              "reducer": "state.status = action.input.status;",
+              "errors": [],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "4321219e-b107-42eb-b46d-a0c663b8f86a",
+              "name": "SET_TRAVELER",
+              "description": "",
+              "schema": "input SetTravelerInput {\n  name: String\n  email: String\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nstate.traveler = i.name || i.email ? { name: i.name ?? null, email: i.email ?? null } : null;",
+              "errors": [],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "32e0f617-e647-44b0-9923-c85d8c06172f",
+              "name": "SET_BILLING",
+              "description": "",
+              "schema": "input SetBillingInput {\n  billable: Boolean!\n  customerId: PHID\n  customerName: String\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nstate.billing = { billable: i.billable, customerId: i.customerId ?? null, customerName: i.customerName ?? null };",
+              "errors": [],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "fc9b8a1d-e489-4cd8-96c8-c96e2c231b62",
+              "name": "ADD_DESTINATION",
+              "description": "",
+              "schema": "input AddDestinationInput {\n  id: OID!\n  city: String!\n  country: String\n  arriveOn: Date\n  leaveOn: Date\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nif (state.destinations.some((d) => d.id === i.id)) throw new DuplicateItemIdError(`Destination ${i.id} exists`);\nif (i.arriveOn && i.leaveOn && i.leaveOn < i.arriveOn) throw new InvalidDatesError(`${i.leaveOn} is before ${i.arriveOn}`);\nstate.destinations.push({ id: i.id, city: i.city, country: i.country ?? null, arriveOn: i.arriveOn ?? null, leaveOn: i.leaveOn ?? null });",
+              "errors": [
+                {
+                  "id": "4ec73a8a-7b18-455c-bfd4-24fc4d0a3a78",
+                  "code": "DUPLICATE_ITEM_ID",
+                  "name": "DuplicateItemIdError",
+                  "description": "An item with this id is already on the trip",
+                  "template": ""
+                },
+                {
+                  "id": "46768911-21fa-49cf-a12e-eeff26730ee6",
+                  "code": "INVALID_DATES",
+                  "name": "InvalidDatesError",
+                  "description": "The trip cannot end before it starts",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "bd49636e-492c-48b8-9fc1-c955fcf6e901",
+              "name": "UPDATE_DESTINATION",
+              "description": "",
+              "schema": "input UpdateDestinationInput {\n  id: OID!\n  city: String\n  country: String\n  arriveOn: Date\n  leaveOn: Date\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nconst d = state.destinations.find((x) => x.id === i.id);\nif (!d) throw new ItemNotFoundError(`No destination ${i.id}`);\nif (i.city) d.city = i.city;\nif (i.country !== undefined) d.country = i.country ?? null;\nif (i.arriveOn !== undefined) d.arriveOn = i.arriveOn ?? null;\nif (i.leaveOn !== undefined) d.leaveOn = i.leaveOn ?? null;",
+              "errors": [
+                {
+                  "id": "58af98f5-79e1-4fac-bfe1-7672e4014112",
+                  "code": "ITEM_NOT_FOUND",
+                  "name": "ItemNotFoundError",
+                  "description": "No item with this id on the trip",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "0f190516-cbb1-453f-85f5-1a5a42e83782",
+              "name": "REMOVE_DESTINATION",
+              "description": "",
+              "schema": "input RemoveDestinationInput {\n  id: OID!\n}",
+              "template": "",
+              "reducer": "const at = state.destinations.findIndex((x) => x.id === action.input.id);\nif (at < 0) throw new ItemNotFoundError(`No destination ${action.input.id}`);\nstate.destinations.splice(at, 1);",
+              "errors": [
+                {
+                  "id": "38761a12-f281-4215-b20e-018926711416",
+                  "code": "ITEM_NOT_FOUND",
+                  "name": "ItemNotFoundError",
+                  "description": "No item with this id on the trip",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        },
+        {
+          "id": "2aa107ce-a45c-40d4-9aa4-217a2d864b5a",
+          "name": "transport",
+          "description": "Flights, trains, taxis and the other legs",
+          "operations": [
+            {
+              "id": "c4109c2c-adf7-4532-9424-fb37789e6171",
+              "name": "ADD_TRANSPORT",
+              "description": "",
+              "schema": "input AddTransportInput {\n  id: OID!\n  mode: TripTransportMode!\n  carrier: String\n  number: String\n  from: String\n  to: String\n  departAt: DateTime\n  arriveAt: DateTime\n  bookingReference: String\n  seat: String\n  amount: Float\n  currency: String\n  converted: Float\n  invoiceId: PHID\n  invoiceLineId: OID\n  invoiceNumber: String\n  note: String\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nif (state.transport.some((x) => x.id === i.id)) throw new DuplicateItemIdError(`Transport leg ${i.id} exists`);\nconst cost = costFrom(i, state.currency);\nstate.transport.push({\n  id: i.id,\n  mode: i.mode,\n  carrier: i.carrier ?? null,\n  number: i.number ?? null,\n  from: i.from ?? null,\n  to: i.to ?? null,\n  departAt: i.departAt ?? null,\n  arriveAt: i.arriveAt ?? null,\n  bookingReference: i.bookingReference ?? null,\n  seat: i.seat ?? null,\n  cost,\n  invoice: invoiceFrom(i),\n  note: i.note ?? null,\n});",
+              "errors": [
+                {
+                  "id": "2fb186dc-4935-4ec0-a100-4aca947145dc",
+                  "code": "DUPLICATE_ITEM_ID",
+                  "name": "DuplicateItemIdError",
+                  "description": "An item with this id is already on the trip",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "146b4485-43d2-45d3-a9d9-c8f44c1e169a",
+              "name": "UPDATE_TRANSPORT",
+              "description": "",
+              "schema": "input UpdateTransportInput {\n  id: OID!\n  mode: TripTransportMode\n  carrier: String\n  number: String\n  from: String\n  to: String\n  departAt: DateTime\n  arriveAt: DateTime\n  bookingReference: String\n  seat: String\n  amount: Float\n  currency: String\n  converted: Float\n  invoiceId: PHID\n  invoiceLineId: OID\n  invoiceNumber: String\n  note: String\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nconst item = state.transport.find((x) => x.id === i.id);\nif (!item) throw new ItemNotFoundError(`No transport leg ${i.id}`);\nif (i.mode) item.mode = i.mode;\nif (i.carrier !== undefined) item.carrier = i.carrier ?? null;\nif (i.number !== undefined) item.number = i.number ?? null;\nif (i.from !== undefined) item.from = i.from ?? null;\nif (i.to !== undefined) item.to = i.to ?? null;\nif (i.departAt !== undefined) item.departAt = i.departAt ?? null;\nif (i.arriveAt !== undefined) item.arriveAt = i.arriveAt ?? null;\nif (i.bookingReference !== undefined) item.bookingReference = i.bookingReference ?? null;\nif (i.seat !== undefined) item.seat = i.seat ?? null;\nif (i.note !== undefined) item.note = i.note ?? null;\nif (i.amount !== undefined || i.currency !== undefined || i.converted !== undefined) item.cost = mergeCost(item.cost, i, state.currency);\nif (i.invoiceId !== undefined) item.invoice = invoiceFrom(i);",
+              "errors": [
+                {
+                  "id": "4549cb91-54fd-4366-b8dc-32d23829f339",
+                  "code": "ITEM_NOT_FOUND",
+                  "name": "ItemNotFoundError",
+                  "description": "No item with this id on the trip",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "bbec8801-df15-40ab-9b6c-d02e0331c06d",
+              "name": "REMOVE_TRANSPORT",
+              "description": "",
+              "schema": "input RemoveTransportInput {\n  id: OID!\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nconst at = state.transport.findIndex((x) => x.id === i.id);\nif (at < 0) throw new ItemNotFoundError(`No transport leg ${i.id}`);\nstate.transport.splice(at, 1);\nstate.attachments = state.attachments.filter((a) => a.itemId !== i.id);",
+              "errors": [
+                {
+                  "id": "e4c9b0f6-0b84-4754-9ace-a132533be072",
+                  "code": "ITEM_NOT_FOUND",
+                  "name": "ItemNotFoundError",
+                  "description": "No item with this id on the trip",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        },
+        {
+          "id": "b56227c6-adc2-4bdc-9aee-b60a7087fb6e",
+          "name": "stays",
+          "description": "Hotels and other places to sleep",
+          "operations": [
+            {
+              "id": "c40f320c-b544-42db-be4e-ad83b41601a8",
+              "name": "ADD_STAY",
+              "description": "",
+              "schema": "input AddStayInput {\n  id: OID!\n  name: String!\n  address: String\n  city: String\n  checkIn: Date\n  checkOut: Date\n  bookingReference: String\n  bookedVia: String\n  amount: Float\n  currency: String\n  converted: Float\n  invoiceId: PHID\n  invoiceLineId: OID\n  invoiceNumber: String\n  note: String\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nif (i.checkIn && i.checkOut && i.checkOut < i.checkIn) throw new InvalidDatesError(`${i.checkOut} is before ${i.checkIn}`);\nif (state.stays.some((x) => x.id === i.id)) throw new DuplicateItemIdError(`Stay ${i.id} exists`);\nconst cost = costFrom(i, state.currency);\nstate.stays.push({\n  id: i.id,\n  name: i.name,\n  address: i.address ?? null,\n  city: i.city ?? null,\n  checkIn: i.checkIn ?? null,\n  checkOut: i.checkOut ?? null,\n  bookingReference: i.bookingReference ?? null,\n  bookedVia: i.bookedVia ?? null,\n  cost,\n  invoice: invoiceFrom(i),\n  note: i.note ?? null,\n});",
+              "errors": [
+                {
+                  "id": "144c6eb0-ae20-42f1-b750-29f7e52f951a",
+                  "code": "DUPLICATE_ITEM_ID",
+                  "name": "DuplicateItemIdError",
+                  "description": "An item with this id is already on the trip",
+                  "template": ""
+                },
+                {
+                  "id": "b616e34c-c603-4c25-bacf-bc1cc573d590",
+                  "code": "INVALID_DATES",
+                  "name": "InvalidDatesError",
+                  "description": "The trip cannot end before it starts",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "0101c5ce-8e2b-4b08-a0e9-1f5a2fff4a5e",
+              "name": "UPDATE_STAY",
+              "description": "",
+              "schema": "input UpdateStayInput {\n  id: OID!\n  name: String\n  address: String\n  city: String\n  checkIn: Date\n  checkOut: Date\n  bookingReference: String\n  bookedVia: String\n  amount: Float\n  currency: String\n  converted: Float\n  invoiceId: PHID\n  invoiceLineId: OID\n  invoiceNumber: String\n  note: String\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nconst found = state.stays.find((x) => x.id === i.id);\nconst checkIn = i.checkIn !== undefined ? i.checkIn ?? null : found?.checkIn ?? null;\nconst checkOut = i.checkOut !== undefined ? i.checkOut ?? null : found?.checkOut ?? null;\nif (checkIn && checkOut && checkOut < checkIn) throw new InvalidDatesError(`${checkOut} is before ${checkIn}`);\nconst item = state.stays.find((x) => x.id === i.id);\nif (!item) throw new ItemNotFoundError(`No stay ${i.id}`);\nif (i.name) item.name = i.name;\nif (i.address !== undefined) item.address = i.address ?? null;\nif (i.city !== undefined) item.city = i.city ?? null;\nif (i.checkIn !== undefined) item.checkIn = i.checkIn ?? null;\nif (i.checkOut !== undefined) item.checkOut = i.checkOut ?? null;\nif (i.bookingReference !== undefined) item.bookingReference = i.bookingReference ?? null;\nif (i.bookedVia !== undefined) item.bookedVia = i.bookedVia ?? null;\nif (i.note !== undefined) item.note = i.note ?? null;\nif (i.amount !== undefined || i.currency !== undefined || i.converted !== undefined) item.cost = mergeCost(item.cost, i, state.currency);\nif (i.invoiceId !== undefined) item.invoice = invoiceFrom(i);",
+              "errors": [
+                {
+                  "id": "d68c9557-4088-47e1-b142-22b006facb18",
+                  "code": "ITEM_NOT_FOUND",
+                  "name": "ItemNotFoundError",
+                  "description": "No item with this id on the trip",
+                  "template": ""
+                },
+                {
+                  "id": "0653bcc4-a2d6-4d60-85ae-bbe4933c0256",
+                  "code": "INVALID_DATES",
+                  "name": "InvalidDatesError",
+                  "description": "The trip cannot end before it starts",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "069c9227-0329-4bc4-ad3c-9477e250c95b",
+              "name": "REMOVE_STAY",
+              "description": "",
+              "schema": "input RemoveStayInput {\n  id: OID!\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nconst at = state.stays.findIndex((x) => x.id === i.id);\nif (at < 0) throw new ItemNotFoundError(`No stay ${i.id}`);\nstate.stays.splice(at, 1);\nstate.attachments = state.attachments.filter((a) => a.itemId !== i.id);",
+              "errors": [
+                {
+                  "id": "2edb5427-1954-4600-a3d4-c72fbd1ebe8e",
+                  "code": "ITEM_NOT_FOUND",
+                  "name": "ItemNotFoundError",
+                  "description": "No item with this id on the trip",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        },
+        {
+          "id": "caf63327-b7bc-43ef-814f-c48b3df521c5",
+          "name": "meals",
+          "description": "Breakfasts, lunches, dinners, coffees",
+          "operations": [
+            {
+              "id": "9eaf113c-4aaa-4792-b274-5ed0846f78e1",
+              "name": "ADD_MEAL",
+              "description": "",
+              "schema": "input AddMealInput {\n  id: OID!\n  kind: TripMealKind!\n  venue: String\n  at: DateTime\n  attendees: String\n  amount: Float\n  currency: String\n  converted: Float\n  invoiceId: PHID\n  invoiceLineId: OID\n  invoiceNumber: String\n  note: String\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nif (state.meals.some((x) => x.id === i.id)) throw new DuplicateItemIdError(`Meal ${i.id} exists`);\nconst cost = costFrom(i, state.currency);\nstate.meals.push({\n  id: i.id,\n  kind: i.kind,\n  venue: i.venue ?? null,\n  at: i.at ?? null,\n  attendees: i.attendees ?? null,\n  cost,\n  invoice: invoiceFrom(i),\n  note: i.note ?? null,\n});",
+              "errors": [
+                {
+                  "id": "011df3a5-5d93-48bf-86ed-af950b203e75",
+                  "code": "DUPLICATE_ITEM_ID",
+                  "name": "DuplicateItemIdError",
+                  "description": "An item with this id is already on the trip",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "82d7f412-c759-43b1-92b1-e11c4ea345f2",
+              "name": "UPDATE_MEAL",
+              "description": "",
+              "schema": "input UpdateMealInput {\n  id: OID!\n  kind: TripMealKind\n  venue: String\n  at: DateTime\n  attendees: String\n  amount: Float\n  currency: String\n  converted: Float\n  invoiceId: PHID\n  invoiceLineId: OID\n  invoiceNumber: String\n  note: String\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nconst item = state.meals.find((x) => x.id === i.id);\nif (!item) throw new ItemNotFoundError(`No meal ${i.id}`);\nif (i.kind) item.kind = i.kind;\nif (i.venue !== undefined) item.venue = i.venue ?? null;\nif (i.at !== undefined) item.at = i.at ?? null;\nif (i.attendees !== undefined) item.attendees = i.attendees ?? null;\nif (i.note !== undefined) item.note = i.note ?? null;\nif (i.amount !== undefined || i.currency !== undefined || i.converted !== undefined) item.cost = mergeCost(item.cost, i, state.currency);\nif (i.invoiceId !== undefined) item.invoice = invoiceFrom(i);",
+              "errors": [
+                {
+                  "id": "9c800692-ab87-4607-a9a2-83e7815ec5b4",
+                  "code": "ITEM_NOT_FOUND",
+                  "name": "ItemNotFoundError",
+                  "description": "No item with this id on the trip",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "5e32fc32-3266-41fa-b80c-4780a3dabd0a",
+              "name": "REMOVE_MEAL",
+              "description": "",
+              "schema": "input RemoveMealInput {\n  id: OID!\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nconst at = state.meals.findIndex((x) => x.id === i.id);\nif (at < 0) throw new ItemNotFoundError(`No meal ${i.id}`);\nstate.meals.splice(at, 1);\nstate.attachments = state.attachments.filter((a) => a.itemId !== i.id);",
+              "errors": [
+                {
+                  "id": "36e4b332-ff79-474e-bdcc-8dc9c997aed5",
+                  "code": "ITEM_NOT_FOUND",
+                  "name": "ItemNotFoundError",
+                  "description": "No item with this id on the trip",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        },
+        {
+          "id": "65c5914a-c292-483c-b66f-c3d70cda2fa4",
+          "name": "extras",
+          "description": "Event tickets, co-working, connectivity and other costs",
+          "operations": [
+            {
+              "id": "e287b53a-2bd2-4022-a844-4dc4e63959d4",
+              "name": "ADD_EXTRA",
+              "description": "",
+              "schema": "input AddExtraInput {\n  id: OID!\n  kind: TripExtraKind!\n  description: String!\n  at: DateTime\n  amount: Float\n  currency: String\n  converted: Float\n  invoiceId: PHID\n  invoiceLineId: OID\n  invoiceNumber: String\n  note: String\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nif (state.extras.some((x) => x.id === i.id)) throw new DuplicateItemIdError(`Extra ${i.id} exists`);\nconst cost = costFrom(i, state.currency);\nstate.extras.push({\n  id: i.id,\n  kind: i.kind,\n  description: i.description,\n  at: i.at ?? null,\n  cost,\n  invoice: invoiceFrom(i),\n  note: i.note ?? null,\n});",
+              "errors": [
+                {
+                  "id": "8213045a-6e30-4844-90a3-51024916ec1b",
+                  "code": "DUPLICATE_ITEM_ID",
+                  "name": "DuplicateItemIdError",
+                  "description": "An item with this id is already on the trip",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "897a97e3-0a3e-4e82-8a0b-c4c0fa7b3a9a",
+              "name": "UPDATE_EXTRA",
+              "description": "",
+              "schema": "input UpdateExtraInput {\n  id: OID!\n  kind: TripExtraKind\n  description: String\n  at: DateTime\n  amount: Float\n  currency: String\n  converted: Float\n  invoiceId: PHID\n  invoiceLineId: OID\n  invoiceNumber: String\n  note: String\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nconst item = state.extras.find((x) => x.id === i.id);\nif (!item) throw new ItemNotFoundError(`No extra ${i.id}`);\nif (i.kind) item.kind = i.kind;\nif (i.description) item.description = i.description;\nif (i.at !== undefined) item.at = i.at ?? null;\nif (i.note !== undefined) item.note = i.note ?? null;\nif (i.amount !== undefined || i.currency !== undefined || i.converted !== undefined) item.cost = mergeCost(item.cost, i, state.currency);\nif (i.invoiceId !== undefined) item.invoice = invoiceFrom(i);",
+              "errors": [
+                {
+                  "id": "ddd37c70-2cad-4e54-88ef-c1f7f497e437",
+                  "code": "ITEM_NOT_FOUND",
+                  "name": "ItemNotFoundError",
+                  "description": "No item with this id on the trip",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "b47bbf5f-7e7f-45a1-8722-4fb3dafaca5b",
+              "name": "REMOVE_EXTRA",
+              "description": "",
+              "schema": "input RemoveExtraInput {\n  id: OID!\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nconst at = state.extras.findIndex((x) => x.id === i.id);\nif (at < 0) throw new ItemNotFoundError(`No extra ${i.id}`);\nstate.extras.splice(at, 1);\nstate.attachments = state.attachments.filter((a) => a.itemId !== i.id);",
+              "errors": [
+                {
+                  "id": "fad9e589-7555-4eb5-9e41-6f3068527183",
+                  "code": "ITEM_NOT_FOUND",
+                  "name": "ItemNotFoundError",
+                  "description": "No item with this id on the trip",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        },
+        {
+          "id": "0ba15475-8be6-4ef5-8f05-2ef21801f4f8",
+          "name": "documents",
+          "description": "Bookings, tickets and receipts, and where the trip was found",
+          "operations": [
+            {
+              "id": "4a66dc99-c0c0-4ebd-a425-a073199b215a",
+              "name": "ADD_ATTACHMENT",
+              "description": "",
+              "schema": "input AddAttachmentInput {\n  id: OID!\n  itemId: OID\n  role: TripAttachmentRole!\n  fileName: String!\n  mimeType: String\n  ref: String\n  sizeBytes: Int\n  documentId: PHID\n  addedAt: DateTime!\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nif (state.attachments.some((a) => a.id === i.id)) throw new DuplicateItemIdError(`Attachment ${i.id} exists`);\nif (i.itemId && !itemExists(state, i.itemId)) throw new ItemNotFoundError(`No item ${i.itemId}`);\nstate.attachments.push({ id: i.id, itemId: i.itemId ?? null, role: i.role, fileName: i.fileName, mimeType: i.mimeType ?? null, ref: i.ref ?? null, sizeBytes: i.sizeBytes ?? null, documentId: i.documentId ?? null, addedAt: i.addedAt });",
+              "errors": [
+                {
+                  "id": "9385152b-235b-4131-b2b9-70ac4f9542a4",
+                  "code": "DUPLICATE_ITEM_ID",
+                  "name": "DuplicateItemIdError",
+                  "description": "An item with this id is already on the trip",
+                  "template": ""
+                },
+                {
+                  "id": "8110c25f-f1e5-49bd-bc33-986da35db636",
+                  "code": "ITEM_NOT_FOUND",
+                  "name": "ItemNotFoundError",
+                  "description": "No item with this id on the trip",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "330ecf71-1ee8-4c58-ad86-355ec05d32ed",
+              "name": "REMOVE_ATTACHMENT",
+              "description": "",
+              "schema": "input RemoveAttachmentInput {\n  id: OID!\n}",
+              "template": "",
+              "reducer": "const at = state.attachments.findIndex((a) => a.id === action.input.id);\nif (at < 0) throw new ItemNotFoundError(`No attachment ${action.input.id}`);\nstate.attachments.splice(at, 1);",
+              "errors": [
+                {
+                  "id": "dd7fcae8-d708-4099-b2e5-f0fe678399a1",
+                  "code": "ITEM_NOT_FOUND",
+                  "name": "ItemNotFoundError",
+                  "description": "No item with this id on the trip",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "e328fd99-4176-48eb-8f13-ecb6b8249733",
+              "name": "ADD_SOURCE",
+              "description": "",
+              "schema": "input AddSourceInput {\n  id: OID!\n  kind: TripSourceKind!\n  documentId: PHID\n  lineId: OID\n  label: String\n  at: DateTime\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nif (state.sources.some((s) => s.id === i.id)) throw new DuplicateItemIdError(`Source ${i.id} exists`);\nstate.sources.push({ id: i.id, kind: i.kind, documentId: i.documentId ?? null, lineId: i.lineId ?? null, label: i.label ?? null, at: i.at ?? null });",
+              "errors": [
+                {
+                  "id": "f485abcf-314e-4fc7-b0c5-0ae1b426ce5e",
+                  "code": "DUPLICATE_ITEM_ID",
+                  "name": "DuplicateItemIdError",
+                  "description": "An item with this id is already on the trip",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "f6fed497-91fa-49cc-92b7-30d52c2d76ca",
+              "name": "REMOVE_SOURCE",
+              "description": "",
+              "schema": "input RemoveSourceInput {\n  id: OID!\n}",
+              "template": "",
+              "reducer": "const at = state.sources.findIndex((s) => s.id === action.input.id);\nif (at < 0) throw new ItemNotFoundError(`No source ${action.input.id}`);\nstate.sources.splice(at, 1);",
+              "errors": [
+                {
+                  "id": "f102ade7-f029-4892-8867-c88f59c12bf5",
+                  "code": "ITEM_NOT_FOUND",
+                  "name": "ItemNotFoundError",
+                  "description": "No item with this id on the trip",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

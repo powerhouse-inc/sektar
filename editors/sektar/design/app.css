@@ -825,7 +825,7 @@
    filling the content area. The height is measured by the app; the panes
    scroll inside it.
    --------------------------------------------------------------------------- */
-.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) {
   display: flex;
   flex-direction: column;
   /* Explicit, not left to flex stretch: a size container that is only
@@ -838,41 +838,41 @@
   container-type: inline-size;
   container-name: drive-app;
 }
-.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) > .sk-workspace--stack {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) > .sk-workspace--stack {
   width: 100%;
 }
 /* The design system folds a panes workspace into a column under 960px of
    viewport (its docs rule); a stacked workspace is a horizontal track of
    screens and must stay one, whatever the viewport. */
 @media (max-width: 1063px) {
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack {
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack {
     flex-direction: row;
   }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack > .sk-pane {
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack > .sk-pane {
     border-top: 0;
     border-left: 1px solid var(--sk-border-subtle);
   }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack > .sk-pane:first-child,
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--has-parent > .sk-pane--parent + .sk-pane {
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack > .sk-pane:first-child,
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--has-parent > .sk-pane--parent + .sk-pane {
     border-left: 0;
   }
 }
 
-.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) > .sk-subbar {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) > .sk-subbar {
   flex: none;
   /* flush: the first tile's underline starts on the content's left edge */
   padding-inline: 0;
 }
 /* The chooser is the first pane but hidden side by side, so the list pane
    would keep its left hairline and double the sidebar's edge. */
-.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--has-parent > .sk-pane--parent + .sk-pane {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--has-parent > .sk-pane--parent + .sk-pane {
   border-left: 0;
 }
-.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) > .sk-workspace--panes {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) > .sk-workspace--panes {
   flex: 1;
   min-height: 0;
 }
-.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-pane__body {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-pane__body {
   overflow: auto;
   /* Each pane scrolls on its own, with the platform's own physics: momentum
      stays inside the pane instead of chaining into Connect's page scroller
@@ -885,8 +885,8 @@
   scrollbar-width: thin;
   scrollbar-color: var(--sk-border-strong) transparent;
 }
-.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-pane--parent .sk-pane__body,
-.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--panes {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-pane--parent .sk-pane__body,
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--panes {
   overscroll-behavior: contain;
 }
 /* A row not fetched yet: same height and hairline as a rich row. */
@@ -946,7 +946,7 @@
 /* Side by side, the list keeps a readable width; the message pane gives way.
    (Stacked, the design system's 100% basis applies instead.) */
 @container panes (min-width: 641px) {
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-pane--start:not(.is-collapsed) {
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-pane--start:not(.is-collapsed) {
     min-width: 300px;
   }
 }
@@ -962,21 +962,21 @@
    system's own block (components.css, "@container panes (max-width: 640px)")
    so the two states are identical; keep them in step when it changes. */
 @container panes (640px < width < 800px) {
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack > .sk-pane { --sk-stacked: 1; display: flex; flex: 0 0 100%; min-width: 100%; border-left: 0; border-top: 0; transform: translateX(calc(var(--sk-level-offset) * -100%)); transition: transform var(--sk-duration-slow, 320ms) var(--sk-ease-out, ease-out); }
-  @media (prefers-reduced-motion: reduce) { .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack > .sk-pane { transition: none; } }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-pane__toggle { display: none; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-pane__back { display: grid; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-pane.is-collapsed { flex-basis: auto; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__body { display: block; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__header { flex-direction: row; padding: 0 var(--sk-space-3) 0 var(--sk-space-4); min-height: 52px; border-bottom: 1px solid var(--sk-border-subtle); }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__header > * { display: flex; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__title { writing-mode: horizontal-tb; transform: none; font-size: var(--sk-text-md); color: inherit; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-pane__title--collapsed-only { display: none; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack [data-sk-drill] .sk-drill-chevron { display: block; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack > .sk-pane--parent { display: flex; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-pane__switch { cursor: pointer; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-pane__switch .sk-icon { display: block; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view) .sk-workspace--stack .sk-stack-only { display: block; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack > .sk-pane { --sk-stacked: 1; display: flex; flex: 0 0 100%; min-width: 100%; border-left: 0; border-top: 0; transform: translateX(calc(var(--sk-level-offset) * -100%)); transition: transform var(--sk-duration-slow, 320ms) var(--sk-ease-out, ease-out); }
+  @media (prefers-reduced-motion: reduce) { .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack > .sk-pane { transition: none; } }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-pane__toggle { display: none; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-pane__back { display: grid; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-pane.is-collapsed { flex-basis: auto; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__body { display: block; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__header { flex-direction: row; padding: 0 var(--sk-space-3) 0 var(--sk-space-4); min-height: 52px; border-bottom: 1px solid var(--sk-border-subtle); }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__header > * { display: flex; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__title { writing-mode: horizontal-tb; transform: none; font-size: var(--sk-text-md); color: inherit; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-pane__title--collapsed-only { display: none; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack [data-sk-drill] .sk-drill-chevron { display: block; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack > .sk-pane--parent { display: flex; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-pane__switch { cursor: pointer; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-pane__switch .sk-icon { display: block; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-stack-only { display: block; }
   .sk-app .sk-mail .sk-workspace--stack .sk-stack-hide { display: none; }
   .sk-app .sk-mail .sk-pane--start:not(.is-collapsed) { min-width: 100%; }
 }
@@ -1872,3 +1872,155 @@
 .sk-app .sk-inv-paper__fx dt { color: inherit; }
 .sk-app .sk-inv-paper__pay { padding-top: 12px; border-top: 1px solid var(--sk-border-subtle); }
 .sk-app .sk-inv-paper__pay p { margin: 0; color: var(--sk-text-secondary); }
+
+/* ===== Business Travel ===================================================== */
+/* A trip's overview (the trip editor and the Trips drive app's middle pane),
+   the Trips drive app's list, and the travel dashboard. */
+.sk-app .sk-trip { container: trip / inline-size; display: flex; flex-direction: column; gap: var(--sk-space-5); padding: var(--sk-space-6); max-width: 1080px; }
+.sk-app .sk-trips .sk-trip { padding: var(--sk-space-5) var(--sk-space-6) var(--sk-space-8); }
+
+/* the head: purpose tile, title, places, tags, one action */
+.sk-app .sk-trip__head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sk-space-4); align-items: start; }
+.sk-app .sk-trip__heading { display: flex; flex-direction: column; gap: var(--sk-space-2); min-width: 0; }
+.sk-app .sk-trip__title {
+  margin: 0; font-family: var(--sk-font-display); font-weight: 500; letter-spacing: -0.01em;
+  font-size: clamp(24px, 3vw, 32px); line-height: 1.15; font-variation-settings: "WONK" 0;
+}
+.sk-app .sk-trip__where { display: flex; flex-wrap: wrap; gap: var(--sk-space-1) var(--sk-space-3); color: var(--sk-text-secondary); font-size: var(--sk-text-md); }
+.sk-app .sk-trip__place { white-space: nowrap; }
+.sk-app .sk-trip__tags { display: flex; flex-wrap: wrap; gap: var(--sk-space-2); }
+.sk-app .sk-trip__purpose { margin: 0; max-width: 68ch; color: var(--sk-text-secondary); line-height: 1.6; }
+
+/* the figures: cost (donut + legend), getting there, billed on */
+.sk-app .sk-trip__figures { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr); gap: var(--sk-space-4); }
+.sk-app .sk-trip__figure { display: flex; flex-direction: column; gap: var(--sk-space-3); padding: var(--sk-space-5); }
+.sk-app .sk-trip__figure-row { display: flex; align-items: center; gap: var(--sk-space-5); }
+.sk-app .sk-trip__figure-row .sk-legend { flex: 1 1 auto; min-width: 0; }
+.sk-app .sk-trip__figure-value { display: flex; align-items: center; gap: var(--sk-space-3); font-family: var(--sk-font-display); font-size: var(--sk-text-2xl); font-weight: 500; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.sk-app .sk-trip__donut-value { font-size: var(--sk-text-sm); font-family: var(--sk-font-display); }
+.sk-app .sk-trip__total { font-family: var(--sk-font-display); font-size: var(--sk-text-xl); font-variant-numeric: tabular-nums; }
+
+/* the overview tab: the itinerary beside stays and meals */
+.sk-app .sk-trip__grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--sk-space-4); align-items: start; }
+.sk-app .sk-trip__col { display: flex; flex-direction: column; gap: var(--sk-space-4); }
+
+/* a cost paid in another currency: the trip's amount, the original under it */
+.sk-app .sk-trip-cost { display: inline-flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
+.sk-app .sk-trip-cost__orig { font-size: var(--sk-text-xs); color: var(--sk-text-muted); }
+
+/* the itinerary: days, and on each day a rail of entries */
+.sk-app .sk-trip-days { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sk-space-4); }
+.sk-app .sk-trip-day { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: var(--sk-space-3); }
+.sk-app .sk-trip-day__label { padding-top: 10px; font-size: var(--sk-text-xs); font-weight: var(--sk-weight-semibold); text-transform: uppercase; letter-spacing: 0.08em; color: var(--sk-text-muted); }
+.sk-app .sk-trip-day__items { list-style: none; margin: 0; padding: 0; position: relative; }
+.sk-app .sk-trip-day__items::before { content: ""; position: absolute; left: 19px; top: 18px; bottom: 18px; width: 2px; background: var(--sk-border-subtle); }
+.sk-app .sk-trip-entry {
+  position: relative; display: grid; grid-template-columns: 40px minmax(0, 1fr) auto auto; align-items: center; gap: var(--sk-space-3);
+  width: 100%; padding: var(--sk-space-2) var(--sk-space-2) var(--sk-space-2) 0; border: 0; background: transparent;
+  font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: var(--sk-radius-md);
+}
+.sk-app .sk-trip-entry:hover { background: var(--sk-bg-subtle); }
+.sk-app .sk-trip-entry__dot { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: var(--sk-icon-bg); box-shadow: 0 0 0 4px var(--sk-surface); }
+.sk-app .sk-trip-entry__body { display: flex; flex-direction: column; min-width: 0; }
+.sk-app .sk-trip-entry__title { font-weight: var(--sk-weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-app .sk-trip-entry__sub { font-size: var(--sk-text-xs); color: var(--sk-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-app .sk-trip-entry__time { font-size: var(--sk-text-xs); color: var(--sk-text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sk-app .sk-trip-entry__cost { font-size: var(--sk-text-sm); font-variant-numeric: tabular-nums; text-align: right; min-width: 72px; }
+
+/* stays and meals beside the itinerary: flat rows, no cards in cards */
+.sk-app .sk-trip-cards, .sk-app .sk-trip-meals { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.sk-app .sk-trip-cards > li + li, .sk-app .sk-trip-meals > li + li { border-top: 1px solid var(--sk-border-subtle); }
+.sk-app .sk-trip-stay, .sk-app .sk-trip-meals button {
+  display: flex; align-items: center; gap: var(--sk-space-3); width: 100%; padding: var(--sk-space-3) 0;
+  border: 0; background: transparent; font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.sk-app .sk-trip-stay:hover .sk-trip-stay__name, .sk-app .sk-trip-meals button:hover .sk-trip-meals__name { color: var(--sk-text-brand); }
+.sk-app .sk-trip-stay__body { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.sk-app .sk-trip-stay__name { font-weight: var(--sk-weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-app .sk-trip-stay__meta { font-size: var(--sk-text-xs); color: var(--sk-text-muted); }
+.sk-app .sk-trip-stay__cost, .sk-app .sk-trip-meals__cost { font-size: var(--sk-text-sm); font-variant-numeric: tabular-nums; }
+.sk-app .sk-trip-meals__name { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* the costs tab */
+.sk-app .sk-trip-costs { display: flex; flex-direction: column; gap: var(--sk-space-5); }
+.sk-app .sk-trip-costs__head { display: flex; align-items: baseline; justify-content: space-between; padding-bottom: var(--sk-space-2); border-bottom: 1px solid var(--sk-border); }
+.sk-app .sk-trip-costs ul { list-style: none; margin: 0; padding: 0; }
+.sk-app .sk-trip-costs li + li { border-top: 1px solid var(--sk-border-subtle); }
+.sk-app .sk-trip-costs__row { display: flex; align-items: center; gap: var(--sk-space-3); width: 100%; padding: var(--sk-space-2) 0; border: 0; background: transparent; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.sk-app .sk-trip-costs__row:hover .sk-trip-costs__what { color: var(--sk-text-brand); }
+.sk-app .sk-trip-costs__what { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-app .sk-trip-costs__amount { font-variant-numeric: tabular-nums; min-width: 96px; text-align: right; }
+
+/* the documents tab */
+.sk-app .sk-trip-docs { display: flex; flex-direction: column; gap: var(--sk-space-4); }
+.sk-app .sk-trip-docs__chips { display: flex; flex-wrap: wrap; gap: var(--sk-space-2); }
+
+/* the forms */
+.sk-trip-form { container: form / inline-size; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sk-space-3) var(--sk-space-4); width: 100%; }
+.sk-modal:has(.sk-trip-form) { width: min(640px, calc(100vw - 32px)); max-width: none; max-height: calc(100vh - 32px); overflow: auto; }
+.sk-trip-form__wide { grid-column: 1 / -1; }
+@container form (max-width: 420px) {
+  .sk-trip-form { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* beside the trip */
+.sk-app .sk-trip-side { display: flex; flex-direction: column; gap: var(--sk-space-4); padding: var(--sk-space-4); }
+.sk-app .sk-trip-side__actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* the trip editor: the overview beside the side column */
+.sk-app.sk-trip-editor { display: grid; grid-template-columns: minmax(0, 1fr) 320px; align-items: start; container: tripeditor / inline-size; }
+.sk-app .sk-trip-editor__side { border-left: 1px solid var(--sk-border-subtle); min-height: 100%; }
+@container tripeditor (max-width: 900px) {
+  .sk-app.sk-trip-editor { grid-template-columns: minmax(0, 1fr); }
+  .sk-app .sk-trip-editor__side { border-left: 0; border-top: 1px solid var(--sk-border-subtle); }
+}
+
+@container trip (max-width: 960px) {
+  .sk-app .sk-trip__grid { grid-template-columns: minmax(0, 1fr); }
+}
+@container trip (max-width: 760px) {
+  .sk-app .sk-trip__figures { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .sk-app .sk-trip__figures > :first-child { grid-column: 1 / -1; }
+}
+@container trip (max-width: 520px) {
+  .sk-app .sk-trip { padding: var(--sk-space-4); }
+  .sk-app .sk-trip__head { grid-template-columns: auto minmax(0, 1fr); }
+  .sk-app .sk-trip__actions { grid-column: 1 / -1; }
+  .sk-app .sk-trip__figures { grid-template-columns: minmax(0, 1fr); }
+  .sk-app .sk-trip__figure-row { flex-direction: column; align-items: stretch; }
+  .sk-app .sk-trip-day { grid-template-columns: minmax(0, 1fr); gap: var(--sk-space-1); }
+  .sk-app .sk-trip-day__label { padding-top: 0; }
+  .sk-app .sk-trip-entry { grid-template-columns: 40px minmax(0, 1fr) auto; }
+  .sk-app .sk-trip-entry__time { display: none; }
+}
+
+/* the Trips drive app */
+.sk-app .sk-trips { display: flex; flex-direction: column; }
+.sk-app .sk-trips > .sk-workspace { flex: 1 1 auto; min-height: 0; }
+.sk-app .sk-trips .sk-pane--start { --sk-pane-grow: 0.9; max-width: 420px; }
+.sk-app .sk-trips__filters { padding: var(--sk-space-3) var(--sk-space-4); border-bottom: 1px solid var(--sk-border-subtle); }
+.sk-app .sk-trips__year-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: baseline; justify-content: space-between; padding: var(--sk-space-3) var(--sk-space-4) var(--sk-space-2); background: var(--sk-surface); border-bottom: 1px solid var(--sk-border-subtle); }
+.sk-app .sk-trips__none { padding: var(--sk-space-4); }
+.sk-app .sk-trips .sk-list-item--rich .sk-list-item__aside { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sk-space-1); }
+.sk-app .sk-trips__detail .sk-pane__body { padding: 0; }
+.sk-app .sk-trips__side { --sk-pane-grow: 0.7; max-width: 340px; }
+.sk-app .sk-trips__side .sk-pane__body { padding: 0; }
+@container panes (width < 800px) {
+  .sk-app .sk-trips .sk-pane--start { max-width: none; }
+  .sk-app .sk-trips .sk-list-item--rich.is-selected { background: transparent; }
+  .sk-app .sk-trips .sk-list-item--rich.is-selected::before { display: none; }
+}
+
+/* the travel dashboard */
+.sk-app .sk-travel-next { display: flex; flex-direction: column; gap: var(--sk-space-3); padding: var(--sk-space-6); height: 100%; justify-content: center; }
+.sk-app .sk-travel-next__top { display: flex; align-items: center; justify-content: space-between; gap: var(--sk-space-3); }
+.sk-app .sk-travel-next__title { margin: 0; font-family: var(--sk-font-display); font-weight: 500; font-size: clamp(26px, 3vw, 36px); line-height: 1.1; color: inherit; }
+.sk-app .sk-travel-next__where, .sk-app .sk-travel-next__leg { margin: 0; opacity: 0.88; display: flex; align-items: center; gap: var(--sk-space-2); }
+.sk-app .sk-travel-next .sk-btn { align-self: flex-start; }
+.sk-app .sk-travel-split { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sk-space-3); }
+.sk-app .sk-travel-split li { display: grid; grid-template-columns: 20px 84px minmax(0, 1fr) auto; align-items: center; gap: var(--sk-space-3); font-size: var(--sk-text-sm); }
+.sk-app .sk-travel-split__bar { height: 8px; border-radius: var(--sk-radius-full); background: var(--sk-bg-subtle); overflow: hidden; }
+.sk-app .sk-travel-split__bar > span { display: block; height: 100%; background: var(--sk-primary); border-radius: inherit; }
+.sk-app .sk-travel-flag { width: 36px; height: 36px; display: grid; place-items: center; font-size: 20px; border-radius: var(--sk-radius-sm); background: var(--sk-icon-bg); }
+.sk-app .sk-travel-years { display: flex; overflow-x: auto; margin-top: calc(-1 * var(--sk-space-2)); }
+.sk-app .sk-travel-years .sk-segmented { flex: none; }

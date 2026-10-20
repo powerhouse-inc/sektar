@@ -10,3 +10,5 @@ export { InvoiceEditor } from "./invoice-editor/module.js";
 export { OriginalSourceCollectionEditor } from "./original-source-collection-editor/module.js";
 export { OriginalSourceQueueEditor } from "./original-source-queue-editor/module.js";
 export { Sektar } from "./sektar/module.js";
+export { TripEditor } from "./trip-editor/module.js";
+export { Trips } from "./trips/module.js";

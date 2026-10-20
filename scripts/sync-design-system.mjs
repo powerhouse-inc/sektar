@@ -58,7 +58,7 @@ for (const kind of ["horizontal", "symbol", "wordmark"]) {
   }
 }
 // App icons for the product switcher (one fill per product, light/dark)
-for (const fill of ["forest", "sage"]) {
+for (const fill of ["forest", "sage", "mint"]) {
   for (const tone of ["light", "dark"]) {
     ASSETS[`assets/app-icons/sektar-app-icon-${fill}-${tone}.svg`] =
       `app-icons/sektar-app-icon-${fill}-${tone}.svg`;

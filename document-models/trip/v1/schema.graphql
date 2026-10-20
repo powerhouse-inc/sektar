@@ -1,0 +1,463 @@
+scalar Unknown
+scalar DateTime
+scalar Address
+scalar AttachmentRef
+scalar Amount_Tokens
+scalar EthereumAddress
+scalar EmailAddress
+scalar Amount_Percentage
+scalar Date
+scalar URL
+scalar Amount_Money
+scalar OLabel
+scalar Currency
+scalar PHID
+scalar OID
+scalar Amount_Fiat
+scalar Amount_Currency
+scalar Amount_Crypto
+scalar Amount
+scalar Upload
+
+type TripState {
+  "What the trip is called, e.g. Copenhagen – Sky offsite"
+  title: String
+  "Why the trip is made: the meeting, the event, the client"
+  purpose: String
+  purposeKind: TripPurposeKind
+  status: TripStatus!
+  "The first and last day away"
+  startDate: Date
+  endDate: Date
+  traveler: TripTraveler
+  destinations: [TripDestination!]!
+  "Who pays: the customer the costs are billed on to"
+  billing: TripBilling
+  "The currency the trip is reported in"
+  currency: String!
+  transport: [TripTransport!]!
+  stays: [TripStay!]!
+  meals: [TripMeal!]!
+  extras: [TripExtra!]!
+  attachments: [TripAttachment!]!
+  "Where what is known about the trip came from: mails, invoice lines, files"
+  sources: [TripSource!]!
+  notes: String
+}
+
+enum TripPurposeKind {
+  CLIENT_VISIT
+  CONFERENCE
+  OFFSITE
+  WORKSHOP
+  SALES
+  TRAINING
+  OTHER
+}
+
+enum TripStatus {
+  PLANNED
+  BOOKED
+  COMPLETED
+  CANCELLED
+}
+
+type TripTraveler {
+  name: String
+  email: String
+}
+
+type TripDestination {
+  id: OID!
+  city: String!
+  "ISO 3166-1 alpha-2"
+  country: String
+  arriveOn: Date
+  leaveOn: Date
+}
+
+type TripBilling {
+  billable: Boolean!
+  customerId: PHID
+  customerName: String
+}
+
+"A cost, in the currency it was paid in and in the trip's currency"
+type TripCost {
+  amount: Float!
+  currency: String!
+  "The amount in the trip's currency, when it differs"
+  converted: Float
+}
+
+"The invoice line a cost was billed on with"
+type TripInvoiceLink {
+  invoiceId: PHID!
+  lineId: OID
+  number: String
+}
+
+enum TripTransportMode {
+  FLIGHT
+  TRAIN
+  CAR
+  TAXI
+  RIDE_HAIL
+  BUS
+  FERRY
+  PUBLIC_TRANSPORT
+  PARKING
+  OTHER
+}
+
+type TripTransport {
+  id: OID!
+  mode: TripTransportMode!
+  "The airline, the railway, the taxi company"
+  carrier: String
+  "The flight or train number"
+  number: String
+  from: String
+  to: String
+  departAt: DateTime
+  arriveAt: DateTime
+  "The booking or PNR code"
+  bookingReference: String
+  seat: String
+  cost: TripCost
+  invoice: TripInvoiceLink
+  note: String
+}
+
+type TripStay {
+  id: OID!
+  name: String!
+  address: String
+  city: String
+  checkIn: Date
+  checkOut: Date
+  bookingReference: String
+  "Through whom it was booked: Booking.com, Airbnb, the hotel"
+  bookedVia: String
+  cost: TripCost
+  invoice: TripInvoiceLink
+  note: String
+}
+
+enum TripMealKind {
+  BREAKFAST
+  LUNCH
+  DINNER
+  COFFEE
+  DRINKS
+  SNACK
+  OTHER
+}
+
+type TripMeal {
+  id: OID!
+  kind: TripMealKind!
+  venue: String
+  at: DateTime
+  "With whom: a client dinner, the team"
+  attendees: String
+  cost: TripCost
+  invoice: TripInvoiceLink
+  note: String
+}
+
+enum TripExtraKind {
+  EVENT_TICKET
+  COWORKING
+  CONNECTIVITY
+  VISA
+  INSURANCE
+  SUPPLIES
+  OTHER
+}
+
+type TripExtra {
+  id: OID!
+  kind: TripExtraKind!
+  description: String!
+  at: DateTime
+  cost: TripCost
+  invoice: TripInvoiceLink
+  note: String
+}
+
+enum TripAttachmentRole {
+  BOOKING
+  TICKET
+  RECEIPT
+  INVOICE
+  ITINERARY
+  OTHER
+}
+
+type TripAttachment {
+  id: OID!
+  "The transport leg, stay, meal or extra it belongs to; none for the trip as a whole"
+  itemId: OID
+  role: TripAttachmentRole!
+  fileName: String!
+  mimeType: String
+  ref: String
+  sizeBytes: Int
+  "The document it is kept in: an email or a File"
+  documentId: PHID
+  addedAt: DateTime!
+}
+
+enum TripSourceKind {
+  EMAIL
+  INVOICE_LINE
+  FILE
+  CALENDAR
+  MANUAL
+}
+
+type TripSource {
+  id: OID!
+  kind: TripSourceKind!
+  documentId: PHID
+  lineId: OID
+  label: String
+  at: DateTime
+}
+
+# trip
+
+input SetDetailsInput {
+  title: String
+  purpose: String
+  purposeKind: TripPurposeKind
+  startDate: Date
+  endDate: Date
+  currency: String
+  notes: String
+}
+
+input SetStatusInput {
+  status: TripStatus!
+}
+
+input SetTravelerInput {
+  name: String
+  email: String
+}
+
+input SetBillingInput {
+  billable: Boolean!
+  customerId: PHID
+  customerName: String
+}
+
+input AddDestinationInput {
+  id: OID!
+  city: String!
+  country: String
+  arriveOn: Date
+  leaveOn: Date
+}
+
+input UpdateDestinationInput {
+  id: OID!
+  city: String
+  country: String
+  arriveOn: Date
+  leaveOn: Date
+}
+
+input RemoveDestinationInput {
+  id: OID!
+}
+
+# transport
+
+input AddTransportInput {
+  id: OID!
+  mode: TripTransportMode!
+  carrier: String
+  number: String
+  from: String
+  to: String
+  departAt: DateTime
+  arriveAt: DateTime
+  bookingReference: String
+  seat: String
+  amount: Float
+  currency: String
+  converted: Float
+  invoiceId: PHID
+  invoiceLineId: OID
+  invoiceNumber: String
+  note: String
+}
+
+input UpdateTransportInput {
+  id: OID!
+  mode: TripTransportMode
+  carrier: String
+  number: String
+  from: String
+  to: String
+  departAt: DateTime
+  arriveAt: DateTime
+  bookingReference: String
+  seat: String
+  amount: Float
+  currency: String
+  converted: Float
+  invoiceId: PHID
+  invoiceLineId: OID
+  invoiceNumber: String
+  note: String
+}
+
+input RemoveTransportInput {
+  id: OID!
+}
+
+# stays
+
+input AddStayInput {
+  id: OID!
+  name: String!
+  address: String
+  city: String
+  checkIn: Date
+  checkOut: Date
+  bookingReference: String
+  bookedVia: String
+  amount: Float
+  currency: String
+  converted: Float
+  invoiceId: PHID
+  invoiceLineId: OID
+  invoiceNumber: String
+  note: String
+}
+
+input UpdateStayInput {
+  id: OID!
+  name: String
+  address: String
+  city: String
+  checkIn: Date
+  checkOut: Date
+  bookingReference: String
+  bookedVia: String
+  amount: Float
+  currency: String
+  converted: Float
+  invoiceId: PHID
+  invoiceLineId: OID
+  invoiceNumber: String
+  note: String
+}
+
+input RemoveStayInput {
+  id: OID!
+}
+
+# meals
+
+input AddMealInput {
+  id: OID!
+  kind: TripMealKind!
+  venue: String
+  at: DateTime
+  attendees: String
+  amount: Float
+  currency: String
+  converted: Float
+  invoiceId: PHID
+  invoiceLineId: OID
+  invoiceNumber: String
+  note: String
+}
+
+input UpdateMealInput {
+  id: OID!
+  kind: TripMealKind
+  venue: String
+  at: DateTime
+  attendees: String
+  amount: Float
+  currency: String
+  converted: Float
+  invoiceId: PHID
+  invoiceLineId: OID
+  invoiceNumber: String
+  note: String
+}
+
+input RemoveMealInput {
+  id: OID!
+}
+
+# extras
+
+input AddExtraInput {
+  id: OID!
+  kind: TripExtraKind!
+  description: String!
+  at: DateTime
+  amount: Float
+  currency: String
+  converted: Float
+  invoiceId: PHID
+  invoiceLineId: OID
+  invoiceNumber: String
+  note: String
+}
+
+input UpdateExtraInput {
+  id: OID!
+  kind: TripExtraKind
+  description: String
+  at: DateTime
+  amount: Float
+  currency: String
+  converted: Float
+  invoiceId: PHID
+  invoiceLineId: OID
+  invoiceNumber: String
+  note: String
+}
+
+input RemoveExtraInput {
+  id: OID!
+}
+
+# documents
+
+input AddAttachmentInput {
+  id: OID!
+  itemId: OID
+  role: TripAttachmentRole!
+  fileName: String!
+  mimeType: String
+  ref: String
+  sizeBytes: Int
+  documentId: PHID
+  addedAt: DateTime!
+}
+
+input RemoveAttachmentInput {
+  id: OID!
+}
+
+input AddSourceInput {
+  id: OID!
+  kind: TripSourceKind!
+  documentId: PHID
+  lineId: OID
+  label: String
+  at: DateTime
+}
+
+input RemoveSourceInput {
+  id: OID!
+}

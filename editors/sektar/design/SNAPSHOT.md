@@ -1,7 +1,7 @@
 # Vendored design system
 
 Source: `../sektar-design-elements/design-system`
-Synced: 2026-10-19T05:49:01.686Z by `scripts/sync-design-system.mjs`
+Synced: 2026-10-20T21:29:32.387Z by `scripts/sync-design-system.mjs`
 
 Not vendored on purpose: `css/fonts.css` and `assets/fonts/` (Fraunces stays on Google Fonts), `css/docs.css`, `js/`, photos, stucco shape variants.
 `base.css` is vendored for reference only; `app.css` carries its typography scoped to `.sk-page` / `.sk-app`.
@@ -10,6 +10,8 @@ Not vendored on purpose: `css/fonts.css` and `assets/fonts/` (Fraunces stays on 
 |---|---|---|
 | assets/app-icons/sektar-app-icon-forest-dark.svg | 2026-10-17T13:42:08.497Z | 3dd4856bc0d3 |
 | assets/app-icons/sektar-app-icon-forest-light.svg | 2026-10-17T13:42:08.514Z | ad4c5bca43c0 |
+| assets/app-icons/sektar-app-icon-mint-dark.svg | 2026-10-18T16:08:34.403Z | 7b6f1d862e24 |
+| assets/app-icons/sektar-app-icon-mint-light.svg | 2026-10-18T16:08:34.403Z | bd7b6f34318f |
 | assets/app-icons/sektar-app-icon-sage-dark.svg | 2026-10-17T13:42:08.532Z | c9bfd5fa19b6 |
 | assets/app-icons/sektar-app-icon-sage-light.svg | 2026-10-17T13:42:08.533Z | 8609c8356ea2 |
 | assets/favicon.svg | 2026-10-18T11:45:08.149Z | e1fe1fda7cf9 |

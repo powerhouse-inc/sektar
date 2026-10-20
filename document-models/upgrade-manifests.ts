@@ -11,6 +11,7 @@ import { fileUpgradeManifest } from "document-models/file/upgrades";
 import { invoiceUpgradeManifest } from "document-models/invoice/upgrades";
 import { originalSourceCollectionUpgradeManifest } from "document-models/original-source-collection/upgrades";
 import { originalSourceQueueUpgradeManifest } from "document-models/original-source-queue/upgrades";
+import { tripUpgradeManifest } from "document-models/trip/upgrades";
 
 export const upgradeManifests: UpgradeManifest<readonly number[]>[] = [
   bankAccountUpgradeManifest,
@@ -21,4 +22,5 @@ export const upgradeManifests: UpgradeManifest<readonly number[]>[] = [
   invoiceUpgradeManifest,
   originalSourceCollectionUpgradeManifest,
   originalSourceQueueUpgradeManifest,
+  tripUpgradeManifest,
 ];

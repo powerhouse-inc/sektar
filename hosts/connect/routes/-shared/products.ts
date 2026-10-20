@@ -1,5 +1,7 @@
 import iconForestDark from "../../../../editors/sektar/design/app-icons/sektar-app-icon-forest-dark.svg";
 import iconForestLight from "../../../../editors/sektar/design/app-icons/sektar-app-icon-forest-light.svg";
+import iconMintDark from "../../../../editors/sektar/design/app-icons/sektar-app-icon-mint-dark.svg";
+import iconMintLight from "../../../../editors/sektar/design/app-icons/sektar-app-icon-mint-light.svg";
 import iconSageDark from "../../../../editors/sektar/design/app-icons/sektar-app-icon-sage-dark.svg";
 import iconSageLight from "../../../../editors/sektar/design/app-icons/sektar-app-icon-sage-light.svg";
 import type { IconName } from "../../../../editors/sektar/kit/ui.js";
@@ -7,7 +9,7 @@ import type { IconName } from "../../../../editors/sektar/kit/ui.js";
 // The Sektar products this app ships, in the design system's order. One
 // account, one shell: the lockup in the sidebar switches between them and the
 // product line, the navigation, the drive link and the page follow.
-export type ProductId = "productivity" | "finance";
+export type ProductId = "productivity" | "finance" | "travel";
 
 export type NavItem = { to: string; label: string; icon: IconName };
 
@@ -74,6 +76,16 @@ export const PRODUCTS: readonly Product[] = [
       { to: "/finops/contacts", label: "Contacts", icon: "customers" },
     ],
     drive: { slug: "sektar", label: "Business drive", editor: "sektar" },
+  },
+  {
+    id: "travel",
+    name: "Business Travel",
+    lead: "Every trip in one place: why, where, how you got there and what it cost.",
+    home: "/travel",
+    icon: { light: iconMintLight, dark: iconMintDark },
+    nav: [{ to: "/travel", label: "Overview", icon: "dashboard" }],
+    // The Trips drive (hosts/*: slug "trips", drive app trips)
+    drive: { slug: "trips", label: "Trips", editor: "trips" },
   },
 ];
 
