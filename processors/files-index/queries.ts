@@ -100,9 +100,20 @@ function filtered(db: FilesQueryBuilder, f: FilesFilter) {
   return q;
 }
 
-/** One page: folders first, then by name. */
-export function listingQuery(db: FilesQueryBuilder, f: FilesFilter, page: { offset: number; limit: number }) {
-  return filtered(db, f)
+/** How a listing orders its entries. */
+export interface FilesOrder {
+  /** Group by sync status: what a folder sync found changed on disk comes first. */
+  syncFirst?: boolean;
+}
+
+/** One page: folders first, then by name; with `syncFirst`, the disk changes before both. */
+export function listingQuery(
+  db: FilesQueryBuilder,
+  f: FilesFilter,
+  page: { offset: number; limit: number },
+  order: FilesOrder = {},
+) {
+  let q = filtered(db, f)
     .select([
       "n.id",
       "n.kind",
@@ -122,7 +133,11 @@ export function listingQuery(db: FilesQueryBuilder, f: FilesFilter, page: { offs
       "d.rendition_count",
       "d.thumb_ref",
       "d.disk_change",
-    ])
+    ]);
+  if (order.syncFirst) {
+    q = q.orderBy((eb) => eb.case().when("d.disk_change", "is not", null).then(0).else(1).end());
+  }
+  return q
     // "folder" sorts after "file": descending puts folders first.
     .orderBy("n.kind", "desc")
     .orderBy("n.name_sort")

@@ -4,13 +4,15 @@
 // this is the reading and the writing.
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, rmdir, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 import type { Action } from "document-model";
 import { actions, type FolderSyncIssueInput, type FolderSyncState } from "document-models/folder-sync";
 import {
   collectDocuments,
+  collectFolders,
   decide,
+  depthOf,
   fileNameFor,
   keepBothName,
   MANIFEST_NAME,
@@ -77,7 +79,9 @@ export interface RunOutcome {
 /**
  * Runs a mapping once. Reports the start, then the issues and the finish,
  * on the mapping itself; a failure of the whole run (the local folder cannot
- * be made, the drive cannot be read) finishes it as ERROR.
+ * be made, the drive cannot be read) finishes it as ERROR. A quiet run (an
+ * automatic one) reports nothing when it found nothing to do, and otherwise
+ * its start, issues and finish together at the end.
  */
 export async function runSync(
   mappingId: string,
@@ -88,6 +92,8 @@ export async function runSync(
     full: boolean;
     /** When set, the only folders a run may write into (and below); the mapping's own path is checked against it */
     allowedRoots?: readonly string[] | null;
+    /** Leave no record of a run that found nothing to do (an automatic run) */
+    quiet?: boolean;
   },
 ): Promise<RunOutcome> {
   const runId = deps.newId();
@@ -99,18 +105,17 @@ export async function runSync(
   } catch {
     // reported below, once the run is on record
   }
-  await deps.dispatch(mappingId, [
-    actions.startRun({
-      id: runId,
-      requestId: options.requestId,
-      startedAt: deps.now().toISOString(),
-      full: options.full,
-      driveRevision,
-      hostName: deps.host.name,
-      hostPlatform: deps.host.platform,
-      reactorId: deps.host.reactorId,
-    }),
-  ]);
+  const started = actions.startRun({
+    id: runId,
+    requestId: options.requestId,
+    startedAt: deps.now().toISOString(),
+    full: options.full,
+    driveRevision,
+    hostName: deps.host.name,
+    hostPlatform: deps.host.platform,
+    reactorId: deps.host.reactorId,
+  });
+  if (!options.quiet) await deps.dispatch(mappingId, [started]);
 
   let outcome: RunOutcome;
   try {
@@ -124,8 +129,10 @@ export async function runSync(
     outcome = { ...emptyOutcome(), status: "ERROR", error: e instanceof Error ? e.message : String(e) };
   }
 
+  if (options.quiet && isIdle(outcome, s)) return outcome;
   const finishedAt = deps.now().toISOString();
   await deps.dispatch(mappingId, [
+    ...(options.quiet ? [started] : []),
     actions.setIssues({ issues: outcome.issues.slice(0, MAX_ISSUES) }),
     // Every pull asked for was looked at in this run; one that failed is an issue, not a retry.
     // Before FINISH_RUN: a pull still on the list there would make the mapping owe another run.
@@ -167,6 +174,12 @@ export function isAllowed(localPath: string, roots: readonly string[] | null, pl
   });
 }
 
+/** A run that changed nothing, anywhere, and has nothing new to report. */
+export function isIdle(o: RunOutcome, s: FolderSyncState): boolean {
+  const did = o.written + o.deleted + o.conflicts + o.errors + o.placeholders + o.pulled;
+  return o.status === "OK" && !o.error && did === 0 && o.issues.length === 0 && s.issues.length === 0 && (s.pulls ?? []).length === 0;
+}
+
 function emptyOutcome(): RunOutcome {
   return { status: "OK", written: 0, unchanged: 0, deleted: 0, skipped: 0, conflicts: 0, errors: 0, bytesWritten: 0, placeholders: 0, pulled: 0, error: null, issues: [] };
 }
@@ -193,6 +206,38 @@ async function copyFolder(
   const pendingOf = new Map<string, PendingPlaceholder | null | undefined>();
   /** Files whose deletion on disk was pulled: their record goes */
   const dropped = new Set<string>();
+
+  /* -- the folders: made on disk (empty ones too), or found deleted there -- */
+  const platform = deps.host.platform;
+  const folders = collectFolders(nodes, s.folderId ?? null, s.options.includeSubfolders);
+  const nextFolders: Record<string, string> = {};
+  /** Drive folders whose directory was deleted on disk */
+  const goneOnDisk: string[] = [];
+  // A record from before folders were kept: a directory the sync wrote files
+  // into was there; one it never wrote into was never made.
+  const writtenInto = (rel: string) => {
+    const prefix = `${pathKey(rel, platform)}/`;
+    return Object.values(manifest.files).some((e) => pathKey(e.relPath, platform).startsWith(prefix));
+  };
+  for (const [id, rel] of folders) {
+    const exists = await isDir(join(root, ...rel.split("/")));
+    const recorded = manifest.folders ? manifest.folders[id] : writtenInto(rel) ? rel : undefined;
+    if (exists) {
+      nextFolders[id] = rel;
+    } else if (changes.on && recorded !== undefined && pathKey(recorded, platform) === pathKey(rel, platform)) {
+      // There before, at the same place, and gone now: deleted on disk, not made again.
+      goneOnDisk.push(id);
+      nextFolders[id] = rel;
+    } else if (s.options.writeFiles !== false) {
+      try {
+        await mkdir(join(root, ...rel.split("/")), { recursive: true });
+        nextFolders[id] = rel;
+      } catch (e) {
+        out.errors++;
+        issue({ kind: "ERROR", nodeId: id, relativePath: rel, message: `The folder could not be made: ${e instanceof Error ? e.message : String(e)}` });
+      }
+    }
+  }
 
   /* -- what the folder wants on disk -- */
   const wanted: WantedFile[] = [];
@@ -360,6 +405,9 @@ async function copyFolder(
   }
 
   /* -- what is on disk and not in the drive: new files, the other way round -- */
+  /** Files left on disk by an earlier run, still as they were left */
+  const nextLeft: Record<string, { hash: string }> = {};
+  const leftBefore = new Map(Object.entries(manifest.left ?? {}).map(([rel, l]) => [pathKey(rel, platform), { rel, hash: l.hash }]));
   if (changes.on) {
     const known = new Set(
       [...Object.values(nextFiles), ...Object.values(manifest.files), ...wanted].map((x) => pathKey(x.relPath, deps.host.platform)),
@@ -373,6 +421,12 @@ async function copyFolder(
         const path = join(root, ...rel.split("/"));
         const st = await look(path);
         const found = { hash: await hashFile(path), size: st.size ?? 0, mtimeMs: st.mtimeMs ?? 0 };
+        // Left here by the sync and not touched since: not new. Edited since: it is someone's now.
+        const left = leftBefore.get(k);
+        if (left && left.hash === found.hash) {
+          nextLeft[left.rel] = { hash: left.hash };
+          continue;
+        }
         if (placeholder) used.add(placeholder.id);
         const id = placeholder?.id ?? (await changes.createPlaceholderFile(rel, found));
         const pending = placeholder ? placeholder.pending : { change: "CREATE" as const, hash: found.hash, relativePath: rel };
@@ -392,6 +446,9 @@ async function copyFolder(
     }
     // A placeholder whose file left the disk again stands for nothing.
     for (const { id } of placeholderFiles.values()) if (!used.has(id)) await changes.dropPlaceholderFile(id);
+  } else {
+    // Not looking at the disk this run: what was left stays on record as it was.
+    for (const { rel, hash } of leftBefore.values()) nextLeft[rel] = { hash };
   }
   out.placeholders = changes.placeholders;
   out.pulled = changes.pulled;
@@ -406,8 +463,16 @@ async function copyFolder(
       nextFiles[key] = entry;
       continue;
     }
-    if (s.options.onRemoved !== "DELETE" || s.options.writeFiles === false) continue;
     const path = join(root, ...entry.relPath.split("/"));
+    if (s.options.onRemoved !== "DELETE" || s.options.writeFiles === false) {
+      // Kept on disk: remembered as left there, so a later look does not take it for a new file.
+      try {
+        if ((await look(path)).exists && (await hashFile(path)) === entry.hash) nextLeft[entry.relPath] = { hash: entry.hash };
+      } catch {
+        // gone or unreadable: nothing to remember
+      }
+      continue;
+    }
     try {
       const disk = await look(path);
       if (!disk.exists) continue;
@@ -424,7 +489,42 @@ async function copyFolder(
     }
   }
 
-  await writeAtomically(join(root, MANIFEST_NAME), Buffer.from(JSON.stringify({ version: MANIFEST_VERSION, mappingId, files: nextFiles } satisfies Manifest, null, 1), "utf8"));
+  /* -- folders deleted on disk leave the drive, once nothing is left in them -- */
+  for (const id of goneOnDisk.sort((a, b) => depthOf(folders.get(b) ?? "") - depthOf(folders.get(a) ?? ""))) {
+    if (nodes.some((n) => (n.parentFolder ?? null) === id)) continue;
+    try {
+      await changes.pullFolderDelete(id);
+      delete nextFolders[id];
+    } catch (e) {
+      out.errors++;
+      issue({ kind: "ERROR", nodeId: id, relativePath: folders.get(id), message: `The folder could not be removed from the drive: ${e instanceof Error ? e.message : String(e)}` });
+    }
+  }
+  out.pulled = changes.pulled;
+
+  /* -- directories the drive no longer has there: moved or renamed (always), removed (when deleting) -- */
+  if (s.options.writeFiles !== false) {
+    const current = new Set(Object.values(nextFolders).map((rel) => pathKey(rel, platform)));
+    const stale = Object.entries(manifest.folders ?? {})
+      .filter(([, rel]) => !current.has(pathKey(rel, platform)))
+      .filter(([id]) => nodes.some((n) => n.id === id) || s.options.onRemoved === "DELETE")
+      .sort((a, b) => depthOf(b[1]) - depthOf(a[1]));
+    for (const [id, rel] of stale) {
+      try {
+        await rmdir(join(root, ...rel.split("/")));
+        if (!nodes.some((n) => n.id === id)) out.deleted++;
+      } catch {
+        // Not empty (something of someone's is in it) or gone already: left as it is.
+      }
+    }
+  }
+
+  // A file left on disk that the folder wants again is tracked again.
+  const tracked = new Set(Object.values(nextFiles).map((e) => pathKey(e.relPath, platform)));
+  for (const rel of Object.keys(nextLeft)) if (tracked.has(pathKey(rel, platform))) delete nextLeft[rel];
+
+  const record: Manifest = { version: MANIFEST_VERSION, mappingId, files: nextFiles, folders: nextFolders, left: nextLeft };
+  await writeAtomically(join(root, MANIFEST_NAME), Buffer.from(JSON.stringify(record, null, 1), "utf8"));
   out.status = out.errors > 0 && out.written + out.unchanged === 0 ? "ERROR" : out.issues.length > 0 ? "PARTIAL" : "OK";
   if (out.status === "ERROR") out.error = out.issues[0]?.message ?? "Nothing could be written";
   return out;
@@ -434,11 +534,22 @@ async function readManifest(root: string, mappingId: string): Promise<Manifest> 
   try {
     const m = JSON.parse(await readFile(join(root, MANIFEST_NAME), "utf8")) as Partial<Manifest>;
     // Another mapping's manifest (a folder that was mapped before) is not this one's record.
-    if (m.version === MANIFEST_VERSION && m.mappingId === mappingId && m.files) return { version: m.version, mappingId, files: m.files };
+    if (m.version === MANIFEST_VERSION && m.mappingId === mappingId && m.files) {
+      // No `folders` yet: a record from before folders were kept (see the folder pass).
+      return { version: m.version, mappingId, files: m.files, folders: m.folders, left: m.left ?? {} };
+    }
   } catch {
     // none yet
   }
-  return { version: MANIFEST_VERSION, mappingId, files: {} };
+  return { version: MANIFEST_VERSION, mappingId, files: {}, folders: {}, left: {} };
+}
+
+async function isDir(path: string): Promise<boolean> {
+  try {
+    return (await stat(path)).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 async function look(path: string): Promise<DiskFile> {

@@ -18,6 +18,7 @@ import { join } from "node:path";
 import { up } from "./migrations.js";
 import { Debouncer } from "./debounce.js";
 import { runSync, type RunnerDeps } from "./runner.js";
+import { changedNodes, inScope, type ScopeNode } from "./scope.js";
 import type { DB } from "./schema.js";
 
 export const SYNC_TYPE = "sektar/folder-sync";
@@ -28,7 +29,7 @@ export const FILE_TYPE = "sektar/file";
 const CHANGE_QUIET_MS = 5_000;
 /** ...and never later than this after the first change of a burst. */
 const CHANGE_MAX_WAIT_MS = 60_000;
-/** Disk events this soon after a run are the run's own writes. */
+/** Disk events this soon after a run are the run's own (late) writes. */
 const RUN_ECHO_MS = 3_000;
 /** Files on disk a run writes for itself, whose changes start nothing. */
 const OWN_FILES = /(^|[\\/])(\.sektar-sync\.json|[^\\/]*\.sektar-tmp)$/;
@@ -59,6 +60,15 @@ export function isAutomatic(s: FolderSyncState): boolean {
   return s.enabled && s.options.trigger === "ON_CHANGE" && Boolean(s.localPath);
 }
 
+interface DriveNode extends ScopeNode {
+  kind: string;
+  documentType?: string;
+}
+
+function mappingIds(nodes: readonly DriveNode[]): string[] {
+  return nodes.filter((n) => n.kind === "file" && n.documentType === SYNC_TYPE).map((n) => n.id);
+}
+
 export interface FolderSyncRuntime {
   client: IReactorClient;
   attachments: IProcessorHostModule["attachments"];
@@ -77,6 +87,12 @@ export class FolderSync extends RelationalDbProcessor<DB> {
   private readonly watchers = new Map<string, { path: string; watcher: FSWatcher }>();
   /** Until when a mapping's disk events are its own run's writes */
   private readonly quietUntil = new Map<string, number>();
+  /** Mappings that saw a change while their run was going: they run once more after it */
+  private readonly again = new Set<string>();
+  /** The drive's tree as last seen: a node moved out of a mapped folder is found there */
+  private lastNodes: ScopeNode[] | null = null;
+  /** Operations from well before this are a replay after a restart, not changes */
+  private readonly startedAt = Date.now();
   private sweepTimer: ReturnType<typeof setTimeout> | undefined;
   private queue: Promise<void> = Promise.resolve();
   private disconnected = false;
@@ -91,15 +107,13 @@ export class FolderSync extends RelationalDbProcessor<DB> {
 
   onOperations(operations: OperationWithContext[]): Promise<void> {
     const mappings = new Set<string>();
-    let folderChanged = false;
     for (const { context } of operations) {
-      if (context.scope !== "global") continue;
-      if (context.documentType === SYNC_TYPE) mappings.add(context.documentId);
-      else if (context.documentType === FILE_TYPE || (context.documentType === DRIVE_TYPE && context.documentId === this.driveId)) folderChanged = true;
+      if (context.scope === "global" && context.documentType === SYNC_TYPE) mappings.add(context.documentId);
     }
+    const changed = changedNodes(operations, this.driveId, { file: FILE_TYPE, drive: DRIVE_TYPE }, this.startedAt);
     return this.enqueue(async () => {
       for (const id of mappings) await this.consider(id);
-      if (folderChanged) await this.scheduleOnChange();
+      if (changed.size > 0) await this.scheduleOnChange(changed);
     });
   }
 
@@ -129,31 +143,47 @@ export class FolderSync extends RelationalDbProcessor<DB> {
     return this.queue;
   }
 
-  private async mappingsInDrive(): Promise<string[]> {
+  private async driveNodes(): Promise<DriveNode[]> {
     const client = this.runtime?.client;
     if (!client) return [];
-    const drive = (await client.get(this.driveId)) as unknown as { state: { global: { nodes: { id: string; kind: string; documentType?: string }[] } } };
-    return drive.state.global.nodes.filter((n) => n.kind === "file" && n.documentType === SYNC_TYPE).map((n) => n.id);
+    const drive = (await client.get(this.driveId)) as unknown as { state: { global: { nodes: DriveNode[] } } };
+    return drive.state.global.nodes;
+  }
+
+  private async mappingsInDrive(): Promise<string[]> {
+    return mappingIds(await this.driveNodes());
   }
 
   private async sweep(): Promise<void> {
     for (const id of await this.mappingsInDrive()) await this.consider(id);
   }
 
-  private async scheduleOnChange(): Promise<void> {
-    const client = this.runtime?.client;
-    if (!client) return;
-    for (const id of await this.mappingsInDrive()) {
+  /** Schedules the automatic mappings whose folder the changed nodes are in, before or after the change. */
+  private async scheduleOnChange(changed: ReadonlySet<string>): Promise<void> {
+    if (!this.runtime) return;
+    const nodes = await this.driveNodes();
+    const before = this.lastNodes;
+    this.lastNodes = nodes;
+    for (const id of mappingIds(nodes)) {
       const s = await this.stateOf(id);
-      if (s && s.driveId === this.driveId && isAutomatic(s)) this.changed(id);
+      if (!s || s.driveId !== this.driveId || !isAutomatic(s)) continue;
+      const m = { folderId: s.folderId ?? null, includeSubfolders: s.options.includeSubfolders };
+      // Without an earlier tree a move out of the folder cannot be told apart: run.
+      if (!before || inScope(changed, before, m) || inScope(changed, nodes, m)) this.changed(id);
     }
   }
 
-  /** A change for an automatic mapping: it runs once the changes stop (debounced, with a ceiling). */
+  /**
+   * A change for an automatic mapping: it runs once the changes stop
+   * (debounced, with a ceiling). One that comes due while the mapping's run
+   * is going runs once more after it.
+   */
   private changed(id: string): void {
     if (this.disconnected) return;
     this.changes.touch(id, () => {
-      if (!this.disconnected) void this.enqueue(() => this.start(id, null, false));
+      if (this.disconnected) return;
+      if (this.running.has(id)) this.again.add(id);
+      else void this.enqueue(() => this.start(id, null, false));
     });
   }
 
@@ -168,8 +198,10 @@ export class FolderSync extends RelationalDbProcessor<DB> {
     try {
       const watcher = watch(path, { recursive: true }, (_event, name) => {
         if (name && OWN_FILES.test(String(name))) return;
-        if (this.running.has(id) || Date.now() < (this.quietUntil.get(id) ?? 0)) return;
-        this.changed(id);
+        if (Date.now() < (this.quietUntil.get(id) ?? 0)) return;
+        // During a run its own writes cannot be told from anyone else's: look again after it.
+        if (this.running.has(id)) this.again.add(id);
+        else this.changed(id);
       });
       watcher.on("error", () => {
         watcher.close();
@@ -215,11 +247,13 @@ export class FolderSync extends RelationalDbProcessor<DB> {
     this.running.add(id);
     const deps = this.deps();
     const allowedRoots = await readAllowedRoots();
-    void runSync(id, s, deps, { requestId, full, allowedRoots })
+    // An automatic run (no request) that finds nothing to do leaves no record.
+    void runSync(id, s, deps, { requestId, full, allowedRoots, quiet: requestId === null })
       .catch((e: unknown) => console.warn(`[folder-sync] ${id}:`, e instanceof Error ? e.message : e))
       .finally(() => {
         this.running.delete(id);
         this.quietUntil.set(id, Date.now() + RUN_ECHO_MS);
+        if (this.again.delete(id)) this.changed(id);
       });
   }
 

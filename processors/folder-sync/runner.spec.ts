@@ -195,6 +195,22 @@ describe("a folder sync run", () => {
     expect(await read("20260710-indigo-hotel.pdf")).toBe("hotel, corrected");
   });
 
+  it("as a quiet (automatic) run, leaves no record when there is nothing to do, and reports all at once when there is", async () => {
+    const quiet = () => runSync("mapping-1", w.s, w.deps(), { requestId: null, full: false, quiet: true });
+    await w.run();
+    const runs = w.s.runs.length;
+    w.dispatched = [];
+    expect(await quiet()).toMatchObject({ written: 0, unchanged: 2 });
+    expect(w.dispatched).toEqual([]);
+    expect(w.s.runs).toHaveLength(runs);
+
+    w.setContent("f1", "hotel, corrected");
+    expect(await quiet()).toMatchObject({ written: 1, unchanged: 1 });
+    expect(w.dispatched).toEqual(["START_RUN", "SET_ISSUES", "FINISH_RUN"]);
+    expect(w.s.runs).toHaveLength(runs + 1);
+    expect(w.s.runs[0]).toMatchObject({ status: "OK", written: 1, requestId: null });
+  });
+
   it("recognises a file that is already there with the same content", async () => {
     await writeFile(join(root, "20260710-indigo-hotel.pdf"), "hotel");
     expect(await w.run()).toMatchObject({ written: 1, unchanged: 1, conflicts: 0 });
@@ -422,6 +438,127 @@ describe("changes found on disk", () => {
     expect(out).toMatchObject({ placeholders: 0, pulled: 0, conflicts: 1, written: 1 });
     expect(w.created).toEqual([]);
     expect(await read("accounts-payable/aws/EUINBE26-200560.pdf")).toBe("aws july");
+  });
+});
+
+describe("folders, and what a run leaves on disk", () => {
+  const options = (o: Parameters<typeof setOptions>[0]) => w.map((d) => reducer(d, setOptions(o)));
+  const isDirAt = (rel: string) => existsSync(join(root, ...rel.split("/")));
+  const dropNode = (id: string) => {
+    w.nodes = w.nodes.filter((n) => n.id !== id && n.parentFolder !== id);
+  };
+
+  it("makes empty drive folders on disk, and moves a renamed one's directory along", async () => {
+    w.folder("empty", "inbox", "q3");
+    await w.run();
+    expect(isDirAt("inbox")).toBe(true);
+    (w.nodes.find((n) => n.id === "aws") as { name: string }).name = "amazon";
+    const out = await w.run();
+    expect(out).toMatchObject({ written: 1, errors: 0 });
+    expect(await read("accounts-payable/amazon/EUINBE26-200560.pdf")).toBe("aws july");
+    expect(isDirAt("accounts-payable/aws")).toBe(false);
+    expect((await manifest()).folders).toMatchObject({ ap: "accounts-payable", aws: "accounts-payable/amazon", empty: "inbox" });
+  });
+
+  it("removes a folder deleted in the drive from disk when deleting, and keeps it otherwise", async () => {
+    await w.run();
+    dropNode("aws");
+    dropNode("f2");
+    expect(await w.run()).toMatchObject({ errors: 0 });
+    expect(isDirAt("accounts-payable/aws")).toBe(true);
+
+    options({ onRemoved: "DELETE" });
+    w.folder("aws", "aws", "ap");
+    w.file("f2", "EUINBE26-200560.pdf", "aws", "aws july");
+    await w.run();
+    dropNode("aws");
+    dropNode("f2");
+    const out = await w.run();
+    expect(out.deleted).toBe(2);
+    expect(isDirAt("accounts-payable/aws")).toBe(false);
+    expect(isDirAt("accounts-payable")).toBe(true);
+  });
+
+  it("keeps a directory with someone's files in it", async () => {
+    options({ onRemoved: "DELETE" });
+    await w.run();
+    await editOnDisk("accounts-payable/aws/notes.txt", "mine");
+    dropNode("aws");
+    dropNode("f2");
+    await w.run();
+    expect(await read("accounts-payable/aws/notes.txt")).toBe("mine");
+  });
+
+  it("does not take files it left on disk for new ones, until someone edits them", async () => {
+    options({ fromDisk: "AUTO_PULL" });
+    await w.run();
+    dropNode("f2");
+    await w.run();
+    await w.run();
+    expect(w.created).toEqual([]);
+    expect(w.nodes.some((n) => n.name === "EUINBE26-200560.pdf")).toBe(false);
+    expect((await manifest()).left).toEqual({ "accounts-payable/aws/EUINBE26-200560.pdf": { hash: sha("aws july") } });
+
+    await editOnDisk("accounts-payable/aws/EUINBE26-200560.pdf", "aws july, annotated");
+    await w.run();
+    expect(w.created).toHaveLength(1);
+    expect((await manifest()).left).toEqual({});
+  });
+
+  it("does not take renditions it stopped writing for new files", async () => {
+    w.file("f10", "scan.pdf", "q3", "scan", { renditions: [{ id: "r-ocr", type: "ocr", mimeType: "text/plain", text: "the text", createdAt: "2026-10-21T00:00:00.000Z" }] });
+    options({ content: "SOURCE_AND_RENDITIONS", fromDisk: "PLACEHOLDERS" });
+    await w.run();
+    expect(await read("scan.ocr.txt")).toBe("the text");
+    options({ content: "SOURCE" });
+    await w.run();
+    await w.run();
+    expect(w.created).toEqual([]);
+    expect(await read("scan.ocr.txt")).toBe("the text");
+  });
+
+  it("pulls a folder deleted on disk out of the drive along with its Files, when deletions are pulled", async () => {
+    await w.run();
+    options({ fromDisk: "AUTO_PULL_WITH_DELETES" });
+    await rm(join(root, "accounts-payable"), { recursive: true });
+    const out = await w.run();
+    expect(out).toMatchObject({ errors: 0 });
+    expect(w.deleted.sort()).toEqual(["ap", "aws", "f2"]);
+    expect(isDirAt("accounts-payable")).toBe(false);
+    expect(Object.keys((await manifest()).folders ?? {})).toEqual([]);
+  });
+
+  it("leaves a folder deleted on disk in the drive while its Files wait, then removes it once they are gone", async () => {
+    await w.run();
+    options({ fromDisk: "PLACEHOLDERS" });
+    await rm(join(root, "accounts-payable"), { recursive: true });
+    await w.run();
+    expect(w.deleted).toEqual([]);
+    expect(w.fileState("f2").placeholder).toMatchObject({ change: "DELETE" });
+    // Not made again while it stands deleted on disk.
+    expect(isDirAt("accounts-payable")).toBe(false);
+
+    // The person applies the deletion: the File leaves the drive.
+    dropNode("f2");
+    await w.run();
+    expect(w.deleted.sort()).toEqual(["ap", "aws"]);
+  });
+
+  it("over a record from before folders were kept, takes a missing directory it wrote into as deleted on disk", async () => {
+    await w.run();
+    const m = await manifest();
+    delete m.folders;
+    await writeFile(join(root, MANIFEST_NAME), JSON.stringify(m));
+    await rm(join(root, "accounts-payable", "aws"), { recursive: true });
+    w.folder("empty", "inbox", "q3");
+    options({ fromDisk: "PLACEHOLDERS" });
+    await w.run();
+    // Written into before, so deleted on disk: not made again, its File waits.
+    expect(isDirAt("accounts-payable/aws")).toBe(false);
+    expect(w.fileState("f2").placeholder).toMatchObject({ change: "DELETE" });
+    // Never written into: simply made.
+    expect(isDirAt("inbox")).toBe(true);
+    expect((await manifest()).folders).toMatchObject({ ap: "accounts-payable", aws: "accounts-payable/aws", empty: "inbox" });
   });
 });
 

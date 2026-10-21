@@ -161,6 +161,13 @@ export class DiskChanges {
     this.pulled++;
   }
 
+  /** Pulls a folder deleted on disk, once nothing is left in it: the drive folder goes too. */
+  async pullFolderDelete(folderId: string): Promise<void> {
+    await this.deps.deleteNode(this.driveId, folderId);
+    this.removeNode(folderId);
+    this.pulled++;
+  }
+
   /** Removes a placeholder File whose file is gone from disk again: there is nothing left it stands for. */
   async dropPlaceholderFile(fileId: string): Promise<void> {
     await this.deps.deleteNode(this.driveId, fileId);

@@ -41,6 +41,14 @@ export interface Manifest {
   version: number;
   mappingId: string;
   files: Record<string, ManifestEntry>;
+  /** The drive folders mirrored on disk: node id to the directory's relative path */
+  folders?: Record<string, string>;
+  /**
+   * Files a run stopped tracking but left on disk (their document left the
+   * folder and nothing was to be deleted), by relative path, with the content
+   * they had: while that is still what is there, they are not new on disk.
+   */
+  left?: Record<string, { hash: string }>;
 }
 
 /** What is on disk at a wanted path. `hash` is filled only when it was computed. */
@@ -142,6 +150,37 @@ export function collectDocuments(
   walk(rootFolderId, "");
   return out;
 }
+
+/** The drive folders below the mapped one, each with the directory it is on disk; none without subfolders. */
+export function collectFolders(
+  nodes: readonly PlanNode[],
+  rootFolderId: string | null,
+  includeSubfolders: boolean,
+): Map<string, string> {
+  const out = new Map<string, string>();
+  if (!includeSubfolders) return out;
+  const children = new Map<string | null, PlanNode[]>();
+  for (const n of nodes) {
+    if (n.kind !== "folder") continue;
+    const parent = n.parentFolder ?? null;
+    children.set(parent, [...(children.get(parent) ?? []), n]);
+  }
+  const walk = (folderId: string | null, dir: string) => {
+    for (const n of children.get(folderId) ?? []) {
+      if (out.has(n.id)) continue;
+      // The folder syncs' own folder is never copied out.
+      if (folderId === null && n.name === ".sync") continue;
+      const rel = dir ? `${dir}/${safeName(n.name)}` : safeName(n.name);
+      out.set(n.id, rel);
+      walk(n.id, rel);
+    }
+  };
+  walk(rootFolderId, "");
+  return out;
+}
+
+/** How deep a relative path is: deepest first is the order to remove directories in. */
+export const depthOf = (relPath: string) => relPath.split("/").length;
 
 /** The comparison key of a path on this platform: case-insensitive where the file system is. */
 export function pathKey(relPath: string, platform: string): string {

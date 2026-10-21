@@ -41,7 +41,7 @@ import {
   type PreviewItem,
 } from "../../sektar/components/FilePreview.js";
 import { useFilesList, type FileListRow } from "../../sektar/kit/files-index.js";
-import { hiddenSyncIds, isPlaceholderKind, requestPull, SYNC_TYPE } from "../../sektar/kit/folder-sync.js";
+import { createMapping, folderPath, hiddenSyncIds, isPlaceholderKind, requestPull, SYNC_TYPE } from "../../sektar/kit/folder-sync.js";
 import { bytes, createEmptyFile, createFileFromUpload, FILE_TYPE, fileKind } from "../../sektar/kit/files.js";
 import { Menu } from "../../sektar/kit/menu.js";
 import { useSearch } from "../../sektar/kit/search-context.js";
@@ -54,6 +54,7 @@ import { MappedFolders, SyncMenu } from "./SyncMenu.js";
 type ViewMode = "list" | "grid";
 const VIEW_KEY = "sk:files-view";
 const DEEP_KEY = "sk:files-deep";
+const SYNC_FIRST_KEY = "sk:files-sync-first";
 
 /** How long a scroll is left to settle before the pages under it are fetched. */
 const ENSURE_DEBOUNCE_MS = 60;
@@ -88,6 +89,7 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
   const [picked, setPicked] = useState<FileListRow | null>(null);
   const [view, setView] = useState<ViewMode>(() => (stored(VIEW_KEY, "list") === "grid" ? "grid" : "list"));
   const [deep, setDeep] = useState<boolean>(() => stored(DEEP_KEY, "0") === "1");
+  const [syncFirst, setSyncFirst] = useState<boolean>(() => stored(SYNC_FIRST_KEY, "0") === "1");
   // Stacked, one screen at a time; the design system counts screens from 1:
   // 1 folders · 2 the folder's contents · 3 the preview.
   const [level, setLevel] = useState(2);
@@ -110,10 +112,11 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
     try {
       localStorage.setItem(VIEW_KEY, view);
       localStorage.setItem(DEEP_KEY, deep ? "1" : "0");
+      localStorage.setItem(SYNC_FIRST_KEY, syncFirst ? "1" : "0");
     } catch {
       // no storage, no memory
     }
-  }, [view, deep]);
+  }, [view, deep, syncFirst]);
   // A new folder starts with nothing picked; a new folder, scope, search or
   // layout starts at the top (a scroll position from a long list would land
   // past the end of a shorter one).
@@ -122,10 +125,10 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
   }, [currentId, deep]);
   useEffect(() => {
     if (body.current) body.current.scrollTop = 0;
-  }, [currentId, deep, query, view]);
+  }, [currentId, deep, query, view, syncFirst]);
 
   /* -- the listing, from the index -- */
-  const list = useFilesList(drive, { folderId: currentId, deep, query });
+  const list = useFilesList(drive, { folderId: currentId, deep, query, syncFirst });
   // The drive changed (a node added, moved, renamed, deleted): the index
   // follows within a beat, and any page in view may have moved.
   const { invalidate } = list;
@@ -213,6 +216,19 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
 
   /* -- actions -- */
   const openRow = (row: FileListRow) => setSelectedNode(row.id);
+  /** A new folder in the open one; with `configure`, a mapping for it too, opened to fill in. */
+  const createFolder = async (name: string, configure: boolean) => {
+    const parent = currentId;
+    try {
+      const folder = await addFolder(drive.header.id, name, parent ?? undefined);
+      if (!configure) return;
+      const base = folderPath(allNodes, parent);
+      const mapping = await createMapping(drive.header.id, allNodes, folder.id, driveName, base ? `${base}/${name}` : name);
+      setSelectedNode(mapping);
+    } catch (e) {
+      setStatus(`Could not create the folder${configure ? " and its mapping" : ""}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
   const goFolder = (id: string | null) => {
     setSelectedNode(id ?? undefined);
     setLevel(2);
@@ -345,6 +361,13 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
                   { label: "Grid", icon: "dashboard", active: view === "grid", onSelect: () => setView("grid") },
                   { section: "Show", label: "This folder only", icon: "folder", active: !deep, onSelect: () => setDeep(false) },
                   { label: "Include subfolders", icon: "copy", active: deep, onSelect: () => setDeep(true) },
+                  {
+                    section: "Group",
+                    label: "Group by sync status",
+                    glyph: <SyncGlyph className="sk-icon--mono" />,
+                    active: syncFirst,
+                    onSelect: () => setSyncFirst((on) => !on),
+                  },
                 ]}
                 trigger={(open, toggle) => (
                   <Button
@@ -352,7 +375,7 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
                     variant="ghost"
                     iconOnly
                     icon="settings"
-                    className={cx(deep && "sk-files-settings--on")}
+                    className={cx((deep || syncFirst) && "sk-files-settings--on")}
                     aria-haspopup="menu"
                     aria-expanded={open}
                     aria-label="View settings"
@@ -498,7 +521,7 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
           }
         >
           {picked ? (
-            <ItemPreview key={picked.id} row={picked} childCount={folderInfo.counts.get(picked.id) ?? 0} nodes={nodes} onOpen={() => activate(picked)} />
+            <ItemPreview key={picked.id} row={picked} childCount={folderInfo.counts.get(picked.id) ?? 0} nodes={nodes} onOpen={() => activate(picked)} onChanged={invalidate} />
           ) : (
             <EmptyState icon="reports" title="Pick something">
               A file's source and its extracted content preview here. Double-click to open it.
@@ -512,9 +535,14 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
           title={naming.kind === "folder" ? "New folder" : "Rename"}
           initial={naming.kind === "rename" ? naming.row.name : ""}
           action={naming.kind === "folder" ? "Create" : "Rename"}
+          option={
+            naming.kind === "folder"
+              ? { label: "Enable synchronization", hint: "Map the new folder to a folder on disk. Configure in the next step." }
+              : undefined
+          }
           onClose={() => setNaming(null)}
-          onSave={(name) => {
-            if (naming.kind === "folder") void addFolder(drive.header.id, name, currentId ?? undefined);
+          onSave={(name, configure) => {
+            if (naming.kind === "folder") void createFolder(name, configure);
             else void renameDriveNode(drive.header.id, naming.row.id, name);
             setNaming(null);
           }}
@@ -693,14 +721,16 @@ const DISK_MARK = {
 
 /**
  * What a folder sync found on disk, on a File's tile: a file new on disk
- * (a placeholder) shows at half strength, a changed one gets a blue dot, a
- * deleted one a red dot.
+ * (a placeholder) shows at half strength with a green dot, a changed one gets
+ * a blue dot, a deleted one a red dot.
  */
 function DiskMark({ row, children }: { row: FileListRow; children: ReactNode }) {
   if (isPlaceholderKind(row.sourceKind)) {
+    const title = "New on disk, not pulled yet";
     return (
-      <span className="sk-disk-tile sk-disk-tile--new" title="New on disk, not pulled yet">
+      <span className="sk-disk-tile sk-disk-tile--new" title={title}>
         {children}
+        <span className="sk-disk-tile__dot" aria-label={title} />
       </span>
     );
   }
@@ -833,11 +863,13 @@ function ItemPreview({
   childCount,
   nodes,
   onOpen,
+  onChanged,
 }: {
   row: FileListRow;
   childCount: number;
   nodes: readonly Node[];
   onOpen: () => void;
+  onChanged: () => void;
 }) {
   if (row.kind === "folder") {
     const sub = nodes.filter((n) => n.kind === "folder" && n.parentFolder === row.id).length;
@@ -865,14 +897,41 @@ function ItemPreview({
   if (row.documentType !== FILE_TYPE) {
     return <LinkedDocumentPreview documentId={row.id} documentType={row.documentType} documentName={row.name} />;
   }
-  return <FilePreviewPanel row={row} nodes={nodes} onOpen={onOpen} />;
+  return <FilePreviewPanel row={row} nodes={nodes} onOpen={onOpen} onChanged={onChanged} />;
 }
 
 /** A File in the preview pane: the one document this view loads. */
-function FilePreviewPanel({ row, nodes, onOpen }: { row: FileListRow; nodes: readonly Node[]; onOpen: () => void }) {
+function FilePreviewPanel({
+  row,
+  nodes,
+  onOpen,
+  onChanged,
+}: {
+  row: FileListRow;
+  nodes: readonly Node[];
+  onOpen: () => void;
+  onChanged: () => void;
+}) {
   const q = useDocumentSafe(row.id);
   const doc = q.data && isFileDocument(q.data) ? q.data : undefined;
   const [item, setItem] = useState<PreviewItem>(SOURCE_ITEM);
+  // The open File changed (a pull from disk, a retag): only the File's own
+  // operations moved, not the drive's, so the listing is told here. Once now,
+  // and once more after the index has had a beat to follow.
+  const modified = doc?.header.lastModifiedAtUtcIso;
+  const firstModified = useRef(modified);
+  useEffect(() => {
+    if (!modified) return;
+    if (!firstModified.current) {
+      firstModified.current = modified;
+      return;
+    }
+    if (modified === firstModified.current) return;
+    firstModified.current = modified;
+    onChanged();
+    const later = setTimeout(onChanged, 2500);
+    return () => clearTimeout(later);
+  }, [modified, onChanged]);
   const known = nodes.some((n) => n.id === row.id && isFileNodeKind(n));
   if (!doc) {
     return (
@@ -983,16 +1042,20 @@ function NameModal({
   title,
   initial,
   action,
+  option,
   onClose,
   onSave,
 }: {
   title: string;
   initial: string;
   action: string;
+  /** A checkbox under the name, its value passed to `onSave` */
+  option?: { label: string; hint?: string };
   onClose: () => void;
-  onSave: (name: string) => void;
+  onSave: (name: string, checked: boolean) => void;
 }) {
   const [name, setName] = useState(initial);
+  const [checked, setChecked] = useState(false);
   const valid = name.trim() !== "";
   return (
     <Modal
@@ -1004,24 +1067,35 @@ function NameModal({
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="primary" disabled={!valid} onClick={() => onSave(name.trim())}>
+          <Button variant="primary" disabled={!valid} onClick={() => onSave(name.trim(), checked)}>
             {action}
           </Button>
         </>
       }
     >
-      <label className="sk-field">
-        <span className="sk-label">Name</span>
-        <input
-          className="sk-input"
-          autoFocus
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && valid) onSave(name.trim());
-          }}
-        />
-      </label>
+      <div className="sk-stack sk-stack--4">
+        <label className="sk-field">
+          <span className="sk-label">Name</span>
+          <input
+            className="sk-input"
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && valid) onSave(name.trim(), checked);
+            }}
+          />
+        </label>
+        {option && (
+          <label className="sk-check sk-sync-check">
+            <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} />
+            <span>
+              <span className="sk-sync-check__label">{option.label}</span>
+              {option.hint && <span className="sk-caption">{option.hint}</span>}
+            </span>
+          </label>
+        )}
+      </div>
     </Modal>
   );
 }

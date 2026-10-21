@@ -51,10 +51,17 @@ export function folderPath(nodes: readonly Node[], folderId: string | null): str
 }
 
 /** Creates a mapping for a drive folder (null: the drive's root) and returns its id. */
-export async function createMapping(driveId: string, nodes: readonly Node[], folderId: string | null, driveName: string): Promise<string> {
+export async function createMapping(
+  driveId: string,
+  nodes: readonly Node[],
+  folderId: string | null,
+  driveName: string,
+  /** The folder's path, for a folder too new to be in `nodes` */
+  knownPath?: string,
+): Promise<string> {
   let home = nodes.find((n) => n.kind === "folder" && !n.parentFolder && n.name === SYNC_FOLDER)?.id;
   if (!home) home = (await addFolder(driveId, SYNC_FOLDER)).id;
-  const path = folderPath(nodes, folderId);
+  const path = knownPath ?? folderPath(nodes, folderId);
   const node = await addDocument(driveId, path.split("/").at(-1) || driveName, SYNC_TYPE, home);
   await dispatchActions(actions.setTarget({ driveId, folderId, folderPath: path || null }), node.id);
   return node.id;

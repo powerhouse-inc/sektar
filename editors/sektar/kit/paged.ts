@@ -131,6 +131,8 @@ export function usePagedList<T extends { id: string }>(options: {
   const [held, setHeld] = useState<Held<T>>(seeded);
   const heldRef = useRef(held);
   heldRef.current = held;
+  const keyRef = useRef(key);
+  keyRef.current = key;
   const [inflightCount, setInflightCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const inflight = useRef(new Set<string>());
@@ -171,10 +173,14 @@ export function usePagedList<T extends { id: string }>(options: {
       setInflightCount((n) => n + 1);
       ask(page)
         .then((answer) => {
+          // An answer for a filter the reader has since left (a search
+          // typed on, or cleared) is kept in memory but not shown.
+          if (keyRef.current !== key) return;
           setError(null);
           setHeld((prev) => foldPage(prev, key, page, answer));
         })
         .catch((e: unknown) => {
+          if (keyRef.current !== key) return;
           setError(e instanceof Error ? e.message : String(e));
           if (page === 0) {
             setHeld((prev) =>

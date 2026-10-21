@@ -2062,7 +2062,8 @@
 }
 /* A File that stands for something on disk, not pulled yet; a change on disk waiting in the preview */
 .sk-app .sk-disk-tile { position: relative; display: inline-grid; place-items: center; flex: none; }
-.sk-app .sk-disk-tile--new { opacity: 0.5; }
+.sk-app .sk-disk-tile--new > :not(.sk-disk-tile__dot) { opacity: 0.5; }
+.sk-app .sk-disk-tile--new .sk-disk-tile__dot { background: var(--sk-success); }
 .sk-app .sk-disk-tile__dot { position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--sk-info); box-shadow: 0 0 0 2px var(--sk-surface); }
 .sk-app .sk-disk-tile--delete .sk-disk-tile__dot { background: var(--sk-danger); }
 /* In the narrow preview the button goes under the text, not beside it. */

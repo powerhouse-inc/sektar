@@ -53,6 +53,8 @@ export const schema: DocumentNode = gql`
       query: String
       offset: Int = 0
       limit: Int = 60
+      """Group by sync status: the changes a folder sync found on disk come first."""
+      syncFirst: Boolean = false
     ): FilesPage!
   }
 

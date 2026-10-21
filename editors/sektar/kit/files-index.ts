@@ -31,10 +31,12 @@ export interface FilesListFilter {
   deep: boolean;
   /** The top bar's search, raw. */
   query: string;
+  /** Group by sync status: the changes a folder sync found on disk come first. */
+  syncFirst?: boolean;
 }
 
-const LISTING_QUERY = `query ($d: String!, $f: String, $deep: Boolean, $q: String, $o: Int, $l: Int) {
-  filesIndex { listing(driveId: $d, folderId: $f, deep: $deep, query: $q, offset: $o, limit: $l) {
+const LISTING_QUERY = `query ($d: String!, $f: String, $deep: Boolean, $q: String, $o: Int, $l: Int, $s: Boolean) {
+  filesIndex { listing(driveId: $d, folderId: $f, deep: $deep, query: $q, offset: $o, limit: $l, syncFirst: $s) {
     total
     items { id kind name parentId documentType title description tags { id label color } sourceKind sourceMime sourceName sourceSize sourceDocumentType sourceDocumentName renditionCount thumbRef diskChange }
   } }
@@ -54,7 +56,7 @@ async function gql<T>(base: string, query: string, variables: Record<string, unk
 
 /* --------------------------------------------------------------- local */
 
-type LocalParams = { filter: FilesFilter; offset: number; limit: number };
+type LocalParams = { filter: FilesFilter; offset: number; limit: number; syncFirst: boolean };
 type LocalQB = Parameters<Parameters<typeof useRelationalQuery<DB, FileListRow, LocalParams>>[2]>[0];
 
 /** The listing over the tab's own database: a live window, a page either side. */
@@ -71,7 +73,8 @@ function useLocalFiles(
         .map((n) => ({ id: n.id, parent_id: n.parentFolder ?? null })),
     [drive],
   );
-  const key = JSON.stringify([driveId, filter.folderId, filter.deep, filter.query]);
+  const syncFirst = Boolean(filter.syncFirst);
+  const key = JSON.stringify([driveId, filter.folderId, filter.deep, filter.query, syncFirst]);
   const [range, setRange] = useState({ key, offset: 0 });
   const offset = range.key === key ? range.offset : 0;
   const limit = enabled ? FILES_PAGE * 3 : 1;
@@ -84,13 +87,14 @@ function useLocalFiles(
       },
       offset,
       limit,
+      syncFirst,
     }),
-    [folders, filter.folderId, filter.deep, filter.query, offset, limit],
+    [folders, filter.folderId, filter.deep, filter.query, offset, limit, syncFirst],
   );
   const build = useCallback(
     (db: LocalQB, p?: LocalParams) => {
       const q = p ?? params;
-      return listingQuery(db, q.filter, { offset: q.offset, limit: q.limit }).compile();
+      return listingQuery(db, q.filter, { offset: q.offset, limit: q.limit }, { syncFirst: q.syncFirst }).compile();
     },
     [params],
   );
@@ -148,7 +152,8 @@ export function useFilesList(
   const mode = useMailIndexMode(drive);
   const driveId = drive?.header.id ?? null;
   const base = mode.kind === "remote" ? mode.base : null;
-  const key = JSON.stringify([base, driveId, filter.folderId, filter.deep, filter.query.trim().toLowerCase()]);
+  const syncFirst = Boolean(filter.syncFirst);
+  const key = JSON.stringify([base, driveId, filter.folderId, filter.deep, filter.query.trim().toLowerCase(), syncFirst]);
   const fetchPage = useCallback(
     async (page: number) => {
       if (!base || !driveId) throw new Error("No switchboard for this drive");
@@ -159,10 +164,11 @@ export function useFilesList(
         q: filter.query.trim() || null,
         o: page * FILES_PAGE,
         l: FILES_PAGE,
+        s: syncFirst,
       });
       return data.filesIndex.listing;
     },
-    [base, driveId, filter.folderId, filter.deep, filter.query],
+    [base, driveId, filter.folderId, filter.deep, filter.query, syncFirst],
   );
   const remote = usePagedList<FileListRow>({
     kind: "files",

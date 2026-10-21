@@ -23,6 +23,7 @@ interface ListingArgs {
   query?: string | null;
   offset?: number | null;
   limit?: number | null;
+  syncFirst?: boolean | null;
 }
 
 export const getResolvers = (subgraph: BaseSubgraph): Record<string, unknown> => {
@@ -41,7 +42,7 @@ export const getResolvers = (subgraph: BaseSubgraph): Record<string, unknown> =>
     const limit = Math.min(Math.max(args.limit ?? FILES_PAGE, 1), FILES_PAGE_MAX);
     const offset = Math.max(0, Math.floor(args.offset ?? 0));
     const [rows, count] = await Promise.all([
-      listingQuery(db, filter, { offset, limit }).execute(),
+      listingQuery(db, filter, { offset, limit }, { syncFirst: Boolean(args.syncFirst) }).execute(),
       listingCountQuery(db, filter).executeTakeFirst(),
     ]);
     return { items: rows.map(toListRow), total: Number(count?.n ?? 0) };

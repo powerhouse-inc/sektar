@@ -214,6 +214,7 @@ export class FilesIndex extends RelationalDbProcessor<DB> {
             source_document_name: eb.ref("excluded.source_document_name"),
             rendition_count: eb.ref("excluded.rendition_count"),
             thumb_ref: eb.ref("excluded.thumb_ref"),
+            disk_change: eb.ref("excluded.disk_change"),
             search_text: eb.ref("excluded.search_text"),
             updated_at: eb.ref("excluded.updated_at"),
           })),
