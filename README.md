@@ -66,9 +66,11 @@ paths.
 `link:../powerhouse/` spec, in the manifests and in the workspace overrides, to
 that directory; unset, it changes nothing. A `POWERHOUSE_DIR` install writes
 your machine's paths into `pnpm-lock.yaml` — restore it and never commit it.
-`node_modules` keeps pointing at your checkout until the next install, so
-keep `POWERHOUSE_DIR` set for every `pnpm install` (a plain one relinks to
-`../powerhouse`); exporting it from your shell profile is simplest. Adding or
+pnpm scripts do not reinstall (`verifyDepsBeforeRun: false` in
+`pnpm-workspace.yaml`), so `node_modules` keeps pointing at your checkout
+until the next explicit `pnpm install`: pass `POWERHOUSE_DIR` to every one (a
+plain one relinks to `../powerhouse`), and run it yourself after pulling
+dependency changes. Adding or
 upgrading a dependency needs a default install (sibling `../powerhouse`) so the
 lockfile you commit has the shared paths. pnpm records the pnpmfile's checksum
 in the lockfile: after editing `.pnpmfile.cjs`, run
