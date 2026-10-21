@@ -2057,5 +2057,8 @@
 }
 /* A File that stands for something on disk, not pulled yet; a change on disk waiting in the preview */
 .sk-app .sk-placeholder-tile { display: inline-grid; place-items: center; border-radius: var(--sk-radius-sm); outline: 1.5px dashed var(--sk-border-strong, var(--sk-border)); outline-offset: 2px; opacity: 0.7; }
-.sk-app .sk-disk-change { align-items: center; }
+/* In the narrow preview the button goes under the text, not beside it. */
+.sk-app .sk-disk-change { flex-wrap: wrap; align-items: flex-start; }
+.sk-app .sk-disk-change > .sk-grow { flex: 1 1 180px; }
+.sk-app .sk-disk-change > .sk-btn { margin-left: auto; }
 .sk-app .sk-disk-change__what { overflow-wrap: anywhere; color: inherit; }
