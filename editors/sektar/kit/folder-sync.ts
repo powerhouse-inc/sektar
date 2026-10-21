@@ -60,6 +60,15 @@ export async function createMapping(driveId: string, nodes: readonly Node[], fol
   return node.id;
 }
 
+/**
+ * Whether a document is a mapping, by its type alone. The model's own guard
+ * validates the whole state against the current schema, which a mapping
+ * stored before a field was added fails until its next operation fills it in.
+ */
+export function isMapping(doc: { header: { documentType: string } }): doc is FolderSyncDocument {
+  return doc.header.documentType === SYNC_TYPE;
+}
+
 export function isRunnable(s: FolderSyncState): boolean {
   return s.enabled && Boolean(s.driveId && s.localPath);
 }

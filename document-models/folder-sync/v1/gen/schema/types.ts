@@ -136,7 +136,7 @@ export type FolderSyncOptions = {
   /** What is written for a File: its source, or its source and its renditions */
   content: FolderSyncContent;
   /** What a change found on disk becomes: nothing, a placeholder to pull, or a pull */
-  fromDisk: FolderSyncFromDisk;
+  fromDisk: Maybe<FolderSyncFromDisk>;
   includeSubfolders: Scalars["Boolean"]["output"];
   /** What happens to a file on disk that was changed since it was written */
   onConflict: FolderSyncConflictPolicy;
@@ -182,9 +182,9 @@ export type FolderSyncRun = {
   full: Scalars["Boolean"]["output"];
   id: Scalars["OID"]["output"];
   /** Changes found on disk recorded as placeholders */
-  placeholders: Scalars["Int"]["output"];
+  placeholders: Maybe<Scalars["Int"]["output"]>;
   /** Changes found on disk pulled into the drive */
-  pulled: Scalars["Int"]["output"];
+  pulled: Maybe<Scalars["Int"]["output"]>;
   /** The request the run answered */
   requestId: Maybe<Scalars["OID"]["output"]>;
   skipped: Scalars["Int"]["output"];
@@ -219,7 +219,7 @@ export type FolderSyncState = {
   localPath: Maybe<Scalars["String"]["output"]>;
   options: FolderSyncOptions;
   /** Pulls asked for and not done yet */
-  pulls: Array<FolderSyncPull>;
+  pulls: Maybe<Array<FolderSyncPull>>;
   /** The latest request for a run: when, by whom (the app, a workflow), and whether everything is rewritten */
   request: Maybe<FolderSyncRequest>;
   /** The runs, latest first, at most 20 */

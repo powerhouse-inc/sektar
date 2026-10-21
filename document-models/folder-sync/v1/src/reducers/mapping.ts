@@ -1,6 +1,6 @@
-import { normalize } from "../utils.js";
 import type { FolderSyncMappingOperations } from "document-models/folder-sync/v1";
 import { InvalidLocalPathError } from "../../gen/mapping/error.js";
+import { normalize } from "../utils.js";
 
 export const folderSyncMappingOperations: FolderSyncMappingOperations = {
   setTargetOperation(state, action) {

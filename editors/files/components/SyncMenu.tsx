@@ -4,9 +4,9 @@
 // only reads the mappings and asks for runs.
 import { setSelectedNode, useDocuments } from "@powerhousedao/reactor-browser";
 import type { Node } from "@powerhousedao/shared/document-drive";
-import { isFolderSyncDocument, type FolderSyncDocument } from "document-models/folder-sync";
+import type { FolderSyncDocument } from "document-models/folder-sync";
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { createMapping, mappingIds, requestSyncAll, shortPath, statusInfo } from "../../sektar/kit/folder-sync.js";
+import { createMapping, isMapping, mappingIds, requestSyncAll, shortPath, statusInfo } from "../../sektar/kit/folder-sync.js";
 import { Menu, type MenuItem } from "../../sektar/kit/menu.js";
 import { SyncGlyph } from "../../sektar/kit/sync-glyphs.js";
 import { Badge, cx } from "../../sektar/kit/ui.js";
@@ -31,7 +31,8 @@ export function SyncMenu(props: Props) {
 }
 
 function SyncMenuLoaded({ ids, ...props }: Props & { ids: string[] }) {
-  const docs = useDocuments(ids).filter(isFolderSyncDocument);
+  // By type, not by schema: a mapping stored before a field existed must still show.
+  const docs = useDocuments(ids).filter(isMapping);
   return <SyncMenuView {...props} docs={docs} loading={false} />;
 }
 
@@ -132,7 +133,7 @@ export function MappedFolders({ driveId, nodes, onChange }: { driveId: string; n
 }
 
 function MappedFoldersLoaded({ driveId, ids, onChange }: { driveId: string; ids: string[]; onChange: (mapped: Map<string, string>) => void }) {
-  const docs = useDocuments(ids).filter(isFolderSyncDocument);
+  const docs = useDocuments(ids).filter(isMapping);
   const entries = docs
     .map((d) => d.state.global)
     .filter((s) => s.driveId === driveId && s.localPath)

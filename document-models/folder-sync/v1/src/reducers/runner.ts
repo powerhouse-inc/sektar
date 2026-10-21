@@ -1,4 +1,3 @@
-import { normalize } from "../utils.js";
 import type { FolderSyncRunnerOperations } from "document-models/folder-sync/v1";
 import {
   DuplicateIssueIdError,
@@ -9,6 +8,7 @@ import {
   RunFinishedError,
   RunNotFoundError,
 } from "../../gen/runner/error.js";
+import { normalize } from "../utils.js";
 
 export const folderSyncRunnerOperations: FolderSyncRunnerOperations = {
   startRunOperation(state, action) {
@@ -44,7 +44,7 @@ export const folderSyncRunnerOperations: FolderSyncRunnerOperations = {
     state.status = "RUNNING";
   },
   finishRunOperation(state, action) {
-    normalize(state);
+    const { pulls } = normalize(state);
     const i = action.input;
     const run = state.runs.find((r) => r.id === i.id);
     if (!run) throw new RunNotFoundError(`No run ${i.id}`);
@@ -67,7 +67,7 @@ export const folderSyncRunnerOperations: FolderSyncRunnerOperations = {
     // A request that arrived while the run was going is still owed a run.
     const owed =
       (Boolean(state.request) && state.request?.id !== run.requestId) ||
-      state.pulls.length > 0;
+      pulls.length > 0;
     state.status = owed
       ? "REQUESTED"
       : i.status === "OK"
@@ -99,9 +99,9 @@ export const folderSyncRunnerOperations: FolderSyncRunnerOperations = {
     state.issues.splice(at, 1);
   },
   completePullOperation(state, action) {
-    normalize(state);
-    const at = state.pulls.findIndex((p) => p.id === action.input.id);
+    const { pulls } = normalize(state);
+    const at = pulls.findIndex((p) => p.id === action.input.id);
     if (at < 0) throw new PullNotFoundError(`No pull ${action.input.id}`);
-    state.pulls.splice(at, 1);
+    pulls.splice(at, 1);
   },
 };

@@ -5,6 +5,7 @@ import {
   resolveIssue,
   requestPull,
   completePull,
+  isFolderSyncDocument,
   setEnabled,
   setIssues,
   setLocalPath,
@@ -230,7 +231,7 @@ describe("changes from disk", () => {
     // Every placeholder, asked for while a run is going: the run stays RUNNING.
     doc = apply(doc, startRun({ id: "run-1", startedAt: AT }), requestPull({ id: "p2", requestedAt: LATER }));
     expect(doc.state.global.status).toBe("RUNNING");
-    expect(doc.state.global.pulls[1]).toEqual({ id: "p2", requestedAt: LATER, requestedBy: null, nodeIds: [] });
+    expect(doc.state.global.pulls?.[1]).toEqual({ id: "p2", requestedAt: LATER, requestedBy: null, nodeIds: [] });
 
     // A run that leaves pulls behind is still owed a run.
     doc = apply(doc, completePull({ id: "p1" }), finishRun({ id: "run-1", finishedAt: LATER, status: "OK", placeholders: 3, pulled: 2 }));
@@ -251,6 +252,9 @@ describe("changes from disk", () => {
     delete legacy.runs[0].placeholders;
     delete legacy.runs[0].pulled;
     const old = { ...doc, state: { ...doc.state, global: legacy as unknown as FolderSyncDocument["state"]["global"] } };
+    // Its stored initialState lacks them too, and no operation changes that: it must still validate.
+    const initial = structuredClone(legacy) as unknown as FolderSyncDocument["state"]["global"];
+    expect(isFolderSyncDocument({ ...old, initialState: { ...old.initialState, global: initial } })).toBe(true);
     const next = apply(old, setEnabled({ enabled: true }));
     expect(next.state.global.options.fromDisk).toBe("OFF");
     expect(next.state.global.pulls).toEqual([]);

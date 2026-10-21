@@ -2,7 +2,7 @@ import { reducer, requestSync, setLocalPath, setOptions, setTarget, utils, type 
 import type { Action } from "document-model";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -106,6 +106,13 @@ afterEach(async () => {
 });
 
 const read = (rel: string) => readFile(join(root, ...rel.split("/")), "utf8");
+/** A person editing a file: later than the sync wrote it (a write in the same millisecond, at the same size, is indistinguishable by design). */
+const editOnDisk = async (rel: string, content: string) => {
+  const path = join(root, ...rel.split("/"));
+  await writeFile(path, content);
+  const later = new Date(Date.now() + 60_000);
+  await utimes(path, later, later);
+};
 const manifest = async () => JSON.parse(await read(MANIFEST_NAME)) as Manifest;
 
 describe("a folder sync run", () => {
@@ -140,7 +147,7 @@ describe("a folder sync run", () => {
 
   it("does not overwrite a file changed on disk, unless told to", async () => {
     await w.run();
-    await writeFile(join(root, "20260710-indigo-hotel.pdf"), "my notes");
+    await editOnDisk("20260710-indigo-hotel.pdf", "my notes");
     let out = await w.run();
     expect(out).toMatchObject({ status: "PARTIAL", conflicts: 1, written: 0 });
     expect(w.s.issues).toHaveLength(1);
@@ -155,7 +162,7 @@ describe("a folder sync run", () => {
     expect(await read("20260710-indigo-hotel.pdf")).toBe("hotel");
     expect(await read("20260710-indigo-hotel (changed on disk 2026-10-21).pdf")).toBe("my notes");
 
-    await writeFile(join(root, "20260710-indigo-hotel.pdf"), "again");
+    await editOnDisk("20260710-indigo-hotel.pdf", "again");
     w.map((d) => reducer(d, setOptions({ onConflict: "OVERWRITE" })));
     expect(await w.run()).toMatchObject({ conflicts: 1, written: 1, status: "OK" });
     expect(await read("20260710-indigo-hotel.pdf")).toBe("hotel");
@@ -177,7 +184,7 @@ describe("a folder sync run", () => {
     w.file("f4", "gone.pdf", "q3", "gone");
     w.file("f5", "edited.pdf", "q3", "edited");
     await w.run();
-    await writeFile(join(root, "edited.pdf"), "my edit");
+    await editOnDisk("edited.pdf", "my edit");
     w.nodes = w.nodes.filter((n) => n.id !== "f4" && n.id !== "f5");
     w.map((d) => reducer(d, setOptions({ onRemoved: "DELETE" })));
     const out = await w.run();

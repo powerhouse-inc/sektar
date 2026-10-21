@@ -42,7 +42,7 @@ type FolderSyncState {
   "What the last run could not write, or found changed on disk"
   issues: [FolderSyncIssue!]!
   "Pulls asked for and not done yet"
-  pulls: [FolderSyncPull!]!
+  pulls: [FolderSyncPull!]
 }
 
 type FolderSyncOptions {
@@ -58,7 +58,7 @@ type FolderSyncOptions {
   "What happens to a file on disk that was changed since it was written"
   onConflict: FolderSyncConflictPolicy!
   "What a change found on disk becomes: nothing, a placeholder to pull, or a pull"
-  fromDisk: FolderSyncFromDisk!
+  fromDisk: FolderSyncFromDisk
 }
 
 "A request to pull placeholders into the drive"
@@ -103,9 +103,9 @@ type FolderSyncRun {
   errors: Int!
   bytesWritten: Float!
   "Changes found on disk recorded as placeholders"
-  placeholders: Int!
+  placeholders: Int
   "Changes found on disk pulled into the drive"
-  pulled: Int!
+  pulled: Int
   error: String
 }
 
