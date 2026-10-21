@@ -33,25 +33,29 @@ export const OSQ_TYPE = "distyra/original-source-queue";
 
 export const STATUS: Record<
   OsqStatus,
-  { label: string; tone: BadgeTone; hint: string }
+  { label: string; tone: BadgeTone; icon: IconName; hint: string }
 > = {
   DRAFT: {
     label: "Draft",
+    icon: "copy",
     tone: "outline",
     hint: "Being defined. Loops and queues can still change.",
   },
   IN_PROGRESS: {
     label: "Walking",
+    icon: "trends",
     tone: "mint",
     hint: "Handing out one position per run of the workflow behind it.",
   },
   PAUSED: {
     label: "Paused",
+    icon: "info",
     tone: "warning",
     hint: "Stopped by hand. Resumes exactly where it left off.",
   },
   FINISHED: {
     label: "Finished",
+    icon: "check-circle",
     tone: "success",
     hint: "The space is walked, or the walk was ended early.",
   },

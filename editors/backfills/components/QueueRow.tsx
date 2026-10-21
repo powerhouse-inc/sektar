@@ -43,7 +43,7 @@ export function QueueRow({
       drill={2}
       icon={
         <IconTile
-          name={s.status === "IN_PROGRESS" ? "trends" : "download"}
+          name={status.icon}
           size="sm"
           variant={s.status === "IN_PROGRESS" ? "forest" : undefined}
         />

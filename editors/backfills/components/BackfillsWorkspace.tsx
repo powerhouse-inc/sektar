@@ -53,13 +53,8 @@ import { Walk } from "./Walk.js";
 /** Which level a stacked workspace shows: 0 chooser · 1 list · 2 definition · 3 walk */
 type Level = 0 | 1 | 2 | 3;
 
-const FILTER_ICON: Record<Filter, IconName> = {
-  all: "download",
-  IN_PROGRESS: "trends",
-  PAUSED: "info",
-  DRAFT: "copy",
-  FINISHED: "check-circle",
-};
+// The status tabs wear the same icons as the rows they filter.
+const ALL_ICON: IconName = "download";
 
 export function BackfillsWorkspace() {
   const [drive] = useSelectedDrive();
@@ -129,13 +124,13 @@ export function BackfillsWorkspace() {
       value: "all" as Filter,
       name: "All backfills",
       meta: `${String(counts.all)} in the drive`,
-      icon: FILTER_ICON.all,
+      icon: ALL_ICON,
     },
     ...STATUS_ORDER.map((status) => ({
       value: status as Filter,
       name: STATUS[status].label,
       meta: String(counts[status]),
-      icon: FILTER_ICON[status],
+      icon: STATUS[status].icon,
     })),
   ];
 
