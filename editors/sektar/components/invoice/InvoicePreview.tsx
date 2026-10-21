@@ -1,5 +1,5 @@
-// One attached document in the preview pane: what it is, then its bytes
-// (PDF, image, text), the document it links to, or the link itself.
+// One attached document in the preview pane: its bytes (PDF, image, text),
+// the document it links to, or the link itself; then what it is.
 import type { InvoiceAttachment } from "document-models/invoice";
 import { bytes } from "../../kit/files.js";
 import { fmtDate } from "../../kit/format.js";
@@ -10,12 +10,6 @@ import { LinkedDocumentPreview, StoredFilePreview } from "../FilePreview.js";
 export function FilePreviewFrame({ documentId, attachment: a }: { documentId: string; attachment: InvoiceAttachment }) {
   return (
     <div className="sk-inv-docview">
-      <div className="sk-inv-docview__about">
-        <Badge tone="outline">{roleLabel(a.role)}</Badge>
-        <span className="sk-caption">
-          {[a.description, a.mimeType, bytes(a.sizeBytes), `added ${fmtDate(a.addedAt)}`].filter(Boolean).join(" · ")}
-        </span>
-      </div>
       {a.ref ? (
         <StoredFilePreview documentId={documentId} file={{ ref: a.ref, fileName: a.fileName, mimeType: a.mimeType }} />
       ) : a.documentId ? (
@@ -31,6 +25,12 @@ export function FilePreviewFrame({ documentId, attachment: a }: { documentId: st
           </span>
         </a>
       ) : null}
+      <div className="sk-inv-docview__about">
+        <Badge tone="outline">{roleLabel(a.role)}</Badge>
+        <span className="sk-caption">
+          {[a.description, a.mimeType, bytes(a.sizeBytes), `added ${fmtDate(a.addedAt)}`].filter(Boolean).join(" · ")}
+        </span>
+      </div>
     </div>
   );
 }
