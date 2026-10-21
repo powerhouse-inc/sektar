@@ -2139,6 +2139,7 @@
 .sk-app .sk-invbook__line:hover { background: var(--sk-surface-2); }
 .sk-app .sk-invbook__line.is-active { background: var(--sk-surface-3); }
 .sk-app .sk-invbook__line.is-active::before { content: ""; position: absolute; left: 0; top: -1px; bottom: -1px; width: 3px; background: var(--sk-primary); }
+/* "1 ×" in a narrow column; a large quantity ("612 ×", "135.25 ×") stays on one line and pushes its description over. */
 .sk-app .sk-invbook__qty { min-width: 2.25em; color: var(--sk-text-muted); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .sk-app .sk-invbook__line-main { display: grid; gap: 2px; min-width: 0; }
 .sk-app .sk-invbook__line-desc { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.35; }
@@ -2168,18 +2169,18 @@
 /* The line as the PDF prints it: the same headers, one row. Plain and
    small, like the printed table; scrolls sideways in a column too narrow. */
 .sk-app .sk-invbook-line__scroll { overflow-x: auto; }
-.sk-app .sk-invbook-line__table { width: 100%; min-width: 300px; table-layout: fixed; border-collapse: collapse; font-size: var(--sk-text-xs); line-height: 1.4; }
-/* Fixed widths, the description taking what is left: the columns do not move from line to line. */
-.sk-app .sk-invbook-line__col-money { width: 19%; }
-.sk-app .sk-invbook-line__col-qty { width: 9%; }
-.sk-app .sk-invbook-line__col-vat { width: 8%; }
+/* Fixed layout, figure columns sized per invoice (in ch, set on the cols),
+   the description taking what is left: the columns do not move from line to
+   line. In a narrow column the description wraps rather than the table scrolling. */
+.sk-app .sk-invbook-line__table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: var(--sk-text-2xs); line-height: 1.4; }
+.sk-app .sk-invbook-line__currency { font-size: var(--sk-text-2xs); font-style: italic; color: var(--sk-text-muted); margin-bottom: var(--sk-space-1); }
 .sk-app .sk-invbook-line__table td:first-child { overflow-wrap: anywhere; }
 .sk-app .sk-invbook-line__table th {
-  text-align: left; vertical-align: bottom; font-size: var(--sk-text-2xs); line-height: 1.25;
+  text-align: left; vertical-align: bottom; line-height: 1.25;
   font-weight: var(--sk-weight-semibold); color: var(--sk-text-secondary);
-  padding: 0 6px var(--sk-space-1) 0; border-bottom: 1px solid var(--sk-border-strong);
+  padding: 0 4px var(--sk-space-1) 0; border-bottom: 1px solid var(--sk-border-strong);
 }
-.sk-app .sk-invbook-line__table td { vertical-align: top; padding: var(--sk-space-2) 6px var(--sk-space-2) 0; border-bottom: 1px solid var(--sk-border-subtle); }
+.sk-app .sk-invbook-line__table td { vertical-align: top; padding: var(--sk-space-2) 4px var(--sk-space-2) 0; border-bottom: 1px solid var(--sk-border-subtle); }
 .sk-app .sk-invbook-line__table :is(th, td):last-child { padding-right: 0; }
 .sk-app .sk-invbook-line__table .is-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .sk-app .sk-invbook-line__table th.is-num { white-space: normal; }
@@ -2190,6 +2191,11 @@
   border: 1px dashed var(--sk-border); border-radius: var(--sk-radius-md); background: var(--sk-surface-2);
 }
 .sk-app .sk-invbook-line__none .sk-invbook__dot { margin-top: 6px; }
+
+/* A pane holding a PDF preview keeps its scrollbar's room at all times: the
+   sheet's height follows its width, so a scrollbar that came and went would
+   narrow the sheet, shorten it, drop the scrollbar, widen it — a loop. */
+.sk-app .sk-pane__body:has(.sk-inv-print) { scrollbar-gutter: stable; }
 
 /* The invoice's PDF preview: the print HTML on an A4 sheet, scaled to the
    column and centred in it, with room below for the page's shadow. The sheet

@@ -29,6 +29,7 @@ const num = (n: number, digits = 2) =>
 
 const SYMBOL: Record<string, string> = { USD: "$", EUR: "€", GBP: "£", CHF: "CHF", DKK: "DKK" };
 const amount = (n: number, cur: string) => `${SYMBOL[cur] ?? cur} ${num(n)}`;
+const amountWithSymbol = amount;
 
 const ddmmyyyy = (iso: string | null | undefined) => {
   if (!iso) return "";
@@ -84,9 +85,14 @@ export interface PrintedLine {
   gross: string;
 }
 
-export function printedLine(l: InvoiceState["lines"][number], cur: string): PrintedLine {
+/**
+ * `symbol: false` leaves the currency out of the money cells, for a table
+ * that says "All amounts in …" once, as the PDF does above its lines.
+ */
+export function printedLine(l: InvoiceState["lines"][number], cur: string, { symbol = true }: { symbol?: boolean } = {}): PrintedLine {
   const net = Math.round(l.quantity * l.unitPrice * 100) / 100;
   const vat = Math.round(net * l.vatRate) / 100;
+  const amount = (n: number, c: string) => (symbol ? amountWithSymbol(n, c) : num(n));
   return {
     description:
       [l.category, l.description].filter(Boolean).join(" - ") +

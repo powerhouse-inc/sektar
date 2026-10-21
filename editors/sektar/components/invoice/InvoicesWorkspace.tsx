@@ -22,7 +22,7 @@ import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "reac
 import { useFillHeight, useNarrow } from "../../../backfills/components/measure.js";
 import { counterparty, fmtDate, fmtShortDate, invoiceTotals, isOverdue, money, plural, relativeDays } from "../../kit/format.js";
 import { roleLabel } from "../../kit/invoice.js";
-import { LINE_HEADERS, printedLine } from "../../kit/invoice-print.js";
+import { LINE_HEADERS, printedLine, type PrintedLine } from "../../kit/invoice-print.js";
 import { Menu } from "../../kit/menu.js";
 import { Avatar, Button, cx, EmptyState, Icon, ListItem, Selector } from "../../kit/ui.js";
 import { Pane, PaneSwitch, SubBar, Workspace } from "../../kit/workspace.js";
@@ -55,6 +55,8 @@ const PDF = "pdf";
 
 const isCurrent = (s: unknown): s is InvoiceState => typeof s === "object" && s !== null && "buyer" in s && "lines" in s;
 const lineAmount = (l: InvoiceLine) => Math.round(l.quantity * l.unitPrice * 100) / 100;
+/** "612 ×", "51.75 ×": how many, in front of a line. */
+const qtyLabel = (q: number) => `${Number.isInteger(q) ? q : q.toFixed(2)} ×`;
 
 /** The lines by category, in the order the categories first appear: how the invoice reads, and the order the stepper walks. */
 function groupLines(lines: readonly InvoiceLine[]): { name: string; lines: { line: InvoiceLine; n: number }[]; total: number }[] {
@@ -563,11 +565,16 @@ function LineRow({
     >
       {/* How many, in front of what: "1 × Toggl". */}
       <span className="sk-invbook__qty" aria-hidden="true">
-        {Number.isInteger(line.quantity) ? line.quantity : line.quantity.toFixed(2)} ×
+        {qtyLabel(line.quantity)}
       </span>
       <span className="sk-invbook__line-main">
         <span className="sk-invbook__line-desc">{line.description}</span>
-        {line.note && <span className="sk-invbook__line-meta">{line.note}</span>}
+        {/* More than one: what one costs, under what it is. */}
+        {(line.quantity !== 1 || line.note) && (
+          <span className="sk-invbook__line-meta">
+            {[line.quantity !== 1 ? `Unit cost: ${money(line.unitPrice, currency)}` : null, line.note].filter(Boolean).join(" · ")}
+          </span>
+        )}
       </span>
       <span className="sk-invbook__line-amount">
         <span className="sk-tabular">{money(lineAmount(line), currency)}</span>
@@ -621,20 +628,23 @@ function LineStepper({ at, n, count, onStep, onClose }: { at: number; n: number;
 function LineView({ documentId, state: s, line }: { documentId: string; state: InvoiceState; line: InvoiceLine }) {
   const [receipt, setReceipt] = useState(line.attachments[0]?.id ?? null);
   const shown = line.attachments.find((a) => a.id === receipt) ?? line.attachments[0];
-  // The line as the PDF prints it: its headers, its cells.
-  const p = printedLine(line, s.currency);
+  // The line as the PDF prints it: its headers, its cells; the currency said
+  // once above the table, as the PDF says it above its lines.
+  const p = printedLine(line, s.currency, { symbol: false });
+  const widths = useColumnWidths(s);
   return (
     <div className="sk-invbook-line">
       <div className="sk-invbook-line__scroll">
-        {/* Fixed column widths: stepping from line to line, the columns stay put. */}
-        <table className="sk-invbook-line__table">
+        <div className="sk-invbook-line__currency">All amounts in {s.currency}</div>
+        {/* Column widths fixed for the whole invoice (fitted to its largest
+            figures): stepping from line to line, the columns stay put. */}
+        {/* The description keeps at least 5em: an invoice with huge figures scrolls sideways rather than crushing it. */}
+        <table className="sk-invbook-line__table" style={{ minWidth: `calc(${widths.reduce((a, b) => a + b, 0)}ch + 5em)` }}>
           <colgroup>
-            <col className="sk-invbook-line__col-desc" />
-            <col className="sk-invbook-line__col-money" />
-            <col className="sk-invbook-line__col-qty" />
-            <col className="sk-invbook-line__col-money" />
-            <col className="sk-invbook-line__col-vat" />
-            <col className="sk-invbook-line__col-money" />
+            <col />
+            {widths.map((w, i) => (
+              <col key={i} style={{ width: `${w}ch` }} />
+            ))}
           </colgroup>
           <thead>
             <tr>
@@ -681,6 +691,24 @@ function LineView({ documentId, state: s, line }: { documentId: string; state: I
       )}
     </div>
   );
+}
+
+/**
+ * The open line's figure columns, in `ch`: each as wide as the widest value
+ * any line of the invoice puts in it (or the longest word of its header),
+ * plus room between columns. One set per invoice, so the columns hold still.
+ */
+function useColumnWidths(s: InvoiceState): number[] {
+  return useMemo(() => {
+    const rows = s.lines.map((l) => printedLine(l, s.currency, { symbol: false }));
+    const cells: (keyof PrintedLine)[] = ["unitPrice", "quantity", "net", "vatRate", "gross"];
+    return cells.map((key, i) => {
+      const widest = Math.max(0, ...rows.map((r) => String(r[key] ?? "").length));
+      const word = Math.max(...LINE_HEADERS[i + 1].split(" ").map((w) => w.length));
+      // Room between columns: a figure needs a little, a header word (and the cell's padding) a little more.
+      return Math.max(widest + 0.6, word + 1.2);
+    });
+  }, [s.lines, s.currency]);
 }
 
 /** The invoice itself: its PDF preview (from the print HTML), or one of its own documents. */
