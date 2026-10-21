@@ -10,6 +10,7 @@ import {
   computeTotals,
   findRate,
   type AttachmentRole,
+  type InvoiceAttachment,
   type InvoiceDocument,
   type InvoiceLine,
   type InvoiceParty,
@@ -170,6 +171,22 @@ export const ATTACHMENT_ROLES: readonly { value: AttachmentRole; label: string }
 
 export function roleLabel(role: AttachmentRole): string {
   return ATTACHMENT_ROLES.find((r) => r.value === role)?.label ?? role;
+}
+
+/** One attached document, and the line it sits on (null: the invoice's own). */
+export interface InvoiceDocumentRef {
+  attachment: InvoiceAttachment;
+  /** 1-based line number */
+  line: number | null;
+  lineDescription: string | null;
+}
+
+/** Every attached document: the invoice's own first, then each line's, in line order. */
+export function invoiceDocuments(s: InvoiceState): InvoiceDocumentRef[] {
+  return [
+    ...s.attachments.map((attachment) => ({ attachment, line: null, lineDescription: null })),
+    ...s.lines.flatMap((l, i) => l.attachments.map((attachment) => ({ attachment, line: i + 1, lineDescription: l.description }))),
+  ];
 }
 
 /** A guess at a dropped file's role: the PDF named after the invoice is the copy that was sent. */

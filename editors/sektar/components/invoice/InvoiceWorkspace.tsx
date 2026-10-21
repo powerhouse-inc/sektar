@@ -10,7 +10,6 @@ import {
   actions,
   computeTotals,
   type InvoiceAction,
-  type InvoiceAttachment,
   type InvoiceDocument,
   type InvoiceState,
   type PaymentMethod,
@@ -19,7 +18,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFillHeight, useNarrow } from "../../../backfills/components/measure.js";
 import { duplicateInvoice, useInvoices } from "../../kit/data.js";
 import { counterparty, fmtDate, fromDateInput, INVOICE_STATUS, isOverdue, money, PAYMENT_METHOD, relativeDays, toDateInput } from "../../kit/format.js";
-import { CHECK_TONE, invoiceChecks, nextNumber, termsDays, type Check } from "../../kit/invoice.js";
+import { CHECK_TONE, invoiceChecks, invoiceDocuments, nextNumber, termsDays, type Check } from "../../kit/invoice.js";
 import { Menu } from "../../kit/menu.js";
 import { Alert, Badge, Button, cx, EmptyState, Field, Input, Modal, Select, Selector } from "../../kit/ui.js";
 import { Pane, Workspace } from "../../kit/workspace.js";
@@ -93,7 +92,7 @@ function Editor({ doc, dispatch }: { doc: InvoiceDocument; dispatch: Dispatch })
   const compact = useNarrow(root, 1080, true);
   const previewCollapsed = !stacked && (previewPref ?? compact);
   const checks = useMemo(() => invoiceChecks(s), [s]);
-  const all = useMemo(() => allDocuments(s), [s]);
+  const all = useMemo(() => invoiceDocuments(s), [s]);
 
   // A removed document takes the preview back to the invoice.
   useEffect(() => {
@@ -172,14 +171,6 @@ function Editor({ doc, dispatch }: { doc: InvoiceDocument; dispatch: Dispatch })
       {dialog === "void" && <VoidDialog onClose={() => setDialog(null)} dispatch={dispatch} />}
     </div>
   );
-}
-
-/** Every attached document, with the number of the line it sits on. */
-function allDocuments(s: InvoiceState): { attachment: InvoiceAttachment; line: number | null }[] {
-  return [
-    ...s.attachments.map((attachment) => ({ attachment, line: null })),
-    ...s.lines.flatMap((l, i) => l.attachments.map((attachment) => ({ attachment, line: i + 1 }))),
-  ];
 }
 
 function StatusBadge({ state }: { state: InvoiceState }) {

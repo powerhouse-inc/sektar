@@ -822,10 +822,10 @@
 /* ---------------------------------------------------------------------------
    Drive workspaces (editors/email-workspace, editors/backfills): the design
    system's panes pattern
-   filling the content area. The height is measured by the app; the panes
-   scroll inside it.
+   filling the content area (Mail, Files, Trips, Invoices). The height is
+   measured by the app; the panes scroll inside it.
    --------------------------------------------------------------------------- */
-.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) {
   display: flex;
   flex-direction: column;
   /* Explicit, not left to flex stretch: a size container that is only
@@ -838,41 +838,41 @@
   container-type: inline-size;
   container-name: drive-app;
 }
-.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) > .sk-workspace--stack {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) > .sk-workspace--stack {
   width: 100%;
 }
 /* The design system folds a panes workspace into a column under 960px of
    viewport (its docs rule); a stacked workspace is a horizontal track of
    screens and must stay one, whatever the viewport. */
 @media (max-width: 1063px) {
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack {
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack {
     flex-direction: row;
   }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack > .sk-pane {
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack > .sk-pane {
     border-top: 0;
     border-left: 1px solid var(--sk-border-subtle);
   }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack > .sk-pane:first-child,
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--has-parent > .sk-pane--parent + .sk-pane {
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack > .sk-pane:first-child,
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--has-parent > .sk-pane--parent + .sk-pane {
     border-left: 0;
   }
 }
 
-.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) > .sk-subbar {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) > .sk-subbar {
   flex: none;
   /* flush: the first tile's underline starts on the content's left edge */
   padding-inline: 0;
 }
 /* The chooser is the first pane but hidden side by side, so the list pane
    would keep its left hairline and double the sidebar's edge. */
-.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--has-parent > .sk-pane--parent + .sk-pane {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--has-parent > .sk-pane--parent + .sk-pane {
   border-left: 0;
 }
-.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) > .sk-workspace--panes {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) > .sk-workspace--panes {
   flex: 1;
   min-height: 0;
 }
-.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-pane__body {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-pane__body {
   overflow: auto;
   /* Each pane scrolls on its own, with the platform's own physics: momentum
      stays inside the pane instead of chaining into Connect's page scroller
@@ -885,8 +885,8 @@
   scrollbar-width: thin;
   scrollbar-color: var(--sk-border-strong) transparent;
 }
-.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-pane--parent .sk-pane__body,
-.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--panes {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-pane--parent .sk-pane__body,
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--panes {
   overscroll-behavior: contain;
 }
 /* A row not fetched yet: same height and hairline as a rich row. */
@@ -946,7 +946,7 @@
 /* Side by side, the list keeps a readable width; the message pane gives way.
    (Stacked, the design system's 100% basis applies instead.) */
 @container panes (min-width: 641px) {
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-pane--start:not(.is-collapsed) {
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-pane--start:not(.is-collapsed) {
     min-width: 300px;
   }
 }
@@ -962,21 +962,21 @@
    system's own block (components.css, "@container panes (max-width: 640px)")
    so the two states are identical; keep them in step when it changes. */
 @container panes (640px < width < 800px) {
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack > .sk-pane { --sk-stacked: 1; display: flex; flex: 0 0 100%; min-width: 100%; border-left: 0; border-top: 0; transform: translateX(calc(var(--sk-level-offset) * -100%)); transition: transform var(--sk-duration-slow, 320ms) var(--sk-ease-out, ease-out); }
-  @media (prefers-reduced-motion: reduce) { .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack > .sk-pane { transition: none; } }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-pane__toggle { display: none; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-pane__back { display: grid; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-pane.is-collapsed { flex-basis: auto; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__body { display: block; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__header { flex-direction: row; padding: 0 var(--sk-space-3) 0 var(--sk-space-4); min-height: 52px; border-bottom: 1px solid var(--sk-border-subtle); }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__header > * { display: flex; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__title { writing-mode: horizontal-tb; transform: none; font-size: var(--sk-text-md); color: inherit; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-pane__title--collapsed-only { display: none; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack [data-sk-drill] .sk-drill-chevron { display: block; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack > .sk-pane--parent { display: flex; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-pane__switch { cursor: pointer; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-pane__switch .sk-icon { display: block; }
-  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips) .sk-workspace--stack .sk-stack-only { display: block; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack > .sk-pane { --sk-stacked: 1; display: flex; flex: 0 0 100%; min-width: 100%; border-left: 0; border-top: 0; transform: translateX(calc(var(--sk-level-offset) * -100%)); transition: transform var(--sk-duration-slow, 320ms) var(--sk-ease-out, ease-out); }
+  @media (prefers-reduced-motion: reduce) { .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack > .sk-pane { transition: none; } }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack .sk-pane__toggle { display: none; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack .sk-pane__back { display: grid; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack .sk-pane.is-collapsed { flex-basis: auto; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__body { display: block; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__header { flex-direction: row; padding: 0 var(--sk-space-3) 0 var(--sk-space-4); min-height: 52px; border-bottom: 1px solid var(--sk-border-subtle); }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__header > * { display: flex; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack .sk-pane.is-collapsed .sk-pane__title { writing-mode: horizontal-tb; transform: none; font-size: var(--sk-text-md); color: inherit; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack .sk-pane__title--collapsed-only { display: none; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack [data-sk-drill] .sk-drill-chevron { display: block; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack > .sk-pane--parent { display: flex; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack .sk-pane__switch { cursor: pointer; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack .sk-pane__switch .sk-icon { display: block; }
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack .sk-stack-only { display: block; }
   .sk-app .sk-mail .sk-workspace--stack .sk-stack-hide { display: none; }
   .sk-app .sk-mail .sk-pane--start:not(.is-collapsed) { min-width: 100%; }
 }
@@ -1825,7 +1825,9 @@
   font-size: 13px; line-height: 1.5; display: flex; flex-direction: column; gap: 22px;
 }
 .sk-app .sk-inv-paper--compact { box-shadow: none; font-size: 12px; --inv-pad: 20px; gap: 16px; }
-.sk-app .sk-inv-paper { container-type: inline-size; }
+/* A size container has no width of its own: in a column that does not stretch
+   it (a pane body, a flex stack) it would shrink to its padding. */
+.sk-app .sk-inv-paper { container-type: inline-size; width: 100%; }
 .sk-app .sk-inv-paper__scroll { overflow-x: auto; margin: 0 calc(-1 * var(--inv-pad)); padding: 0 var(--inv-pad); }
 .sk-app .sk-inv-paper__narrow { display: none; }
 /* A narrow sheet keeps what was invoiced and its amount; quantity, price and rate move under the line. */
@@ -2071,3 +2073,102 @@
 .sk-app .sk-disk-change > .sk-grow { flex: 1 1 180px; }
 .sk-app .sk-disk-change > .sk-btn { margin-left: auto; }
 .sk-app .sk-disk-change__what { overflow-wrap: anywhere; color: inherit; }
+
+/* ---------------------------------------------------------------------------
+   The Invoices workspace (components/invoice/InvoicesWorkspace.tsx): the
+   invoice read once in the middle column — who, the amount and where it
+   stands, the dates, the lines by category — and a line or the invoice
+   itself in the third.
+   --------------------------------------------------------------------------- */
+.sk-app .sk-invbook {
+  display: flex; flex-direction: column; gap: var(--sk-space-5);
+  padding: var(--sk-space-5) var(--sk-space-6) var(--sk-space-8);
+}
+.sk-app .sk-invbook__head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--sk-space-4); align-items: center; }
+.sk-app .sk-invbook__who { display: grid; gap: 2px; min-width: 0; }
+.sk-app .sk-invbook__name {
+  margin: 0; font-family: var(--sk-font-display); font-size: var(--sk-text-2xl); line-height: 1.15; letter-spacing: -0.02em;
+  font-variation-settings: "opsz" 36, "SOFT" 20, "WONK" 0; overflow-wrap: anywhere;
+}
+.sk-app .sk-invbook__subject { color: var(--sk-text-secondary); font-size: var(--sk-text-md); }
+
+/* The amount: a quiet card that also opens the invoice as it reads. */
+.sk-app .sk-invbook__total {
+  display: grid; gap: 2px; justify-items: start; text-align: left; font: inherit; color: inherit; cursor: pointer;
+  padding: var(--sk-space-4) var(--sk-space-5); background: var(--sk-surface-2);
+  border: 1px solid var(--sk-border-subtle); border-radius: var(--sk-radius-md);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.sk-app .sk-invbook__total:hover { background: var(--sk-surface-3); }
+.sk-app .sk-invbook__total.is-active { border-color: var(--sk-primary); }
+.sk-app .sk-invbook__amount { font-size: clamp(28px, 2.6vw, 38px); line-height: 1.1; letter-spacing: -0.02em; }
+.sk-app .sk-invbook__standing { font-size: var(--sk-text-sm); color: var(--sk-text-secondary); }
+.sk-app .sk-invbook__rate { font-size: var(--sk-text-xs); color: var(--sk-text-muted); }
+
+/* Dates and such, on one line that wraps. */
+.sk-app .sk-invbook__facts { display: flex; flex-wrap: wrap; gap: var(--sk-space-3) var(--sk-space-6); margin: 0; }
+.sk-app .sk-invbook__fact { display: grid; gap: 1px; min-width: 0; }
+.sk-app .sk-invbook__fact dt { font-size: var(--sk-text-xs); color: var(--sk-text-muted); }
+.sk-app .sk-invbook__fact dd { margin: 0; font-size: var(--sk-text-md); font-weight: var(--sk-weight-medium); }
+.sk-app .sk-invbook__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sk-space-2); }
+
+/* The lines, by category */
+.sk-app .sk-invbook__lines { display: flex; flex-direction: column; }
+.sk-app .sk-invbook__lines-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sk-space-3);
+  padding-bottom: var(--sk-space-2);
+}
+.sk-app .sk-invbook__missing { display: inline-flex; align-items: center; gap: var(--sk-space-2); font-size: var(--sk-text-xs); color: var(--sk-warning-text); }
+.sk-app .sk-invbook__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sk-warning); flex: none; }
+.sk-app .sk-invbook__group + .sk-invbook__group { margin-top: var(--sk-space-4); }
+.sk-app .sk-invbook__group-head {
+  display: flex; justify-content: space-between; gap: var(--sk-space-3); align-items: baseline;
+  padding: var(--sk-space-2) 0; border-bottom: 1px solid var(--sk-border);
+  font-size: var(--sk-text-sm); font-weight: var(--sk-weight-semibold);
+}
+.sk-app .sk-invbook__group-head > :last-child { color: var(--sk-text-secondary); font-weight: var(--sk-weight-medium); }
+.sk-app .sk-invbook__rows { list-style: none; margin: 0; padding: 0; }
+.sk-app .sk-invbook__line {
+  position: relative; display: grid; grid-template-columns: 1.5em minmax(0, 1fr) auto 16px auto; gap: var(--sk-space-3); align-items: center;
+  width: calc(100% + 2 * var(--sk-space-3)); margin: 0 calc(-1 * var(--sk-space-3)); padding: var(--sk-space-3);
+  font: inherit; color: inherit; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--sk-border-subtle);
+  cursor: pointer;
+}
+.sk-app .sk-invbook__line:hover { background: var(--sk-surface-2); }
+.sk-app .sk-invbook__line.is-active { background: var(--sk-surface-3); }
+.sk-app .sk-invbook__line.is-active::before { content: ""; position: absolute; left: 0; top: -1px; bottom: -1px; width: 3px; background: var(--sk-primary); }
+.sk-app .sk-invbook__n { font-size: var(--sk-text-xs); color: var(--sk-text-muted); text-align: right; font-variant-numeric: tabular-nums; }
+.sk-app .sk-invbook__line-main { display: grid; gap: 2px; min-width: 0; }
+.sk-app .sk-invbook__line-desc { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.35; }
+.sk-app .sk-invbook__line-meta { font-size: var(--sk-text-xs); color: var(--sk-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk-app .sk-invbook__line-amount { font-weight: var(--sk-weight-medium); white-space: nowrap; }
+.sk-app .sk-invbook__mark { display: inline-grid; place-items: center; color: var(--sk-success); }
+.sk-app .sk-invbook__chevron { color: var(--sk-text-muted); }
+
+/* Net, VAT, total: only when there is VAT or rounding to show. */
+.sk-app .sk-invbook__sum {
+  display: grid; grid-template-columns: 1fr auto; gap: var(--sk-space-1) var(--sk-space-6); margin: 0;
+  padding-top: var(--sk-space-3); border-top: 1px solid var(--sk-border);
+}
+.sk-app .sk-invbook__sum .sk-invbook__fact { display: contents; }
+.sk-app .sk-invbook__sum dt { text-align: right; font-size: var(--sk-text-sm); color: var(--sk-text-secondary); }
+.sk-app .sk-invbook__sum dd { text-align: right; font-size: var(--sk-text-sm); }
+.sk-app .sk-invbook__sum .is-strong :is(dt, dd) { font-size: var(--sk-text-md); font-weight: var(--sk-weight-semibold); color: var(--sk-text); }
+
+/* The third column: a line, stepping up and down the invoice as it reads */
+.sk-app .sk-invbook__stepper { display: flex; align-items: center; gap: var(--sk-space-1); flex: 1; min-width: 0; }
+.sk-app .sk-invbook__step { font-size: var(--sk-text-sm); color: var(--sk-text-secondary); white-space: nowrap; padding: 0 var(--sk-space-1); }
+.sk-app .sk-invbook__step b { color: var(--sk-text); font-weight: var(--sk-weight-semibold); }
+.sk-app .sk-invbook__up { transform: rotate(180deg); }
+.sk-app .sk-invbook-line { display: flex; flex-direction: column; gap: var(--sk-space-4); }
+.sk-app .sk-invbook-line__head { display: grid; gap: var(--sk-space-1); }
+.sk-app .sk-invbook-line__title {
+  margin: 0; font-family: var(--sk-font-display); font-size: var(--sk-text-xl); line-height: 1.2; letter-spacing: -0.015em;
+  font-variation-settings: "opsz" 30, "SOFT" 20, "WONK" 0; overflow-wrap: anywhere;
+}
+.sk-app .sk-invbook-line__amount { font-size: 28px; line-height: 1.1; }
+.sk-app .sk-invbook-line__none {
+  display: flex; gap: var(--sk-space-3); align-items: flex-start; padding: var(--sk-space-4);
+  border: 1px dashed var(--sk-border); border-radius: var(--sk-radius-md); background: var(--sk-surface-2);
+}
+.sk-app .sk-invbook-line__none .sk-invbook__dot { margin-top: 6px; }
