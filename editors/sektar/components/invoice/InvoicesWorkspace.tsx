@@ -21,7 +21,8 @@ import {
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFillHeight, useNarrow } from "../../../backfills/components/measure.js";
 import { counterparty, fmtDate, fmtShortDate, invoiceTotals, isOverdue, money, plural, relativeDays } from "../../kit/format.js";
-import { roleLabel, VAT_CATEGORIES } from "../../kit/invoice.js";
+import { roleLabel } from "../../kit/invoice.js";
+import { LINE_HEADERS, printedLine } from "../../kit/invoice-print.js";
 import { Menu } from "../../kit/menu.js";
 import { Avatar, Button, cx, EmptyState, Icon, ListItem, Selector } from "../../kit/ui.js";
 import { Pane, PaneSwitch, SubBar, Workspace } from "../../kit/workspace.js";
@@ -587,27 +588,36 @@ function LineStepper({ at, n, count, onStep, onClose }: { at: number; n: number;
 function LineView({ documentId, state: s, line }: { documentId: string; state: InvoiceState; line: InvoiceLine }) {
   const [receipt, setReceipt] = useState(line.attachments[0]?.id ?? null);
   const shown = line.attachments.find((a) => a.id === receipt) ?? line.attachments[0];
-  const foreign = line.original && line.original.currency !== s.currency;
-  const vat = VAT_CATEGORIES.find((c) => c.value === line.vatCategory)?.label ?? line.vatCategory;
+  // The line as the PDF prints it: its headers, its cells.
+  const p = printedLine(line, s.currency);
   return (
     <div className="sk-invbook-line">
-      <div className="sk-invbook-line__head">
-        {line.category && <div className="sk-eyebrow">{line.category}</div>}
-        <h3 className="sk-invbook-line__title">{line.description}</h3>
-        <div className="sk-numeral sk-invbook-line__amount">{money(lineAmount(line), s.currency)}</div>
+      <div className="sk-invbook-line__scroll">
+        <table className="sk-invbook-line__table">
+          <thead>
+            <tr>
+              {LINE_HEADERS.map((h, i) => (
+                <th key={h} className={cx(i > 0 && "is-num")}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                {p.description}
+                {p.note && <div className="sk-invbook-line__note">{p.note}</div>}
+              </td>
+              <td className="is-num">{p.unitPrice}</td>
+              <td className="is-num">{p.quantity}</td>
+              <td className="is-num">{p.net}</td>
+              <td className="is-num">{p.vatRate}</td>
+              <td className="is-num">{p.gross}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <dl className="sk-invbook__facts sk-invbook__facts--line">
-        {foreign && line.original && (
-          <Fact
-            label="Original"
-            value={`${money(line.original.amount, line.original.currency)}${line.original.rate ? ` × ${line.original.rate}` : ""}`}
-          />
-        )}
-        {line.quantity !== 1 && <Fact label="Quantity" value={`${line.quantity} × ${money(line.unitPrice, s.currency)}`} />}
-        <Fact label="VAT" value={`${line.vatRate} % · ${vat}`} />
-        {line.period && <Fact label="Period" value={`${fmtShortDate(line.period.start)} – ${fmtShortDate(line.period.end)}`} />}
-      </dl>
-      {line.note && <div className="sk-alert sk-alert--warning sk-small">{line.note}</div>}
       {line.attachments.length > 1 && (
         <Selector
           value={shown?.id ?? ""}

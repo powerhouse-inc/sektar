@@ -70,6 +70,36 @@ export function invoiceFileName(s: InvoiceState): string {
 }
 
 /** The invoice as a printable page (A4, page numbers in the footer). */
+/** The lines table's columns, as the PDF heads them; the first is the description. */
+export const LINE_HEADERS = ["Description", "Unit Price Excl VAT", "Amount", "Price Excl VAT", "VAT", "Price Incl VAT"] as const;
+
+/** One line's cells as the PDF writes them: text, not HTML. */
+export interface PrintedLine {
+  description: string;
+  note: string | null;
+  unitPrice: string;
+  quantity: string;
+  net: string;
+  vatRate: string;
+  gross: string;
+}
+
+export function printedLine(l: InvoiceState["lines"][number], cur: string): PrintedLine {
+  const net = Math.round(l.quantity * l.unitPrice * 100) / 100;
+  const vat = Math.round(net * l.vatRate) / 100;
+  return {
+    description:
+      [l.category, l.description].filter(Boolean).join(" - ") +
+      (l.original && l.original.currency !== cur ? ` - ${num(l.original.amount)} ${l.original.currency}` : ""),
+    note: l.note && !/receipt to come/i.test(l.note) ? l.note : null,
+    unitPrice: amount(l.unitPrice, cur),
+    quantity: num(l.quantity, Number.isInteger(l.quantity) ? 0 : 2),
+    net: amount(net, cur),
+    vatRate: `${num(l.vatRate, 0)}%`,
+    gross: amount(net + vat, cur),
+  };
+}
+
 export function invoicePrintHtml(s: InvoiceState): string {
   const cur = s.currency;
   const t = computeTotals(s);
@@ -85,13 +115,10 @@ export function invoicePrintHtml(s: InvoiceState): string {
 
   const rows = s.lines
     .map((l) => {
-      const net = Math.round(l.quantity * l.unitPrice * 100) / 100;
-      const vat = Math.round(net * l.vatRate) / 100;
-      const desc = [l.category, l.description].filter(Boolean).join(" - ") +
-        (l.original && l.original.currency !== cur ? ` - ${num(l.original.amount)} ${l.original.currency}` : "");
-      return `<tr><td>${esc(desc)}${l.note && !/receipt to come/i.test(l.note) ? `<div class="sub">${esc(l.note)}</div>` : ""}</td>
-        <td class="n">${amount(l.unitPrice, cur)}</td><td class="n">${num(l.quantity, Number.isInteger(l.quantity) ? 0 : 2)}</td>
-        <td class="n">${amount(net, cur)}</td><td class="n">${num(l.vatRate, 0)}%</td><td class="n">${amount(net + vat, cur)}</td></tr>`;
+      const p = printedLine(l, cur);
+      return `<tr><td>${esc(p.description)}${p.note ? `<div class="sub">${esc(p.note)}</div>` : ""}</td>
+        <td class="n">${p.unitPrice}</td><td class="n">${p.quantity}</td>
+        <td class="n">${p.net}</td><td class="n">${p.vatRate}</td><td class="n">${p.gross}</td></tr>`;
     })
     .join("");
 
@@ -163,7 +190,7 @@ ${s.subject ? `<div class="subject">${esc(s.subject)}</div>` : ""}
 ${credit && s.precedingInvoices.length ? `<p>Corrects invoice ${s.precedingInvoices.map((x) => esc(x.number)).join(", ")}.</p>` : ""}
 <div class="cur"><span>All amounts in ${esc(cur)}</span>${rate && rateMonth ? `<span>${esc(rateMonth)} ${esc(rate.base)}.${esc(rate.quote)} ${SYMBOL[rate.quote] ?? rate.quote} ${num(rate.rate, 6)}</span>` : ""}</div>
 <table class="lines">
-  <thead><tr><th>Description</th><th class="n">Unit Price Excl VAT</th><th class="n">Amount</th><th class="n">Price Excl VAT</th><th class="n">VAT</th><th class="n">Price Incl VAT</th></tr></thead>
+  <thead><tr>${LINE_HEADERS.map((h, i) => `<th${i ? ' class="n"' : ""}>${h}</th>`).join("")}</tr></thead>
   <tbody>${rows}</tbody>
 </table>
 <div class="foot"><table class="totals">

@@ -2161,12 +2161,21 @@
 .sk-app .sk-invbook__step b { color: var(--sk-text); font-weight: var(--sk-weight-semibold); }
 .sk-app .sk-invbook__up { transform: rotate(180deg); }
 .sk-app .sk-invbook-line { display: flex; flex-direction: column; gap: var(--sk-space-4); }
-.sk-app .sk-invbook-line__head { display: grid; gap: var(--sk-space-1); }
-.sk-app .sk-invbook-line__title {
-  margin: 0; font-family: var(--sk-font-display); font-size: var(--sk-text-xl); line-height: 1.2; letter-spacing: -0.015em;
-  font-variation-settings: "opsz" 30, "SOFT" 20, "WONK" 0; overflow-wrap: anywhere;
+/* The line as the PDF prints it: the same headers, one row. Plain and
+   small, like the printed table; scrolls sideways in a column too narrow. */
+.sk-app .sk-invbook-line__scroll { overflow-x: auto; }
+.sk-app .sk-invbook-line__table { width: 100%; border-collapse: collapse; font-size: var(--sk-text-xs); line-height: 1.4; }
+.sk-app .sk-invbook-line__table th {
+  text-align: left; vertical-align: bottom; font-size: var(--sk-text-2xs); line-height: 1.25;
+  font-weight: var(--sk-weight-semibold); color: var(--sk-text-secondary);
+  padding: 0 6px var(--sk-space-1) 0; border-bottom: 1px solid var(--sk-border-strong);
 }
-.sk-app .sk-invbook-line__amount { font-size: 28px; line-height: 1.1; }
+.sk-app .sk-invbook-line__table td { vertical-align: top; padding: var(--sk-space-2) 6px var(--sk-space-2) 0; border-bottom: 1px solid var(--sk-border-subtle); }
+.sk-app .sk-invbook-line__table :is(th, td):last-child { padding-right: 0; }
+.sk-app .sk-invbook-line__table .is-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sk-app .sk-invbook-line__table th.is-num { white-space: normal; }
+.sk-app .sk-invbook-line__table td:first-child { min-width: 6em; }
+.sk-app .sk-invbook-line__note { color: var(--sk-text-muted); margin-top: 2px; }
 .sk-app .sk-invbook-line__none {
   display: flex; gap: var(--sk-space-3); align-items: flex-start; padding: var(--sk-space-4);
   border: 1px dashed var(--sk-border); border-radius: var(--sk-radius-md); background: var(--sk-surface-2);
