@@ -81,6 +81,19 @@ export function requestSync(doc: FolderSyncDocument, full = false) {
   );
 }
 
+/** A File source that stands for something on disk, not pulled yet. */
+export function isPlaceholderKind(kind: string | null | undefined): boolean {
+  return kind === "FILE_PLACEHOLDER" || kind === "DOCUMENT_PLACEHOLDER";
+}
+
+/** Asks a mapping's Switchboard to pull placeholders into the drive: these Files, or (none given) all of them. */
+export function requestPull(mappingId: string, nodeIds: string[] = []) {
+  return dispatchActions(
+    actions.requestPull({ id: generateId(), requestedAt: new Date().toISOString(), requestedBy: "app", nodeIds }),
+    mappingId,
+  );
+}
+
 /** Asks for a run of every mapping that can run; returns how many were asked. */
 export async function requestSyncAll(docs: readonly FolderSyncDocument[]): Promise<number> {
   const runnable = docs.filter((d) => isRunnable(d.state.global));
@@ -120,8 +133,11 @@ export function statusInfo(s: FolderSyncState, now = Date.now()): SyncStatusInfo
       return { tone: "info", label: "Waiting", detail: `Asked ${ago(s.request?.requestedAt, now)} · the Switchboard picks it up`, attention: false };
     case "RUNNING":
       return { tone: "info", label: "Syncing…", detail: last ? `Started ${ago(last.startedAt, now)}` : "", attention: false };
-    case "OK":
+    case "OK": {
+      const waiting = last?.placeholders ?? 0;
+      if (waiting > 0) return { tone: "info", label: `${waiting} to pull`, detail: `Changes on disk · synced ${ago(last?.finishedAt, now)}`, attention: true };
       return { tone: "success", label: "Synced", detail: ago(last?.finishedAt, now), attention: false };
+    }
     case "PARTIAL": {
       const n = s.issues.length;
       return { tone: "warning", label: n === 1 ? "1 issue" : `${n} issues`, detail: `Synced ${ago(last?.finishedAt, now)}`, attention: true };

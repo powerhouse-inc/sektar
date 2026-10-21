@@ -9,6 +9,7 @@ import {
   type FolderSyncConflictPolicy,
   type FolderSyncContent,
   type FolderSyncDocument,
+  type FolderSyncFromDisk,
   type FolderSyncIssue,
   type FolderSyncIssueKind,
   type FolderSyncOtherDocuments,
@@ -18,7 +19,7 @@ import {
 } from "document-models/folder-sync";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { bytes } from "../../kit/files.js";
-import { ago, folderPath, hiddenSyncIds, isRunnable, requestSync, statusInfo } from "../../kit/folder-sync.js";
+import { ago, folderPath, hiddenSyncIds, isRunnable, requestPull, requestSync, statusInfo } from "../../kit/folder-sync.js";
 import { Menu } from "../../kit/menu.js";
 import { SyncGlyph } from "../../kit/sync-glyphs.js";
 import { Badge, Button, Card, cx, EmptyState, Field, Icon, Input, MetaStrip, Segmented, Select, Switch, Table, type IconName } from "../../kit/ui.js";
@@ -27,7 +28,15 @@ type Dispatch = (action: FolderSyncAction) => void;
 
 const ABSOLUTE = /^([A-Za-z]:[\\/]|\\\\|\/)/;
 
-const RUN_TONE = { RUNNING: "info", OK: "success", PARTIAL: "warning", ERROR: "danger", CANCELLED: "outline" } as const;
+/** What each "changes on disk" setting does, under the select. */
+const FROM_DISK_HINT: Record<FolderSyncFromDisk, string> = {
+  OFF: "Only the drive writes to disk. A file changed there counts as changed in both places.",
+  PLACEHOLDERS: "New, changed and deleted files on disk show as placeholders in the drive, to pull by hand.",
+  AUTO_PULL: "New and changed files are pulled into the drive; deletions wait as placeholders.",
+  AUTO_PULL_WITH_DELETES: "New and changed files are pulled, and a file deleted on disk is deleted in the drive.",
+};
+
+const RUN_TONE ={ RUNNING: "info", OK: "success", PARTIAL: "warning", ERROR: "danger", CANCELLED: "outline" } as const;
 const RUN_LABEL = { RUNNING: "Running", OK: "Synced", PARTIAL: "With issues", ERROR: "Failed", CANCELLED: "Cancelled" } as const;
 const ISSUE: Record<FolderSyncIssueKind, { label: string; icon: IconName }> = {
   CONFLICT: { label: "Changed on disk", icon: "info" },
@@ -76,6 +85,12 @@ export function FolderSyncDetail({ doc, dispatch }: { doc: FolderSyncDocument; d
             label="More"
             items={[
               { label: "Full resync", icon: "copy", disabled: !runnable || running, onSelect: () => void requestSync(doc, true) },
+              {
+                label: "Pull all placeholders",
+                icon: "download",
+                disabled: !runnable || (s.options.fromDisk ?? "OFF") === "OFF",
+                onSelect: () => void requestPull(doc.header.id),
+              },
               s.enabled
                 ? { label: "Pause this mapping", icon: "close", onSelect: () => dispatch(actions.setEnabled({ enabled: false })) }
                 : { label: "Resume this mapping", icon: "check", onSelect: () => dispatch(actions.setEnabled({ enabled: true })) },
@@ -109,6 +124,12 @@ export function FolderSyncDetail({ doc, dispatch }: { doc: FolderSyncDocument; d
               { label: "Written", value: `${last.written} · ${bytes(last.bytesWritten) || "0 B"}` },
               { label: "Unchanged", value: last.unchanged },
               { label: "Removed", value: last.deleted },
+              ...((s.options.fromDisk ?? "OFF") !== "OFF" || (last.placeholders ?? 0) + (last.pulled ?? 0) > 0
+                ? [
+                    { label: "To pull", value: last.placeholders ?? 0 },
+                    { label: "Pulled", value: last.pulled ?? 0 },
+                  ]
+                : []),
             ]}
           />
         ) : (
@@ -281,7 +302,15 @@ function OptionsForm({ doc, dispatch }: { doc: FolderSyncDocument; dispatch: Dis
             <option value="DELETE">Delete its file on disk</option>
           </Select>
         </Field>
-        <Field label="A file was changed on disk" hint="Since the sync wrote it.">
+        <Field label="Changes on disk" hint={FROM_DISK_HINT[o.fromDisk ?? "OFF"]}>
+          <Select value={o.fromDisk ?? "OFF"} onChange={(e) => set({ fromDisk: e.target.value as FolderSyncFromDisk })}>
+            <option value="OFF">Not synced back</option>
+            <option value="PLACEHOLDERS">Placeholders, pulled by hand</option>
+            <option value="AUTO_PULL">Pulled automatically</option>
+            <option value="AUTO_PULL_WITH_DELETES">Pulled automatically, deletions too</option>
+          </Select>
+        </Field>
+        <Field label="Changed in both places" hint="The drive's copy and the file on disk both changed since the last sync.">
           <Select value={o.onConflict} onChange={(e) => set({ onConflict: e.target.value as FolderSyncConflictPolicy })}>
             <option value="SKIP">Leave it and report it</option>
             <option value="OVERWRITE">Overwrite it</option>

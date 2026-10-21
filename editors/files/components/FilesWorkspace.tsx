@@ -24,7 +24,7 @@ import {
   useSelectedFolder,
 } from "@powerhousedao/reactor-browser";
 import type { FolderNode, Node } from "@powerhousedao/shared/document-drive";
-import { isFileDocument } from "document-models/file";
+import { isFileDocument, type FileDocument } from "document-models/file";
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFillHeight, useNarrow } from "../../backfills/components/measure.js";
 import { rememberTags, TagBadges } from "../../sektar/components/FileDetail.js";
@@ -41,7 +41,7 @@ import {
   type PreviewItem,
 } from "../../sektar/components/FilePreview.js";
 import { useFilesList, type FileListRow } from "../../sektar/kit/files-index.js";
-import { hiddenSyncIds, SYNC_TYPE } from "../../sektar/kit/folder-sync.js";
+import { hiddenSyncIds, isPlaceholderKind, requestPull, SYNC_TYPE } from "../../sektar/kit/folder-sync.js";
 import { bytes, createEmptyFile, createFileFromUpload, FILE_TYPE, fileKind } from "../../sektar/kit/files.js";
 import { Menu } from "../../sektar/kit/menu.js";
 import { useSearch } from "../../sektar/kit/search-context.js";
@@ -648,6 +648,7 @@ function FolderTree({
 function subline(row: FileListRow): string {
   if (row.description) return row.description;
   if (row.sourceKind === "DOCUMENT") return `Linked: ${row.sourceDocumentName ?? row.sourceDocumentType ?? "document"}`;
+  if (isPlaceholderKind(row.sourceKind)) return ["On disk, not pulled yet", bytes(row.sourceSize)].filter(Boolean).join(" · ");
   if (row.sourceKind === "ATTACHMENT") {
     // The name is the title already when the file was dropped as is: say what it is instead.
     const shown = row.title ?? row.name;
@@ -679,7 +680,15 @@ function Tile({ row }: { row: FileListRow }) {
       </span>
     );
   }
-  return <FileTypeTile kind={fileKind(row.sourceMime, row.sourceName ?? row.name)} />;
+  const tile = <FileTypeTile kind={fileKind(row.sourceMime, row.sourceName ?? row.name)} />;
+  // A placeholder: the file is on disk, not in the drive yet.
+  return isPlaceholderKind(row.sourceKind) ? (
+    <span className="sk-placeholder-tile" title="On disk, not pulled yet">
+      {tile}
+    </span>
+  ) : (
+    tile
+  );
 }
 
 function Where({ path }: { path: string }) {
@@ -879,6 +888,7 @@ function FilePreviewPanel({ row, nodes, onOpen }: { row: FileListRow; nodes: rea
         {s.description && <p className="sk-files-preview__desc">{s.description}</p>}
         <TagBadges tags={s.tags} max={8} />
       </div>
+      {s.placeholder && <DiskChangeAlert key={s.placeholder.foundAt} fileId={row.id} placeholder={s.placeholder} />}
       <div className="sk-row" style={{ gap: "var(--sk-space-2)", alignItems: "center" }}>
         <div className="sk-grow" style={{ minWidth: 0 }}>
           {options.length > 1 && (
@@ -890,6 +900,56 @@ function FilePreviewPanel({ row, nodes, onOpen }: { row: FileListRow; nodes: rea
         </Button>
       </div>
       <FileItemPreview doc={doc} item={item} />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------ from the disk */
+
+type DiskPlaceholder = NonNullable<FileDocument["state"]["global"]["placeholder"]>;
+
+const DISK_CHANGE = {
+  CREATE: "New on disk, not pulled yet",
+  UPDATE: "Changed on disk",
+  DELETE: "Deleted on disk",
+} as const;
+
+/** A change a folder sync found on disk for this File, and the button that pulls it in. */
+function DiskChangeAlert({ fileId, placeholder }: { fileId: string; placeholder: DiskPlaceholder }) {
+  const [asked, setAsked] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+  const what = [
+    placeholder.relativePath,
+    placeholder.sizeBytes !== null && placeholder.sizeBytes !== undefined ? bytes(placeholder.sizeBytes) : null,
+    placeholder.modifiedAt ? `modified ${new Date(placeholder.modifiedAt).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const action = placeholder.change === "DELETE" ? "Delete from the drive" : placeholder.target === "DOCUMENT" ? "Import the document" : "Pull from disk";
+  return (
+    <div className="sk-alert sk-alert--info sk-disk-change" role="status">
+      <SyncGlyph name="folder-sync" />
+      <div className="sk-grow" style={{ minWidth: 0 }}>
+        <div className="sk-alert__title">{DISK_CHANGE[placeholder.change]}</div>
+        <div className="sk-disk-change__what">{what}</div>
+        {asked && <div className="sk-caption">Asked. The Switchboard pulls it on its next run.</div>}
+        {failed && <div className="sk-caption sk-text-danger">{failed}</div>}
+      </div>
+      <Button
+        size="sm"
+        variant={placeholder.change === "DELETE" ? "secondary" : "primary"}
+        disabled={asked}
+        onClick={() => {
+          setAsked(true);
+          setFailed(null);
+          requestPull(placeholder.mappingId, [fileId]).catch((e: unknown) => {
+            setAsked(false);
+            setFailed(`Could not ask for the pull: ${e instanceof Error ? e.message : String(e)}`);
+          });
+        }}
+      >
+        {action}
+      </Button>
     </div>
   );
 }
