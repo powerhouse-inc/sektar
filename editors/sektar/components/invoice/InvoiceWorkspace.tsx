@@ -23,7 +23,7 @@ import { Menu } from "../../kit/menu.js";
 import { Alert, Badge, Button, cx, EmptyState, Field, Input, Modal, Select, Selector } from "../../kit/ui.js";
 import { Pane, Workspace } from "../../kit/workspace.js";
 import { FilePreviewFrame } from "./InvoicePreview.js";
-import { InvoicePaper } from "./InvoicePaper.js";
+import { InvoicePrintPreview } from "./InvoicePrintPreview.js";
 import { AttachmentSection, CurrencySection, DetailsSection, NotesSection, PaymentSection, VatSection } from "./InvoiceSections.js";
 import { LineList } from "./LineEditor.js";
 import { PartyCards } from "./PartyEditor.js";
@@ -161,7 +161,7 @@ function Editor({ doc, dispatch }: { doc: InvoiceDocument; dispatch: Dispatch })
           collapsedTitle="Preview"
           header={<Selector value={preview} options={options} onChange={(v) => setPreview(v as PreviewKey)} label="Preview" />}
         >
-          {preview === "invoice" && <InvoicePaper state={s} />}
+          {preview === "invoice" && <InvoicePrintPreview state={s} />}
           {preview === "checks" && <ChecksPanel checks={checks} onGo={(section) => goTo(section)} />}
           {shown && <FilePreviewFrame documentId={doc.header.id} attachment={shown} />}
         </Pane>

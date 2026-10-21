@@ -40,14 +40,20 @@ export function InvoicePrintPreview({ state }: { state: InvoiceState }) {
     return () => ro.disconnect();
   }, []);
 
-  // Its height is the content's (a long invoice is a long sheet), measured
-  // again once its fonts are in, which can reflow it.
+  // Its height is the content's (a long invoice is a long sheet), followed
+  // from inside the frame: a frame loaded in a folded pane measures nothing
+  // useful, and unfolding it, fonts arriving or new HTML all reflow it.
+  const watch = useRef<ResizeObserver | null>(null);
+  useEffect(() => () => watch.current?.disconnect(), []);
   const measure = () => {
     const doc = frame.current?.contentDocument;
-    if (!doc) return;
-    const read = () => setHeight(Math.max(A4_HEIGHT, doc.documentElement.scrollHeight));
+    const win = frame.current?.contentWindow as (Window & typeof globalThis) | null;
+    if (!doc || !win) return;
+    const read = () => setHeight(Math.max(A4_HEIGHT, doc.body.scrollHeight, doc.documentElement.scrollHeight));
     read();
-    void doc.fonts?.ready.then(read);
+    watch.current?.disconnect();
+    watch.current = new win.ResizeObserver(read);
+    watch.current.observe(doc.body);
   };
 
   return (
