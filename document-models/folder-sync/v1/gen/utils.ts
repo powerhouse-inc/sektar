@@ -39,6 +39,7 @@ export const initialGlobalState: FolderSyncGlobalState = {
     onRemoved: "KEEP",
     onConflict: "SKIP",
     fromDisk: "OFF",
+    writeFiles: true,
   },
   status: "NEVER",
   request: null,

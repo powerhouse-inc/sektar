@@ -146,6 +146,8 @@ export type FolderSyncOptions = {
   otherDocuments: FolderSyncOtherDocuments;
   /** Run when asked only, or also whenever the folder changes */
   trigger: FolderSyncTrigger;
+  /** Write the drive's Files to disk; off leaves the disk to be read from only. Absent means on. */
+  writeFiles: Maybe<Scalars["Boolean"]["output"]>;
 };
 
 export type FolderSyncOtherDocuments = "EXPORT_PHD" | "SKIP";
@@ -276,6 +278,7 @@ export type SetOptionsInput = {
   onRemoved?: InputMaybe<FolderSyncRemovedPolicy>;
   otherDocuments?: InputMaybe<FolderSyncOtherDocuments>;
   trigger?: InputMaybe<FolderSyncTrigger>;
+  writeFiles?: InputMaybe<Scalars["Boolean"]["input"]>;
 };
 
 export type SetTargetInput = {

@@ -29,6 +29,7 @@ export function defaultGlobalState(): FolderSyncGlobalState {
       onRemoved: "KEEP",
       onConflict: "SKIP",
       fromDisk: "OFF",
+      writeFiles: true,
     },
     status: "NEVER",
     request: null,

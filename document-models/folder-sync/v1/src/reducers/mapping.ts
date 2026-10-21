@@ -22,6 +22,8 @@ export const folderSyncMappingOperations: FolderSyncMappingOperations = {
     const i = action.input;
     const o = state.options;
     if (i.trigger) o.trigger = i.trigger;
+    if (i.writeFiles !== undefined && i.writeFiles !== null)
+      o.writeFiles = i.writeFiles;
     if (i.includeSubfolders !== undefined && i.includeSubfolders !== null)
       o.includeSubfolders = i.includeSubfolders;
     if (i.content) o.content = i.content;

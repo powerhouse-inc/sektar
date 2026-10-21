@@ -7,22 +7,18 @@ import {
   actions,
   type FolderSyncAction,
   type FolderSyncConflictPolicy,
-  type FolderSyncContent,
   type FolderSyncDocument,
   type FolderSyncFromDisk,
   type FolderSyncIssue,
   type FolderSyncIssueKind,
-  type FolderSyncOtherDocuments,
-  type FolderSyncRemovedPolicy,
   type FolderSyncRun,
-  type FolderSyncTrigger,
 } from "document-models/folder-sync";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { bytes } from "../../kit/files.js";
 import { ago, folderPath, hiddenSyncIds, isRunnable, requestPull, requestSync, statusInfo } from "../../kit/folder-sync.js";
 import { Menu } from "../../kit/menu.js";
 import { SyncGlyph } from "../../kit/sync-glyphs.js";
-import { Badge, Button, Card, cx, EmptyState, Field, Icon, Input, MetaStrip, Segmented, Select, Switch, Table, type IconName } from "../../kit/ui.js";
+import { Badge, Button, Card, cx, EmptyState, Field, Icon, Input, MetaStrip, Select, Table, type IconName } from "../../kit/ui.js";
 
 type Dispatch = (action: FolderSyncAction) => void;
 
@@ -110,8 +106,12 @@ export function FolderSyncDetail({ doc, dispatch }: { doc: FolderSyncDocument; d
         <MappingForm doc={doc} dispatch={dispatch} />
       </Card>
 
-      <Card title="Options">
-        <OptionsForm doc={doc} dispatch={dispatch} />
+      <Card title="Writing to disk">
+        <WritingForm doc={doc} dispatch={dispatch} />
+      </Card>
+
+      <Card title="Reading changes from disk">
+        <ReadingForm doc={doc} dispatch={dispatch} />
       </Card>
 
       <Card title="Last run" actions={s.host?.name && <span className="sk-caption">on {s.host.name}</span>}>
@@ -195,11 +195,13 @@ function MappingForm({ doc, dispatch }: { doc: FolderSyncDocument; dispatch: Dis
     if (trimmed && !invalid && trimmed !== s.localPath) dispatch(actions.setLocalPath({ localPath: trimmed }));
   };
   const sameDrive = !s.driveId || s.driveId === drive.header.id;
+  const mode = syncMode(s);
 
   return (
     <div className="sk-stack sk-stack--4">
       <div className="sk-sync-form">
-        <Field label="Drive folder" hint={sameDrive ? "The folder whose files are written" : "This mapping is for another drive"}>
+        <div className="sk-stack sk-stack--3">
+        <Field label="Drive folder" hint={sameDrive ? undefined : "This mapping is for another drive"}>
           <Select
             value={s.folderId ?? ""}
             disabled={!sameDrive}
@@ -216,6 +218,13 @@ function MappingForm({ doc, dispatch }: { doc: FolderSyncDocument; dispatch: Dis
             ))}
           </Select>
         </Field>
+        <Check
+          checked={s.options.includeSubfolders}
+          label="Include subfolders"
+          hint="Subfolders become folders on disk, and folders on disk subfolders."
+          onChange={(includeSubfolders) => dispatch(actions.setOptions({ includeSubfolders }))}
+        />
+        </div>
         <Field
           label="Folder on disk"
           required
@@ -235,14 +244,54 @@ function MappingForm({ doc, dispatch }: { doc: FolderSyncDocument; dispatch: Dis
           />
         </Field>
       </div>
-      <label className="sk-row sk-sync-toggle">
-        <Switch checked={s.enabled} label="Enabled" onChange={(enabled) => dispatch(actions.setEnabled({ enabled }))} />
-        <span>
-          <span className="sk-sync-toggle__label">Enabled</span>
-          <span className="sk-caption">A paused mapping is kept, but never synchronized.</span>
-        </span>
-      </label>
+      <div className="sk-sync-form">
+        <Field label="Sync" hint={SYNC_MODE_HINT[mode]}>
+          <Select
+            value={mode}
+            onChange={(e) => {
+              const next = e.target.value as SyncMode;
+              if (next === "DISABLED") {
+                dispatch(actions.setEnabled({ enabled: false }));
+                return;
+              }
+              if (!s.enabled) dispatch(actions.setEnabled({ enabled: true }));
+              dispatch(actions.setOptions({ trigger: next === "AUTOMATIC" ? "ON_CHANGE" : "MANUAL" }));
+            }}
+          >
+            <option value="DISABLED">Disabled</option>
+            <option value="MANUAL">Manually</option>
+            <option value="AUTOMATIC">Automatic</option>
+          </Select>
+        </Field>
+      </div>
     </div>
+  );
+}
+
+type SyncMode = "DISABLED" | "MANUAL" | "AUTOMATIC";
+
+/** The one Sync setting, out of the mapping's enabled flag and trigger. */
+function syncMode(s: FolderSyncDocument["state"]["global"]): SyncMode {
+  if (!s.enabled) return "DISABLED";
+  return s.options.trigger === "ON_CHANGE" ? "AUTOMATIC" : "MANUAL";
+}
+
+const SYNC_MODE_HINT: Record<SyncMode, string> = {
+  DISABLED: "Kept, but never synchronized.",
+  MANUAL: "When asked: from the Folders pane, this page, or a workflow.",
+  AUTOMATIC: "A few seconds after changes stop, in the drive or on disk, and at most a minute after the first.",
+};
+
+/** A design-system checkbox with its label and, below it, what it does. */
+function Check({ checked, label, hint, disabled, onChange }: { checked: boolean; label: string; hint?: string; disabled?: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <label className={cx("sk-check sk-sync-check", disabled && "is-disabled")}>
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      <span>
+        <span className="sk-sync-check__label">{label}</span>
+        {hint && <span className="sk-caption">{hint}</span>}
+      </span>
+    </label>
   );
 }
 
@@ -255,69 +304,68 @@ function folderOptions(nodes: readonly Node[]) {
     .sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: "base" }));
 }
 
-/* -------------------------------------------------------------- options */
+/* ----------------------------------------------------- writing, reading */
 
-function OptionsForm({ doc, dispatch }: { doc: FolderSyncDocument; dispatch: Dispatch }) {
+/** What a sync writes to disk: the Files (and their renditions), the documents. Greyed out where it does not apply. */
+function WritingForm({ doc, dispatch }: { doc: FolderSyncDocument; dispatch: Dispatch }) {
+  const o = doc.state.global.options;
+  const set = (input: Parameters<typeof actions.setOptions>[0]) => dispatch(actions.setOptions(input));
+  const writes = o.writeFiles !== false;
+  return (
+    <div className="sk-sync-form">
+      <div className="sk-stack sk-stack--3">
+        <span className="sk-label">Files</span>
+        <Check checked={writes} label="Write to disk" hint="The drive's Files become files in the folder on disk." onChange={(writeFiles) => set({ writeFiles })} />
+        <Check
+          checked={o.content === "SOURCE_AND_RENDITIONS"}
+          disabled={!writes}
+          label="Include renditions"
+          hint="The PDFs and extracts made from a source, beside it."
+          onChange={(on) => set({ content: on ? "SOURCE_AND_RENDITIONS" : "SOURCE" })}
+        />
+        <Check
+          checked={o.onRemoved === "DELETE"}
+          disabled={!writes}
+          label="Delete on disk"
+          hint="When a File leaves the drive folder, its file on disk goes too."
+          onChange={(on) => set({ onRemoved: on ? "DELETE" : "KEEP" })}
+        />
+      </div>
+      <div className="sk-stack sk-stack--3">
+        <span className="sk-label">Documents</span>
+        <Check
+          checked={o.otherDocuments === "EXPORT_PHD"}
+          disabled
+          label="Write to disk as .phd"
+          hint="Invoices, trips and other documents that are not Files. Not available yet."
+          onChange={(on) => set({ otherDocuments: on ? "EXPORT_PHD" : "SKIP" })}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** What a sync does with changes it finds on disk. */
+function ReadingForm({ doc, dispatch }: { doc: FolderSyncDocument; dispatch: Dispatch }) {
   const o = doc.state.global.options;
   const set = (input: Parameters<typeof actions.setOptions>[0]) => dispatch(actions.setOptions(input));
   return (
-    <div className="sk-stack sk-stack--4">
-      <div className="sk-field">
-        <span className="sk-label">When</span>
-        <Segmented<FolderSyncTrigger>
-          value={o.trigger}
-          options={[
-            { value: "MANUAL", label: "When asked" },
-            { value: "ON_CHANGE", label: "Whenever the folder changes" },
-          ]}
-          onChange={(trigger) => set({ trigger })}
-        />
-        <span className="sk-hint">
-          {o.trigger === "MANUAL" ? "From the Folders pane, this page, or a workflow." : "The Switchboard also syncs after every change in the folder."}
-        </span>
-      </div>
-      <label className="sk-row sk-sync-toggle">
-        <Switch checked={o.includeSubfolders} label="Include subfolders" onChange={(includeSubfolders) => set({ includeSubfolders })} />
-        <span>
-          <span className="sk-sync-toggle__label">Include subfolders</span>
-          <span className="sk-caption">Subfolders become folders on disk.</span>
-        </span>
-      </label>
-      <div className="sk-sync-form">
-        <Field label="For each File, write" hint="Renditions are the PDFs and extracts made from a source.">
-          <Select value={o.content} onChange={(e) => set({ content: e.target.value as FolderSyncContent })}>
-            <option value="SOURCE">Its source</option>
-            <option value="SOURCE_AND_RENDITIONS">Its source and its renditions</option>
-          </Select>
-        </Field>
-        <Field label="Other documents" hint="Invoices, trips and other documents that are not Files.">
-          <Select value={o.otherDocuments} onChange={(e) => set({ otherDocuments: e.target.value as FolderSyncOtherDocuments })}>
-            <option value="SKIP">Leave them out</option>
-            <option value="EXPORT_PHD">Export them as .phd</option>
-          </Select>
-        </Field>
-        <Field label="A document leaves the folder" hint="Moved, renamed away or deleted in the drive.">
-          <Select value={o.onRemoved} onChange={(e) => set({ onRemoved: e.target.value as FolderSyncRemovedPolicy })}>
-            <option value="KEEP">Keep its file on disk</option>
-            <option value="DELETE">Delete its file on disk</option>
-          </Select>
-        </Field>
-        <Field label="Changes on disk" hint={FROM_DISK_HINT[o.fromDisk ?? "OFF"]}>
-          <Select value={o.fromDisk ?? "OFF"} onChange={(e) => set({ fromDisk: e.target.value as FolderSyncFromDisk })}>
-            <option value="OFF">Not synced back</option>
-            <option value="PLACEHOLDERS">Placeholders, pulled by hand</option>
-            <option value="AUTO_PULL">Pulled automatically</option>
-            <option value="AUTO_PULL_WITH_DELETES">Pulled automatically, deletions too</option>
-          </Select>
-        </Field>
-        <Field label="Changed in both places" hint="The drive's copy and the file on disk both changed since the last sync.">
-          <Select value={o.onConflict} onChange={(e) => set({ onConflict: e.target.value as FolderSyncConflictPolicy })}>
-            <option value="SKIP">Leave it and report it</option>
-            <option value="OVERWRITE">Overwrite it</option>
-            <option value="KEEP_BOTH">Keep both (write a copy beside it)</option>
-          </Select>
-        </Field>
-      </div>
+    <div className="sk-sync-form">
+      <Field label="Changes on disk" hint={FROM_DISK_HINT[o.fromDisk ?? "OFF"]}>
+        <Select value={o.fromDisk ?? "OFF"} onChange={(e) => set({ fromDisk: e.target.value as FolderSyncFromDisk })}>
+          <option value="OFF">Not synced back</option>
+          <option value="PLACEHOLDERS">Placeholders, pulled by hand</option>
+          <option value="AUTO_PULL">Pulled automatically</option>
+          <option value="AUTO_PULL_WITH_DELETES">Pulled automatically, deletions too</option>
+        </Select>
+      </Field>
+      <Field label="Changed in both places" hint="The drive's copy and the file on disk both changed since the last sync.">
+        <Select value={o.onConflict} onChange={(e) => set({ onConflict: e.target.value as FolderSyncConflictPolicy })}>
+          <option value="SKIP">Leave it and report it</option>
+          <option value="OVERWRITE">Overwrite it</option>
+          <option value="KEEP_BOTH">Keep both (write a copy beside it)</option>
+        </Select>
+      </Field>
     </div>
   );
 }

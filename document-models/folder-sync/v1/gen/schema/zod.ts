@@ -177,6 +177,7 @@ export function FolderSyncOptionsSchema(): z.ZodObject<
     onRemoved: FolderSyncRemovedPolicySchema,
     otherDocuments: FolderSyncOtherDocumentsSchema,
     trigger: FolderSyncTriggerSchema,
+    writeFiles: z.boolean().nullish(),
   });
 }
 
@@ -313,6 +314,7 @@ export function SetOptionsInputSchema(): z.ZodObject<
     onRemoved: FolderSyncRemovedPolicySchema.nullish(),
     otherDocuments: FolderSyncOtherDocumentsSchema.nullish(),
     trigger: FolderSyncTriggerSchema.nullish(),
+    writeFiles: z.boolean().nullish(),
   });
 }
 

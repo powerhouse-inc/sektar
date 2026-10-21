@@ -48,6 +48,8 @@ type FolderSyncState {
 type FolderSyncOptions {
   "Run when asked only, or also whenever the folder changes"
   trigger: FolderSyncTrigger!
+  "Write the drive's Files to disk; off leaves the disk to be read from only. Absent means on."
+  writeFiles: Boolean
   includeSubfolders: Boolean!
   "What is written for a File: its source, or its source and its renditions"
   content: FolderSyncContent!
@@ -201,6 +203,7 @@ input SetLocalPathInput {
 
 input SetOptionsInput {
   trigger: FolderSyncTrigger
+  writeFiles: Boolean
   includeSubfolders: Boolean
   content: FolderSyncContent
   otherDocuments: FolderSyncOtherDocuments

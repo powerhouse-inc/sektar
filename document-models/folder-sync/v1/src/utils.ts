@@ -1,4 +1,8 @@
-import type { FolderSyncFromDisk, FolderSyncPull, FolderSyncState } from "document-models/folder-sync/v1";
+import type {
+  FolderSyncFromDisk,
+  FolderSyncPull,
+  FolderSyncState,
+} from "document-models/folder-sync/v1";
 
 /**
  * Fills in what state written before reverse sync lacks: the fromDisk
@@ -7,7 +11,10 @@ import type { FolderSyncFromDisk, FolderSyncPull, FolderSyncState } from "docume
  * its next operation. The schema keeps these fields optional all the same:
  * the stored initialState of such a mapping never gets them.
  */
-export function normalize(state: FolderSyncState): { fromDisk: FolderSyncFromDisk; pulls: FolderSyncPull[] } {
+export function normalize(state: FolderSyncState): {
+  fromDisk: FolderSyncFromDisk;
+  pulls: FolderSyncPull[];
+} {
   const fromDisk = (state.options.fromDisk ??= "OFF");
   const pulls = (state.pulls ??= []);
   for (const run of state.runs) {

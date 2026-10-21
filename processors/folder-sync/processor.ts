@@ -11,10 +11,12 @@ import { addFolder, deleteNode } from "@powerhousedao/shared/document-drive";
 import { utils as fileUtils } from "document-models/file";
 import { actions, type FolderSyncState } from "document-models/folder-sync";
 import { randomUUID } from "node:crypto";
+import { watch, type FSWatcher } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { hostname } from "node:os";
 import { join } from "node:path";
 import { up } from "./migrations.js";
+import { Debouncer } from "./debounce.js";
 import { runSync, type RunnerDeps } from "./runner.js";
 import type { DB } from "./schema.js";
 
@@ -22,8 +24,14 @@ export const SYNC_TYPE = "sektar/folder-sync";
 export const DRIVE_TYPE = "powerhouse/document-drive";
 export const FILE_TYPE = "sektar/file";
 
-/** How long a folder must stay quiet before an ON_CHANGE mapping runs. */
-const CHANGE_SETTLE_MS = 10_000;
+/** An automatic mapping runs once changes (in the drive or on disk) have stopped this long... */
+const CHANGE_QUIET_MS = 5_000;
+/** ...and never later than this after the first change of a burst. */
+const CHANGE_MAX_WAIT_MS = 60_000;
+/** Disk events this soon after a run are the run's own writes. */
+const RUN_ECHO_MS = 3_000;
+/** Files on disk a run writes for itself, whose changes start nothing. */
+const OWN_FILES = /(^|[\\/])(\.sektar-sync\.json|[^\\/]*\.sektar-tmp)$/;
 /** How long after start-up the sweep looks for requests that are still waiting. */
 const SWEEP_DELAY_MS = 5_000;
 
@@ -46,6 +54,11 @@ export async function readAllowedRoots(file = join(process.cwd(), ".ph", "folder
     .filter((l) => l && !l.startsWith("#"));
 }
 
+/** Runs by itself: after changes in the drive or on disk (Sync: Automatic). */
+export function isAutomatic(s: FolderSyncState): boolean {
+  return s.enabled && s.options.trigger === "ON_CHANGE" && Boolean(s.localPath);
+}
+
 export interface FolderSyncRuntime {
   client: IReactorClient;
   attachments: IProcessorHostModule["attachments"];
@@ -59,7 +72,11 @@ export class FolderSync extends RelationalDbProcessor<DB> {
   private readonly running = new Set<string>();
   /** The runs this host started: their RUNNING status is not a leftover */
   private readonly ours = new Set<string>();
-  private readonly settle = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly changes = new Debouncer(CHANGE_QUIET_MS, CHANGE_MAX_WAIT_MS);
+  /** The local folders of automatic mappings, watched for changes on disk */
+  private readonly watchers = new Map<string, { path: string; watcher: FSWatcher }>();
+  /** Until when a mapping's disk events are its own run's writes */
+  private readonly quietUntil = new Map<string, number>();
   private sweepTimer: ReturnType<typeof setTimeout> | undefined;
   private queue: Promise<void> = Promise.resolve();
   private disconnected = false;
@@ -89,8 +106,9 @@ export class FolderSync extends RelationalDbProcessor<DB> {
   onDisconnect(): Promise<void> {
     this.disconnected = true;
     clearTimeout(this.sweepTimer);
-    for (const t of this.settle.values()) clearTimeout(t);
-    this.settle.clear();
+    this.changes.cancelAll();
+    for (const { watcher } of this.watchers.values()) watcher.close();
+    this.watchers.clear();
     return Promise.resolve();
   }
 
@@ -127,15 +145,39 @@ export class FolderSync extends RelationalDbProcessor<DB> {
     if (!client) return;
     for (const id of await this.mappingsInDrive()) {
       const s = await this.stateOf(id);
-      if (!s || s.driveId !== this.driveId || s.options.trigger !== "ON_CHANGE" || !s.enabled || !s.localPath) continue;
-      clearTimeout(this.settle.get(id));
-      this.settle.set(
-        id,
-        setTimeout(() => {
-          this.settle.delete(id);
-          if (!this.disconnected) void this.enqueue(() => this.start(id, null, false));
-        }, CHANGE_SETTLE_MS),
-      );
+      if (s && s.driveId === this.driveId && isAutomatic(s)) this.changed(id);
+    }
+  }
+
+  /** A change for an automatic mapping: it runs once the changes stop (debounced, with a ceiling). */
+  private changed(id: string): void {
+    if (this.disconnected) return;
+    this.changes.touch(id, () => {
+      if (!this.disconnected) void this.enqueue(() => this.start(id, null, false));
+    });
+  }
+
+  /** Watches an automatic mapping's local folder, and stops watching any other. */
+  private syncWatcher(id: string, s: FolderSyncState | undefined): void {
+    const path = s && s.driveId === this.driveId && isAutomatic(s) ? s.localPath : null;
+    const current = this.watchers.get(id);
+    if (current && current.path === path) return;
+    current?.watcher.close();
+    this.watchers.delete(id);
+    if (!path || this.disconnected) return;
+    try {
+      const watcher = watch(path, { recursive: true }, (_event, name) => {
+        if (name && OWN_FILES.test(String(name))) return;
+        if (this.running.has(id) || Date.now() < (this.quietUntil.get(id) ?? 0)) return;
+        this.changed(id);
+      });
+      watcher.on("error", () => {
+        watcher.close();
+        if (this.watchers.get(id)?.watcher === watcher) this.watchers.delete(id);
+      });
+      this.watchers.set(id, { path, watcher });
+    } catch {
+      // The folder is not there yet: the first run makes it, and the next look watches it.
     }
   }
 
@@ -152,6 +194,7 @@ export class FolderSync extends RelationalDbProcessor<DB> {
   private async consider(id: string): Promise<void> {
     if (this.running.has(id) || this.disconnected) return;
     const s = await this.stateOf(id);
+    this.syncWatcher(id, s);
     if (!s || s.driveId !== this.driveId) return;
     const last = s.runs.at(0);
     if (s.status === "RUNNING" && last && !last.finishedAt && !this.ours.has(last.id)) {
@@ -174,7 +217,10 @@ export class FolderSync extends RelationalDbProcessor<DB> {
     const allowedRoots = await readAllowedRoots();
     void runSync(id, s, deps, { requestId, full, allowedRoots })
       .catch((e: unknown) => console.warn(`[folder-sync] ${id}:`, e instanceof Error ? e.message : e))
-      .finally(() => this.running.delete(id));
+      .finally(() => {
+        this.running.delete(id);
+        this.quietUntil.set(id, Date.now() + RUN_ECHO_MS);
+      });
   }
 
   private deps(): RunnerDeps {

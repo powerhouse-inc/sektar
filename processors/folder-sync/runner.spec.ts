@@ -404,6 +404,17 @@ describe("changes found on disk", () => {
     expect(w.deleted).toEqual(["f2"]);
   });
 
+  it("are the only thing a mapping that does not write to disk does", async () => {
+    w.map((d) => reducer(d, setOptions({ writeFiles: false, fromDisk: "PLACEHOLDERS", onRemoved: "DELETE" })));
+    let out = await w.run();
+    expect(out).toMatchObject({ written: 0, status: "OK" });
+    expect(existsSync(join(root, "20260710-indigo-hotel.pdf"))).toBe(false);
+    await editOnDisk("new.pdf", "found");
+    out = await w.run();
+    expect(out).toMatchObject({ written: 0, placeholders: 1 });
+    expect(w.fileState(nodeAt("new.pdf")!.id).source?.kind).toBe("FILE_PLACEHOLDER");
+  });
+
   it("are not taken when the setting is off: an edit is a conflict, a deletion is written again", async () => {
     await w.run();
     await changeDisk();

@@ -296,6 +296,11 @@ async function copyFolder(
         // On disk as it was written: a change recorded before was undone there.
         await changes.clear(want.nodeId, pending);
       }
+      // A mapping that only reads from disk writes nothing there.
+      if (s.options.writeFiles === false) {
+        if (entry) nextFiles[want.key] = entry;
+        continue;
+      }
       // Moved or renamed in the drive: move the file along rather than write it again.
       if (!disk.exists && entry && entry.relPath !== want.relPath && entry.hash === want.hash) {
         const from = join(root, ...entry.relPath.split("/"));
@@ -401,7 +406,7 @@ async function copyFolder(
       nextFiles[key] = entry;
       continue;
     }
-    if (s.options.onRemoved !== "DELETE") continue;
+    if (s.options.onRemoved !== "DELETE" || s.options.writeFiles === false) continue;
     const path = join(root, ...entry.relPath.split("/"));
     try {
       const disk = await look(path);

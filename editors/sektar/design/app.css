@@ -2040,6 +2040,11 @@
 .sk-app .sk-sync-row__detail { font-size: var(--sk-text-xs); color: var(--sk-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .sk-app .sk-sync-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sk-space-4); }
 .sk-app .sk-sync-toggle { align-items: flex-start; cursor: pointer; }
+.sk-app .sk-sync-check { align-items: flex-start; }
+.sk-app .sk-sync-check > input { margin-top: 3px; }
+.sk-app .sk-sync-check > span { display: grid; gap: 2px; }
+.sk-app .sk-sync-check__label { font-weight: var(--sk-weight-medium); }
+.sk-app .sk-sync-check.is-disabled { opacity: 0.5; cursor: default; }
 .sk-app .sk-sync-toggle > span:last-child { display: grid; gap: 2px; }
 .sk-app .sk-sync-toggle__label { font-weight: var(--sk-weight-medium); }
 .sk-app .sk-sync-detail .sk-detail-header__actions { align-items: center; }

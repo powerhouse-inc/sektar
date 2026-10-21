@@ -62,6 +62,7 @@ describe("a folder sync, from mapping to runs", () => {
       onRemoved: "KEEP",
       onConflict: "SKIP",
       fromDisk: "OFF",
+      writeFiles: true,
     });
     expect(s.pulls).toEqual([]);
   });
@@ -99,6 +100,7 @@ describe("a folder sync, from mapping to runs", () => {
         onRemoved: "DELETE",
         onConflict: "KEEP_BOTH",
         fromDisk: "AUTO_PULL_WITH_DELETES",
+        writeFiles: false,
       }),
     );
     const all = {
@@ -109,9 +111,10 @@ describe("a folder sync, from mapping to runs", () => {
       onRemoved: "DELETE",
       onConflict: "KEEP_BOTH",
       fromDisk: "AUTO_PULL_WITH_DELETES",
+      writeFiles: false,
     };
     expect(doc.state.global.options).toEqual(all);
-    doc = apply(doc, setOptions({}), setOptions({ includeSubfolders: null }));
+    doc = apply(doc, setOptions({}), setOptions({ includeSubfolders: null, writeFiles: null }));
     expect(doc.state.global.options).toEqual(all);
     doc = apply(doc, setOptions({ includeSubfolders: true, onConflict: "OVERWRITE" }));
     expect(doc.state.global.options).toEqual({ ...all, includeSubfolders: true, onConflict: "OVERWRITE" });
