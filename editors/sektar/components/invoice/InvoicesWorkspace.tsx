@@ -308,7 +308,7 @@ export function InvoicesWorkspace({
           onToggle={() => setSidePref(!sideCollapsed)}
           onBack={() => setLevel(2)}
           backLabel="Back to the invoice"
-          collapsedTitle={opened.kind === "line" ? "Line" : "Invoice"}
+          collapsedTitle={opened.kind === "line" ? "Line" : "Preview"}
           header={
             state && opened.kind === "line" && lineAt >= 0 ? (
               <LineStepper at={lineAt} n={lines.indexOf(walk[lineAt]) + 1} count={walk.length} onStep={step} onClose={() => setOpened(invoiceView(state))} />
@@ -316,7 +316,7 @@ export function InvoicesWorkspace({
               <Selector
                 value={opened.kind === "invoice" ? opened.doc : PDF}
                 options={[
-                  { value: PDF, name: "The invoice", meta: state.status === "DRAFT" ? "PDF preview · draft" : "PDF preview" },
+                  { value: PDF, name: "Preview" },
                   ...state.attachments.map((a) => ({ value: a.id, name: a.fileName, meta: roleLabel(a.role) })),
                 ]}
                 onChange={(doc) => setOpened({ kind: "invoice", doc })}
@@ -428,6 +428,12 @@ function InvoiceRead({
   const missing = s.lines.filter((l) => l.attachments.length === 0).length;
 
   const groups = useMemo(() => groupLines(s.lines), [s.lines]);
+  /** The invoice's own rate from a currency into its currency (either way round as stored). */
+  const rateInto = (from: string): number | null => {
+    const r = s.exchangeRates.find((x) => (x.base === from && x.quote === s.currency) || (x.base === s.currency && x.quote === from));
+    if (!r) return null;
+    return r.base === from ? r.rate : Math.round((1 / r.rate) * 1e6) / 1e6;
+  };
 
   const standing =
     s.status === "PAID"
@@ -496,7 +502,7 @@ function InvoiceRead({
             <ul className="sk-invbook__rows">
               {g.lines.map(({ line, n }) => (
                 <li key={line.id}>
-                  <LineRow line={line} n={n} currency={s.currency} active={line.id === activeLine} onOpen={() => onLine(line.id)} />
+                  <LineRow line={line} n={n} currency={s.currency} rate={rateInto} active={line.id === activeLine} onOpen={() => onLine(line.id)} />
                 </li>
               ))}
             </ul>
@@ -527,8 +533,24 @@ function Fact({ label, value, tone, strong }: { label: string; value: ReactNode;
 }
 
 /** One line: what it is, where the amount came from, the amount, whether its receipt is there. */
-function LineRow({ line, n, currency, active, onOpen }: { line: InvoiceLine; n: number; currency: string; active: boolean; onOpen: () => void }) {
-  const foreign = line.original && line.original.currency !== currency;
+function LineRow({
+  line,
+  n,
+  currency,
+  rate,
+  active,
+  onOpen,
+}: {
+  line: InvoiceLine;
+  n: number;
+  currency: string;
+  /** The invoice's rate from a currency into its own, for a line that does not carry one */
+  rate: (from: string) => number | null;
+  active: boolean;
+  onOpen: () => void;
+}) {
+  const original = line.original && line.original.currency !== currency ? line.original : null;
+  const factor = original ? (original.rate ?? rate(original.currency)) : null;
   const receipts = line.attachments.length;
   return (
     <button type="button" className={cx("sk-invbook__line", active && "is-active")} onClick={onOpen} data-sk-drill={3} aria-current={active || undefined}>
@@ -537,15 +559,23 @@ function LineRow({ line, n, currency, active, onOpen }: { line: InvoiceLine; n: 
       </span>
       <span className="sk-invbook__line-main">
         <span className="sk-invbook__line-desc">{line.description}</span>
-        {(foreign || line.quantity !== 1 || line.note) && (
+        {(line.quantity !== 1 || line.note) && (
           <span className="sk-invbook__line-meta">
-            {foreign && line.original ? `${money(line.original.amount, line.original.currency)}` : ""}
-            {line.quantity !== 1 ? `${foreign ? " · " : ""}${line.quantity} × ${money(line.unitPrice, currency)}` : ""}
-            {line.note ? `${foreign || line.quantity !== 1 ? " · " : ""}${line.note}` : ""}
+            {line.quantity !== 1 ? `${line.quantity} × ${money(line.unitPrice, currency)}` : ""}
+            {line.note ? `${line.quantity !== 1 ? " · " : ""}${line.note}` : ""}
           </span>
         )}
       </span>
-      <span className="sk-invbook__line-amount sk-tabular">{money(lineAmount(line), currency)}</span>
+      <span className="sk-invbook__line-amount">
+        <span className="sk-tabular">{money(lineAmount(line), currency)}</span>
+        {/* A forward-billed cost: what it was, times the rate, makes the total above. */}
+        {original && (
+          <span className="sk-invbook__line-from sk-tabular">
+            = {money(original.amount, original.currency)}
+            {factor ? ` × ${factor}` : ""}
+          </span>
+        )}
+      </span>
       <span
         className={cx("sk-invbook__mark", receipts === 0 && "is-missing")}
         title={receipts === 0 ? "No receipt yet" : plural(receipts, "receipt")}
@@ -593,7 +623,16 @@ function LineView({ documentId, state: s, line }: { documentId: string; state: I
   return (
     <div className="sk-invbook-line">
       <div className="sk-invbook-line__scroll">
+        {/* Fixed column widths: stepping from line to line, the columns stay put. */}
         <table className="sk-invbook-line__table">
+          <colgroup>
+            <col className="sk-invbook-line__col-desc" />
+            <col className="sk-invbook-line__col-money" />
+            <col className="sk-invbook-line__col-qty" />
+            <col className="sk-invbook-line__col-money" />
+            <col className="sk-invbook-line__col-vat" />
+            <col className="sk-invbook-line__col-money" />
+          </colgroup>
           <thead>
             <tr>
               {LINE_HEADERS.map((h, i) => (
