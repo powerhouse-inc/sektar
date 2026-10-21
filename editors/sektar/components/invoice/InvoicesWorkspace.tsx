@@ -553,18 +553,21 @@ function LineRow({
   const factor = original ? (original.rate ?? rate(original.currency)) : null;
   const receipts = line.attachments.length;
   return (
-    <button type="button" className={cx("sk-invbook__line", active && "is-active")} onClick={onOpen} data-sk-drill={3} aria-current={active || undefined}>
-      <span className="sk-invbook__n" aria-label={`Line ${n}`}>
-        {n}
+    <button
+      type="button"
+      className={cx("sk-invbook__line", active && "is-active")}
+      onClick={onOpen}
+      data-sk-drill={3}
+      aria-current={active || undefined}
+      aria-label={`Line ${n}: ${line.quantity} × ${line.description}`}
+    >
+      {/* How many, in front of what: "1 × Toggl". */}
+      <span className="sk-invbook__qty" aria-hidden="true">
+        {Number.isInteger(line.quantity) ? line.quantity : line.quantity.toFixed(2)} ×
       </span>
       <span className="sk-invbook__line-main">
         <span className="sk-invbook__line-desc">{line.description}</span>
-        {(line.quantity !== 1 || line.note) && (
-          <span className="sk-invbook__line-meta">
-            {line.quantity !== 1 ? `${line.quantity} × ${money(line.unitPrice, currency)}` : ""}
-            {line.note ? `${line.quantity !== 1 ? " · " : ""}${line.note}` : ""}
-          </span>
-        )}
+        {line.note && <span className="sk-invbook__line-meta">{line.note}</span>}
       </span>
       <span className="sk-invbook__line-amount">
         <span className="sk-tabular">{money(lineAmount(line), currency)}</span>
