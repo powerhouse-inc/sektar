@@ -26,6 +26,7 @@ import {
   type PlanNode,
   type WantedFile,
 } from "./plan.js";
+import { DiskChanges, isDocumentFile, listDiskFiles, type PendingPlaceholder, type ReverseDeps } from "./reverse.js";
 
 const FILE_TYPE = "sektar/file";
 /** The issues a run reports; the rest are counted, not listed. */
@@ -38,7 +39,7 @@ export interface RunnerHost {
 }
 
 /** What the runner needs from the reactor, the attachment store and the clock. */
-export interface RunnerDeps {
+export interface RunnerDeps extends ReverseDeps {
   /** A document's current state (the drive, a File) */
   getDocument(id: string): Promise<{ header: { revision?: Record<string, number> }; state: { global: unknown } }>;
   /** An attachment's bytes, read through the document that holds it */
@@ -51,6 +52,7 @@ export interface RunnerDeps {
 }
 
 interface FileStateLike {
+  placeholder?: PendingPlaceholder | null;
   source?: { kind: string; ref?: string | null; fileName?: string | null; sizeBytes?: number | null } | null;
   renditions?: { id: string; type?: string | null; label?: string | null; fileName?: string | null; mimeType: string; ref?: string | null; sizeBytes?: number | null; text?: string | null }[];
 }
@@ -64,6 +66,10 @@ export interface RunOutcome {
   conflicts: number;
   errors: number;
   bytesWritten: number;
+  /** Changes found on disk, recorded as placeholders */
+  placeholders: number;
+  /** Changes found on disk, pulled into the drive */
+  pulled: number;
   error: string | null;
   issues: FolderSyncIssueInput[];
 }
@@ -121,6 +127,9 @@ export async function runSync(
   const finishedAt = deps.now().toISOString();
   await deps.dispatch(mappingId, [
     actions.setIssues({ issues: outcome.issues.slice(0, MAX_ISSUES) }),
+    // Every pull asked for was looked at in this run; one that failed is an issue, not a retry.
+    // Before FINISH_RUN: a pull still on the list there would make the mapping owe another run.
+    ...(s.pulls ?? []).map((p) => actions.completePull({ id: p.id })),
     actions.finishRun({
       id: runId,
       finishedAt,
@@ -132,6 +141,8 @@ export async function runSync(
       conflicts: outcome.conflicts,
       errors: outcome.errors,
       bytesWritten: outcome.bytesWritten,
+      placeholders: outcome.placeholders,
+      pulled: outcome.pulled,
       error: outcome.error,
     }),
   ]);
@@ -157,7 +168,7 @@ export function isAllowed(localPath: string, roots: readonly string[] | null, pl
 }
 
 function emptyOutcome(): RunOutcome {
-  return { status: "OK", written: 0, unchanged: 0, deleted: 0, skipped: 0, conflicts: 0, errors: 0, bytesWritten: 0, error: null, issues: [] };
+  return { status: "OK", written: 0, unchanged: 0, deleted: 0, skipped: 0, conflicts: 0, errors: 0, bytesWritten: 0, placeholders: 0, pulled: 0, error: null, issues: [] };
 }
 
 async function copyFolder(
@@ -174,6 +185,14 @@ async function copyFolder(
 
   await mkdir(root, { recursive: true });
   const manifest = await readManifest(root, mappingId);
+  const nodes = [...drive.nodes];
+  const changes = new DiskChanges(s.options.fromDisk ?? "OFF", s.pulls ?? [], s.driveId ?? "", mappingId, s.folderId ?? null, nodes, deps);
+  /** Placeholder Files (nothing pulled yet), by the path they stand for */
+  const placeholderFiles = new Map<string, { id: string; pending: PendingPlaceholder | null | undefined }>();
+  /** The change from disk a File with a source waits on */
+  const pendingOf = new Map<string, PendingPlaceholder | null | undefined>();
+  /** Files whose deletion on disk was pulled: their record goes */
+  const dropped = new Set<string>();
 
   /* -- what the folder wants on disk -- */
   const wanted: WantedFile[] = [];
@@ -190,7 +209,7 @@ async function copyFolder(
     return true;
   };
 
-  for (const { node, dir } of collectDocuments(drive.nodes, s.folderId ?? null, s.options.includeSubfolders)) {
+  for (const { node, dir } of collectDocuments(nodes, s.folderId ?? null, s.options.includeSubfolders)) {
     const prefix = dir ? `${dir}/` : "";
     if (node.documentType !== FILE_TYPE) {
       out.skipped++;
@@ -208,6 +227,12 @@ async function copyFolder(
       continue;
     }
     const source = file.source;
+    if (source?.kind === "FILE_PLACEHOLDER" || source?.kind === "DOCUMENT_PLACEHOLDER") {
+      // Stands for a file on disk that is not pulled yet: nothing to write.
+      placeholderFiles.set(pathKey(`${prefix}${safeName(node.name)}`, deps.host.platform), { id: node.id, pending: file.placeholder });
+      continue;
+    }
+    pendingOf.set(node.id, file.placeholder);
     const hash = refHash(source?.ref);
     if (!source || source.kind !== "ATTACHMENT" || !source.ref || !hash) {
       out.skipped++;
@@ -243,6 +268,34 @@ async function copyFolder(
     try {
       const target = join(root, ...want.relPath.split("/"));
       let disk = await look(target);
+      // Changed on disk, the drive's copy not: the other way round (reverse.ts).
+      if (changes.on && want.key === want.nodeId && entry && entry.relPath === want.relPath && entry.hash === want.hash) {
+        const pending = pendingOf.get(want.nodeId);
+        if (!disk.exists) {
+          if (changes.pulls(want.nodeId, "DELETE")) {
+            await changes.pullDelete(want.nodeId);
+            dropped.add(want.key);
+          } else {
+            await changes.mark(want.nodeId, want.relPath, "DELETE", { hash: null, size: null, mtimeMs: null }, pending);
+            nextFiles[want.key] = entry;
+          }
+          continue;
+        }
+        if (full || !unchangedSinceWritten(want, entry, disk)) disk = { ...disk, hash: await hashFile(target) };
+        if (disk.hash !== undefined && disk.hash !== entry.hash) {
+          const found = { hash: disk.hash, size: disk.size ?? 0, mtimeMs: disk.mtimeMs ?? 0 };
+          if (changes.pulls(want.nodeId, "UPDATE")) {
+            await changes.pull(want.nodeId, root, want.relPath, "UPDATE", found, pending);
+            nextFiles[want.key] = { relPath: want.relPath, ...found, writtenAt: at() };
+          } else {
+            await changes.mark(want.nodeId, want.relPath, "UPDATE", found, pending);
+            nextFiles[want.key] = entry;
+          }
+          continue;
+        }
+        // On disk as it was written: a change recorded before was undone there.
+        await changes.clear(want.nodeId, pending);
+      }
       // Moved or renamed in the drive: move the file along rather than write it again.
       if (!disk.exists && entry && entry.relPath !== want.relPath && entry.hash === want.hash) {
         const from = join(root, ...entry.relPath.split("/"));
@@ -301,9 +354,47 @@ async function copyFolder(
     }
   }
 
+  /* -- what is on disk and not in the drive: new files, the other way round -- */
+  if (changes.on) {
+    const known = new Set(
+      [...Object.values(nextFiles), ...Object.values(manifest.files), ...wanted].map((x) => pathKey(x.relPath, deps.host.platform)),
+    );
+    const used = new Set<string>();
+    for (const rel of await listDiskFiles(root, s.options.includeSubfolders)) {
+      const k = pathKey(rel, deps.host.platform);
+      if (known.has(k)) continue;
+      const placeholder = placeholderFiles.get(k);
+      try {
+        const path = join(root, ...rel.split("/"));
+        const st = await look(path);
+        const found = { hash: await hashFile(path), size: st.size ?? 0, mtimeMs: st.mtimeMs ?? 0 };
+        if (placeholder) used.add(placeholder.id);
+        const id = placeholder?.id ?? (await changes.createPlaceholderFile(rel, found));
+        const pending = placeholder ? placeholder.pending : { change: "CREATE" as const, hash: found.hash, relativePath: rel };
+        if (!changes.pulls(id, "CREATE")) {
+          await changes.mark(id, rel, "CREATE", found, pending);
+        } else if (isDocumentFile(rel)) {
+          await changes.mark(id, rel, "CREATE", found, pending);
+          issue({ kind: "ERROR", nodeId: id, documentId: id, relativePath: rel, message: "Pulling documents (.phd) is not available yet; it stays a placeholder" });
+        } else {
+          await changes.pull(id, root, rel, "CREATE", found, pending);
+          nextFiles[id] = { relPath: rel, ...found, writtenAt: at() };
+        }
+      } catch (e) {
+        out.errors++;
+        issue({ kind: "ERROR", relativePath: rel, message: `Could not take it from disk: ${e instanceof Error ? e.message : String(e)}` });
+      }
+    }
+    // A placeholder whose file left the disk again stands for nothing.
+    for (const { id } of placeholderFiles.values()) if (!used.has(id)) await changes.dropPlaceholderFile(id);
+  }
+  out.placeholders = changes.placeholders;
+  out.pulled = changes.pulled;
+
   /* -- what left the folder (or moved within it) -- */
   const kept = new Set(Object.values(nextFiles).map((e) => pathKey(e.relPath, deps.host.platform)));
   for (const [key, entry] of Object.entries(manifest.files)) {
+    if (dropped.has(key)) continue;
     if (nextFiles[key]?.relPath === entry.relPath || kept.has(pathKey(entry.relPath, deps.host.platform))) continue;
     if (wanted.some((w) => w.key === key) && !(key in nextFiles)) {
       // Wanted but not written this time (an error, a skipped conflict): keep the record.

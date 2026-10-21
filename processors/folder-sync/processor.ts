@@ -7,6 +7,8 @@ import type { IReactorClient } from "@powerhousedao/reactor";
 import { RelationalDbProcessor, type IProcessorHostModule } from "@powerhousedao/reactor-browser";
 import type { IProcessorDispatch } from "@powerhousedao/shared/processors";
 import type { Action, OperationWithContext } from "document-model";
+import { addFolder, deleteNode } from "@powerhousedao/shared/document-drive";
+import { utils as fileUtils } from "document-models/file";
 import { actions, type FolderSyncState } from "document-models/folder-sync";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -184,6 +186,34 @@ export class FolderSync extends RelationalDbProcessor<DB> {
         return new Uint8Array(await blob.arrayBuffer());
       },
       dispatch: (documentId, list) => this.dispatch(documentId, list),
+      createFile: async (driveId, parentFolder, name) => {
+        const doc = fileUtils.createDocument();
+        doc.header.name = name;
+        const created = await runtime.client.createDocumentInDrive(driveId, doc, parentFolder ?? undefined);
+        return created.header.id;
+      },
+      createFolder: async (driveId, parentFolder, name) => {
+        const id = randomUUID();
+        await this.dispatch(driveId, [addFolder({ id, name, parentFolder: parentFolder ?? undefined })]);
+        return id;
+      },
+      deleteNode: async (driveId, nodeId) => {
+        await this.dispatch(driveId, [deleteNode({ id: nodeId })]);
+        try {
+          await runtime.client.deleteDocument(nodeId);
+        } catch {
+          // already gone with its node
+        }
+      },
+      stage: async (bytes, fileName, mimeType) => {
+        const pre = await runtime.attachments.preprocess(new Blob([new Uint8Array(bytes)]), { fileName, mimeType: mimeType ?? undefined });
+        return {
+          ref: pre.ref,
+          upload: async () => {
+            await runtime.attachments.upload({ preprocessed: pre });
+          },
+        };
+      },
       host: { name: hostname(), platform: process.platform, reactorId: `switchboard@${hostname()}` },
       now: () => new Date(),
       newId: () => {

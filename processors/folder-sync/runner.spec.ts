@@ -1,5 +1,6 @@
-import { reducer, requestSync, setLocalPath, setOptions, setTarget, utils, type FolderSyncDocument, type FolderSyncState } from "document-models/folder-sync/v1";
+import { reducer, requestPull, requestSync, setLocalPath, setOptions, setTarget, utils, type FolderSyncDocument, type FolderSyncState } from "document-models/folder-sync/v1";
 import type { Action } from "document-model";
+import { reducer as fileReducer, utils as fileUtils, type FileDocument } from "document-models/file/v1";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, readdir, rm, utimes, writeFile } from "node:fs/promises";
@@ -34,13 +35,13 @@ class World {
     if (content !== null) this.blobs.set(ref(content), content);
     this.docs.set(id, {
       header: {},
-      state: { global: { source: content === null ? null : { kind: "ATTACHMENT", ref: ref(content), fileName: name, sizeBytes: content.length }, renditions: [], ...extra } },
+      state: { global: { source: content === null ? null : { kind: "ATTACHMENT", ref: ref(content), fileName: name, mimeType: "application/pdf", sizeBytes: content.length, setAt: "2026-10-01T00:00:00.000Z" }, renditions: [], ...extra } },
     });
   }
   setContent(id: string, content: string) {
     this.blobs.set(ref(content), content);
     const doc = this.docs.get(id) as { state: { global: { source: object } } };
-    doc.state.global.source = { kind: "ATTACHMENT", ref: ref(content), fileName: "x", sizeBytes: content.length };
+    doc.state.global.source = { kind: "ATTACHMENT", ref: ref(content), fileName: "x", sizeBytes: content.length, setAt: "2026-10-02T00:00:00.000Z" };
   }
   map(state: (s: FolderSyncDocument) => FolderSyncDocument) {
     this.mapping = state(this.mapping);
@@ -61,7 +62,8 @@ class World {
         if (content === undefined) return Promise.reject(new Error(`no blob ${r}`));
         return Promise.resolve(Buffer.from(content, "utf8"));
       },
-      dispatch: (_id, list: Action[]) => {
+      dispatch: (id, list: Action[]) => {
+        if (id !== "mapping-1") return this.dispatchToFile(id, list);
         for (const a of list) {
           this.dispatched.push(a.type);
           this.mapping = reducer(this.mapping, a);
@@ -70,10 +72,63 @@ class World {
         }
         return Promise.resolve();
       },
+      createFile: (_driveId, parentFolder, name) => {
+        const id = `new-${++this.ids}`;
+        this.nodes.push({ id, name, kind: "file", parentFolder, documentType: "sektar/file" });
+        this.docs.set(id, fileUtils.createDocument());
+        this.created.push(id);
+        return Promise.resolve(id);
+      },
+      createFolder: (_driveId, parentFolder, name) => {
+        const id = `folder-${++this.ids}`;
+        this.nodes.push({ id, name, kind: "folder", parentFolder });
+        return Promise.resolve(id);
+      },
+      deleteNode: (_driveId, nodeId) => {
+        this.nodes = this.nodes.filter((n) => n.id !== nodeId);
+        this.docs.delete(nodeId);
+        this.deleted.push(nodeId);
+        return Promise.resolve();
+      },
+      stage: (bytes) => {
+        const text = Buffer.from(bytes).toString("utf8");
+        return Promise.resolve({
+          ref: ref(text),
+          upload: () => {
+            this.blobs.set(ref(text), text);
+            return Promise.resolve();
+          },
+        });
+      },
       host: { name: "test-host", platform, reactorId: "switchboard@test" },
       now: () => new Date((this.clock += 1000)),
       newId: () => `id-${++this.ids}`,
     };
+  }
+  created: string[] = [];
+  deleted: string[] = [];
+  /** A File's actions, through the File reducer: a plain test File becomes a real document first. */
+  dispatchToFile(id: string, list: Action[]): Promise<void> {
+    const found = this.docs.get(id) as FileDocument | { state: { global: object } } | undefined;
+    if (!found) return Promise.reject(new Error(`no File ${id}`));
+    let doc: FileDocument =
+      "operations" in found
+        ? found
+        : fileUtils.createDocument({ global: { title: null, description: null, tags: [], renditions: [], placeholder: null, ...found.state.global } } as never);
+    for (const a of list) {
+      this.dispatched.push(a.type);
+      doc = fileReducer(doc, a);
+      const error = doc.operations.global.at(-1)?.error;
+      if (error) return Promise.reject(new Error(`${a.type} failed: ${error}`));
+    }
+    this.docs.set(id, doc);
+    return Promise.resolve();
+  }
+  renditionsOf(id: string) {
+    return this.fileState(id).renditions;
+  }
+  fileState(id: string) {
+    return (this.docs.get(id) as FileDocument).state.global;
   }
   run(full = false, platform = "linux") {
     return runSync("mapping-1", this.s, this.deps(platform), { requestId: this.s.request?.id ?? null, full });
@@ -251,6 +306,111 @@ describe("a folder sync run", () => {
     await writeFile(join(root, MANIFEST_NAME), JSON.stringify({ version: 1, mappingId: "someone-else", files: { f1: { relPath: "x", hash: "y", size: 1, mtimeMs: 1, writtenAt: "" } } }));
     await w.run();
     expect((await manifest()).mappingId).toBe("mapping-1");
+  });
+});
+
+describe("changes found on disk", () => {
+  const fromDisk = (mode: "PLACEHOLDERS" | "AUTO_PULL" | "AUTO_PULL_WITH_DELETES") => w.map((d) => reducer(d, setOptions({ fromDisk: mode })));
+  const pull = (id: string, nodeIds?: string[]) => w.map((d) => reducer(d, requestPull({ id, requestedAt: "2026-10-21T12:30:00.000Z", nodeIds })));
+  const nodeAt = (name: string) => w.nodes.find((n) => n.name === name);
+  /** Edits, a deletion and new files, as a person makes them in the synced folder. */
+  async function changeDisk() {
+    await editOnDisk("20260710-indigo-hotel.pdf", "hotel, annotated");
+    await rm(join(root, "accounts-payable", "aws", "EUINBE26-200560.pdf"));
+    await mkdir(join(root, "receipts"), { recursive: true });
+    await editOnDisk("receipts/20260930-lunch.pdf", "lunch");
+    await editOnDisk("2026010.phd", "a document");
+    await editOnDisk("desktop.ini", "ignored");
+  }
+
+  it("become placeholders, and are left alone on disk until pulled", async () => {
+    await w.run();
+    fromDisk("PLACEHOLDERS");
+    await changeDisk();
+    const out = await w.run();
+    expect(out).toMatchObject({ status: "OK", placeholders: 4, pulled: 0, written: 0, conflicts: 0 });
+    expect(w.fileState("f1").placeholder).toMatchObject({ change: "UPDATE", target: "FILE", hash: sha("hotel, annotated"), relativePath: "20260710-indigo-hotel.pdf", mappingId: "mapping-1" });
+    expect(w.fileState("f1").source?.ref).toBe(ref("hotel"));
+    expect(w.fileState("f2").placeholder).toMatchObject({ change: "DELETE", hash: null });
+    // New on disk: placeholder Files, in a drive folder made for them.
+    const lunch = nodeAt("20260930-lunch.pdf");
+    expect(w.nodes.find((n) => n.id === lunch?.parentFolder)).toMatchObject({ kind: "folder", name: "receipts", parentFolder: "q3" });
+    expect(w.fileState(lunch!.id).source).toMatchObject({ kind: "FILE_PLACEHOLDER", fileName: "20260930-lunch.pdf", mimeType: "application/pdf" });
+    expect(w.fileState(nodeAt("2026010.phd")!.id).source?.kind).toBe("DOCUMENT_PLACEHOLDER");
+    expect(nodeAt("desktop.ini")).toBeUndefined();
+    // The edit stays, the deletion stays deleted.
+    expect(await read("20260710-indigo-hotel.pdf")).toBe("hotel, annotated");
+    expect(existsSync(join(root, "accounts-payable", "aws", "EUINBE26-200560.pdf"))).toBe(false);
+    expect(w.s.runs[0]).toMatchObject({ placeholders: 4, pulled: 0 });
+
+    // Seen again: nothing new to record.
+    const before = w.dispatched.length;
+    expect(await w.run()).toMatchObject({ placeholders: 4, written: 0 });
+    expect(w.dispatched.slice(before).filter((t) => t === "SET_PLACEHOLDER")).toEqual([]);
+
+    // The edit undone on disk: its placeholder goes.
+    await editOnDisk("20260710-indigo-hotel.pdf", "hotel");
+    expect(await w.run()).toMatchObject({ placeholders: 3 });
+    expect(w.fileState("f1").placeholder).toBeNull();
+    // A new file gone from disk again: its placeholder File goes too.
+    await rm(join(root, "2026010.phd"));
+    await w.run();
+    expect(nodeAt("2026010.phd")).toBeUndefined();
+  });
+
+  it("are pulled when asked for: one File, or all of them", async () => {
+    await w.run();
+    fromDisk("PLACEHOLDERS");
+    await changeDisk();
+    await w.run();
+    pull("p1", ["f1"]);
+    let out = await w.run();
+    expect(out).toMatchObject({ pulled: 1, placeholders: 3 });
+    expect(w.fileState("f1").source).toMatchObject({ kind: "ATTACHMENT", ref: ref("hotel, annotated"), fileName: "20260710-indigo-hotel.pdf" });
+    expect(w.fileState("f1").renditions).toEqual([expect.objectContaining({ type: "previous-version", ref: ref("hotel") })]);
+    expect(w.fileState("f1").placeholder).toBeNull();
+    expect(w.s.pulls).toEqual([]);
+    expect(w.s.status).toBe("OK");
+    // Pulled: from now on the drive and the disk agree.
+    expect(await w.run()).toMatchObject({ written: 0, unchanged: 1, pulled: 0 });
+
+    pull("p2");
+    out = await w.run();
+    expect(out).toMatchObject({ pulled: 2, placeholders: 1, errors: 0 });
+    expect(out.issues.map((x) => x.message)).toEqual([expect.stringMatching(/\.phd\) is not available yet/)]);
+    const lunch = nodeAt("20260930-lunch.pdf")!;
+    expect(w.fileState(lunch.id).source).toMatchObject({ kind: "ATTACHMENT", ref: ref("lunch") });
+    expect(w.renditionsOf(lunch.id)).toEqual([]);
+    expect(nodeAt("EUINBE26-200560.pdf")).toBeUndefined();
+    expect(w.deleted).toEqual(["f2"]);
+    const m = await manifest();
+    expect(m.files.f2).toBeUndefined();
+    expect(m.files[lunch.id]).toMatchObject({ relPath: "receipts/20260930-lunch.pdf", hash: sha("lunch") });
+    expect(await w.run()).toMatchObject({ written: 0, pulled: 0, placeholders: 1, unchanged: 2 });
+  });
+
+  it("are pulled straight away when the mapping auto-pulls, deletions only when asked to", async () => {
+    await w.run();
+    fromDisk("AUTO_PULL");
+    await changeDisk();
+    let out = await w.run();
+    expect(out).toMatchObject({ pulled: 2, placeholders: 2 });
+    expect(w.fileState("f1").source?.ref).toBe(ref("hotel, annotated"));
+    expect(w.fileState("f2").placeholder?.change).toBe("DELETE");
+
+    fromDisk("AUTO_PULL_WITH_DELETES");
+    out = await w.run();
+    expect(out).toMatchObject({ pulled: 1, placeholders: 1 });
+    expect(w.deleted).toEqual(["f2"]);
+  });
+
+  it("are not taken when the setting is off: an edit is a conflict, a deletion is written again", async () => {
+    await w.run();
+    await changeDisk();
+    const out = await w.run();
+    expect(out).toMatchObject({ placeholders: 0, pulled: 0, conflicts: 1, written: 1 });
+    expect(w.created).toEqual([]);
+    expect(await read("accounts-payable/aws/EUINBE26-200560.pdf")).toBe("aws july");
   });
 });
 
