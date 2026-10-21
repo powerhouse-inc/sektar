@@ -38,6 +38,8 @@ server), `vetra` (compound: both, dev mode — what `ph vetra` runs),
 `desktop` (production switchboard + built Connect on the generic compound),
 `assistant` (headless agent API on the project switchboard) and `cli`
 (switchboard + Connect together, Connect as a remote client).
+The runners come from the linked monorepo checkout (`../powerhouse`, or
+`$POWERHOUSE_DIR`), built — see README.md, "Local monorepo link".
 
 ### Reactor-client topologies (what runs the reactor, and where)
 
@@ -72,7 +74,9 @@ tarballs with `PH_DESKTOP_LOCAL_PACKAGES` (an env var, so no machine path
 lands in a host file; a relative path resolves against this project).
 
 ```sh
-# from this project's root; MONOREPO is the checkout, its dists built
+# from this project's root; MONOREPO is the linked checkout (README.md,
+# "Local monorepo link"), its dists built
+MONOREPO="${POWERHOUSE_DIR:-../powerhouse}"
 # 1. pack ph-cli, host-core and every workspace package they depend on
 rm -rf .ph/local-packages
 pnpm -C "$MONOREPO" pack:desktop-stack --pack-destination "$PWD/.ph/local-packages"

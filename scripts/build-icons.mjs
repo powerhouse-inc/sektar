@@ -5,7 +5,8 @@
 //
 //   node scripts/build-icons.mjs [path/to/design-system]
 //
-// sharp is resolved from the linked monorepo (it is not a project dependency).
+// sharp is resolved from the linked monorepo (it is not a project dependency):
+// $POWERHOUSE_DIR when set, else the sibling ../powerhouse.
 import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
@@ -21,11 +22,15 @@ const OUT = path.join(root, "icons");
 fs.mkdirSync(OUT, { recursive: true });
 
 function loadSharp() {
+  const monorepo = path.resolve(
+    root,
+    process.env.POWERHOUSE_DIR || "../powerhouse",
+  );
   const candidates = [
     path.join(root, "node_modules", "sharp", "package.json"),
-    path.join(root, "..", "powerhouse", "node_modules", "sharp", "package.json"),
+    path.join(monorepo, "node_modules", "sharp", "package.json"),
   ];
-  const pnpm = path.join(root, "..", "powerhouse", "node_modules", ".pnpm");
+  const pnpm = path.join(monorepo, "node_modules", ".pnpm");
   if (fs.existsSync(pnpm)) {
     for (const d of fs.readdirSync(pnpm)) {
       if (d.startsWith("sharp@"))

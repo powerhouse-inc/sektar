@@ -33,10 +33,51 @@ eleven contacts — all through the document models' operations.
 | `style.css` | Tailwind entry: Connect's theme, the vendored design system, and a `@theme inline` bridge exposing `--sk-*` tokens as `*-sk-*` utilities |
 | `qa/screens/` | Playwright QC captures (light/dark, desktop/phone); `qa/index.html` is the contact sheet |
 
+## Local monorepo link
+
+Sektar builds against unreleased Powerhouse code: `package.json` and the
+`pnpm-workspace.yaml` overrides link every `@powerhousedao/*` package and
+`document-model` from a local checkout of the
+[monorepo](https://github.com/powerhouse-inc/powerhouse) on the
+`feat/host-icons` branch, with the sibling convention
+`link:../powerhouse/<pkg-path>`. The committed `pnpm-lock.yaml` records those
+paths.
+
+1. Get the monorepo, either as the sibling `../powerhouse`:
+
+   ```sh
+   git clone -b feat/host-icons https://github.com/powerhouse-inc/powerhouse ../powerhouse
+   ```
+
+   or anywhere else (another clone, a worktree) and export its path as
+   `POWERHOUSE_DIR` — absolute, or relative to this project's root.
+
+2. Build it: `pnpm install && pnpm build` in the monorepo.
+
+3. Install here:
+
+   ```sh
+   pnpm install                                         # sibling ../powerhouse
+   POWERHOUSE_DIR=~/src/powerhouse pnpm install --no-frozen-lockfile   # elsewhere
+   git restore pnpm-lock.yaml                           # after a POWERHOUSE_DIR install
+   ```
+
+`.pnpmfile.cjs` does the redirect: with `POWERHOUSE_DIR` set it rewrites every
+`link:../powerhouse/` spec, in the manifests and in the workspace overrides, to
+that directory; unset, it changes nothing. A `POWERHOUSE_DIR` install writes
+your machine's paths into `pnpm-lock.yaml` — restore it and never commit it.
+`node_modules` keeps pointing at your checkout until the next install, so
+keep `POWERHOUSE_DIR` set for every `pnpm install` (a plain one relinks to
+`../powerhouse`); exporting it from your shell profile is simplest. Adding or
+upgrading a dependency needs a default install (sibling `../powerhouse`) so the
+lockfile you commit has the shared paths. pnpm records the pnpmfile's checksum
+in the lockfile: after editing `.pnpmfile.cjs`, run
+`pnpm install --lockfile-only` with `POWERHOUSE_DIR` unset and commit both.
+
 ## Run
 
 ```sh
-pnpm install
+pnpm install                                      # see "Local monorepo link"
 pnpm build                                        # dist/ — the reactor loads the models from here
 FEATURE_UNIFORM_RUNNERS_ENABLED=true ph run connect dev   # http://localhost:6540
 ```
