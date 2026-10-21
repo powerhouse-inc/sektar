@@ -484,7 +484,7 @@ function InvoiceRead({
             <Amount text={money(total, s.currency)} />
           </div>
           <div className={cx("sk-invbook__standing", overdue && "sk-text-danger")}>{standing}</div>
-          <dl className="sk-invbook__rows">
+          <dl className="sk-invbook__figs">
             <Fact label="Net" value={money(t.net, s.currency)} />
             {t.groups.length > 0 ? (
               t.groups.map((g) => <Fact key={`${g.category}-${g.rate}`} label={`VAT ${g.rate}%`} value={money(g.tax, s.currency)} />)
@@ -497,7 +497,7 @@ function InvoiceRead({
         </section>
         <section className="sk-invbook__box" aria-label="Dates">
           <div className="sk-eyebrow">Dates</div>
-          <dl className="sk-invbook__rows">
+          <dl className="sk-invbook__figs">
             <Fact label="Issued" value={s.issuedAt ? fmtDate(s.issuedAt) : "—"} />
             <Fact label="Due" value={s.dueAt ? fmtDate(s.dueAt) : "—"} tone={overdue ? "danger" : undefined} />
             {s.period && <Fact label="Period" value={`${fmtShortDate(s.period.start)} – ${fmtShortDate(s.period.end)}`} />}
@@ -587,7 +587,7 @@ function InvoiceRead({
   );
 }
 
-/** A formatted amount with its currency ("US$", "€") set apart: lighter, half a character from the figures. */
+/** A formatted amount with its currency ("US$", "€") set apart: lighter, and half a character from the figures. */
 function Amount({ text }: { text: string }) {
   const m = /^(-?)([^\d\s.,-]+)\s?(.+)$/.exec(text);
   if (!m) return <>{text}</>;
