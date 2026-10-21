@@ -2131,6 +2131,8 @@
 .sk-app .sk-invbook__line {
   position: relative; display: grid; grid-template-columns: 1.5em minmax(0, 1fr) auto 16px auto; gap: var(--sk-space-3); align-items: center;
   width: calc(100% + 2 * var(--sk-space-3)); margin: 0 calc(-1 * var(--sk-space-3)); padding: var(--sk-space-3);
+  /* Every row as tall as one with a second line (the "= €x × rate" under its total), so the list keeps one rhythm. */
+  box-sizing: border-box; min-height: 65px;
   font: inherit; color: inherit; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--sk-border-subtle);
   cursor: pointer;
 }
