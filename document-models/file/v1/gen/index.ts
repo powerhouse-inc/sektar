@@ -6,6 +6,7 @@ export * from "./actions.js";
 export * from "./content/operations.js";
 export * from "./controller.js";
 export * from "./creators.js";
+export * from "./disk/operations.js";
 export * from "./document-model.js";
 export * from "./document-schema.js";
 export * from "./document-type.js";

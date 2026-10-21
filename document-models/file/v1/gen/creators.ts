@@ -4,6 +4,8 @@
  */
 export * from "./content/creators.js";
 export * as fileContentActions from "./content/creators.js";
+export * from "./disk/creators.js";
+export * as fileDiskActions from "./disk/creators.js";
 export * from "./renditions/creators.js";
 export * as fileRenditionsActions from "./renditions/creators.js";
 export * from "./tags/creators.js";

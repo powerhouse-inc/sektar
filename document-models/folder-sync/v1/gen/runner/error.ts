@@ -4,7 +4,8 @@ export type ErrorCode =
   | "RunFinishedError"
   | "InvalidRunStatusError"
   | "DuplicateIssueIdError"
-  | "IssueNotFoundError";
+  | "IssueNotFoundError"
+  | "PullNotFoundError";
 
 export interface ReducerError {
   errorCode: ErrorCode;
@@ -52,6 +53,13 @@ export class IssueNotFoundError extends Error implements ReducerError {
   }
 }
 
+export class PullNotFoundError extends Error implements ReducerError {
+  errorCode = "PullNotFoundError" as ErrorCode;
+  constructor(message = "PullNotFoundError") {
+    super(message);
+  }
+}
+
 export const errors = {
   StartRun: { DuplicateRunIdError },
 
@@ -60,4 +68,6 @@ export const errors = {
   SetIssues: { DuplicateIssueIdError },
 
   ResolveIssue: { IssueNotFoundError },
+
+  CompletePull: { PullNotFoundError },
 };

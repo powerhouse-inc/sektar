@@ -26,6 +26,7 @@ export const initialGlobalState: FileGlobalState = {
   source: null,
   renditions: [],
   tags: [],
+  placeholder: null,
 };
 export const initialLocalState: FileLocalState = {};
 

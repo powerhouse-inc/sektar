@@ -33,6 +33,7 @@ describe("a file's life", () => {
       source: null,
       renditions: [],
       tags: [],
+      placeholder: null,
     });
 
     // A stored file becomes the source; an untitled file takes its name.

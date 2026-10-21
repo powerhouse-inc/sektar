@@ -62,6 +62,10 @@ export type Scalars = {
   Upload: { input: File; output: File };
 };
 
+export type CompletePullInput = {
+  id: Scalars["OID"]["input"];
+};
+
 export type FinishRunInput = {
   bytesWritten?: InputMaybe<Scalars["Float"]["input"]>;
   conflicts?: InputMaybe<Scalars["Int"]["input"]>;
@@ -70,6 +74,8 @@ export type FinishRunInput = {
   errors?: InputMaybe<Scalars["Int"]["input"]>;
   finishedAt: Scalars["DateTime"]["input"];
   id: Scalars["OID"]["input"];
+  placeholders?: InputMaybe<Scalars["Int"]["input"]>;
+  pulled?: InputMaybe<Scalars["Int"]["input"]>;
   skipped?: InputMaybe<Scalars["Int"]["input"]>;
   status: FolderSyncRunStatus;
   unchanged?: InputMaybe<Scalars["Int"]["input"]>;
@@ -81,6 +87,16 @@ export type FolderSyncConflictPolicy = "KEEP_BOTH" | "OVERWRITE" | "SKIP";
 export type FolderSyncContent = "SOURCE" | "SOURCE_AND_RENDITIONS";
 
 export type FolderSyncDirection = "TO_DISK";
+
+export type FolderSyncFromDisk =
+  /** New and changed files are pulled; deletions stay placeholders */
+  | "AUTO_PULL"
+  /** New and changed files are pulled, and deletions too */
+  | "AUTO_PULL_WITH_DELETES"
+  /** Changes on disk are left alone (and a changed file is a conflict) */
+  | "OFF"
+  /** Changes on disk become placeholders, pulled by hand */
+  | "PLACEHOLDERS";
 
 export type FolderSyncHost = {
   name: Maybe<Scalars["String"]["output"]>;
@@ -119,6 +135,8 @@ export type FolderSyncIssueKind =
 export type FolderSyncOptions = {
   /** What is written for a File: its source, or its source and its renditions */
   content: FolderSyncContent;
+  /** What a change found on disk becomes: nothing, a placeholder to pull, or a pull */
+  fromDisk: FolderSyncFromDisk;
   includeSubfolders: Scalars["Boolean"]["output"];
   /** What happens to a file on disk that was changed since it was written */
   onConflict: FolderSyncConflictPolicy;
@@ -131,6 +149,15 @@ export type FolderSyncOptions = {
 };
 
 export type FolderSyncOtherDocuments = "EXPORT_PHD" | "SKIP";
+
+/** A request to pull placeholders into the drive */
+export type FolderSyncPull = {
+  id: Scalars["OID"]["output"];
+  /** The placeholders' drive nodes; empty pulls every placeholder of the mapping */
+  nodeIds: Array<Scalars["OID"]["output"]>;
+  requestedAt: Scalars["DateTime"]["output"];
+  requestedBy: Maybe<Scalars["String"]["output"]>;
+};
 
 export type FolderSyncRemovedPolicy = "DELETE" | "KEEP";
 
@@ -154,6 +181,10 @@ export type FolderSyncRun = {
   finishedAt: Maybe<Scalars["DateTime"]["output"]>;
   full: Scalars["Boolean"]["output"];
   id: Scalars["OID"]["output"];
+  /** Changes found on disk recorded as placeholders */
+  placeholders: Scalars["Int"]["output"];
+  /** Changes found on disk pulled into the drive */
+  pulled: Scalars["Int"]["output"];
   /** The request the run answered */
   requestId: Maybe<Scalars["OID"]["output"]>;
   skipped: Scalars["Int"]["output"];
@@ -187,6 +218,8 @@ export type FolderSyncState = {
   /** The folder on the Switchboard's machine the files are written to (an absolute path) */
   localPath: Maybe<Scalars["String"]["output"]>;
   options: FolderSyncOptions;
+  /** Pulls asked for and not done yet */
+  pulls: Array<FolderSyncPull>;
   /** The latest request for a run: when, by whom (the app, a workflow), and whether everything is rewritten */
   request: Maybe<FolderSyncRequest>;
   /** The runs, latest first, at most 20 */
@@ -203,6 +236,14 @@ export type FolderSyncStatus =
   | "RUNNING";
 
 export type FolderSyncTrigger = "MANUAL" | "ON_CHANGE";
+
+export type RequestPullInput = {
+  id: Scalars["OID"]["input"];
+  /** The placeholders' drive nodes; empty or absent pulls every placeholder */
+  nodeIds?: InputMaybe<Array<Scalars["OID"]["input"]>>;
+  requestedAt: Scalars["DateTime"]["input"];
+  requestedBy?: InputMaybe<Scalars["String"]["input"]>;
+};
 
 export type RequestSyncInput = {
   full?: InputMaybe<Scalars["Boolean"]["input"]>;
@@ -229,6 +270,7 @@ export type SetLocalPathInput = {
 
 export type SetOptionsInput = {
   content?: InputMaybe<FolderSyncContent>;
+  fromDisk?: InputMaybe<FolderSyncFromDisk>;
   includeSubfolders?: InputMaybe<Scalars["Boolean"]["input"]>;
   onConflict?: InputMaybe<FolderSyncConflictPolicy>;
   onRemoved?: InputMaybe<FolderSyncRemovedPolicy>;

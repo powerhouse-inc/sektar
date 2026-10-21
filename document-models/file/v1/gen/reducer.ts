@@ -5,18 +5,22 @@ import { createReducer, isDocumentAction } from "document-model";
 import type { FilePHState } from "document-models/file/v1";
 
 import { fileContentOperations } from "../src/reducers/content.js";
+import { fileDiskOperations } from "../src/reducers/disk.js";
 import { fileRenditionsOperations } from "../src/reducers/renditions.js";
 import { fileTagsOperations } from "../src/reducers/tags.js";
 
 import {
   AddRenditionInputSchema,
   AddTagInputSchema,
+  ApplyDiskVersionInputSchema,
+  ClearPlaceholderInputSchema,
   ClearSourceInputSchema,
   RemoveRenditionInputSchema,
   RemoveTagInputSchema,
   SetAttachmentSourceInputSchema,
   SetDescriptionInputSchema,
   SetDocumentSourceInputSchema,
+  SetPlaceholderInputSchema,
   SetTitleInputSchema,
   UpdateRenditionInputSchema,
   UpdateTagInputSchema,
@@ -162,6 +166,42 @@ const stateReducer: StateReducer<FilePHState> = (state, action, dispatch) => {
       memoizedSchema(RemoveTagInputSchema).parse(action.input);
 
       fileTagsOperations.removeTagOperation(
+        (state as any)[action.scope],
+        action as any,
+        dispatch,
+      );
+
+      break;
+    }
+
+    case "SET_PLACEHOLDER": {
+      memoizedSchema(SetPlaceholderInputSchema).parse(action.input);
+
+      fileDiskOperations.setPlaceholderOperation(
+        (state as any)[action.scope],
+        action as any,
+        dispatch,
+      );
+
+      break;
+    }
+
+    case "CLEAR_PLACEHOLDER": {
+      memoizedSchema(ClearPlaceholderInputSchema).parse(action.input);
+
+      fileDiskOperations.clearPlaceholderOperation(
+        (state as any)[action.scope],
+        action as any,
+        dispatch,
+      );
+
+      break;
+    }
+
+    case "APPLY_DISK_VERSION": {
+      memoizedSchema(ApplyDiskVersionInputSchema).parse(action.input);
+
+      fileDiskOperations.applyDiskVersionOperation(
         (state as any)[action.scope],
         action as any,
         dispatch,

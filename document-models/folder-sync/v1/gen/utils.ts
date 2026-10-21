@@ -38,12 +38,14 @@ export const initialGlobalState: FolderSyncGlobalState = {
     otherDocuments: "SKIP",
     onRemoved: "KEEP",
     onConflict: "SKIP",
+    fromDisk: "OFF",
   },
   status: "NEVER",
   request: null,
   host: null,
   runs: [],
   issues: [],
+  pulls: [],
 };
 export const initialLocalState: FolderSyncLocalState = {};
 

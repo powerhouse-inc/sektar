@@ -5,6 +5,7 @@
 import { type SignalDispatch } from "document-model";
 import type { FolderSyncGlobalState } from "../types.js";
 import type {
+  CompletePullAction,
   FinishRunAction,
   ResolveIssueAction,
   SetIssuesAction,
@@ -30,6 +31,11 @@ export interface FolderSyncRunnerOperations {
   resolveIssueOperation: (
     state: FolderSyncGlobalState,
     action: ResolveIssueAction,
+    dispatch?: SignalDispatch,
+  ) => void;
+  completePullOperation: (
+    state: FolderSyncGlobalState,
+    action: CompletePullAction,
     dispatch?: SignalDispatch,
   ) => void;
 }

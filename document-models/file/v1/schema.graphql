@@ -27,11 +27,17 @@ type FileState {
   "Content extracted from or rendered for the source: text, html, pdf, images"
   renditions: [FileRendition!]!
   tags: [FileTag!]!
+  "A change a folder sync found on disk that is not pulled yet. Null when there is none."
+  placeholder: FilePlaceholder
 }
 
 enum FileSourceKind {
   ATTACHMENT
   DOCUMENT
+  "A file found on disk whose bytes are not pulled yet"
+  FILE_PLACEHOLDER
+  "A document (.phd) found on disk that is not imported yet"
+  DOCUMENT_PLACEHOLDER
 }
 
 type FileSource {
@@ -69,6 +75,38 @@ type FileTag {
   label: String!
   "A colour name from the design system: forest, sage, mint, clay, amber, info, neutral"
   color: String!
+}
+
+enum FilePlaceholderChange {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum FilePlaceholderTarget {
+  FILE
+  DOCUMENT
+}
+
+"A change found on disk by a folder sync, waiting to be pulled"
+type FilePlaceholder {
+  change: FilePlaceholderChange!
+  target: FilePlaceholderTarget!
+  "The folder sync that found it"
+  mappingId: PHID!
+  "Where it is below the mapping's local folder"
+  relativePath: String!
+  fileName: String!
+  mimeType: String
+  sizeBytes: Int
+  "SHA-256 hex of the content on disk; null when it was deleted"
+  hash: String
+  modifiedAt: DateTime
+  "DOCUMENT: what the .phd holds"
+  documentId: PHID
+  documentType: String
+  documentName: String
+  foundAt: DateTime!
 }
 
 # content
@@ -141,4 +179,36 @@ input UpdateTagInput {
 
 input RemoveTagInput {
   id: OID!
+}
+
+# disk
+
+input SetPlaceholderInput {
+  change: FilePlaceholderChange!
+  target: FilePlaceholderTarget!
+  mappingId: PHID!
+  relativePath: String!
+  fileName: String!
+  mimeType: String
+  sizeBytes: Int
+  hash: String
+  modifiedAt: DateTime
+  documentId: PHID
+  documentType: String
+  documentName: String
+  foundAt: DateTime!
+}
+
+input ClearPlaceholderInput {
+  _: Boolean
+}
+
+input ApplyDiskVersionInput {
+  ref: AttachmentRef!
+  fileName: String!
+  mimeType: String
+  sizeBytes: Int
+  setAt: DateTime!
+  "The id the replaced source gets in the renditions, as the previous version"
+  previousId: OID!
 }

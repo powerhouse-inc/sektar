@@ -20,6 +20,7 @@ export function defaultGlobalState(): FileGlobalState {
     source: null,
     renditions: [],
     tags: [],
+    placeholder: null,
   };
 }
 

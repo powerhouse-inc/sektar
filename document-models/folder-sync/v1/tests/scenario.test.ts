@@ -3,6 +3,8 @@ import {
   reducer,
   requestSync,
   resolveIssue,
+  requestPull,
+  completePull,
   setEnabled,
   setIssues,
   setLocalPath,
@@ -58,7 +60,9 @@ describe("a folder sync, from mapping to runs", () => {
       otherDocuments: "SKIP",
       onRemoved: "KEEP",
       onConflict: "SKIP",
+      fromDisk: "OFF",
     });
+    expect(s.pulls).toEqual([]);
   });
 
   it("maps a drive folder, or the drive's root, onto an absolute local path", () => {
@@ -93,6 +97,7 @@ describe("a folder sync, from mapping to runs", () => {
         otherDocuments: "EXPORT_PHD",
         onRemoved: "DELETE",
         onConflict: "KEEP_BOTH",
+        fromDisk: "AUTO_PULL_WITH_DELETES",
       }),
     );
     const all = {
@@ -102,6 +107,7 @@ describe("a folder sync, from mapping to runs", () => {
       otherDocuments: "EXPORT_PHD",
       onRemoved: "DELETE",
       onConflict: "KEEP_BOTH",
+      fromDisk: "AUTO_PULL_WITH_DELETES",
     };
     expect(doc.state.global.options).toEqual(all);
     doc = apply(doc, setOptions({}), setOptions({ includeSubfolders: null }));
@@ -207,5 +213,47 @@ describe("a folder sync, from mapping to runs", () => {
     expect(doc.state.global.runs).toHaveLength(20);
     expect(doc.state.global.runs[0].id).toBe("run-23");
     expect(doc.state.global.runs.at(-1)?.id).toBe("run-4");
+  });
+});
+
+describe("changes from disk", () => {
+  it("are pulled only when asked for, on a mapping that takes them", () => {
+    rejects(utils.createDocument(), requestPull({ id: "p0", requestedAt: AT }), /drive folder and the local path/);
+    rejects(apply(q3(), setEnabled({ enabled: false })), requestPull({ id: "p0", requestedAt: AT }), /Enable the mapping/);
+    let doc = rejects(q3(), requestPull({ id: "p0", requestedAt: AT }), /Turn on changes from disk/);
+
+    doc = apply(doc, setOptions({ fromDisk: "PLACEHOLDERS" }), requestPull({ id: "p1", requestedAt: AT, requestedBy: "app", nodeIds: ["n1", "n2", "n1"] }));
+    expect(doc.state.global.pulls).toEqual([{ id: "p1", requestedAt: AT, requestedBy: "app", nodeIds: ["n1", "n2"] }]);
+    expect(doc.state.global.status).toBe("REQUESTED");
+    doc = rejects(doc, requestPull({ id: "p1", requestedAt: AT }), /Pull p1 exists/);
+
+    // Every placeholder, asked for while a run is going: the run stays RUNNING.
+    doc = apply(doc, startRun({ id: "run-1", startedAt: AT }), requestPull({ id: "p2", requestedAt: LATER }));
+    expect(doc.state.global.status).toBe("RUNNING");
+    expect(doc.state.global.pulls[1]).toEqual({ id: "p2", requestedAt: LATER, requestedBy: null, nodeIds: [] });
+
+    // A run that leaves pulls behind is still owed a run.
+    doc = apply(doc, completePull({ id: "p1" }), finishRun({ id: "run-1", finishedAt: LATER, status: "OK", placeholders: 3, pulled: 2 }));
+    expect(doc.state.global.runs[0]).toMatchObject({ placeholders: 3, pulled: 2 });
+    expect(doc.state.global.status).toBe("REQUESTED");
+    doc = rejects(doc, completePull({ id: "p1" }), /No pull p1/);
+    doc = apply(doc, completePull({ id: "p2" }), startRun({ id: "run-2", startedAt: LATER }), finishRun({ id: "run-2", finishedAt: LATER, status: "OK" }));
+    expect(doc.state.global.status).toBe("OK");
+    expect(doc.state.global.runs[0]).toMatchObject({ placeholders: 0, pulled: 0 });
+  });
+
+  it("fills in what a mapping from before them lacks", () => {
+    const doc = apply(q3(), startRun({ id: "old", startedAt: AT }));
+    // State as it was stored before reverse sync existed.
+    const legacy = structuredClone(doc.state.global) as unknown as Record<string, unknown> & { options: Record<string, unknown>; runs: Record<string, unknown>[] };
+    delete legacy.pulls;
+    delete legacy.options.fromDisk;
+    delete legacy.runs[0].placeholders;
+    delete legacy.runs[0].pulled;
+    const old = { ...doc, state: { ...doc.state, global: legacy as unknown as FolderSyncDocument["state"]["global"] } };
+    const next = apply(old, setEnabled({ enabled: true }));
+    expect(next.state.global.options.fromDisk).toBe("OFF");
+    expect(next.state.global.pulls).toEqual([]);
+    expect(next.state.global.runs[0]).toMatchObject({ placeholders: 0, pulled: 0 });
   });
 });

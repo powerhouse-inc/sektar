@@ -9,7 +9,9 @@ import { folderSyncRunnerOperations } from "../src/reducers/runner.js";
 import { folderSyncSyncOperations } from "../src/reducers/sync.js";
 
 import {
+  CompletePullInputSchema,
   FinishRunInputSchema,
+  RequestPullInputSchema,
   RequestSyncInputSchema,
   ResolveIssueInputSchema,
   SetEnabledInputSchema,
@@ -100,6 +102,18 @@ const stateReducer: StateReducer<FolderSyncPHState> = (
       break;
     }
 
+    case "REQUEST_PULL": {
+      memoizedSchema(RequestPullInputSchema).parse(action.input);
+
+      folderSyncSyncOperations.requestPullOperation(
+        (state as any)[action.scope],
+        action as any,
+        dispatch,
+      );
+
+      break;
+    }
+
     case "START_RUN": {
       memoizedSchema(StartRunInputSchema).parse(action.input);
 
@@ -140,6 +154,18 @@ const stateReducer: StateReducer<FolderSyncPHState> = (
       memoizedSchema(ResolveIssueInputSchema).parse(action.input);
 
       folderSyncRunnerOperations.resolveIssueOperation(
+        (state as any)[action.scope],
+        action as any,
+        dispatch,
+      );
+
+      break;
+    }
+
+    case "COMPLETE_PULL": {
+      memoizedSchema(CompletePullInputSchema).parse(action.input);
+
+      folderSyncRunnerOperations.completePullOperation(
         (state as any)[action.scope],
         action as any,
         dispatch,

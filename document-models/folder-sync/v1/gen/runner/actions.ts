@@ -4,6 +4,7 @@
  */
 import type { Action } from "document-model";
 import type {
+  CompletePullInput,
   FinishRunInput,
   ResolveIssueInput,
   SetIssuesInput,
@@ -26,9 +27,14 @@ export type ResolveIssueAction = Action & {
   type: "RESOLVE_ISSUE";
   input: ResolveIssueInput;
 };
+export type CompletePullAction = Action & {
+  type: "COMPLETE_PULL";
+  input: CompletePullInput;
+};
 
 export type FolderSyncRunnerAction =
   | StartRunAction
   | FinishRunAction
   | SetIssuesAction
-  | ResolveIssueAction;
+  | ResolveIssueAction
+  | CompletePullAction;

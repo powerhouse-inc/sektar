@@ -1,15 +1,18 @@
+import { normalize } from "../utils.js";
 import type { FolderSyncRunnerOperations } from "document-models/folder-sync/v1";
 import {
   DuplicateIssueIdError,
   DuplicateRunIdError,
   InvalidRunStatusError,
   IssueNotFoundError,
+  PullNotFoundError,
   RunFinishedError,
   RunNotFoundError,
 } from "../../gen/runner/error.js";
 
 export const folderSyncRunnerOperations: FolderSyncRunnerOperations = {
   startRunOperation(state, action) {
+    normalize(state);
     const i = action.input;
     if (state.runs.some((r) => r.id === i.id))
       throw new DuplicateRunIdError(`Run ${i.id} exists`);
@@ -28,6 +31,8 @@ export const folderSyncRunnerOperations: FolderSyncRunnerOperations = {
       conflicts: 0,
       errors: 0,
       bytesWritten: 0,
+      placeholders: 0,
+      pulled: 0,
       error: null,
     });
     state.runs.splice(20);
@@ -39,6 +44,7 @@ export const folderSyncRunnerOperations: FolderSyncRunnerOperations = {
     state.status = "RUNNING";
   },
   finishRunOperation(state, action) {
+    normalize(state);
     const i = action.input;
     const run = state.runs.find((r) => r.id === i.id);
     if (!run) throw new RunNotFoundError(`No run ${i.id}`);
@@ -55,9 +61,13 @@ export const folderSyncRunnerOperations: FolderSyncRunnerOperations = {
     run.conflicts = i.conflicts ?? 0;
     run.errors = i.errors ?? 0;
     run.bytesWritten = i.bytesWritten ?? 0;
+    run.placeholders = i.placeholders ?? 0;
+    run.pulled = i.pulled ?? 0;
     run.error = i.error ?? null;
     // A request that arrived while the run was going is still owed a run.
-    const owed = Boolean(state.request) && state.request?.id !== run.requestId;
+    const owed =
+      (Boolean(state.request) && state.request?.id !== run.requestId) ||
+      state.pulls.length > 0;
     state.status = owed
       ? "REQUESTED"
       : i.status === "OK"
@@ -67,6 +77,7 @@ export const folderSyncRunnerOperations: FolderSyncRunnerOperations = {
           : "ERROR";
   },
   setIssuesOperation(state, action) {
+    normalize(state);
     const issues = action.input.issues;
     const ids = new Set(issues.map((x) => x.id));
     if (ids.size !== issues.length)
@@ -82,8 +93,15 @@ export const folderSyncRunnerOperations: FolderSyncRunnerOperations = {
     }));
   },
   resolveIssueOperation(state, action) {
+    normalize(state);
     const at = state.issues.findIndex((x) => x.id === action.input.id);
     if (at < 0) throw new IssueNotFoundError(`No issue ${action.input.id}`);
     state.issues.splice(at, 1);
+  },
+  completePullOperation(state, action) {
+    normalize(state);
+    const at = state.pulls.findIndex((p) => p.id === action.input.id);
+    if (at < 0) throw new PullNotFoundError(`No pull ${action.input.id}`);
+    state.pulls.splice(at, 1);
   },
 };

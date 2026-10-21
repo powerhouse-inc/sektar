@@ -41,6 +41,8 @@ type FolderSyncState {
   runs: [FolderSyncRun!]!
   "What the last run could not write, or found changed on disk"
   issues: [FolderSyncIssue!]!
+  "Pulls asked for and not done yet"
+  pulls: [FolderSyncPull!]!
 }
 
 type FolderSyncOptions {
@@ -55,6 +57,17 @@ type FolderSyncOptions {
   onRemoved: FolderSyncRemovedPolicy!
   "What happens to a file on disk that was changed since it was written"
   onConflict: FolderSyncConflictPolicy!
+  "What a change found on disk becomes: nothing, a placeholder to pull, or a pull"
+  fromDisk: FolderSyncFromDisk!
+}
+
+"A request to pull placeholders into the drive"
+type FolderSyncPull {
+  id: OID!
+  requestedAt: DateTime!
+  requestedBy: String
+  "The placeholders' drive nodes; empty pulls every placeholder of the mapping"
+  nodeIds: [OID!]!
 }
 
 type FolderSyncRequest {
@@ -89,6 +102,10 @@ type FolderSyncRun {
   conflicts: Int!
   errors: Int!
   bytesWritten: Float!
+  "Changes found on disk recorded as placeholders"
+  placeholders: Int!
+  "Changes found on disk pulled into the drive"
+  pulled: Int!
   error: String
 }
 
@@ -131,6 +148,17 @@ enum FolderSyncConflictPolicy {
   SKIP
   OVERWRITE
   KEEP_BOTH
+}
+
+enum FolderSyncFromDisk {
+  "Changes on disk are left alone (and a changed file is a conflict)"
+  OFF
+  "Changes on disk become placeholders, pulled by hand"
+  PLACEHOLDERS
+  "New and changed files are pulled; deletions stay placeholders"
+  AUTO_PULL
+  "New and changed files are pulled, and deletions too"
+  AUTO_PULL_WITH_DELETES
 }
 
 enum FolderSyncStatus {
@@ -178,6 +206,7 @@ input SetOptionsInput {
   otherDocuments: FolderSyncOtherDocuments
   onRemoved: FolderSyncRemovedPolicy
   onConflict: FolderSyncConflictPolicy
+  fromDisk: FolderSyncFromDisk
 }
 
 input SetEnabledInput {
@@ -191,6 +220,14 @@ input RequestSyncInput {
   requestedAt: DateTime!
   requestedBy: String
   full: Boolean
+}
+
+input RequestPullInput {
+  id: OID!
+  requestedAt: DateTime!
+  requestedBy: String
+  "The placeholders' drive nodes; empty or absent pulls every placeholder"
+  nodeIds: [OID!]
 }
 
 # runner
@@ -217,6 +254,8 @@ input FinishRunInput {
   conflicts: Int
   errors: Int
   bytesWritten: Float
+  placeholders: Int
+  pulled: Int
   error: String
 }
 
@@ -235,5 +274,9 @@ input FolderSyncIssueInput {
 }
 
 input ResolveIssueInput {
+  id: OID!
+}
+
+input CompletePullInput {
   id: OID!
 }

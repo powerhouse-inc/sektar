@@ -5,6 +5,7 @@
 import { baseActions } from "document-model";
 import {
   fileContentActions,
+  fileDiskActions,
   fileRenditionsActions,
   fileTagsActions,
 } from "./gen/creators.js";
@@ -16,4 +17,5 @@ export const actions = {
   ...fileContentActions,
   ...fileRenditionsActions,
   ...fileTagsActions,
+  ...fileDiskActions,
 };

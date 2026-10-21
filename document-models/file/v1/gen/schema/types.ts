@@ -80,9 +80,48 @@ export type AddTagInput = {
   label: Scalars["String"]["input"];
 };
 
+export type ApplyDiskVersionInput = {
+  fileName: Scalars["String"]["input"];
+  mimeType?: InputMaybe<Scalars["String"]["input"]>;
+  /** The id the replaced source gets in the renditions, as the previous version */
+  previousId: Scalars["OID"]["input"];
+  ref: Scalars["AttachmentRef"]["input"];
+  setAt: Scalars["DateTime"]["input"];
+  sizeBytes?: InputMaybe<Scalars["Int"]["input"]>;
+};
+
+export type ClearPlaceholderInput = {
+  _?: InputMaybe<Scalars["Boolean"]["input"]>;
+};
+
 export type ClearSourceInput = {
   _?: InputMaybe<Scalars["Boolean"]["input"]>;
 };
+
+/** A change found on disk by a folder sync, waiting to be pulled */
+export type FilePlaceholder = {
+  change: FilePlaceholderChange;
+  /** DOCUMENT: what the .phd holds */
+  documentId: Maybe<Scalars["PHID"]["output"]>;
+  documentName: Maybe<Scalars["String"]["output"]>;
+  documentType: Maybe<Scalars["String"]["output"]>;
+  fileName: Scalars["String"]["output"];
+  foundAt: Scalars["DateTime"]["output"];
+  /** SHA-256 hex of the content on disk; null when it was deleted */
+  hash: Maybe<Scalars["String"]["output"]>;
+  /** The folder sync that found it */
+  mappingId: Scalars["PHID"]["output"];
+  mimeType: Maybe<Scalars["String"]["output"]>;
+  modifiedAt: Maybe<Scalars["DateTime"]["output"]>;
+  /** Where it is below the mapping's local folder */
+  relativePath: Scalars["String"]["output"];
+  sizeBytes: Maybe<Scalars["Int"]["output"]>;
+  target: FilePlaceholderTarget;
+};
+
+export type FilePlaceholderChange = "CREATE" | "DELETE" | "UPDATE";
+
+export type FilePlaceholderTarget = "DOCUMENT" | "FILE";
 
 export type FileRendition = {
   createdAt: Scalars["DateTime"]["output"];
@@ -114,10 +153,18 @@ export type FileSource = {
   sizeBytes: Maybe<Scalars["Int"]["output"]>;
 };
 
-export type FileSourceKind = "ATTACHMENT" | "DOCUMENT";
+export type FileSourceKind =
+  | "ATTACHMENT"
+  | "DOCUMENT"
+  /** A document (.phd) found on disk that is not imported yet */
+  | "DOCUMENT_PLACEHOLDER"
+  /** A file found on disk whose bytes are not pulled yet */
+  | "FILE_PLACEHOLDER";
 
 export type FileState = {
   description: Maybe<Scalars["String"]["output"]>;
+  /** A change a folder sync found on disk that is not pulled yet. Null when there is none. */
+  placeholder: Maybe<FilePlaceholder>;
   /** Content extracted from or rendered for the source: text, html, pdf, images */
   renditions: Array<FileRendition>;
   /** The source of truth: a stored file, or another document. Null until set. */
@@ -158,6 +205,22 @@ export type SetDocumentSourceInput = {
   documentName?: InputMaybe<Scalars["String"]["input"]>;
   documentType: Scalars["String"]["input"];
   setAt: Scalars["DateTime"]["input"];
+};
+
+export type SetPlaceholderInput = {
+  change: FilePlaceholderChange;
+  documentId?: InputMaybe<Scalars["PHID"]["input"]>;
+  documentName?: InputMaybe<Scalars["String"]["input"]>;
+  documentType?: InputMaybe<Scalars["String"]["input"]>;
+  fileName: Scalars["String"]["input"];
+  foundAt: Scalars["DateTime"]["input"];
+  hash?: InputMaybe<Scalars["String"]["input"]>;
+  mappingId: Scalars["PHID"]["input"];
+  mimeType?: InputMaybe<Scalars["String"]["input"]>;
+  modifiedAt?: InputMaybe<Scalars["DateTime"]["input"]>;
+  relativePath: Scalars["String"]["input"];
+  sizeBytes?: InputMaybe<Scalars["Int"]["input"]>;
+  target: FilePlaceholderTarget;
 };
 
 export type SetTitleInput = {

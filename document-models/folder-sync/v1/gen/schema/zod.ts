@@ -2,16 +2,19 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import * as z from "zod";
 import type {
+  CompletePullInput,
   FinishRunInput,
   FolderSyncConflictPolicy,
   FolderSyncContent,
   FolderSyncDirection,
+  FolderSyncFromDisk,
   FolderSyncHost,
   FolderSyncIssue,
   FolderSyncIssueInput,
   FolderSyncIssueKind,
   FolderSyncOptions,
   FolderSyncOtherDocuments,
+  FolderSyncPull,
   FolderSyncRemovedPolicy,
   FolderSyncRequest,
   FolderSyncRun,
@@ -19,6 +22,7 @@ import type {
   FolderSyncState,
   FolderSyncStatus,
   FolderSyncTrigger,
+  RequestPullInput,
   RequestSyncInput,
   ResolveIssueInput,
   SetEnabledInput,
@@ -55,6 +59,13 @@ export const FolderSyncContentSchema = z.enum([
 
 export const FolderSyncDirectionSchema = z.enum(["TO_DISK"]);
 
+export const FolderSyncFromDiskSchema = z.enum([
+  "AUTO_PULL",
+  "AUTO_PULL_WITH_DELETES",
+  "OFF",
+  "PLACEHOLDERS",
+]);
+
 export const FolderSyncIssueKindSchema = z.enum([
   "CONFLICT",
   "ERROR",
@@ -86,6 +97,14 @@ export const FolderSyncStatusSchema = z.enum([
 
 export const FolderSyncTriggerSchema = z.enum(["MANUAL", "ON_CHANGE"]);
 
+export function CompletePullInputSchema(): z.ZodObject<
+  Properties<CompletePullInput>
+> {
+  return z.object({
+    id: z.string(),
+  });
+}
+
 export function FinishRunInputSchema(): z.ZodObject<
   Properties<FinishRunInput>
 > {
@@ -97,6 +116,8 @@ export function FinishRunInputSchema(): z.ZodObject<
     errors: z.number().nullish(),
     finishedAt: z.iso.datetime(),
     id: z.string(),
+    placeholders: z.number().nullish(),
+    pulled: z.number().nullish(),
     skipped: z.number().nullish(),
     status: FolderSyncRunStatusSchema,
     unchanged: z.number().nullish(),
@@ -150,11 +171,24 @@ export function FolderSyncOptionsSchema(): z.ZodObject<
   return z.object({
     __typename: z.literal("FolderSyncOptions").optional(),
     content: FolderSyncContentSchema,
+    fromDisk: FolderSyncFromDiskSchema,
     includeSubfolders: z.boolean(),
     onConflict: FolderSyncConflictPolicySchema,
     onRemoved: FolderSyncRemovedPolicySchema,
     otherDocuments: FolderSyncOtherDocumentsSchema,
     trigger: FolderSyncTriggerSchema,
+  });
+}
+
+export function FolderSyncPullSchema(): z.ZodObject<
+  Properties<FolderSyncPull>
+> {
+  return z.object({
+    __typename: z.literal("FolderSyncPull").optional(),
+    id: z.string(),
+    nodeIds: z.array(z.string()),
+    requestedAt: z.iso.datetime(),
+    requestedBy: z.string().nullish(),
   });
 }
 
@@ -182,6 +216,8 @@ export function FolderSyncRunSchema(): z.ZodObject<Properties<FolderSyncRun>> {
     finishedAt: z.iso.datetime().nullish(),
     full: z.boolean(),
     id: z.string(),
+    placeholders: z.number(),
+    pulled: z.number(),
     requestId: z.string().nullish(),
     skipped: z.number(),
     startedAt: z.iso.datetime(),
@@ -205,9 +241,21 @@ export function FolderSyncStateSchema(): z.ZodObject<
     issues: z.array(z.lazy(() => FolderSyncIssueSchema())),
     localPath: z.string().nullish(),
     options: z.lazy(() => FolderSyncOptionsSchema()),
+    pulls: z.array(z.lazy(() => FolderSyncPullSchema())),
     request: z.lazy(() => FolderSyncRequestSchema().nullish()),
     runs: z.array(z.lazy(() => FolderSyncRunSchema())),
     status: FolderSyncStatusSchema,
+  });
+}
+
+export function RequestPullInputSchema(): z.ZodObject<
+  Properties<RequestPullInput>
+> {
+  return z.object({
+    id: z.string(),
+    nodeIds: z.array(z.string()).nullish(),
+    requestedAt: z.iso.datetime(),
+    requestedBy: z.string().nullish(),
   });
 }
 
@@ -259,6 +307,7 @@ export function SetOptionsInputSchema(): z.ZodObject<
 > {
   return z.object({
     content: FolderSyncContentSchema.nullish(),
+    fromDisk: FolderSyncFromDiskSchema.nullish(),
     includeSubfolders: z.boolean().nullish(),
     onConflict: FolderSyncConflictPolicySchema.nullish(),
     onRemoved: FolderSyncRemovedPolicySchema.nullish(),

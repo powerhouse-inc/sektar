@@ -17,9 +17,9 @@ export const documentModel: DocumentModelGlobalState = {
       state: {
         global: {
           schema:
-            'type FileState {\n  title: String\n  description: String\n  "The source of truth: a stored file, or another document. Null until set."\n  source: FileSource\n  "Content extracted from or rendered for the source: text, html, pdf, images"\n  renditions: [FileRendition!]!\n  tags: [FileTag!]!\n}\n\nenum FileSourceKind {\n  ATTACHMENT\n  DOCUMENT\n}\n\ntype FileSource {\n  kind: FileSourceKind!\n  "ATTACHMENT: the stored bytes and what they are"\n  ref: AttachmentRef\n  fileName: String\n  mimeType: String\n  sizeBytes: Int\n  "DOCUMENT: the document this file stands for, its type and a cached name"\n  documentId: PHID\n  documentType: String\n  documentName: String\n  setAt: DateTime!\n}\n\ntype FileRendition {\n  id: OID!\n  "Any MIME type: text/plain, text/html, application/pdf, image/png"\n  mimeType: String!\n  "A free-form role, e.g. preview, ocr, pdf-export, thumbnail"\n  type: String\n  label: String\n  "Stored content"\n  ref: AttachmentRef\n  fileName: String\n  sizeBytes: Int\n  "Or inline text content"\n  text: String\n  createdAt: DateTime!\n}\n\ntype FileTag {\n  id: OID!\n  label: String!\n  "A colour name from the design system: forest, sage, mint, clay, amber, info, neutral"\n  color: String!\n}',
+            'type FileState {\n  title: String\n  description: String\n  "The source of truth: a stored file, or another document. Null until set."\n  source: FileSource\n  "Content extracted from or rendered for the source: text, html, pdf, images"\n  renditions: [FileRendition!]!\n  tags: [FileTag!]!\n  "A change a folder sync found on disk that is not pulled yet. Null when there is none."\n  placeholder: FilePlaceholder\n}\n\nenum FileSourceKind {\n  ATTACHMENT\n  DOCUMENT\n  "A file found on disk whose bytes are not pulled yet"\n  FILE_PLACEHOLDER\n  "A document (.phd) found on disk that is not imported yet"\n  DOCUMENT_PLACEHOLDER\n}\n\ntype FileSource {\n  kind: FileSourceKind!\n  "ATTACHMENT: the stored bytes and what they are"\n  ref: AttachmentRef\n  fileName: String\n  mimeType: String\n  sizeBytes: Int\n  "DOCUMENT: the document this file stands for, its type and a cached name"\n  documentId: PHID\n  documentType: String\n  documentName: String\n  setAt: DateTime!\n}\n\ntype FileRendition {\n  id: OID!\n  "Any MIME type: text/plain, text/html, application/pdf, image/png"\n  mimeType: String!\n  "A free-form role, e.g. preview, ocr, pdf-export, thumbnail"\n  type: String\n  label: String\n  "Stored content"\n  ref: AttachmentRef\n  fileName: String\n  sizeBytes: Int\n  "Or inline text content"\n  text: String\n  createdAt: DateTime!\n}\n\ntype FileTag {\n  id: OID!\n  label: String!\n  "A colour name from the design system: forest, sage, mint, clay, amber, info, neutral"\n  color: String!\n}\n\nenum FilePlaceholderChange {\n  CREATE\n  UPDATE\n  DELETE\n}\n\nenum FilePlaceholderTarget {\n  FILE\n  DOCUMENT\n}\n\n"A change found on disk by a folder sync, waiting to be pulled"\ntype FilePlaceholder {\n  change: FilePlaceholderChange!\n  target: FilePlaceholderTarget!\n  "The folder sync that found it"\n  mappingId: PHID!\n  "Where it is below the mapping\'s local folder"\n  relativePath: String!\n  fileName: String!\n  mimeType: String\n  sizeBytes: Int\n  "SHA-256 hex of the content on disk; null when it was deleted"\n  hash: String\n  modifiedAt: DateTime\n  "DOCUMENT: what the .phd holds"\n  documentId: PHID\n  documentType: String\n  documentName: String\n  foundAt: DateTime!\n}',
           initialValue:
-            '{"title": null, "description": null, "source": null, "renditions": [], "tags": []}',
+            '{"title":null,"description":null,"source":null,"renditions":[],"tags":[],"placeholder":null}',
           examples: [],
         },
         local: {
@@ -291,6 +291,83 @@ export const documentModel: DocumentModelGlobalState = {
                   code: "TAG_NOT_FOUND",
                   name: "TagNotFoundError",
                   description: "No tag with that id",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+          ],
+        },
+        {
+          id: "2f5a7813-ae5a-4e28-a469-59184cd4c9b7",
+          name: "disk",
+          description:
+            "Changes a folder sync found on disk: recorded as a placeholder, then pulled",
+          operations: [
+            {
+              id: "8ea52f68-e4c4-45e9-8e66-e53a88aa10e6",
+              name: "SET_PLACEHOLDER",
+              description: "",
+              schema:
+                "input SetPlaceholderInput {\n  change: FilePlaceholderChange!\n  target: FilePlaceholderTarget!\n  mappingId: PHID!\n  relativePath: String!\n  fileName: String!\n  mimeType: String\n  sizeBytes: Int\n  hash: String\n  modifiedAt: DateTime\n  documentId: PHID\n  documentType: String\n  documentName: String\n  foundAt: DateTime!\n}",
+              template: "",
+              reducer:
+                'const i = action.input;\nconst relativePath = i.relativePath.trim();\nconst fileName = i.fileName.trim();\nif (!relativePath || !fileName) throw new InvalidPlaceholderError("A placeholder needs the path and the file name");\nconst placeholderKind = (kind: string | undefined) => kind === "FILE_PLACEHOLDER" || kind === "DOCUMENT_PLACEHOLDER";\nif (i.change === "CREATE") {\n  if (state.source && !placeholderKind(state.source.kind))\n    throw new PlaceholderTargetError("A File that has a source is updated or deleted from disk, not created");\n} else if (!state.source || placeholderKind(state.source.kind)) {\n  throw new PlaceholderTargetError("Only a File with a source can be updated or deleted from disk");\n}\nconst placeholder = {\n  change: i.change,\n  target: i.target,\n  mappingId: i.mappingId,\n  relativePath,\n  fileName,\n  mimeType: i.mimeType?.trim() || null,\n  sizeBytes: i.sizeBytes ?? null,\n  hash: i.hash ?? null,\n  modifiedAt: i.modifiedAt ?? null,\n  documentId: i.documentId ?? null,\n  documentType: i.documentType ?? null,\n  documentName: i.documentName ?? null,\n  foundAt: i.foundAt,\n};\nif (i.change === "CREATE") {\n  state.source = {\n    kind: i.target === "DOCUMENT" ? "DOCUMENT_PLACEHOLDER" : "FILE_PLACEHOLDER",\n    ref: null,\n    fileName,\n    mimeType: placeholder.mimeType,\n    sizeBytes: placeholder.sizeBytes,\n    documentId: placeholder.documentId,\n    documentType: placeholder.documentType,\n    documentName: placeholder.documentName,\n    setAt: i.foundAt,\n  };\n  if (!state.title) state.title = fileName;\n}\nstate.placeholder = placeholder;',
+              errors: [
+                {
+                  id: "1b3c3831-6d96-4da2-b1fe-1d64965061f9",
+                  code: "INVALID_PLACEHOLDER",
+                  name: "InvalidPlaceholderError",
+                  description: "A placeholder needs the path and the file name",
+                  template: "",
+                },
+                {
+                  id: "480c26ed-cb52-440b-b74a-8693a068870e",
+                  code: "PLACEHOLDER_TARGET",
+                  name: "PlaceholderTargetError",
+                  description:
+                    "CREATE is for a File without a source; UPDATE and DELETE are for a File with one",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+            {
+              id: "03d20fd2-b4b7-4bb1-abb5-cab3548c2274",
+              name: "CLEAR_PLACEHOLDER",
+              description: "",
+              schema: "input ClearPlaceholderInput {\n  _: Boolean\n}",
+              template: "",
+              reducer: "state.placeholder = null;",
+              errors: [],
+              examples: [],
+              scope: "global",
+            },
+            {
+              id: "d0444626-aab4-49d2-b0fe-ba026fb5aad3",
+              name: "APPLY_DISK_VERSION",
+              description: "",
+              schema:
+                'input ApplyDiskVersionInput {\n  ref: AttachmentRef!\n  fileName: String!\n  mimeType: String\n  sizeBytes: Int\n  setAt: DateTime!\n  "The id the replaced source gets in the renditions, as the previous version"\n  previousId: OID!\n}',
+              template: "",
+              reducer:
+                'const i = action.input;\nconst pending = state.placeholder;\nif (!pending || pending.target !== "FILE" || pending.change === "DELETE")\n  throw new NoDiskVersionError("There is no file created or updated on disk to pull");\nconst fileName = i.fileName.trim();\nif (!fileName) throw new NoDiskVersionError("The file name is empty");\nconst previous = state.source;\nconst keep = previous && previous.kind === "ATTACHMENT" && previous.ref;\nif (keep && state.renditions.some((r) => r.id === i.previousId))\n  throw new PreviousVersionIdTakenError(`A rendition with id ${i.previousId} exists already`);\nif (keep) {\n  state.renditions.push({\n    id: i.previousId,\n    mimeType: previous.mimeType || "application/octet-stream",\n    type: "previous-version",\n    label: `Version of ${previous.setAt.slice(0, 10)}`,\n    ref: previous.ref,\n    fileName: previous.fileName,\n    sizeBytes: previous.sizeBytes,\n    text: null,\n    createdAt: i.setAt,\n  });\n}\nstate.source = {\n  kind: "ATTACHMENT",\n  ref: i.ref,\n  fileName,\n  mimeType: i.mimeType?.trim() || null,\n  sizeBytes: i.sizeBytes ?? null,\n  documentId: null,\n  documentType: null,\n  documentName: null,\n  setAt: i.setAt,\n};\nif (!state.title) state.title = fileName;\nstate.placeholder = null;',
+              errors: [
+                {
+                  id: "1d6b46c5-a84a-43cd-9c8b-0fb487fbd6b7",
+                  code: "NO_DISK_VERSION",
+                  name: "NoDiskVersionError",
+                  description:
+                    "There is no file created or updated on disk to pull",
+                  template: "",
+                },
+                {
+                  id: "0fd0f30e-1670-4ac1-bd8f-7929cdb6e9ad",
+                  code: "PREVIOUS_VERSION_ID_TAKEN",
+                  name: "PreviousVersionIdTakenError",
+                  description: "The previous version's rendition id is taken",
                   template: "",
                 },
               ],
