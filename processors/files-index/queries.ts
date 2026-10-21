@@ -6,6 +6,10 @@ import type { DB, FileDocRow, FileNodeRow } from "./schema.js";
 
 export type FilesQueryBuilder = Pick<IRelationalDb<DB>, "selectFrom">;
 
+/** The folder syncs keep their mappings in this root folder, which no listing shows. */
+const SYNC_FOLDER = ".sync";
+const SYNC_TYPE = "sektar/folder-sync";
+
 /** Which nodes a listing covers. */
 export type FilesScope =
   /** every node of the drive */
@@ -81,6 +85,10 @@ function filtered(db: FilesQueryBuilder, f: FilesFilter) {
       return parts.length > 0 ? eb.or(parts) : eb.val(false);
     });
   }
+  // The folder syncs' own folder and documents (editors/sektar/kit/folder-sync.ts).
+  q = q
+    .where((eb) => eb.not(eb.and([eb("n.kind", "=", "folder"), eb("n.parent_id", "is", null), eb("n.name", "=", SYNC_FOLDER)])))
+    .where((eb) => eb.or([eb("n.document_type", "is", null), eb("n.document_type", "!=", SYNC_TYPE)]));
   if (f.filesOnly) q = q.where("n.kind", "=", "file");
   for (const word of f.words) {
     if (!word) continue;

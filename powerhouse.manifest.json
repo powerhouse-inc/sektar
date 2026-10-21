@@ -42,6 +42,10 @@
     {
       "id": "sektar/trip",
       "name": "Trip"
+    },
+    {
+      "id": "sektar/folder-sync",
+      "name": "Folder Sync"
     }
   ],
   "apps": [
@@ -74,8 +78,8 @@
       ]
     },
     {
-      "name": "trips",
       "id": "trips",
+      "name": "trips",
       "documentTypes": [
         "powerhouse/document-drive"
       ]
@@ -143,6 +147,13 @@
       "name": "trip-editor",
       "documentTypes": [
         "sektar/trip"
+      ]
+    },
+    {
+      "name": "Folder Sync",
+      "id": "folder-sync",
+      "documentTypes": [
+        "sektar/folder-sync"
       ]
     }
   ],

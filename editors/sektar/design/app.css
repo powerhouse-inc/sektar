@@ -2024,3 +2024,34 @@
 .sk-app .sk-travel-flag { width: 36px; height: 36px; display: grid; place-items: center; font-size: 20px; border-radius: var(--sk-radius-sm); background: var(--sk-icon-bg); }
 .sk-app .sk-travel-years { display: flex; overflow-x: auto; margin-top: calc(-1 * var(--sk-space-2)); }
 .sk-app .sk-travel-years .sk-segmented { flex: none; }
+
+/* Folder syncs: the Folders pane's sync button and its menu rows, and the mapping editor (editors/folder-sync) */
+.sk-app .sk-sync-button { position: relative; }
+.sk-app .sk-sync-button__dot { position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: var(--sk-warning); box-shadow: 0 0 0 2px var(--sk-surface); }
+@media (prefers-reduced-motion: no-preference) {
+  .sk-app .sk-sync-button.is-busy .sk-icon,
+  .sk-app .sk-sync-spin { animation: sk-sync-spin 1.6s linear infinite; }
+}
+@keyframes sk-sync-spin { to { transform: rotate(360deg); } }
+.sk-app .sk-sync-row { display: grid; gap: 2px; min-width: 0; width: min(320px, 70vw); white-space: normal; padding-block: 2px; }
+.sk-app .sk-sync-row__name { font-weight: var(--sk-weight-medium); color: var(--sk-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk-app .sk-sync-row__path { font-size: var(--sk-text-xs); color: var(--sk-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk-app .sk-sync-row__status { display: flex; align-items: center; gap: var(--sk-space-2); min-width: 0; margin-top: 2px; }
+.sk-app .sk-sync-row__detail { font-size: var(--sk-text-xs); color: var(--sk-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.sk-app .sk-sync-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sk-space-4); }
+.sk-app .sk-sync-toggle { align-items: flex-start; cursor: pointer; }
+.sk-app .sk-sync-toggle > span:last-child { display: grid; gap: 2px; }
+.sk-app .sk-sync-toggle__label { font-weight: var(--sk-weight-medium); }
+.sk-app .sk-sync-detail .sk-detail-header__actions { align-items: center; }
+.sk-app .sk-sync-detail__to { display: flex; align-items: center; gap: var(--sk-space-2); min-width: 0; }
+.sk-app .sk-sync-detail__to > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk-app .sk-sync-detail .sk-detail-header__tags { display: flex; align-items: center; gap: var(--sk-space-2); flex-wrap: wrap; }
+.sk-app .sk-sync-detail__path { color: var(--sk-text-muted); word-break: break-all; }
+.sk-app .sk-sync-detail__issue-aside { display: flex; align-items: center; gap: var(--sk-space-2); }
+.sk-app .sk-sync-detail { container-type: inline-size; }
+.sk-app .sk-sync-detail .sk-field > .sk-segmented { align-self: flex-start; justify-self: start; max-width: 100%; }
+@container (max-width: 640px) {
+  .sk-app .sk-sync-detail .sk-detail-header { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+  .sk-app .sk-sync-detail .sk-detail-header__actions { grid-column: 1 / -1; flex-wrap: wrap; }
+  .sk-app .sk-sync-detail .sk-detail-header__name { font-size: var(--sk-text-xl); overflow-wrap: anywhere; }
+}

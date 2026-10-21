@@ -1,0 +1,239 @@
+scalar Unknown
+scalar DateTime
+scalar Address
+scalar AttachmentRef
+scalar Amount_Tokens
+scalar EthereumAddress
+scalar EmailAddress
+scalar Amount_Percentage
+scalar Date
+scalar URL
+scalar Amount_Money
+scalar OLabel
+scalar Currency
+scalar PHID
+scalar OID
+scalar Amount_Fiat
+scalar Amount_Currency
+scalar Amount_Crypto
+scalar Amount
+scalar Upload
+
+type FolderSyncState {
+  "The drive the mapped folder is in"
+  driveId: PHID
+  "The mapped drive folder; null maps the drive's root"
+  folderId: OID
+  "The folder's path in the drive when it was mapped, for display, e.g. kwartaalaangiftes/2026-Q3"
+  folderPath: String
+  "The folder on the Switchboard's machine the files are written to (an absolute path)"
+  localPath: String
+  direction: FolderSyncDirection!
+  "A disabled mapping is kept but never run"
+  enabled: Boolean!
+  options: FolderSyncOptions!
+  status: FolderSyncStatus!
+  "The latest request for a run: when, by whom (the app, a workflow), and whether everything is rewritten"
+  request: FolderSyncRequest
+  "The Switchboard that ran this mapping last"
+  host: FolderSyncHost
+  "The runs, latest first, at most 20"
+  runs: [FolderSyncRun!]!
+  "What the last run could not write, or found changed on disk"
+  issues: [FolderSyncIssue!]!
+}
+
+type FolderSyncOptions {
+  "Run when asked only, or also whenever the folder changes"
+  trigger: FolderSyncTrigger!
+  includeSubfolders: Boolean!
+  "What is written for a File: its source, or its source and its renditions"
+  content: FolderSyncContent!
+  "What happens to documents that are not Files (invoices, trips)"
+  otherDocuments: FolderSyncOtherDocuments!
+  "What happens to a file on disk whose document left the folder"
+  onRemoved: FolderSyncRemovedPolicy!
+  "What happens to a file on disk that was changed since it was written"
+  onConflict: FolderSyncConflictPolicy!
+}
+
+type FolderSyncRequest {
+  id: OID!
+  requestedAt: DateTime!
+  "Who asked: app, workflow, or a name"
+  requestedBy: String
+  "Rewrite every file, not only the changed ones"
+  full: Boolean!
+}
+
+type FolderSyncHost {
+  name: String
+  platform: String
+  reactorId: String
+}
+
+type FolderSyncRun {
+  id: OID!
+  "The request the run answered"
+  requestId: OID
+  startedAt: DateTime!
+  finishedAt: DateTime
+  status: FolderSyncRunStatus!
+  full: Boolean!
+  "The drive's revision the run copied"
+  driveRevision: Int
+  written: Int!
+  unchanged: Int!
+  deleted: Int!
+  skipped: Int!
+  conflicts: Int!
+  errors: Int!
+  bytesWritten: Float!
+  error: String
+}
+
+type FolderSyncIssue {
+  id: OID!
+  kind: FolderSyncIssueKind!
+  nodeId: OID
+  documentId: PHID
+  "Where the file is, or would be, below the local folder"
+  relativePath: String
+  message: String!
+  at: DateTime!
+}
+
+enum FolderSyncDirection {
+  TO_DISK
+}
+
+enum FolderSyncTrigger {
+  MANUAL
+  ON_CHANGE
+}
+
+enum FolderSyncContent {
+  SOURCE
+  SOURCE_AND_RENDITIONS
+}
+
+enum FolderSyncOtherDocuments {
+  SKIP
+  EXPORT_PHD
+}
+
+enum FolderSyncRemovedPolicy {
+  KEEP
+  DELETE
+}
+
+enum FolderSyncConflictPolicy {
+  SKIP
+  OVERWRITE
+  KEEP_BOTH
+}
+
+enum FolderSyncStatus {
+  NEVER
+  REQUESTED
+  RUNNING
+  OK
+  PARTIAL
+  ERROR
+}
+
+enum FolderSyncRunStatus {
+  RUNNING
+  OK
+  PARTIAL
+  ERROR
+  CANCELLED
+}
+
+enum FolderSyncIssueKind {
+  CONFLICT
+  ERROR
+  NAME_CLASH
+  PATH_TOO_LONG
+  NO_SOURCE
+}
+
+# mapping
+
+input SetTargetInput {
+  driveId: PHID!
+  "Null maps the drive's root"
+  folderId: OID
+  folderPath: String
+}
+
+input SetLocalPathInput {
+  localPath: String!
+}
+
+input SetOptionsInput {
+  trigger: FolderSyncTrigger
+  includeSubfolders: Boolean
+  content: FolderSyncContent
+  otherDocuments: FolderSyncOtherDocuments
+  onRemoved: FolderSyncRemovedPolicy
+  onConflict: FolderSyncConflictPolicy
+}
+
+input SetEnabledInput {
+  enabled: Boolean!
+}
+
+# sync
+
+input RequestSyncInput {
+  id: OID!
+  requestedAt: DateTime!
+  requestedBy: String
+  full: Boolean
+}
+
+# runner
+
+input StartRunInput {
+  id: OID!
+  requestId: OID
+  startedAt: DateTime!
+  full: Boolean
+  driveRevision: Int
+  hostName: String
+  hostPlatform: String
+  reactorId: String
+}
+
+input FinishRunInput {
+  id: OID!
+  finishedAt: DateTime!
+  status: FolderSyncRunStatus!
+  written: Int
+  unchanged: Int
+  deleted: Int
+  skipped: Int
+  conflicts: Int
+  errors: Int
+  bytesWritten: Float
+  error: String
+}
+
+input SetIssuesInput {
+  issues: [FolderSyncIssueInput!]!
+}
+
+input FolderSyncIssueInput {
+  id: OID!
+  kind: FolderSyncIssueKind!
+  nodeId: OID
+  documentId: PHID
+  relativePath: String
+  message: String!
+  at: DateTime!
+}
+
+input ResolveIssueInput {
+  id: OID!
+}

@@ -12,6 +12,10 @@ export type MenuItem = {
   disabled?: boolean;
   /** Starts a group: a separator (unless first) and this heading above the item */
   section?: string;
+  /** Starts a group with a separator only, no heading */
+  divider?: boolean;
+  /** An icon that is not in the sprite (e.g. a glyph), in place of `icon` */
+  glyph?: ReactNode;
   onSelect: () => void;
 };
 
@@ -61,6 +65,7 @@ export function Menu({
                   <span className="sk-menu__heading">{it.section}</span>
                 </>
               )}
+              {it.divider && !it.section && i > 0 && <hr className="sk-menu__sep" />}
               <button
                 type="button"
                 role="menuitem"
@@ -76,7 +81,7 @@ export function Menu({
                   it.onSelect();
                 }}
               >
-                {it.icon && <Icon name={it.icon} mono />}
+                {it.glyph ?? (it.icon && <Icon name={it.icon} mono />)}
                 <span className="sk-grow">{it.label}</span>
                 {it.active && <Icon name="check" size={16} mono />}
               </button>

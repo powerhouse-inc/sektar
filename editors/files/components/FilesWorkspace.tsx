@@ -41,12 +41,15 @@ import {
   type PreviewItem,
 } from "../../sektar/components/FilePreview.js";
 import { useFilesList, type FileListRow } from "../../sektar/kit/files-index.js";
+import { hiddenSyncIds, SYNC_TYPE } from "../../sektar/kit/folder-sync.js";
 import { bytes, createEmptyFile, createFileFromUpload, FILE_TYPE, fileKind } from "../../sektar/kit/files.js";
 import { Menu } from "../../sektar/kit/menu.js";
 import { useSearch } from "../../sektar/kit/search-context.js";
 import { Button, cx, EmptyState, Icon, Modal, Selector, Skeleton } from "../../sektar/kit/ui.js";
 import { useRowWindow } from "../../sektar/kit/virtual.js";
 import { Pane, Workspace } from "../../sektar/kit/workspace.js";
+import { SyncGlyph } from "../../sektar/kit/sync-glyphs.js";
+import { MappedFolders, SyncMenu } from "./SyncMenu.js";
 
 type ViewMode = "list" | "grid";
 const VIEW_KEY = "sk:files-view";
@@ -74,7 +77,12 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
   const folder = useSelectedFolder();
   const client = useAttachments();
   const { query } = useSearch();
-  const nodes = drive.state.global.nodes;
+  const allNodes = drive.state.global.nodes;
+  // The folder syncs' own `.sync` folder stays out of sight (as it does in the index).
+  const nodes = useMemo(() => {
+    const hidden = hiddenSyncIds(allNodes);
+    return hidden.size ? allNodes.filter((n) => !hidden.has(n.id)) : allNodes;
+  }, [allNodes]);
   const currentId = folder?.id ?? null;
 
   const [picked, setPicked] = useState<FileListRow | null>(null);
@@ -86,6 +94,8 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
   const [treeCollapsed, setTreeCollapsed] = useState(false);
   const [previewPref, setPreviewPref] = useState<boolean | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  /** The folders a folder sync maps to disk ("" is the drive's root), with where they go. */
+  const [mapped, setMapped] = useState<Map<string, string>>(() => new Map());
   const [naming, setNaming] = useState<{ kind: "folder" } | { kind: "rename"; row: FileListRow } | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -239,7 +249,8 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
     ...(modules ?? [])
       .filter((m) => {
         const id = m.documentModel.global.id;
-        return id !== FILE_TYPE && !id.startsWith("powerhouse/");
+        // Folder syncs are made from the Folders pane's sync menu, into `.sync`.
+        return id !== FILE_TYPE && id !== SYNC_TYPE && !id.startsWith("powerhouse/");
       })
       .map((m) => ({
         label: m.documentModel.global.name || m.documentModel.global.id,
@@ -278,8 +289,21 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
           collapsed={!stacked && treeCollapsed}
           onToggle={() => setTreeCollapsed((v) => !v)}
           title="Folders"
+          trailing={
+            <SyncMenu
+              driveId={drive.header.id}
+              driveName={drive.header.name || drive.state.global.name || "Files"}
+              nodes={allNodes}
+              currentId={currentId}
+              onStatus={(message) => {
+                setStatus(message);
+                setTimeout(() => setStatus(null), 4000);
+              }}
+            />
+          }
         >
-          <FolderTree nodes={nodes} counts={folderInfo.counts} driveName={driveName} currentId={currentId} onGo={goFolder} />
+          <MappedFolders driveId={drive.header.id} nodes={allNodes} onChange={setMapped} />
+          <FolderTree nodes={nodes} counts={folderInfo.counts} driveName={driveName} currentId={currentId} mapped={mapped} onGo={goFolder} />
         </Pane>
 
         <Pane
@@ -507,14 +531,20 @@ function FolderTree({
   counts,
   driveName,
   currentId,
+  mapped,
   onGo,
 }: {
   nodes: readonly Node[];
   counts: Map<string | null, number>;
   driveName: string;
   currentId: string | null;
+  /** Folders a folder sync maps to disk ("" is the root): they get the synced-folder glyph */
+  mapped: Map<string, string>;
   onGo: (id: string | null) => void;
 }) {
+  const folderIcon = (key: string) =>
+    mapped.has(key) ? <SyncGlyph name="folder-sync" size={16} /> : <Icon name="folder" size={16} />;
+  const syncedTo = (key: string) => (mapped.has(key) ? `Synced to ${mapped.get(key)}` : undefined);
   const children = useMemo(() => {
     const map = new Map<string | null, FolderNode[]>();
     for (const n of nodes) {
@@ -563,6 +593,7 @@ function FolderTree({
             style={{ "--depth": depth } as React.CSSProperties}
             onClick={() => onGo(f.id)}
             aria-current={currentId === f.id ? "true" : undefined}
+            title={syncedTo(f.id)}
           >
             <span
               className={cx("sk-files-tree__twist", isOpen && "is-open")}
@@ -581,7 +612,7 @@ function FolderTree({
             >
               {kids > 0 && <Icon name="chevron-right" mono />}
             </span>
-            <Icon name="folder" size={16} />
+            {folderIcon(f.id)}
             <span className="sk-files-tree__name">{f.name}</span>
             <span className="sk-files-tree__count">{counts.get(f.id) || ""}</span>
           </button>
@@ -598,9 +629,10 @@ function FolderTree({
           className={cx("sk-files-tree__item", currentId === null && "is-active")}
           onClick={() => onGo(null)}
           aria-current={currentId === null ? "true" : undefined}
+          title={syncedTo("")}
         >
           <span className="sk-files-tree__twist" />
-          <Icon name="folder" size={16} />
+          {folderIcon("")}
           <span className="sk-files-tree__name">{driveName}</span>
           <span className="sk-files-tree__count">{counts.get(null) || ""}</span>
         </button>

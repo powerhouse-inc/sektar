@@ -11,6 +11,7 @@ import { EmailWorkspace } from "./email-workspace/module.js";
 import { ExpenseReportEditor } from "./expense-report-editor/module.js";
 import { FileEditor } from "./file-editor/module.js";
 import { Files } from "./files/module.js";
+import { FolderSync } from "./folder-sync/module.js";
 import { InvoiceEditor } from "./invoice-editor/module.js";
 import { OriginalSourceCollectionEditor } from "./original-source-collection-editor/module.js";
 import { OriginalSourceQueueEditor } from "./original-source-queue-editor/module.js";
@@ -27,6 +28,7 @@ export const editors: EditorModule[] = [
   ExpenseReportEditor,
   FileEditor,
   Files,
+  FolderSync,
   InvoiceEditor,
   OriginalSourceCollectionEditor,
   OriginalSourceQueueEditor,
