@@ -45,7 +45,7 @@ overrides:
   vite: 8.0.14
   rolldown: 1.0.2
 
-pnpmfileChecksum: sha256-7xnAiTyxCSgyQC6/Zf1wL+t7jqwNeRQBvEN8fRb7QNc=
+pnpmfileChecksum: sha256-Rpo/jqqFkoXsNbz84djagsxaV7jUyRl3MVUCeVFKwUk=
 
 importers:
 

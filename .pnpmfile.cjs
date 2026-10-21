@@ -35,7 +35,9 @@ function resolveTarget() {
     : raw;
   const abs = path.resolve(__dirname, expanded);
   if (!fs.existsSync(abs)) {
-    console.warn(`.pnpmfile.cjs: POWERHOUSE_DIR=${raw} (${abs}) does not exist`);
+    console.warn(
+      `.pnpmfile.cjs: POWERHOUSE_DIR=${raw} (${abs}) does not exist`,
+    );
   }
   // Forward slashes: a `link:C:\…` spec is not a valid pnpm path on Windows.
   return abs.split(path.sep).join("/").replace(/\/+$/, "");
