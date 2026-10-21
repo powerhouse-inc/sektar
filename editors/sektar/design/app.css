@@ -871,8 +871,7 @@
 .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) > .sk-workspace--panes {
   flex: 1;
   min-height: 0;
-}
-.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-pane__body {
+}.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-pane__body {
   overflow: auto;
   /* Each pane scrolls on its own, with the platform's own physics: momentum
      stays inside the pane instead of chaining into Connect's page scroller
@@ -2191,6 +2190,12 @@
   border: 1px dashed var(--sk-border); border-radius: var(--sk-radius-md); background: var(--sk-surface-2);
 }
 .sk-app .sk-invbook-line__none .sk-invbook__dot { margin-top: 6px; }
+
+/* The third column is where a receipt or the PDF is read: side by side it is
+   never narrower than this (stacked it is the whole screen; folded, a strip). */
+@container drive-app (min-width: 640px) {
+  .sk-app .sk-invoices .sk-invoices__side:not(.is-collapsed) { min-width: 460px; }
+}
 
 /* A pane holding a PDF preview keeps its scrollbar's room at all times: the
    sheet's height follows its width, so a scrollbar that came and went would

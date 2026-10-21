@@ -306,6 +306,8 @@ export function InvoicesWorkspace({
         <Pane
           side="end"
           grow={1}
+          // Wide enough that a receipt and the PDF read well (see app.css).
+          className="sk-invoices__side"
           collapsed={sideCollapsed}
           onToggle={() => setSidePref(!sideCollapsed)}
           onBack={() => setLevel(2)}
@@ -318,7 +320,8 @@ export function InvoicesWorkspace({
               <Selector
                 value={opened.kind === "invoice" ? opened.doc : PDF}
                 options={[
-                  { value: PDF, name: "Preview" },
+                  // Two lines, like the documents' tiles (name and role), so it sits on the header's edge as they do.
+                  { value: PDF, name: "Print/PDF", meta: "Preview" },
                   ...state.attachments.map((a) => ({ value: a.id, name: a.fileName, meta: roleLabel(a.role) })),
                 ]}
                 onChange={(doc) => setOpened({ kind: "invoice", doc })}
