@@ -150,8 +150,8 @@
       ]
     },
     {
-      "name": "Folder Sync",
       "id": "folder-sync",
+      "name": "Folder Sync",
       "documentTypes": [
         "sektar/folder-sync"
       ]
@@ -177,6 +177,10 @@
     {
       "id": "files-index",
       "name": "files-index"
+    },
+    {
+      "name": "folder-sync",
+      "id": "folder-sync"
     }
   ],
   "subgraphs": [

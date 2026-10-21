@@ -24,11 +24,19 @@ Open items from the invoice, quarterly-filing and Business Travel work. Last upd
   - Workaround in our scripts: the generic `execute` mutation.
   - Fix, not applied: compare `module.version`.
 
-- [ ] **Folder sync to disk: the Switchboard side.** Done: the model `sektar/folder-sync` (`specs/folder-sync.json`, builder `.ph/make-folder-sync-spec.cjs`), the Folders-pane sync menu, and the mapping editor. Mappings live in the drive's hidden `.sync` folder. Still to do:
-  - A Switchboard processor that answers REQUEST_SYNC: write the files, keep `.sektar-sync.json`, report START_RUN, FINISH_RUN and SET_ISSUES. Check first that a processor can read attachment blobs and write to documents.
-  - The Activepieces trigger and action.
-  - First mapping: kwartaalaangiftes/2026-Q3 → `D:\Dropbox (Personal)\KSDC\kwartaalaangiftes\2026-Q3`. It has one request waiting.
-- [ ] **Vetra boot took ~14 min** after the folder-sync build (52 s before). Probably the processors catching up after a new package build; not yet confirmed.
+- [ ] **Folder sync to disk.**
+  - Done: the model, the UI, and the Switchboard processor `processors/folder-sync`.
+  - Live: kwartaalaangiftes/2026-Q3 → `D:\Dropbox (Personal)\KSDC\kwartaalaangiftes\2026-Q3` (99 written, 1 already identical).
+  - The Switchboard writes only below the folders in `.ph/folder-sync-roots.txt`; currently the Dropbox `kwartaalaangiftes` folder.
+  - Still to do: the Activepieces trigger and action; "export as .phd" for non-File documents (reported as an issue for now).
+- [ ] **Performance, in layers:**
+  - (1) A progress indication for the boot jobs (processor backfills, catch-up).
+  - (2) Log slow requests, both external (GraphQL, HTTP) and internal (jobs, processor batches, queries).
+  - (3) Optimize from that data.
+- [ ] **Every package change re-indexes everything (~15 min).**
+  - After a new build, or when the Switchboard reloads the package (e.g. a processor was generated), the processors run `runBackfill` from scratch instead of resuming from their cursors.
+  - Shown by a CPU profile (2026-10-21 13:17): mostly PGlite queries and result parsing, `processors/email-index` replaying the mail drive, plus ~6% `fdatasync` per write.
+  - Suspect: processor or factory ids that change between builds (`processor-manager.ts`, `${factoryId}:${driveId}:${slot}`). Not confirmed.
 
 ## Finance
 
