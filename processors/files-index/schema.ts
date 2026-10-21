@@ -27,7 +27,7 @@ export interface FileDocRow {
   description: string | null;
   /** JSON: [{ id, label, color }] */
   tags: string;
-  /** ATTACHMENT | DOCUMENT | null */
+  /** ATTACHMENT | DOCUMENT | FILE_PLACEHOLDER | DOCUMENT_PLACEHOLDER | null */
   source_kind: string | null;
   source_mime: string | null;
   source_name: string | null;
@@ -37,6 +37,8 @@ export interface FileDocRow {
   rendition_count: number;
   /** The stored image a card shows: a preview rendition, else an image source. */
   thumb_ref: string | null;
+  /** A change a folder sync found on disk, waiting: CREATE | UPDATE | DELETE | null */
+  disk_change: string | null;
   /** Lower-cased: title, description, tag labels, source names, rendition labels. */
   search_text: string;
   updated_at: string;

@@ -139,16 +139,23 @@ describe("what a listing covers", () => {
         id: "d1", kind: "file", name: "q2.pdf", parent_id: "a", document_type: "sektar/file",
         title: null, description: null, tags: "[{\"id\":\"t\",\"label\":\"Tax\",\"color\":\"mint\"}]",
         source_kind: "ATTACHMENT", source_mime: "application/pdf", source_name: "q2.pdf", source_size: "1200",
-        source_document_type: null, source_document_name: null, rendition_count: "3", thumb_ref: null,
+        source_document_type: null, source_document_name: null, rendition_count: "3", thumb_ref: null, disk_change: "UPDATE",
       }),
-    ).toMatchObject({ kind: "file", sourceSize: 1200, renditionCount: 3, tags: [{ label: "Tax" }] });
+    ).toMatchObject({ kind: "file", sourceSize: 1200, renditionCount: 3, tags: [{ label: "Tax" }], diskChange: "UPDATE" });
     expect(
       toListRow({
         id: "f", kind: "folder", name: "x", parent_id: null, document_type: null, title: null, description: null,
         tags: "oops", source_kind: null, source_mime: null, source_name: null, source_size: null,
-        source_document_type: null, source_document_name: null, rendition_count: null, thumb_ref: null,
+        source_document_type: null, source_document_name: null, rendition_count: null, thumb_ref: null, disk_change: null,
       }),
-    ).toMatchObject({ kind: "folder", tags: [], renditionCount: 0, sourceSize: null });
+    ).toMatchObject({ kind: "folder", tags: [], renditionCount: 0, sourceSize: null, diskChange: null });
+  });
+
+  it("records a change waiting on disk, and none when there is none", () => {
+    expect(fileDocRow("d", { placeholder: { change: "DELETE", target: "FILE" } }, AT).disk_change).toBe("DELETE");
+    expect(fileDocRow("d", { source: { kind: "FILE_PLACEHOLDER" }, placeholder: { change: "CREATE" } }, AT)).toMatchObject({ source_kind: "FILE_PLACEHOLDER", disk_change: "CREATE" });
+    expect(fileDocRow("d", { placeholder: null }, AT).disk_change).toBeNull();
+    expect(fileDocRow("d", {}, AT).disk_change).toBeNull();
   });
 
   it("splits a search into a few words", () => {

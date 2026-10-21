@@ -44,6 +44,15 @@ export async function up(db: IRelationalDb<any>): Promise<void> {
     .addColumn("updated_at", "varchar(64)", (c) => c.notNull())
     .ifNotExists()
     .execute();
+
+  // Added after the tables were first made: an index from before gets them here.
+  // The placeholder source kinds are longer than the first column allowed.
+  await db.schema.alterTable("file_docs").alterColumn("source_kind", (c) => c.setDataType("varchar(32)")).execute();
+  try {
+    await db.schema.alterTable("file_docs").addColumn("disk_change", "varchar(16)").execute();
+  } catch {
+    // there already
+  }
 }
 
 export async function down(db: IRelationalDb<any>): Promise<void> {

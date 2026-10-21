@@ -36,7 +36,7 @@ export interface FilesListFilter {
 const LISTING_QUERY = `query ($d: String!, $f: String, $deep: Boolean, $q: String, $o: Int, $l: Int) {
   filesIndex { listing(driveId: $d, folderId: $f, deep: $deep, query: $q, offset: $o, limit: $l) {
     total
-    items { id kind name parentId documentType title description tags { id label color } sourceKind sourceMime sourceName sourceSize sourceDocumentType sourceDocumentName renditionCount thumbRef }
+    items { id kind name parentId documentType title description tags { id label color } sourceKind sourceMime sourceName sourceSize sourceDocumentType sourceDocumentName renditionCount thumbRef diskChange }
   } }
 }`;
 

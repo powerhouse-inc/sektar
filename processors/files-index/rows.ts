@@ -121,6 +121,7 @@ export function fileDocRow(documentId: string, state: Json, at: string): FileDoc
     source_document_name: sourceDocName,
     rendition_count: renditions.length,
     thumb_ref: thumb,
+    disk_change: state.placeholder && typeof state.placeholder === "object" ? str((state.placeholder as Json).change) : null,
     search_text: [
       title,
       description,

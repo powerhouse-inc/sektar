@@ -646,6 +646,8 @@ function FolderTree({
 
 /** What a File is, in one line: its description, else its source. */
 function subline(row: FileListRow): string {
+  const disk = row.diskChange === "UPDATE" ? "Changed on disk" : row.diskChange === "DELETE" ? "Deleted on disk" : null;
+  if (disk) return disk;
   if (row.description) return row.description;
   if (row.sourceKind === "DOCUMENT") return `Linked: ${row.sourceDocumentName ?? row.sourceDocumentType ?? "document"}`;
   if (isPlaceholderKind(row.sourceKind)) return ["On disk, not pulled yet", bytes(row.sourceSize)].filter(Boolean).join(" · ");
@@ -673,21 +675,42 @@ function Tile({ row }: { row: FileListRow }) {
       </span>
     );
   }
-  if (row.sourceKind === "DOCUMENT") {
-    return (
+  const tile =
+    row.sourceKind === "DOCUMENT" ? (
       <span className="sk-icon-tile">
         <Icon name={iconForType(row.sourceDocumentType)} />
       </span>
+    ) : (
+      <FileTypeTile kind={fileKind(row.sourceMime, row.sourceName ?? row.name)} />
+    );
+  return <DiskMark row={row}>{tile}</DiskMark>;
+}
+
+const DISK_MARK = {
+  UPDATE: { className: "sk-disk-tile--update", title: "Changed on disk, not pulled yet" },
+  DELETE: { className: "sk-disk-tile--delete", title: "Deleted on disk, not applied yet" },
+} as const;
+
+/**
+ * What a folder sync found on disk, on a File's tile: a file new on disk
+ * (a placeholder) shows at half strength, a changed one gets a blue dot, a
+ * deleted one a red dot.
+ */
+function DiskMark({ row, children }: { row: FileListRow; children: ReactNode }) {
+  if (isPlaceholderKind(row.sourceKind)) {
+    return (
+      <span className="sk-disk-tile sk-disk-tile--new" title="New on disk, not pulled yet">
+        {children}
+      </span>
     );
   }
-  const tile = <FileTypeTile kind={fileKind(row.sourceMime, row.sourceName ?? row.name)} />;
-  // A placeholder: the file is on disk, not in the drive yet.
-  return isPlaceholderKind(row.sourceKind) ? (
-    <span className="sk-placeholder-tile" title="On disk, not pulled yet">
-      {tile}
+  const mark = row.diskChange === "UPDATE" || row.diskChange === "DELETE" ? DISK_MARK[row.diskChange] : null;
+  if (!mark) return <>{children}</>;
+  return (
+    <span className={cx("sk-disk-tile", mark.className)} title={mark.title}>
+      {children}
+      <span className="sk-disk-tile__dot" aria-label={mark.title} />
     </span>
-  ) : (
-    tile
   );
 }
 

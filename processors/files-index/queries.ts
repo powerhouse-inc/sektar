@@ -52,6 +52,8 @@ export interface FileListRow {
   sourceDocumentName: string | null;
   renditionCount: number;
   thumbRef: string | null;
+  /** A change a folder sync found on disk, waiting to be pulled: CREATE | UPDATE | DELETE */
+  diskChange: string | null;
 }
 
 export interface FileListPage {
@@ -119,6 +121,7 @@ export function listingQuery(db: FilesQueryBuilder, f: FilesFilter, page: { offs
       "d.source_document_name",
       "d.rendition_count",
       "d.thumb_ref",
+      "d.disk_change",
     ])
     // "folder" sorts after "file": descending puts folders first.
     .orderBy("n.kind", "desc")
@@ -185,6 +188,7 @@ interface ListingRow {
   source_document_name: FileDocRow["source_document_name"];
   rendition_count: number | string | null;
   thumb_ref: FileDocRow["thumb_ref"];
+  disk_change: FileDocRow["disk_change"];
 }
 
 function parseTags(text: string | null | undefined): FileTagLite[] {
@@ -215,5 +219,6 @@ export function toListRow(r: ListingRow): FileListRow {
     sourceDocumentName: r.source_document_name ?? null,
     renditionCount: Number(r.rendition_count ?? 0),
     thumbRef: r.thumb_ref ?? null,
+    diskChange: r.disk_change ?? null,
   };
 }

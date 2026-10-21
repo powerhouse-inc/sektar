@@ -30,6 +30,8 @@ export const schema: DocumentNode = gql`
     sourceDocumentName: String
     renditionCount: Int!
     thumbRef: String
+    "A change a folder sync found on disk, waiting to be pulled: CREATE | UPDATE | DELETE"
+    diskChange: String
   }
 
   type FilesPage {

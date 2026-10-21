@@ -29,6 +29,11 @@ Open items from the invoice, quarterly-filing and Business Travel work. Last upd
   - Live: kwartaalaangiftes/2026-Q3 → `D:\Dropbox (Personal)\KSDC\kwartaalaangiftes\2026-Q3` (99 written, 1 already identical).
   - The Switchboard writes only below the folders in `.ph/folder-sync-roots.txt`; currently the Dropbox `kwartaalaangiftes` folder.
   - Still to do: the Activepieces trigger and action; "export as .phd" for non-File documents (reported as an issue for now).
+  - Reverse sync (2026-10-21): placeholders / auto-pull / auto-pull with deletes, as agreed with Wouter.
+    - Make a "changed in both places" conflict clear and resolvable from the UI (which version wins, per file).
+    - A move on disk shows as a delete plus a new file: propose a move when the content matches.
+    - Pulling a .phd (loading its missing operations) is not built yet.
+    - The disk isn't watched: a sync starts when asked for, or after a drive change (ON_CHANGE).
 - [ ] **Performance, in layers:**
   - (1) A progress indication for the boot jobs (processor backfills, catch-up).
   - (2) Log slow requests, both external (GraphQL, HTTP) and internal (jobs, processor batches, queries).
