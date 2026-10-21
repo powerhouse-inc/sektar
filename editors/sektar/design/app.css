@@ -841,6 +841,17 @@
 .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) > .sk-workspace--stack {
   width: 100%;
 }
+/* Stacked, each pane is exactly one screen wide. Left to its content (the
+   design system's flex: none; min-width: 100%), a pane with one long
+   unbreakable line grew wider, and since the track slides by each pane's
+   own width (translateX(-level × 100%)) it slid to the wrong place and
+   covered its neighbour. */
+@container drive-app (max-width: 639px) {
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack > .sk-pane {
+    width: 100%;
+    max-width: 100%;
+  }
+}
 /* The design system folds a panes workspace into a column under 960px of
    viewport (its docs rule); a stacked workspace is a horizontal track of
    screens and must stay one, whatever the viewport. */
@@ -2091,18 +2102,44 @@
 }
 .sk-app .sk-invbook__subject { color: var(--sk-text-secondary); font-size: var(--sk-text-md); }
 
-/* The amount: a quiet card that also opens the invoice as it reads. */
-.sk-app .sk-invbook__total {
-  display: grid; gap: 2px; justify-items: start; text-align: left; font: inherit; color: inherit; cursor: pointer;
-  padding: var(--sk-space-4) var(--sk-space-5); background: var(--sk-surface-2);
+/* Two summary boxes side by side (stacked in a narrow pane): the amount with
+   net, VAT and gross; the dates. Quiet, not clickable. */
+.sk-app .sk-invbook__summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--sk-space-3); }
+.sk-app .sk-invbook__box {
+  display: flex; flex-direction: column; gap: var(--sk-space-1); min-width: 0;
+  padding: var(--sk-space-4); background: var(--sk-surface-2);
   border: 1px solid var(--sk-border-subtle); border-radius: var(--sk-radius-md);
-  transition: border-color 120ms ease, background 120ms ease;
 }
-.sk-app .sk-invbook__total:hover { background: var(--sk-surface-3); }
-.sk-app .sk-invbook__total.is-active { border-color: var(--sk-primary); }
-.sk-app .sk-invbook__amount { font-size: clamp(28px, 2.6vw, 38px); line-height: 1.1; letter-spacing: -0.02em; }
+.sk-app .sk-invbook__amount { font-size: clamp(26px, 2.4vw, 34px); line-height: 1.1; letter-spacing: -0.02em; }
 .sk-app .sk-invbook__standing { font-size: var(--sk-text-sm); color: var(--sk-text-secondary); }
-.sk-app .sk-invbook__rate { font-size: var(--sk-text-xs); color: var(--sk-text-muted); }
+.sk-app .sk-invbook__rows { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--sk-space-4); margin: var(--sk-space-2) 0 0; }
+.sk-app .sk-invbook__box:last-child .sk-invbook__rows { margin-top: var(--sk-space-1); }
+.sk-app .sk-invbook__rows .sk-invbook__fact { display: contents; }
+.sk-app .sk-invbook__rows dt { font-size: var(--sk-text-sm); color: var(--sk-text-secondary); }
+.sk-app .sk-invbook__rows dd { margin: 0; text-align: right; font-size: var(--sk-text-sm); font-weight: var(--sk-weight-medium); }
+.sk-app .sk-invbook__rows .is-strong dt,
+.sk-app .sk-invbook__rows .is-strong dd { color: var(--sk-text); font-weight: var(--sk-weight-semibold); border-top: 1px solid var(--sk-border); padding-top: var(--sk-space-1); }
+.sk-app .sk-invbook__rate { font-size: var(--sk-text-xs); color: var(--sk-text-muted); margin-top: calc(-1 * var(--sk-space-3)); }
+
+/* "Show beside": the invoice's own views as selectable rows, a radio each, the open one marked */
+.sk-app .sk-invbook__views { display: flex; flex-direction: column; border: 1px solid var(--sk-border); border-radius: var(--sk-radius-md); overflow: hidden; }
+.sk-app .sk-invbook__views > .sk-eyebrow { padding: var(--sk-space-2) var(--sk-space-4); background: var(--sk-surface-2); border-bottom: 1px solid var(--sk-border-subtle); }
+.sk-app .sk-invbook__view {
+  display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: var(--sk-space-3); align-items: center;
+  padding: var(--sk-space-3) var(--sk-space-4); font: inherit; color: inherit; text-align: left; cursor: pointer;
+  background: var(--sk-surface); border: 0; border-bottom: 1px solid var(--sk-border-subtle);
+  transition: background 120ms ease;
+}
+.sk-app .sk-invbook__view:last-child { border-bottom: 0; }
+.sk-app .sk-invbook__view:hover { background: var(--sk-surface-2); }
+.sk-app .sk-invbook__view.is-active { background: var(--sk-surface-3); }
+.sk-app .sk-invbook__view:focus-visible { outline: 2px solid var(--sk-primary); outline-offset: -2px; }
+.sk-app .sk-invbook__radio { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--sk-border-strong); background: var(--sk-surface); }
+.sk-app .sk-invbook__view.is-active .sk-invbook__radio { border-color: var(--sk-primary); box-shadow: inset 0 0 0 3.5px var(--sk-surface), inset 0 0 0 8px var(--sk-primary); }
+.sk-app .sk-invbook__view-text { display: grid; gap: 1px; min-width: 0; }
+.sk-app .sk-invbook__view-name { font-weight: var(--sk-weight-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk-app .sk-invbook__view-meta { font-size: var(--sk-text-xs); color: var(--sk-text-muted); }
+.sk-app .sk-invbook__view-go { color: var(--sk-text-muted); }
 
 /* Dates and such, on one line that wraps. */
 .sk-app .sk-invbook__facts { display: flex; flex-wrap: wrap; gap: var(--sk-space-3) var(--sk-space-6); margin: 0; }
@@ -2149,15 +2186,6 @@
 .sk-app .sk-invbook__mark { display: inline-grid; place-items: center; color: var(--sk-success); }
 .sk-app .sk-invbook__chevron { color: var(--sk-text-muted); }
 
-/* Net, VAT, total: only when there is VAT or rounding to show. */
-.sk-app .sk-invbook__sum {
-  display: grid; grid-template-columns: 1fr auto; gap: var(--sk-space-1) var(--sk-space-6); margin: 0;
-  padding-top: var(--sk-space-3); border-top: 1px solid var(--sk-border);
-}
-.sk-app .sk-invbook__sum .sk-invbook__fact { display: contents; }
-.sk-app .sk-invbook__sum dt { text-align: right; font-size: var(--sk-text-sm); color: var(--sk-text-secondary); }
-.sk-app .sk-invbook__sum dd { text-align: right; font-size: var(--sk-text-sm); }
-.sk-app .sk-invbook__sum .is-strong :is(dt, dd) { font-size: var(--sk-text-md); font-weight: var(--sk-weight-semibold); color: var(--sk-text); }
 
 /* The third column: a line, stepping up and down the invoice as it reads */
 .sk-app .sk-invbook__stepper { display: flex; align-items: center; gap: var(--sk-space-1); flex: 1; min-width: 0; }

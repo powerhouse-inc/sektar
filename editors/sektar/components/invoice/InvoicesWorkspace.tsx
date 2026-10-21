@@ -301,10 +301,10 @@ export function InvoicesWorkspace({
               state={state}
               now={now}
               activeLine={opened.kind === "line" ? opened.id : null}
-              invoiceOpen={opened.kind === "invoice"}
+              invoiceView={opened.kind === "invoice" ? opened.doc : null}
               onLine={openLine}
-              onInvoice={() => {
-                setOpened(invoiceView(state));
+              onInvoice={(doc) => {
+                setOpened({ kind: "invoice", doc });
                 setSidePref(false);
                 setLevel(3);
               }}
@@ -421,7 +421,7 @@ function InvoiceRead({
   state: s,
   now,
   activeLine,
-  invoiceOpen,
+  invoiceView,
   onLine,
   onInvoice,
 }: {
@@ -429,9 +429,10 @@ function InvoiceRead({
   state: InvoiceState;
   now: number;
   activeLine: string | null;
-  invoiceOpen: boolean;
+  /** The invoice view open beside (the PDF, or one of its documents); null while a line is */
+  invoiceView: string | null;
   onLine: (id: string) => void;
-  onInvoice: () => void;
+  onInvoice: (view: string) => void;
 }) {
   const open = useOpenInvoice(doc.header.id);
   const [dialog, setDialog] = useState<"issue" | "pay" | null>(null);
@@ -475,22 +476,61 @@ function InvoiceRead({
         </div>
       </header>
 
-      <button type="button" className={cx("sk-invbook__total", invoiceOpen && "is-active")} onClick={onInvoice} title="See the invoice as it reads">
-        <span className="sk-numeral sk-invbook__amount">{money(total, s.currency)}</span>
-        <span className={cx("sk-invbook__standing", overdue && "sk-text-danger")}>{standing}</span>
-        {s.vatCurrency && s.vatCurrency !== s.currency && s.exchangeRates[0] && (
-          <span className="sk-invbook__rate">
-            1 {s.exchangeRates[0].base} = {s.exchangeRates[0].rate} {s.exchangeRates[0].quote}
-          </span>
-        )}
-      </button>
+      {/* Two summary boxes: what it comes to, and when. */}
+      <div className="sk-invbook__summary">
+        <section className="sk-invbook__box" aria-label="Amount">
+          <div className="sk-eyebrow">Total incl. VAT</div>
+          <div className="sk-numeral sk-invbook__amount">{money(total, s.currency)}</div>
+          <div className={cx("sk-invbook__standing", overdue && "sk-text-danger")}>{standing}</div>
+          <dl className="sk-invbook__rows">
+            <Fact label="Net" value={money(t.net, s.currency)} />
+            {t.groups.length > 0 ? (
+              t.groups.map((g) => <Fact key={`${g.category}-${g.rate}`} label={`VAT ${g.rate}%`} value={money(g.tax, s.currency)} />)
+            ) : (
+              <Fact label="VAT" value={money(t.vat, s.currency)} />
+            )}
+            {t.rounding !== 0 && <Fact label="Rounding" value={money(t.rounding, s.currency)} />}
+            <Fact label="Gross" value={money(total, s.currency)} strong />
+          </dl>
+        </section>
+        <section className="sk-invbook__box" aria-label="Dates">
+          <div className="sk-eyebrow">Dates</div>
+          <dl className="sk-invbook__rows">
+            <Fact label="Issued" value={s.issuedAt ? fmtDate(s.issuedAt) : "—"} />
+            <Fact label="Due" value={s.dueAt ? fmtDate(s.dueAt) : "—"} tone={overdue ? "danger" : undefined} />
+            {s.period && <Fact label="Period" value={`${fmtShortDate(s.period.start)} – ${fmtShortDate(s.period.end)}`} />}
+            {s.deliveredAt && <Fact label="Delivered" value={fmtDate(s.deliveredAt)} />}
+            {s.payments.length > 0 && <Fact label="Paid" value={fmtDate(s.payments.at(-1)?.paidAt)} />}
+          </dl>
+        </section>
+      </div>
+      {s.vatCurrency && s.vatCurrency !== s.currency && s.exchangeRates[0] && (
+        <div className="sk-invbook__rate">
+          Exchange rate: 1 {s.exchangeRates[0].base} = {s.exchangeRates[0].rate} {s.exchangeRates[0].quote}
+        </div>
+      )}
 
-      <dl className="sk-invbook__facts">
-        <Fact label="Issued" value={s.issuedAt ? fmtDate(s.issuedAt) : "—"} />
-        <Fact label="Due" value={s.dueAt ? fmtDate(s.dueAt) : "—"} tone={overdue ? "danger" : undefined} />
-        {s.period && <Fact label="Period" value={`${fmtShortDate(s.period.start)} – ${fmtShortDate(s.period.end)}`} />}
-        {t.vat !== 0 && <Fact label="VAT" value={money(t.vat, s.currency)} />}
-      </dl>
+      {/* What the third column shows of the invoice itself: one of these, picked here or in its header. */}
+      <div className="sk-invbook__views" role="radiogroup" aria-label="Show beside">
+        <div className="sk-eyebrow">Show beside</div>
+        {[
+          { value: PDF, name: "Print/PDF", meta: "Preview" },
+          ...s.attachments.map((a) => ({ value: a.id, name: a.fileName, meta: roleLabel(a.role) })),
+        ].map((o) => {
+          const on = invoiceView === o.value;
+          return (
+            <button key={o.value} type="button" role="radio" aria-checked={on} className={cx("sk-invbook__view", on && "is-active")} onClick={() => onInvoice(o.value)}>
+              <span className="sk-invbook__radio" aria-hidden="true" />
+              <Icon name={o.value === PDF ? "invoice" : "upload"} size={16} mono />
+              <span className="sk-invbook__view-text">
+                <span className="sk-invbook__view-name">{o.name}</span>
+                <span className="sk-invbook__view-meta">{o.meta}</span>
+              </span>
+              <Icon name="chevron-right" size={16} mono className="sk-invbook__view-go" />
+            </button>
+          );
+        })}
+      </div>
 
       <div className="sk-invbook__actions">
         {/* The next step in the invoice's life, as the editor offers it. */}
@@ -541,14 +581,6 @@ function InvoiceRead({
         {s.lines.length === 0 && <p className="sk-small sk-text-muted">No lines yet.</p>}
       </section>
 
-      {(t.vat !== 0 || t.rounding !== 0) && (
-        <dl className="sk-invbook__sum">
-          <Fact label="Net" value={money(t.net, s.currency)} />
-          <Fact label="VAT" value={money(t.vat, s.currency)} />
-          {t.rounding !== 0 && <Fact label="Rounding" value={money(t.rounding, s.currency)} />}
-          <Fact label="Total" value={money(total, s.currency)} strong />
-        </dl>
-      )}
     </article>
   );
 }
