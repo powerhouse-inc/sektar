@@ -2111,8 +2111,12 @@
   border: 1px solid var(--sk-border-subtle); border-radius: var(--sk-radius-md);
 }
 .sk-app .sk-invbook__amount { font-size: clamp(26px, 2.4vw, 34px); line-height: 1.1; letter-spacing: -0.02em; }
+/* The currency before the figures: a lighter weight, half a character apart. */
+.sk-app .sk-invbook__cur { font-weight: 300; font-variation-settings: "opsz" 48, "SOFT" 30, "WONK" 0, "wght" 300; color: var(--sk-text-secondary); margin-right: 0.5ch; }
 .sk-app .sk-invbook__standing { font-size: var(--sk-text-sm); color: var(--sk-text-secondary); }
-.sk-app .sk-invbook__rows { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--sk-space-4); margin: var(--sk-space-2) 0 0; }
+/* No column gap (the figures carry their own room), so the rule above Gross runs unbroken. */
+.sk-app .sk-invbook__rows { display: grid; grid-template-columns: 1fr auto; gap: 2px 0; margin: var(--sk-space-2) 0 0; }
+.sk-app .sk-invbook__rows dd { padding-left: var(--sk-space-4); }
 .sk-app .sk-invbook__box:last-child .sk-invbook__rows { margin-top: var(--sk-space-1); }
 .sk-app .sk-invbook__rows .sk-invbook__fact { display: contents; }
 .sk-app .sk-invbook__rows dt { font-size: var(--sk-text-sm); color: var(--sk-text-secondary); }

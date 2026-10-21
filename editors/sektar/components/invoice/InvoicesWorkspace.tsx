@@ -480,7 +480,9 @@ function InvoiceRead({
       <div className="sk-invbook__summary">
         <section className="sk-invbook__box" aria-label="Amount">
           <div className="sk-eyebrow">Total incl. VAT</div>
-          <div className="sk-numeral sk-invbook__amount">{money(total, s.currency)}</div>
+          <div className="sk-numeral sk-invbook__amount">
+            <Amount text={money(total, s.currency)} />
+          </div>
           <div className={cx("sk-invbook__standing", overdue && "sk-text-danger")}>{standing}</div>
           <dl className="sk-invbook__rows">
             <Fact label="Net" value={money(t.net, s.currency)} />
@@ -582,6 +584,19 @@ function InvoiceRead({
       </section>
 
     </article>
+  );
+}
+
+/** A formatted amount with its currency ("US$", "€") set apart: lighter, half a character from the figures. */
+function Amount({ text }: { text: string }) {
+  const m = /^(-?)([^\d\s.,-]+)\s?(.+)$/.exec(text);
+  if (!m) return <>{text}</>;
+  return (
+    <>
+      {m[1]}
+      <span className="sk-invbook__cur">{m[2]}</span>
+      {m[3]}
+    </>
   );
 }
 
