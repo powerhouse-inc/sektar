@@ -5,7 +5,7 @@
 //                it stands, the dates, then its lines grouped by category
 //   what's open  a line, with its receipts, stepping line by line; or, with
 //                no line open, the invoice itself (the copy that was sent, or
-//                the paper for a draft) and the invoice's own documents
+//                the PDF preview for a draft) and the invoice's own documents
 // Side by side on a wide screen; one at a time under 640px of container
 // width, as a push navigation. Sales or Purchases is the "inbox" choice: a
 // sub-bar selector wide, a level-0 chooser opened from the list's title
@@ -27,7 +27,7 @@ import { Avatar, Button, cx, EmptyState, Icon, ListItem, Selector } from "../../
 import { Pane, PaneSwitch, SubBar, Workspace } from "../../kit/workspace.js";
 import { useDocumentLocation } from "../FilePreview.js";
 import { InvoiceStatusBadge } from "../InvoiceDetail.js";
-import { InvoicePaper } from "./InvoicePaper.js";
+import { InvoicePrintPreview } from "./InvoicePrintPreview.js";
 import { FilePreviewFrame } from "./InvoicePreview.js";
 import { SendActions } from "./SendActions.js";
 
@@ -47,9 +47,10 @@ const VIEWS: { value: View; label: string; pick: (s: InvoiceState, now: number) 
 
 const DIRECTION_NAME: Record<InvoiceDirection, string> = { OUTGOING: "Sales", INCOMING: "Purchases" };
 
-/** The third column: the invoice itself (the paper, or one of its documents by id), or a line by id. */
+/** The third column: the invoice itself (its PDF preview, or one of its documents by id), or a line by id. */
 type Open = { kind: "invoice"; doc: string } | { kind: "line"; id: string };
-const PAPER = "paper";
+/** The invoice as its PDF will print, from the print HTML */
+const PDF = "pdf";
 
 const isCurrent = (s: unknown): s is InvoiceState => typeof s === "object" && s !== null && "buyer" in s && "lines" in s;
 const lineAmount = (l: InvoiceLine) => Math.round(l.quantity * l.unitPrice * 100) / 100;
@@ -67,10 +68,10 @@ function groupLines(lines: readonly InvoiceLine[]): { name: string; lines: { lin
   return out;
 }
 
-/** What the third column opens on for an invoice: the copy that was sent, else the paper. */
+/** What the third column opens on for an invoice: the copy that was sent, else the PDF preview. */
 function invoiceView(s: InvoiceState): Open {
   const sent = s.attachments.find((a) => a.role === "ISSUED_COPY");
-  return { kind: "invoice", doc: sent?.id ?? PAPER };
+  return { kind: "invoice", doc: sent?.id ?? PDF };
 }
 
 export function InvoicesWorkspace({
@@ -92,7 +93,7 @@ export function InvoicesWorkspace({
   const [direction, setDirection] = useState<InvoiceDirection>("OUTGOING");
   const [view, setView] = useState<View>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [opened, setOpened] = useState<Open>({ kind: "invoice", doc: PAPER });
+  const [opened, setOpened] = useState<Open>({ kind: "invoice", doc: PDF });
   const [level, setLevel] = useState<Level>(1);
   const [listCollapsed, setListCollapsed] = useState(false);
   // null: decide for me, folded while the workspace is too narrow for three panes.
@@ -133,7 +134,7 @@ export function InvoicesWorkspace({
 
   const pick = (doc: InvoiceDocument) => {
     setSelectedId(doc.header.id);
-    setOpened(isCurrent(doc.state.global) ? invoiceView(doc.state.global) : { kind: "invoice", doc: PAPER });
+    setOpened(isCurrent(doc.state.global) ? invoiceView(doc.state.global) : { kind: "invoice", doc: PDF });
     setLevel(2);
   };
 
@@ -312,9 +313,9 @@ export function InvoicesWorkspace({
               <LineStepper at={lineAt} n={lines.indexOf(walk[lineAt]) + 1} count={walk.length} onStep={step} onClose={() => setOpened(invoiceView(state))} />
             ) : state ? (
               <Selector
-                value={opened.kind === "invoice" ? opened.doc : PAPER}
+                value={opened.kind === "invoice" ? opened.doc : PDF}
                 options={[
-                  { value: PAPER, name: "The invoice", meta: state.status === "DRAFT" ? "As it will read" : "As it reads" },
+                  { value: PDF, name: "The invoice", meta: state.status === "DRAFT" ? "PDF preview · draft" : "PDF preview" },
                   ...state.attachments.map((a) => ({ value: a.id, name: a.fileName, meta: roleLabel(a.role) })),
                 ]}
                 onChange={(doc) => setOpened({ kind: "invoice", doc })}
@@ -328,7 +329,7 @@ export function InvoicesWorkspace({
             opened.kind === "line" && lineAt >= 0 ? (
               <LineView key={opened.id} documentId={selected.header.id} state={state} line={walk[lineAt]} />
             ) : (
-              <InvoiceDocView documentId={selected.header.id} state={state} doc={opened.kind === "invoice" ? opened.doc : PAPER} />
+              <InvoiceDocView documentId={selected.header.id} state={state} doc={opened.kind === "invoice" ? opened.doc : PDF} />
             )
           ) : (
             <p className="sk-small sk-text-muted">A line and its receipt open here.</p>
@@ -630,9 +631,9 @@ function LineView({ documentId, state: s, line }: { documentId: string; state: I
   );
 }
 
-/** The invoice itself: as it reads (the paper), or one of its own documents. */
+/** The invoice itself: its PDF preview (from the print HTML), or one of its own documents. */
 function InvoiceDocView({ documentId, state: s, doc }: { documentId: string; state: InvoiceState; doc: string }) {
   const attachment = s.attachments.find((a) => a.id === doc);
   if (attachment) return <FilePreviewFrame key={attachment.id} documentId={documentId} attachment={attachment} />;
-  return <InvoicePaper state={s} className="sk-inv-paper--compact" />;
+  return <InvoicePrintPreview state={s} />;
 }

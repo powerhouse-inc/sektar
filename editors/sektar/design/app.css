@@ -2172,3 +2172,18 @@
   border: 1px dashed var(--sk-border); border-radius: var(--sk-radius-md); background: var(--sk-surface-2);
 }
 .sk-app .sk-invbook-line__none .sk-invbook__dot { margin-top: 6px; }
+
+/* The invoice's PDF preview: the print HTML on an A4 sheet, scaled to the
+   column and centred in it, with room below for the page's shadow. The sheet
+   clips the full-size frame (a transform does not shrink its layout box), so
+   nothing in it can widen the pane into a scrollbar. */
+.sk-app .sk-inv-print { width: 100%; display: flex; justify-content: center; padding: var(--sk-space-2) 0 var(--sk-space-6); }
+.sk-app .sk-inv-print__sheet {
+  flex: none; overflow: hidden; background: #fff; border-radius: 2px;
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.06),
+    0 1px 2px rgb(0 0 0 / 0.08),
+    0 6px 16px -4px rgb(0 0 0 / 0.14),
+    0 18px 40px -12px rgb(0 0 0 / 0.20);
+}
+.sk-app .sk-inv-print__sheet iframe { display: block; border: 0; transform-origin: 0 0; background: #fff; }
