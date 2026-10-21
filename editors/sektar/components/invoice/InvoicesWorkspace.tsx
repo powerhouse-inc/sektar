@@ -10,9 +10,11 @@
 // width, as a push navigation. Sales or Purchases is the "inbox" choice: a
 // sub-bar selector wide, a level-0 chooser opened from the list's title
 // when stacked. The top bar's search filters the list; a status menu narrows it.
-import { makeNodeSlug, openTarget } from "@powerhousedao/reactor-browser";
+import { dispatchActions, makeNodeSlug, openTarget, useAttachments } from "@powerhousedao/reactor-browser";
 import {
+  actions,
   computeTotals,
+  type InvoiceAction,
   type InvoiceDirection,
   type InvoiceDocument,
   type InvoiceLine,
@@ -21,7 +23,7 @@ import {
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFillHeight, useNarrow } from "../../../backfills/components/measure.js";
 import { counterparty, fmtDate, fmtShortDate, invoiceTotals, isOverdue, money, plural, relativeDays } from "../../kit/format.js";
-import { roleLabel } from "../../kit/invoice.js";
+import { attachFile, invoiceChecks, roleLabel } from "../../kit/invoice.js";
 import { LINE_HEADERS, printedLine, type PrintedLine } from "../../kit/invoice-print.js";
 import { Menu } from "../../kit/menu.js";
 import { Avatar, Button, cx, EmptyState, Icon, ListItem, Selector } from "../../kit/ui.js";
@@ -29,6 +31,7 @@ import { Pane, PaneSwitch, SubBar, Workspace } from "../../kit/workspace.js";
 import { useDocumentLocation } from "../FilePreview.js";
 import { InvoiceStatusBadge } from "../InvoiceDetail.js";
 import { InvoicePrintPreview } from "./InvoicePrintPreview.js";
+import { IssueDialog, PaymentDialog } from "./InvoiceWorkspace.js";
 import { FilePreviewFrame } from "./InvoicePreview.js";
 import { SendActions } from "./SendActions.js";
 
@@ -55,6 +58,12 @@ const PDF = "pdf";
 
 const isCurrent = (s: unknown): s is InvoiceState => typeof s === "object" && s !== null && "buyer" in s && "lines" in s;
 const lineAmount = (l: InvoiceLine) => Math.round(l.quantity * l.unitPrice * 100) / 100;
+/** The invoice pane's title: "Invoice #2026004" once issued ("Credit note #…", "Bill #…"), "Draft invoice" before. */
+function paneTitle(s: InvoiceState): string {
+  const kind = s.kind === "CREDIT_NOTE" ? "Credit note" : s.direction === "INCOMING" ? "Bill" : "Invoice";
+  return s.number ? `${kind} #${s.number}` : `Draft ${kind.toLowerCase()}`;
+}
+
 /** "612 ×", "51.75 ×": how many, in front of a line. */
 const qtyLabel = (q: number) => `${Number.isInteger(q) ? q : q.toFixed(2)} ×`;
 
@@ -271,7 +280,7 @@ export function InvoicesWorkspace({
           onBack={() => setLevel(1)}
           backLabel="Back to the list"
           // Issued: its number and where it stands. A draft is simply that.
-          title={selected ? (state?.number ?? "Draft invoice") : "Invoice"}
+          title={selected && state ? paneTitle(state) : "Invoice"}
           header={selected && state?.number && <InvoiceStatusBadge doc={selected} />}
         >
           {!selected ? (
@@ -335,7 +344,7 @@ export function InvoicesWorkspace({
             opened.kind === "line" && lineAt >= 0 ? (
               <LineView key={opened.id} documentId={selected.header.id} state={state} line={walk[lineAt]} />
             ) : (
-              <InvoiceDocView documentId={selected.header.id} state={state} doc={opened.kind === "invoice" ? opened.doc : PDF} />
+              <InvoiceDocView invoice={selected} state={state} doc={opened.kind === "invoice" ? opened.doc : PDF} />
             )
           ) : (
             <p className="sk-small sk-text-muted">A line and its receipt open here.</p>
@@ -425,6 +434,8 @@ function InvoiceRead({
   onInvoice: () => void;
 }) {
   const open = useOpenInvoice(doc.header.id);
+  const [dialog, setDialog] = useState<"issue" | "pay" | null>(null);
+  const dispatch = (action: InvoiceAction | InvoiceAction[]) => void dispatchActions(action, doc.header.id);
   const t = computeTotals(s);
   const total = t.gross + t.rounding;
   const other = counterparty(s);
@@ -482,11 +493,25 @@ function InvoiceRead({
       </dl>
 
       <div className="sk-invbook__actions">
+        {/* The next step in the invoice's life, as the editor offers it. */}
+        {s.status === "DRAFT" && (
+          <Button variant="primary" icon="arrow-right" disabled={s.lines.length === 0} onClick={() => setDialog("issue")}>
+            {s.direction === "INCOMING" ? "Approve the bill" : s.kind === "CREDIT_NOTE" ? "Issue the credit note" : "Issue the invoice"}
+          </Button>
+        )}
+        {s.status === "OPEN" && (
+          <Button variant="primary" icon="check" onClick={() => setDialog("pay")}>
+            Record a payment
+          </Button>
+        )}
         <Button variant="secondary" icon="arrow-up-right" disabled={!open} onClick={open ?? undefined}>
           Open in the editor
         </Button>
-        {s.direction === "OUTGOING" && <SendActions doc={doc} />}
       </div>
+      {dialog === "issue" && (
+        <IssueDialog doc={doc} checks={invoiceChecks(s)} dispatch={dispatch} onClose={() => setDialog(null)} onChecks={() => open?.()} />
+      )}
+      {dialog === "pay" && <PaymentDialog state={s} dispatch={dispatch} onClose={() => setDialog(null)} />}
 
       <section className="sk-invbook__lines" aria-label="Lines">
         <div className="sk-invbook__lines-head">
@@ -629,12 +654,44 @@ function LineStepper({ at, n, count, onStep, onClose }: { at: number; n: number;
 
 /** A line opened: its facts, then its receipts. */
 function LineView({ documentId, state: s, line }: { documentId: string; state: InvoiceState; line: InvoiceLine }) {
-  const [receipt, setReceipt] = useState(line.attachments[0]?.id ?? null);
+  const [receipt, setReceipt] = useState<string | null>(line.attachments[0]?.id ?? null);
   const shown = line.attachments.find((a) => a.id === receipt) ?? line.attachments[0];
   // The line as the PDF prints it: its headers, its cells; the currency said
   // once above the table, as the PDF says it above its lines.
   const p = printedLine(line, s.currency, { symbol: false });
   const widths = useColumnWidths(s);
+
+  // The line's receipts: added here (stored, then attached to the line) or removed, after a word.
+  const client = useAttachments();
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const closed = s.status === "VOID";
+  const add = async (files: FileList | null) => {
+    if (!client || !files?.length) return;
+    setBusy(true);
+    setError(null);
+    try {
+      for (const file of Array.from(files)) {
+        const id = await attachFile(client, documentId, file, { lineId: line.id, role: "RECEIPT" });
+        setReceipt(id);
+      }
+    } catch (e) {
+      setError(`Could not add it: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = () => {
+    if (!shown) return;
+    setConfirm(false);
+    setError(null);
+    dispatchActions(actions.removeAttachment({ id: shown.id }), documentId).catch((e: unknown) =>
+      setError(`Could not remove it: ${e instanceof Error ? e.message : String(e)}`),
+    );
+    setReceipt(line.attachments.find((a) => a.id !== shown.id)?.id ?? null);
+  };
   return (
     <div className="sk-invbook-line">
       <div className="sk-invbook-line__scroll">
@@ -686,12 +743,57 @@ function LineView({ documentId, state: s, line }: { documentId: string; state: I
       ) : (
         <div className="sk-invbook-line__none">
           <span className="sk-invbook__dot" aria-hidden="true" />
-          <div>
-            <div className="sk-weight-medium">No receipt on this line yet</div>
-            <div className="sk-caption">Attach one in the invoice editor; it shows here.</div>
+          <div className="sk-stack sk-stack--2">
+            <div>
+              <div className="sk-weight-medium">No receipt on this line yet</div>
+              <div className="sk-caption">{closed ? "A void invoice takes no documents." : "Add the receipt or invoice behind this cost."}</div>
+            </div>
+            {!closed && (
+              <span>
+                <Button size="sm" variant="primary" icon="upload" disabled={!client || busy} onClick={() => input.current?.click()}>
+                  {busy ? "Adding…" : "Add a receipt"}
+                </Button>
+              </span>
+            )}
           </div>
         </div>
       )}
+      {shown && !closed && (
+        <div className="sk-invbook-line__receipt-actions">
+          {confirm ? (
+            <>
+              <span className="sk-small">Remove {shown.fileName}?</span>
+              <Button size="sm" variant="danger" onClick={remove}>
+                Remove
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setConfirm(false)}>
+                Keep
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button size="sm" variant="ghost" icon="upload" disabled={!client || busy} onClick={() => input.current?.click()}>
+                {busy ? "Adding…" : "Add a receipt"}
+              </Button>
+              <Button size="sm" variant="ghost" icon="close" onClick={() => setConfirm(true)}>
+                Remove this receipt
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+      {error && <p className="sk-small sk-text-danger">{error}</p>}
+      <input
+        ref={input}
+        type="file"
+        multiple
+        accept=".pdf,image/*"
+        hidden
+        onChange={(e) => {
+          void add(e.target.files);
+          e.target.value = "";
+        }}
+      />
     </div>
   );
 }
@@ -714,9 +816,22 @@ function useColumnWidths(s: InvoiceState): number[] {
   }, [s.lines, s.currency]);
 }
 
-/** The invoice itself: its PDF preview (from the print HTML), or one of its own documents. */
-function InvoiceDocView({ documentId, state: s, doc }: { documentId: string; state: InvoiceState; doc: string }) {
+/**
+ * The invoice itself: its PDF preview (from the print HTML), with what is
+ * done with it — print or save it, bundle its receipts — or one of its own
+ * documents.
+ */
+function InvoiceDocView({ invoice, state: s, doc }: { invoice: InvoiceDocument; state: InvoiceState; doc: string }) {
   const attachment = s.attachments.find((a) => a.id === doc);
-  if (attachment) return <FilePreviewFrame key={attachment.id} documentId={documentId} attachment={attachment} />;
-  return <InvoicePrintPreview state={s} />;
+  if (attachment) return <FilePreviewFrame key={attachment.id} documentId={invoice.header.id} attachment={attachment} />;
+  return (
+    <div className="sk-invbook-pdf">
+      {s.direction === "OUTGOING" && (
+        <div className="sk-invbook-pdf__actions">
+          <SendActions doc={invoice} size="sm" />
+        </div>
+      )}
+      <InvoicePrintPreview state={s} />
+    </div>
+  );
 }

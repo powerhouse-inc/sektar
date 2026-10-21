@@ -2190,6 +2190,10 @@
   border: 1px dashed var(--sk-border); border-radius: var(--sk-radius-md); background: var(--sk-surface-2);
 }
 .sk-app .sk-invbook-line__none .sk-invbook__dot { margin-top: 6px; }
+.sk-app .sk-invbook-line__receipt-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sk-space-2); }
+/* The PDF preview with what is done with it (print or save, the receipts' zip) above the sheet */
+.sk-app .sk-invbook-pdf { display: flex; flex-direction: column; gap: var(--sk-space-2); }
+.sk-app .sk-invbook-pdf__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--sk-space-2); }
 
 /* The third column is where a receipt or the PDF is read: side by side it is
    never narrower than this (stacked it is the whole screen; folded, a strip). */

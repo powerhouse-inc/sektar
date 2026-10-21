@@ -497,7 +497,7 @@ const SECTION_LABEL: Record<Check["section"], string> = {
 
 /* -------------------------------------------------------------- dialogs */
 
-function IssueDialog({
+export function IssueDialog({
   doc,
   checks,
   onClose,
@@ -574,7 +574,8 @@ function IssueDialog({
   );
 }
 
-function PaymentDialog({ state, onClose, dispatch }: { state: InvoiceState; onClose: () => void; dispatch: Dispatch }) {
+/** Records a payment on an open invoice; also offered on the Invoices page. */
+export function PaymentDialog({ state, onClose, dispatch }: { state: InvoiceState; onClose: () => void; dispatch: Dispatch }) {
   const due = Math.max(0, computeTotals(state).due);
   const [amount, setAmount] = useState(due ? String(due) : "");
   const [date, setDate] = useState(toDateInput(new Date().toISOString()));
