@@ -410,7 +410,12 @@ function InvoiceRowImpl({ doc, now, selected, onClick }: { doc: InvoiceDocument;
       : s.status === "PAID"
         ? `paid ${fmtShortDate(s.payments.at(-1)?.paidAt)}`
         : s.status === "DRAFT"
-          ? "not issued"
+          ? // What the draft covers: its delivery, else its period, else nothing yet.
+            s.deliveredAt
+            ? `delivered ${fmtShortDate(s.deliveredAt)}`
+            : s.period?.start || s.period?.end
+              ? `${fmtShortDate(s.period.start) || "…"} – ${fmtShortDate(s.period.end) || "…"}`
+              : "no date"
           : "void";
   return (
     <ListItem
@@ -422,11 +427,10 @@ function InvoiceRowImpl({ doc, now, selected, onClick }: { doc: InvoiceDocument;
       icon={<Avatar name={name} variant={s.direction === "OUTGOING" ? "sage" : "forest"} />}
       title={
         <span className={cx(s.status === "VOID" && "sk-text-muted")}>
-          {s.number && (
-            <Badge tone="outline" className="sk-invoices__number">
-              #{s.number}
-            </Badge>
-          )}
+          {/* The number as a label; a draft has none yet, so its label is just the hash. */}
+          <Badge tone="outline" className="sk-invoices__number">
+            #{s.number ?? ""}
+          </Badge>
           {name}
         </span>
       }
