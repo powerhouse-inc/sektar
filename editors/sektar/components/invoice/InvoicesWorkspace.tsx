@@ -568,7 +568,8 @@ function InvoiceRead({
             Record a payment
           </Button>
         )}
-        <Button variant="secondary" icon="arrow-up-right" disabled={!open} onClick={open ?? undefined}>
+        {/* Not on a phone (stacked): the editor is a desktop tool. */}
+        <Button variant="secondary" icon="arrow-up-right" className="sk-stack-hide" disabled={!open} onClick={open ?? undefined}>
           Open in the editor
         </Button>
       </div>
