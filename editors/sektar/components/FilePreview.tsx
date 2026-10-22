@@ -184,9 +184,12 @@ export interface StoredFile {
 export function StoredFilePreview({
   documentId,
   file,
+  label,
 }: {
   documentId: string;
   file: StoredFile;
+  /** In the toolbar in place of the type tile and file name (when a picker above names the file) */
+  label?: ReactNode;
 }) {
   const client = useAttachments();
   const preview = useAttachmentPreview({ documentId, ref: file.ref as `attachment://v${number}:${string}` });
@@ -201,8 +204,12 @@ export function StoredFilePreview({
   return (
     <div className="sk-preview sk-file-preview">
       <div className="sk-preview__toolbar">
-        <FileTypeTile kind={kind} small />
-        <span className="sk-file-preview__name">{file.fileName}</span>
+        {label ?? (
+          <>
+            <FileTypeTile kind={kind} small />
+            <span className="sk-file-preview__name">{file.fileName}</span>
+          </>
+        )}
         <span className="sk-grow" />
         {url && (
           <a

@@ -28,7 +28,8 @@ import { LINE_HEADERS, printedLine, type PrintedLine } from "../../kit/invoice-p
 import { Menu } from "../../kit/menu.js";
 import { Avatar, Badge, Button, cx, EmptyState, Icon, ListItem, Selector } from "../../kit/ui.js";
 import { Pane, PaneSwitch, SubBar, Workspace } from "../../kit/workspace.js";
-import { useDocumentLocation } from "../FilePreview.js";
+import { bytes, fileKind } from "../../kit/files.js";
+import { FileTypeTile, useDocumentLocation } from "../FilePreview.js";
 import { InvoiceStatusBadge } from "../InvoiceDetail.js";
 import { InvoicePrintPreview } from "./InvoicePrintPreview.js";
 import { IssueDialog, PaymentDialog } from "./InvoiceWorkspace.js";
@@ -369,8 +370,14 @@ export function InvoicesWorkspace({
                 value={opened.kind === "invoice" ? opened.doc : PDF}
                 options={[
                   // Two lines, like the documents' tiles (name and role), so it sits on the header's edge as they do.
-                  { value: PDF, name: "Print/PDF", meta: "Preview" },
-                  ...state.attachments.map((a) => ({ value: a.id, name: a.fileName, meta: roleLabel(a.role) })),
+                  { value: PDF, name: "Print/PDF", meta: "Preview", media: <FileTypeTile kind="pdf" small /> },
+                  // The file, with its type, here; what it is goes in the preview's toolbar below.
+                  ...state.attachments.map((a) => ({
+                    value: a.id,
+                    name: a.fileName,
+                    meta: bytes(a.sizeBytes) || a.mimeType,
+                    media: <FileTypeTile kind={fileKind(a.mimeType, a.fileName)} small />,
+                  })),
                 ]}
                 onChange={(doc) => setOpened({ kind: "invoice", doc })}
                 label="Invoice document"
@@ -862,7 +869,6 @@ function LineView({ documentId, state: s, line }: { documentId: string; state: I
   return (
     <div className="sk-invbook-line">
       <div className="sk-invbook-line__scroll">
-        <div className="sk-invbook-line__currency">All amounts in {s.currency}</div>
         {/* Column widths fixed for the whole invoice (fitted to its largest
             figures): stepping from line to line, the columns stay put. */}
         {/* The description keeps at least 5em: an invoice with huge figures scrolls sideways rather than crushing it. */}
@@ -896,6 +902,7 @@ function LineView({ documentId, state: s, line }: { documentId: string; state: I
             </tr>
           </tbody>
         </table>
+        <div className="sk-invbook-line__currency">All amounts in {s.currency}</div>
       </div>
       {line.attachments.length > 1 && (
         <Selector
@@ -990,7 +997,7 @@ function useColumnWidths(s: InvoiceState): number[] {
  */
 function InvoiceDocView({ invoice, state: s, doc }: { invoice: InvoiceDocument; state: InvoiceState; doc: string }) {
   const attachment = s.attachments.find((a) => a.id === doc);
-  if (attachment) return <FilePreviewFrame key={attachment.id} documentId={invoice.header.id} attachment={attachment} />;
+  if (attachment) return <FilePreviewFrame key={attachment.id} documentId={invoice.header.id} attachment={attachment} named />;
   return (
     <div className="sk-invbook-pdf">
       {s.direction === "OUTGOING" && (

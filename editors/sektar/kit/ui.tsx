@@ -656,6 +656,8 @@ export function Selector<T extends string>({
     name: ReactNode;
     meta?: ReactNode;
     icon?: IconName;
+    /** In place of the icon: any small leading element, e.g. a file-type tile */
+    media?: ReactNode;
   }[];
   onChange: (value: T) => void;
   label?: string;
@@ -694,7 +696,7 @@ export function Selector<T extends string>({
     options.find((o) => o.value === value) ?? options[0];
   const tile = (o: (typeof options)[number]) => (
     <>
-      {o.icon && <IconTile name={o.icon} size="sm" />}
+      {o.media ?? (o.icon && <IconTile name={o.icon} size="sm" />)}
       <div>
         <div className="sk-selector__name">{o.name}</div>
         {o.meta && <div className="sk-selector__meta">{o.meta}</div>}

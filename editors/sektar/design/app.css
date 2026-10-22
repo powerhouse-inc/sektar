@@ -2257,7 +2257,8 @@
    the description taking what is left: the columns do not move from line to
    line. In a narrow column the description wraps rather than the table scrolling. */
 .sk-app .sk-invbook-line__table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: var(--sk-text-2xs); line-height: 1.4; }
-.sk-app .sk-invbook-line__currency { font-size: var(--sk-text-2xs); font-style: italic; color: var(--sk-text-muted); margin-bottom: var(--sk-space-1); }
+/* Under the table, at its right edge, as a footnote to the figures */
+.sk-app .sk-invbook-line__currency { font-size: var(--sk-text-2xs); font-style: italic; color: var(--sk-text-muted); text-align: right; margin-top: var(--sk-space-1); }
 .sk-app .sk-invbook-line__table td:first-child { overflow-wrap: anywhere; }
 .sk-app .sk-invbook-line__table th {
   text-align: left; vertical-align: bottom; line-height: 1.25;

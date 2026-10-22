@@ -7,11 +7,24 @@ import { roleLabel } from "../../kit/invoice.js";
 import { Badge, Icon } from "../../kit/ui.js";
 import { LinkedDocumentPreview, StoredFilePreview } from "../FilePreview.js";
 
-export function FilePreviewFrame({ documentId, attachment: a }: { documentId: string; attachment: InvoiceAttachment }) {
+export function FilePreviewFrame({
+  documentId,
+  attachment: a,
+  named,
+}: {
+  documentId: string;
+  attachment: InvoiceAttachment;
+  /** A picker above already names the file: what it is takes the file name's place in the toolbar */
+  named?: boolean;
+}) {
+  const role = <Badge tone="outline">{roleLabel(a.role)}</Badge>;
+  const details = [a.description, a.mimeType, bytes(a.sizeBytes), `added ${fmtDate(a.addedAt)}`].filter(Boolean).join(" · ");
+  // Named by a picker: the role in the toolbar (where the name was), the details still at the bottom.
+  const toolbarRole = named && a.ref;
   return (
     <div className="sk-inv-docview">
       {a.ref ? (
-        <StoredFilePreview documentId={documentId} file={{ ref: a.ref, fileName: a.fileName, mimeType: a.mimeType }} />
+        <StoredFilePreview documentId={documentId} file={{ ref: a.ref, fileName: a.fileName, mimeType: a.mimeType }} label={toolbarRole ? role : undefined} />
       ) : a.documentId ? (
         <LinkedDocumentPreview documentId={a.documentId} documentType={null} documentName={a.fileName} />
       ) : a.url ? (
@@ -26,10 +39,8 @@ export function FilePreviewFrame({ documentId, attachment: a }: { documentId: st
         </a>
       ) : null}
       <div className="sk-inv-docview__about">
-        <Badge tone="outline">{roleLabel(a.role)}</Badge>
-        <span className="sk-caption">
-          {[a.description, a.mimeType, bytes(a.sizeBytes), `added ${fmtDate(a.addedAt)}`].filter(Boolean).join(" · ")}
-        </span>
+        {!toolbarRole && role}
+        <span className="sk-caption">{details}</span>
       </div>
     </div>
   );
