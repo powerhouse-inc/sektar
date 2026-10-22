@@ -1476,6 +1476,9 @@
 /* ----- previews ---------------------------------------------------------- */
 .sk-app .sk-file-preview { display: flex; flex-direction: column; gap: var(--sk-space-3); min-width: 0; }
 .sk-app .sk-file-preview__name { font-size: var(--sk-text-sm); font-weight: var(--sk-weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* A file name with a line under it (e.g. the supplier's reference) */
+.sk-app .sk-file-preview__titles { display: grid; gap: 2px; min-width: 0; justify-items: start; }
+.sk-app .sk-file-preview__subtitle { display: flex; min-width: 0; max-width: 100%; }
 .sk-app .sk-file-preview__stage {
   border: 1px solid var(--sk-border-subtle); border-radius: var(--sk-radius-lg);
   background-color: var(--sk-bg-subtle);
@@ -2267,7 +2270,15 @@
 .sk-app .sk-invbook__qty { min-width: 2.25em; color: var(--sk-text-muted); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .sk-app .sk-invbook__line-main { display: grid; gap: 2px; min-width: 0; }
 .sk-app .sk-invbook__line-desc { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.35; }
-.sk-app .sk-invbook__line-meta { font-size: var(--sk-text-xs); color: var(--sk-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk-app .sk-invbook__line-meta { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--sk-text-xs); color: var(--sk-text-muted); }
+.sk-app .sk-invbook__line-meta-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk-app .sk-invbook__line-meta-text:empty { display: none; }
+/* The supplier's invoice or receipt number: a compact label, kept whole. */
+.sk-app .sk-badge.sk-invbook__ref {
+  flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--sk-text-2xs); line-height: 1.5; padding: 0 5px;
+  font-variant-numeric: tabular-nums; letter-spacing: 0; color: var(--sk-text-muted);
+}
 .sk-app .sk-invbook__line-amount { display: grid; justify-items: end; gap: 1px; min-width: 0; font-weight: var(--sk-weight-medium); white-space: nowrap; }
 /* Under a forward-billed line's total: what it cost, times the rate. */
 /* In a tight pane the rate formula wraps under the total, rather than pushing the row past the pane */

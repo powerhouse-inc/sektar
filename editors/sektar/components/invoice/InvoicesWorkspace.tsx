@@ -779,6 +779,7 @@ function LineRow({
   const original = line.original && line.original.currency !== currency ? line.original : null;
   const factor = original ? (original.rate ?? rate(original.currency)) : null;
   const receipts = line.attachments.length;
+  const reference = line.original?.reference;
   return (
     <button
       type="button"
@@ -794,10 +795,17 @@ function LineRow({
       </span>
       <span className="sk-invbook__line-main">
         <span className="sk-invbook__line-desc">{line.description}</span>
-        {/* More than one: what one costs, under what it is. */}
-        {(line.quantity !== 1 || line.note) && (
+        {/* Under what it is: the supplier's reference, and, for more than one, what one costs. */}
+        {(reference || line.quantity !== 1 || line.note) && (
           <span className="sk-invbook__line-meta">
-            {[line.quantity !== 1 ? `Unit cost: ${money(line.unitPrice, currency)}` : null, line.note].filter(Boolean).join(" · ")}
+            {reference && (
+              <Badge tone="outline" className="sk-invbook__ref">
+                {reference}
+              </Badge>
+            )}
+            <span className="sk-invbook__line-meta-text">
+              {[line.quantity !== 1 ? `Unit cost: ${money(line.unitPrice, currency)}` : null, line.note].filter(Boolean).join(" · ")}
+            </span>
           </span>
         )}
       </span>
@@ -934,7 +942,18 @@ function LineView({ documentId, state: s, line }: { documentId: string; state: I
         />
       )}
       {shown ? (
-        <FilePreviewFrame key={shown.id} documentId={documentId} attachment={shown} />
+        <FilePreviewFrame
+          key={shown.id}
+          documentId={documentId}
+          attachment={shown}
+          subtitle={
+            line.original?.reference && (
+              <Badge tone="outline" className="sk-invbook__ref">
+                {line.original.reference}
+              </Badge>
+            )
+          }
+        />
       ) : (
         <div className="sk-invbook-line__none">
           <span className="sk-invbook__dot" aria-hidden="true" />

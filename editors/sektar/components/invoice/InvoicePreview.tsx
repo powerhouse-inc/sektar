@@ -1,6 +1,7 @@
 // One attached document in the preview pane: its bytes (PDF, image, text),
 // the document it links to, or the link itself; then what it is.
 import type { InvoiceAttachment } from "document-models/invoice";
+import type { ReactNode } from "react";
 import { bytes } from "../../kit/files.js";
 import { fmtDate } from "../../kit/format.js";
 import { roleLabel } from "../../kit/invoice.js";
@@ -11,11 +12,14 @@ export function FilePreviewFrame({
   documentId,
   attachment: a,
   named,
+  subtitle,
 }: {
   documentId: string;
   attachment: InvoiceAttachment;
   /** A picker above already names the file: what it is takes the file name's place in the toolbar */
   named?: boolean;
+  /** Under the file name in the toolbar, e.g. the supplier's reference */
+  subtitle?: ReactNode;
 }) {
   const role = <Badge tone="outline">{roleLabel(a.role)}</Badge>;
   const details = [a.description, a.mimeType, bytes(a.sizeBytes), `added ${fmtDate(a.addedAt)}`].filter(Boolean).join(" · ");
@@ -24,7 +28,7 @@ export function FilePreviewFrame({
   return (
     <div className="sk-inv-docview">
       {a.ref ? (
-        <StoredFilePreview documentId={documentId} file={{ ref: a.ref, fileName: a.fileName, mimeType: a.mimeType }} label={toolbarRole ? role : undefined} />
+        <StoredFilePreview documentId={documentId} file={{ ref: a.ref, fileName: a.fileName, mimeType: a.mimeType }} label={toolbarRole ? role : undefined} subtitle={subtitle} />
       ) : a.documentId ? (
         <LinkedDocumentPreview documentId={a.documentId} documentType={null} documentName={a.fileName} />
       ) : a.url ? (

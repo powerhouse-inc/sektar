@@ -185,11 +185,14 @@ export function StoredFilePreview({
   documentId,
   file,
   label,
+  subtitle,
 }: {
   documentId: string;
   file: StoredFile;
   /** In the toolbar in place of the type tile and file name (when a picker above names the file) */
   label?: ReactNode;
+  /** Under the file name in the toolbar */
+  subtitle?: ReactNode;
 }) {
   const client = useAttachments();
   const preview = useAttachmentPreview({ documentId, ref: file.ref as `attachment://v${number}:${string}` });
@@ -207,7 +210,14 @@ export function StoredFilePreview({
         {label ?? (
           <>
             <FileTypeTile kind={kind} small />
-            <span className="sk-file-preview__name">{file.fileName}</span>
+            {subtitle ? (
+              <span className="sk-file-preview__titles">
+                <span className="sk-file-preview__name">{file.fileName}</span>
+                <span className="sk-file-preview__subtitle">{subtitle}</span>
+              </span>
+            ) : (
+              <span className="sk-file-preview__name">{file.fileName}</span>
+            )}
           </>
         )}
         <span className="sk-grow" />
