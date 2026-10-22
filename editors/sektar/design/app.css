@@ -2153,6 +2153,9 @@
 .sk-app .sk-invbook__figs .is-strong dt,
 .sk-app .sk-invbook__figs .is-strong dd { color: var(--sk-text); font-weight: var(--sk-weight-semibold); border-top: 1px solid var(--sk-border); padding-top: var(--sk-space-1); }
 
+/* The list: an issued invoice's number in front of the counterparty, quieter than the name */
+.sk-app .sk-invoices__number { color: var(--sk-text-secondary); font-weight: var(--sk-weight-regular); font-variant-numeric: tabular-nums; margin-right: 0.5ch; }
+
 /* "Show beside": the invoice's own views as selectable rows, a radio each, the open one marked */
 .sk-app .sk-invbook__views { display: flex; flex-direction: column; border: 1px solid var(--sk-border); border-radius: var(--sk-radius-md); overflow: hidden; }
 .sk-app .sk-invbook__views > .sk-eyebrow { padding: var(--sk-space-2) var(--sk-space-4); background: var(--sk-surface-2); border-bottom: 1px solid var(--sk-border-subtle); }

@@ -67,6 +67,28 @@ function paneTitle(s: InvoiceState): string {
 /** "612 ×", "51.75 ×": how many, in front of a line. */
 const qtyLabel = (q: number) => `${Number.isInteger(q) ? q : q.toFixed(2)} ×`;
 
+/**
+ * The list's order: drafts on top, latest first by what they cover (the
+ * delivery date, else the period's end, else its start, else when made);
+ * then the issued, by number, highest first ("2026010" before "2026009",
+ * a supplier's "INV-10" after "INV-9").
+ */
+function byListOrder(a: InvoiceDocument, b: InvoiceDocument): number {
+  const x = a.state.global;
+  const y = b.state.global;
+  const draftX = !x.number;
+  const draftY = !y.number;
+  if (draftX !== draftY) return draftX ? -1 : 1;
+  if (draftX) {
+    const when = (d: InvoiceDocument) => {
+      const s = d.state.global;
+      return s.deliveredAt ?? s.period?.end ?? s.period?.start ?? d.header.createdAtUtcIso;
+    };
+    return when(b).localeCompare(when(a));
+  }
+  return (y.number ?? "").localeCompare(x.number ?? "", undefined, { numeric: true });
+}
+
 /** A rate to at most 6 decimals, however precisely it is stored: 0.09186653286 → 0.091867. */
 const fmtRate = (rate: number) => String(Math.round(rate * 1e6) / 1e6);
 
@@ -150,9 +172,7 @@ export function InvoicesWorkspace({
         .filter((i) => i.state.global.direction === direction)
         .filter((i) => pickView.pick(i.state.global, now))
         .filter(query)
-        .sort((a, b) =>
-          (b.state.global.issuedAt ?? b.header.createdAtUtcIso).localeCompare(a.state.global.issuedAt ?? a.header.createdAtUtcIso),
-        ),
+        .sort(byListOrder),
     [invoices, direction, pickView, now, query],
   );
 
@@ -400,10 +420,15 @@ function InvoiceRowImpl({ doc, now, selected, onClick }: { doc: InvoiceDocument;
       // Stacked, this row leads to the invoice screen: the chevron says so.
       drill={2}
       icon={<Avatar name={name} variant={s.direction === "OUTGOING" ? "sage" : "forest"} />}
-      title={<span className={cx(s.status === "VOID" && "sk-text-muted")}>{name}</span>}
+      title={
+        <span className={cx(s.status === "VOID" && "sk-text-muted")}>
+          {s.number && <span className="sk-invoices__number">#{s.number}</span>}
+          {name}
+        </span>
+      }
       sub={[
         <span key="what" style={{ color: "var(--sk-text)" }}>
-          {s.number ?? "Draft"} · {s.subject ?? s.lines[0]?.description ?? "No lines"}
+          {s.subject ?? s.lines[0]?.description ?? "No lines"}
         </span>,
         <span key="when" className={cx(overdue && "sk-text-danger")}>
           {s.issuedAt ? `${fmtShortDate(s.issuedAt)} · ` : ""}
