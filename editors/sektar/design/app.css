@@ -2123,11 +2123,14 @@
    height; a date that can change is an input that reads like text until
    hovered or focused. */
 .sk-app .sk-invbook__box--dates .sk-invbook__dates { display: flex; flex-direction: column; gap: var(--sk-space-1); margin: var(--sk-space-2) 0 0; }
-/* The invoice's own dates (issued, due, paid): a quiet inset panel of their
-   own under the delivery dates, labels in the text colour, a touch more weight. */
+/* The invoice's own dates (issued, due, paid): the white lower part of the
+   card, edge to edge, set off by a divider across it — no box in a box; the
+   card's own corners round it off. Labels in the text colour, a touch more weight. */
+.sk-app .sk-invbook__box--dates { overflow: hidden; }
 .sk-app .sk-invbook__box--dates .sk-invbook__dates--life {
-  margin-top: var(--sk-space-3); padding: var(--sk-space-1) var(--sk-space-3);
-  background: var(--sk-surface); border: 1px solid var(--sk-border-subtle); border-radius: var(--sk-radius-sm);
+  margin: var(--sk-space-3) calc(-1 * var(--sk-space-4)) calc(-1 * var(--sk-space-4));
+  padding: var(--sk-space-1) var(--sk-space-4) var(--sk-space-2);
+  background: var(--sk-surface); border-top: 1px solid var(--sk-border-subtle);
 }
 .sk-app .sk-invbook__dates--life .sk-invbook__date-row dt { color: var(--sk-text); font-weight: var(--sk-weight-medium); }
 .sk-app .sk-invbook__dates--life .sk-invbook__date-row dd { font-weight: var(--sk-weight-semibold); }
