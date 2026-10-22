@@ -84,6 +84,7 @@ export type AddLineInput = {
   originalAmount?: InputMaybe<Scalars["Float"]["input"]>;
   originalCurrency?: InputMaybe<Scalars["String"]["input"]>;
   originalRate?: InputMaybe<Scalars["Float"]["input"]>;
+  originalReference?: InputMaybe<Scalars["String"]["input"]>;
   periodEnd?: InputMaybe<Scalars["DateTime"]["input"]>;
   periodStart?: InputMaybe<Scalars["DateTime"]["input"]>;
   position?: InputMaybe<Scalars["Int"]["input"]>;
@@ -279,6 +280,8 @@ export type OriginalAmount = {
   currency: Scalars["String"]["output"];
   /** 1 original currency = rate invoice currency; null uses the invoice's exchange rates */
   rate: Maybe<Scalars["Float"]["output"]>;
+  /** The supplier's invoice or receipt number */
+  reference: Maybe<Scalars["String"]["output"]>;
 };
 
 export type Payment = {
@@ -447,6 +450,7 @@ export type UpdateLineInput = {
   originalAmount?: InputMaybe<Scalars["Float"]["input"]>;
   originalCurrency?: InputMaybe<Scalars["String"]["input"]>;
   originalRate?: InputMaybe<Scalars["Float"]["input"]>;
+  originalReference?: InputMaybe<Scalars["String"]["input"]>;
   periodEnd?: InputMaybe<Scalars["DateTime"]["input"]>;
   periodStart?: InputMaybe<Scalars["DateTime"]["input"]>;
   quantity?: InputMaybe<Scalars["Float"]["input"]>;

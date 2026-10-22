@@ -430,7 +430,12 @@ function LineModal({
     const amount = parseNumber(d.originalAmount);
     const own = d.ownRate ? parseNumber(d.originalRate) : null;
     const original = d.rebill
-      ? { amount: amount ?? 0, currency: d.originalCurrency.trim().toUpperCase(), rate: own }
+      ? {
+          amount: amount ?? 0,
+          currency: d.originalCurrency.trim().toUpperCase(),
+          rate: own,
+          reference: line?.original?.reference ?? null,
+        }
       : null;
     const rate = original
       ? (original.rate ?? findRate(state.exchangeRates, original.currency, cur))

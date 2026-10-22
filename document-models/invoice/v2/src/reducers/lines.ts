@@ -42,7 +42,8 @@ function updated(line: InvoiceLine, i: UpdateLineInput): InvoiceLine {
   } else if (
     i.originalAmount !== undefined ||
     i.originalCurrency !== undefined ||
-    i.originalRate !== undefined
+    i.originalRate !== undefined ||
+    i.originalReference !== undefined
   ) {
     const amount = i.originalAmount ?? next.original?.amount;
     const currency =
@@ -53,11 +54,15 @@ function updated(line: InvoiceLine, i: UpdateLineInput): InvoiceLine {
       i.originalRate !== undefined
         ? i.originalRate
         : (next.original?.rate ?? null);
+    const reference =
+      i.originalReference !== undefined
+        ? text(i.originalReference)
+        : (next.original?.reference ?? null);
     if (amount === undefined || !currency)
       throw new InvalidLineError(
         "A forward-billed cost needs an amount and a currency",
       );
-    next.original = { amount, currency, rate };
+    next.original = { amount, currency, rate, reference };
   }
   return next;
 }
@@ -95,6 +100,7 @@ export const invoiceLinesOperations: InvoiceLinesOperations = {
               amount,
               currency: originalCurrency,
               rate: i.originalRate ?? null,
+              reference: text(i.originalReference),
             }
           : null,
       attachments: [],

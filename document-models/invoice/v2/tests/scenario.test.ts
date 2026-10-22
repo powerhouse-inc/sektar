@@ -126,6 +126,7 @@ describe("forward billing in USD, VAT reported in EUR", () => {
         category: "Software",
         originalAmount: 185.13,
         originalCurrency: "eur",
+        originalReference: " TOGGL-2124239 ",
       }),
       line("heroku", {
         description: "Software - Heroku",
@@ -167,7 +168,8 @@ describe("forward billing in USD, VAT reported in EUR", () => {
       remittance: "2026002",
     });
     // The EUR cost is converted at the invoice's rate: 185.13 EUR × 1.173094 = 217.17 USD.
-    expect(s.lines[0].original).toEqual({ amount: 185.13, currency: "EUR", rate: null });
+    expect(s.lines[0].original).toEqual({ amount: 185.13, currency: "EUR", rate: null, reference: "TOGGL-2124239" });
+    expect(s.lines[1].original).toBeNull();
     expect(s.lines[0].unitPrice).toBe(217.17);
     expect(s.lines[0].unitCode).toBe("C62");
     expect(s.lines[1].period).toEqual({ start: "2026-01-01T00:00:00.000Z", end: null });
@@ -194,6 +196,13 @@ describe("forward billing in USD, VAT reported in EUR", () => {
       updateLine({ id: "toggl", originalAmount: 185.13 }),
     );
     expect(doc.state.global.lines[0].unitPrice).toBe(217.17);
+    // The supplier's reference survives the re-pricing; it changes and clears on its own.
+    expect(doc.state.global.lines[0].original?.reference).toBe("TOGGL-2124239");
+    doc = apply(doc, updateLine({ id: "toggl", originalReference: "TOGGL-2124240" }));
+    expect(doc.state.global.lines[0].original).toEqual({ amount: 185.13, currency: "EUR", rate: null, reference: "TOGGL-2124240" });
+    doc = apply(doc, updateLine({ id: "toggl", originalReference: " " }));
+    expect(doc.state.global.lines[0].original?.reference).toBeNull();
+    doc = apply(doc, updateLine({ id: "toggl", originalReference: "TOGGL-2124239" }));
 
     // Exemption reasons per category; the reverse charge needs one.
     doc = apply(
@@ -408,6 +417,7 @@ describe("what the reducers refuse", () => {
     doc = rejects(doc, line("x", { originalAmount: 5, originalCurrency: "USD", originalRate: -1 }), /must be positive/);
     doc = rejects(doc, updateLine({ id: "nope" }), /No such line/);
     doc = rejects(doc, updateLine({ id: "l1", originalRate: 2 }), /amount and a currency/);
+    doc = rejects(doc, updateLine({ id: "l1", originalReference: "INV-1" }), /amount and a currency/);
     doc = rejects(doc, updateLine({ id: "l1", quantity: 0 }), /other than zero/);
     doc = rejects(doc, removeLine({ id: "nope" }), /No such line/);
     doc = rejects(doc, moveLine({ id: "nope", index: 0 }), /No such line/);

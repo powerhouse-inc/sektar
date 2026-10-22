@@ -121,6 +121,7 @@ export function AddLineInputSchema(): z.ZodObject<Properties<AddLineInput>> {
     originalAmount: z.number().nullish(),
     originalCurrency: z.string().nullish(),
     originalRate: z.number().nullish(),
+    originalReference: z.string().nullish(),
     periodEnd: z.iso.datetime().nullish(),
     periodStart: z.iso.datetime().nullish(),
     position: z.number().nullish(),
@@ -300,6 +301,7 @@ export function OriginalAmountSchema(): z.ZodObject<
     amount: z.number(),
     currency: z.string(),
     rate: z.number().nullish(),
+    reference: z.string().nullish(),
   });
 }
 
@@ -532,6 +534,7 @@ export function UpdateLineInputSchema(): z.ZodObject<
     originalAmount: z.number().nullish(),
     originalCurrency: z.string().nullish(),
     originalRate: z.number().nullish(),
+    originalReference: z.string().nullish(),
     periodEnd: z.iso.datetime().nullish(),
     periodStart: z.iso.datetime().nullish(),
     quantity: z.number().nullish(),

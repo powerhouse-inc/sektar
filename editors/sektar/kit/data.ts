@@ -460,6 +460,8 @@ export async function duplicateInvoice(
           originalAmount: l.original?.amount,
           originalCurrency: l.original?.currency,
           originalRate: l.original?.rate,
+          // A credit note corrects the same costs; a copy bills new ones.
+          originalReference: opts.credit ? l.original?.reference : null,
         }),
       ),
       ...s.vatReasons.map((r) => invoiceActions.setVatReason({ ...r })),

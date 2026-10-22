@@ -192,6 +192,8 @@ type OriginalAmount {
   currency: String!
   "1 original currency = rate invoice currency; null uses the invoice's exchange rates"
   rate: Float
+  "The supplier's invoice or receipt number"
+  reference: String
 }
 
 type VatReason {
@@ -365,6 +367,7 @@ input AddLineInput {
   originalAmount: Float
   originalCurrency: String
   originalRate: Float
+  originalReference: String
   position: Int
 }
 
@@ -383,6 +386,7 @@ input UpdateLineInput {
   originalAmount: Float
   originalCurrency: String
   originalRate: Float
+  originalReference: String
 }
 
 input RemoveLineInput {
