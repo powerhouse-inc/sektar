@@ -2122,7 +2122,15 @@
 /* The Dates box: as tall as the amount beside it, its rows spread over that
    height; a date that can change is an input that reads like text until
    hovered or focused. */
-.sk-app .sk-invbook__box--dates .sk-invbook__dates { flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: var(--sk-space-1); margin: var(--sk-space-2) 0 0; }
+.sk-app .sk-invbook__box--dates .sk-invbook__dates { display: flex; flex-direction: column; gap: var(--sk-space-1); margin: var(--sk-space-2) 0 0; }
+/* The invoice's own dates (issued, due, paid): a quiet inset panel of their
+   own under the delivery dates, labels in the text colour, a touch more weight. */
+.sk-app .sk-invbook__box--dates .sk-invbook__dates--life {
+  margin-top: var(--sk-space-3); padding: var(--sk-space-1) var(--sk-space-3);
+  background: var(--sk-surface); border: 1px solid var(--sk-border-subtle); border-radius: var(--sk-radius-sm);
+}
+.sk-app .sk-invbook__dates--life .sk-invbook__date-row dt { color: var(--sk-text); font-weight: var(--sk-weight-medium); }
+.sk-app .sk-invbook__dates--life .sk-invbook__date-row dd { font-weight: var(--sk-weight-semibold); }
 .sk-app .sk-invbook__date-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sk-space-3); min-height: 30px; }
 .sk-app .sk-invbook__date-row + .sk-invbook__date-row { border-top: 1px solid var(--sk-border-subtle); }
 .sk-app .sk-invbook__date-row dt { font-size: var(--sk-text-sm); color: var(--sk-text-secondary); white-space: nowrap; }

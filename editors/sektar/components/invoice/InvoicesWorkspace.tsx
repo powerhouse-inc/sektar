@@ -510,12 +510,15 @@ function InvoiceRead({
           {/* Every date, always; each editable while the invoice allows it
               (a draft: all but the issue date, set by issuing; issued: the
               due date; paid or void: none). */}
+          {/* In the order things happen: what was delivered, then the invoice's own life. */}
           <dl className="sk-invbook__dates">
-            <DateRow label="Issued" value={s.issuedAt} empty={s.status === "DRAFT" ? "on issue" : "—"} />
-            <DateRow label="Due" value={s.dueAt} danger={overdue} onChange={dueEditable ? (v) => setHeader({ dueAt: v }) : undefined} />
-            <DateRow label="Delivered" value={s.deliveredAt} onChange={draft ? (v) => setHeader({ deliveredAt: v }) : undefined} />
             <DateRow label="Period from" value={s.period?.start} onChange={draft ? (v) => setHeader({ periodStart: v }) : undefined} />
             <DateRow label="Period to" value={s.period?.end} onChange={draft ? (v) => setHeader({ periodEnd: v }) : undefined} />
+            <DateRow label="Delivered" value={s.deliveredAt} onChange={draft ? (v) => setHeader({ deliveredAt: v }) : undefined} />
+          </dl>
+          <dl className="sk-invbook__dates sk-invbook__dates--life">
+            <DateRow label="Issued" value={s.issuedAt} empty={s.status === "DRAFT" ? "on issue" : "—"} />
+            <DateRow label="Due" value={s.dueAt} danger={overdue} onChange={dueEditable ? (v) => setHeader({ dueAt: v }) : undefined} />
             {s.payments.length > 1 ? (
               s.payments.map((p, i) => <DateRow key={p.id} label={`Paid (${i + 1})`} value={p.paidAt} />)
             ) : (
