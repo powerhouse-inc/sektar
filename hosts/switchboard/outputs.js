@@ -2,7 +2,7 @@
 // @powerhousedao/ph-cli/runners/switchboard and the drives hosts/switchboard declares.
 // Do not edit: when either changes, hosts importing this file fail to load
 // until it is regenerated (`ph generate hosts`).
-export const outputsHash = "sha256:5afd4f7c8e171e84eaaa6c99e57c0c3c";
+export const outputsHash = "sha256:0ceacbdbd94af377169a29854a2614d6";
 
 export const outputs = {
   origin: {
@@ -26,6 +26,48 @@ export const outputs = {
     },
   },
   drives: {
+    backfills: {
+      id: {
+        $output: {
+          host: "switchboard",
+          path: ["drives", "backfills", "id"],
+        },
+      },
+      url: {
+        $output: {
+          host: "switchboard",
+          path: ["drives", "backfills", "url"],
+        },
+      },
+    },
+    files: {
+      id: {
+        $output: {
+          host: "switchboard",
+          path: ["drives", "files", "id"],
+        },
+      },
+      url: {
+        $output: {
+          host: "switchboard",
+          path: ["drives", "files", "url"],
+        },
+      },
+    },
+    mail: {
+      id: {
+        $output: {
+          host: "switchboard",
+          path: ["drives", "mail", "id"],
+        },
+      },
+      url: {
+        $output: {
+          host: "switchboard",
+          path: ["drives", "mail", "url"],
+        },
+      },
+    },
     sektar: {
       id: {
         $output: {
@@ -37,6 +79,20 @@ export const outputs = {
         $output: {
           host: "switchboard",
           path: ["drives", "sektar", "url"],
+        },
+      },
+    },
+    trips: {
+      id: {
+        $output: {
+          host: "switchboard",
+          path: ["drives", "trips", "id"],
+        },
+      },
+      url: {
+        $output: {
+          host: "switchboard",
+          path: ["drives", "trips", "url"],
         },
       },
     },

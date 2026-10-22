@@ -2,7 +2,7 @@
 // @powerhousedao/ph-cli/runners/connect and the drives hosts/connect declares.
 // Do not edit: when either changes, hosts importing this file fail to load
 // until it is regenerated (`ph generate hosts`).
-export const outputsHash = "sha256:74c31683d51ae1eeef124f7e5fa95b82";
+export const outputsHash = "sha256:6e667ec8bd8fa58f21fddcb7ce25855f";
 
 export const outputs = {
   origin: {

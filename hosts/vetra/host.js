@@ -13,8 +13,8 @@ import switchboard from "../switchboard/host.js";
 import connect from "../connect/host.js";
 
 // Every drive the switchboard host serves (the business drive, Mail,
-// Backfills): the studio switchboard serves the same list, and the studio
-// Connect attaches each one as a remote, being a remote client of it.
+// Backfills, Files, Trips): the studio switchboard serves the same list, and
+// the studio Connect attaches each one as a remote, being a remote client of it.
 const servedDrives = switchboard.reactor.drives ?? [];
 
 /** @satisfies {PHHost} */
@@ -35,14 +35,14 @@ export default {
           { module: "@powerhousedao/vetra-studio/switchboard", verbs: ["dev"] },
         ],
       },
-      // The studio drives, declared (projectHash keeps today's ids), plus
-      // every drive the switchboard host serves: the studio Connect is a
-      // pure remote client of this member (below), so the business drive
-      // has to live here too.
+      // Every drive the switchboard host serves plus the studio drives,
+      // declared (projectHash keeps today's ids): the studio Connect is a
+      // pure remote client of this member (below), so the business drives
+      // have to live here.
       reactor: {
         ...switchboard.reactor,
         drives: [
-          ...(switchboard.reactor.drives ?? []),
+          ...servedDrives,
           {
             slug: "vetra",
             name: "Vetra",
@@ -50,7 +50,6 @@ export default {
             preferredEditor: "vetra-drive-app",
           },
           { slug: "vetra-preview", name: "Vetra Preview", projectHash: true },
-          ...servedDrives,
         ],
       },
     },

@@ -66,10 +66,10 @@ export default {
       main: { kind: "in-process" },
     },
     // The drives the switchboard declares (Sektar, Mail, Backfills, Files,
-    // Trips; read, not copied): standalone Connect keeps a local copy of each, the
-    // compounds (vetra, cli, desktop) replace them with the switchboard's.
-    // The Workflows drive is not declared here: the workflows plugin above
-    // attaches it (runner.plugins).
+    // Trips; read, not copied): standalone Connect keeps a local copy of
+    // each, the compounds (vetra, cli, desktop) replace them with the
+    // switchboard's. The Workflows drive is not declared here: the workflows
+    // plugin above attaches it (runner.plugins).
     drives: switchboardHost.reactor.drives,
   },
 };
