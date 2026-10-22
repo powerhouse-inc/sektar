@@ -67,6 +67,23 @@ function paneTitle(s: InvoiceState): string {
 /** "612 ×", "51.75 ×": how many, in front of a line. */
 const qtyLabel = (q: number) => `${Number.isInteger(q) ? q : q.toFixed(2)} ×`;
 
+/**
+ * Every exchange rate the invoice uses, as "1 EUR = 1.141897 USD": its own
+ * rates, then any a line carries for a currency they do not cover (a line
+ * billed in SEK with its own rate), one per currency.
+ */
+function invoiceRates(s: InvoiceState): string[] {
+  const out = s.exchangeRates.map((r) => `1 ${r.base} = ${r.rate} ${r.quote}`);
+  const covered = new Set(s.exchangeRates.flatMap((r) => [r.base, r.quote]));
+  for (const l of s.lines) {
+    const o = l.original;
+    if (!o?.rate || o.currency === s.currency || covered.has(o.currency)) continue;
+    covered.add(o.currency);
+    out.push(`1 ${o.currency} = ${Math.round(o.rate * 1e6) / 1e6} ${s.currency}`);
+  }
+  return out;
+}
+
 /** The lines by category, in the order the categories first appear: how the invoice reads, and the order the stepper walks (no subtotals). */
 function groupLines(lines: readonly InvoiceLine[]): { name: string; lines: { line: InvoiceLine; n: number }[] }[] {
   const out: { name: string; lines: { line: InvoiceLine; n: number }[] }[] = [];
@@ -454,6 +471,7 @@ function InvoiceRead({
   const missing = s.lines.filter((l) => l.attachments.length === 0).length;
 
   const groups = useMemo(() => groupLines(s.lines), [s.lines]);
+  const rates = useMemo(() => invoiceRates(s), [s]);
   /** The invoice's own rate from a currency into its currency (either way round as stored). */
   const rateInto = (from: string): number | null => {
     const r = s.exchangeRates.find((x) => (x.base === from && x.quote === s.currency) || (x.base === s.currency && x.quote === from));
@@ -585,12 +603,10 @@ function InvoiceRead({
               </span>
             )}
           </span>
-          {s.exchangeRates.length > 0 && (
+          {rates.length > 0 && (
             <span className="sk-invbook__rates">
-              {s.exchangeRates.map((r) => (
-                <span key={`${r.base}-${r.quote}-${r.date ?? ""}`}>
-                  1 {r.base} = {r.rate} {r.quote}
-                </span>
+              {rates.map((r) => (
+                <span key={r}>{r}</span>
               ))}
             </span>
           )}
