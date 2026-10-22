@@ -7,7 +7,9 @@
     "**/dist/**",
     "**/.ph/**",
     "**/storybook-static/**",
-    "**/.vite/**"
+    "**/.vite/**",
+    ".pnpmfile.cjs",
+    "powerhouse.config.d.json.ts"
   ],
   "rules": {
     "typescript/await-thenable": "error",
