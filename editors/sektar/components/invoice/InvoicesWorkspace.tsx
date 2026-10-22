@@ -67,19 +67,22 @@ function paneTitle(s: InvoiceState): string {
 /** "612 ×", "51.75 ×": how many, in front of a line. */
 const qtyLabel = (q: number) => `${Number.isInteger(q) ? q : q.toFixed(2)} ×`;
 
+/** A rate to at most 6 decimals, however precisely it is stored: 0.09186653286 → 0.091867. */
+const fmtRate = (rate: number) => String(Math.round(rate * 1e6) / 1e6);
+
 /**
  * Every exchange rate the invoice uses, as "1 EUR = 1.141897 USD": its own
  * rates, then any a line carries for a currency they do not cover (a line
  * billed in SEK with its own rate), one per currency.
  */
 function invoiceRates(s: InvoiceState): string[] {
-  const out = s.exchangeRates.map((r) => `1 ${r.base} = ${r.rate} ${r.quote}`);
+  const out = s.exchangeRates.map((r) => `1 ${r.base} = ${fmtRate(r.rate)} ${r.quote}`);
   const covered = new Set(s.exchangeRates.flatMap((r) => [r.base, r.quote]));
   for (const l of s.lines) {
     const o = l.original;
     if (!o?.rate || o.currency === s.currency || covered.has(o.currency)) continue;
     covered.add(o.currency);
-    out.push(`1 ${o.currency} = ${Math.round(o.rate * 1e6) / 1e6} ${s.currency}`);
+    out.push(`1 ${o.currency} = ${fmtRate(o.rate)} ${s.currency}`);
   }
   return out;
 }
@@ -476,7 +479,7 @@ function InvoiceRead({
   const rateInto = (from: string): number | null => {
     const r = s.exchangeRates.find((x) => (x.base === from && x.quote === s.currency) || (x.base === s.currency && x.quote === from));
     if (!r) return null;
-    return r.base === from ? r.rate : Math.round((1 / r.rate) * 1e6) / 1e6;
+    return r.base === from ? r.rate : 1 / r.rate;
   };
 
   const standing =
@@ -743,7 +746,7 @@ function LineRow({
         {original && (
           <span className="sk-invbook__line-from sk-tabular">
             = {money(original.amount, original.currency)}
-            {factor ? ` × ${factor}` : ""}
+            {factor ? ` × ${fmtRate(factor)}` : ""}
           </span>
         )}
       </span>
