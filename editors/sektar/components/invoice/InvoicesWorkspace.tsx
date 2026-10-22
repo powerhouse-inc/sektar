@@ -22,7 +22,7 @@ import {
 } from "document-models/invoice";
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFillHeight, useNarrow } from "../../../backfills/components/measure.js";
-import { counterparty, fmtDate, fmtShortDate, invoiceTotals, isOverdue, money, plural, relativeDays } from "../../kit/format.js";
+import { counterparty, fmtDate, fmtShortDate, fromDateInput, invoiceTotals, isOverdue, money, plural, relativeDays, toDateInput } from "../../kit/format.js";
 import { attachFile, invoiceChecks, roleLabel } from "../../kit/invoice.js";
 import { LINE_HEADERS, printedLine, type PrintedLine } from "../../kit/invoice-print.js";
 import { Menu } from "../../kit/menu.js";
@@ -437,6 +437,16 @@ function InvoiceRead({
   const open = useOpenInvoice(doc.header.id);
   const [dialog, setDialog] = useState<"issue" | "pay" | null>(null);
   const dispatch = (action: InvoiceAction | InvoiceAction[]) => void dispatchActions(action, doc.header.id);
+  // The dates the model lets change: a draft's, and an issued (open) invoice's due date.
+  const draft = s.status === "DRAFT";
+  const dueEditable = draft || s.status === "OPEN";
+  const [dateError, setDateError] = useState<string | null>(null);
+  const setHeader = (input: Parameters<typeof actions.setHeader>[0]) => {
+    setDateError(null);
+    dispatchActions(actions.setHeader(input), doc.header.id).catch((e: unknown) =>
+      setDateError(e instanceof Error ? e.message : String(e)),
+    );
+  };
   const t = computeTotals(s);
   const total = t.gross + t.rounding;
   const other = counterparty(s);
@@ -495,15 +505,24 @@ function InvoiceRead({
             <Fact label="Gross" value={money(total, s.currency)} strong />
           </dl>
         </section>
-        <section className="sk-invbook__box" aria-label="Dates">
+        <section className="sk-invbook__box sk-invbook__box--dates" aria-label="Dates">
           <div className="sk-eyebrow">Dates</div>
-          <dl className="sk-invbook__figs">
-            <Fact label="Issued" value={s.issuedAt ? fmtDate(s.issuedAt) : "—"} />
-            <Fact label="Due" value={s.dueAt ? fmtDate(s.dueAt) : "—"} tone={overdue ? "danger" : undefined} />
-            {s.period && <Fact label="Period" value={`${fmtShortDate(s.period.start)} – ${fmtShortDate(s.period.end)}`} />}
-            {s.deliveredAt && <Fact label="Delivered" value={fmtDate(s.deliveredAt)} />}
-            {s.payments.length > 0 && <Fact label="Paid" value={fmtDate(s.payments.at(-1)?.paidAt)} />}
+          {/* Every date, always; each editable while the invoice allows it
+              (a draft: all but the issue date, set by issuing; issued: the
+              due date; paid or void: none). */}
+          <dl className="sk-invbook__dates">
+            <DateRow label="Issued" value={s.issuedAt} empty={s.status === "DRAFT" ? "on issue" : "—"} />
+            <DateRow label="Due" value={s.dueAt} danger={overdue} onChange={dueEditable ? (v) => setHeader({ dueAt: v }) : undefined} />
+            <DateRow label="Delivered" value={s.deliveredAt} onChange={draft ? (v) => setHeader({ deliveredAt: v }) : undefined} />
+            <DateRow label="Period from" value={s.period?.start} onChange={draft ? (v) => setHeader({ periodStart: v }) : undefined} />
+            <DateRow label="Period to" value={s.period?.end} onChange={draft ? (v) => setHeader({ periodEnd: v }) : undefined} />
+            {s.payments.length > 1 ? (
+              s.payments.map((p, i) => <DateRow key={p.id} label={`Paid (${i + 1})`} value={p.paidAt} />)
+            ) : (
+              <DateRow label="Paid" value={s.payments[0]?.paidAt} />
+            )}
           </dl>
+          {dateError && <p className="sk-small sk-text-danger">{dateError}</p>}
         </section>
       </div>
       {s.vatCurrency && s.vatCurrency !== s.currency && s.exchangeRates[0] && (
@@ -597,6 +616,49 @@ function Amount({ text }: { text: string }) {
       <span className="sk-invbook__cur">{m[2]}</span>
       {m[3]}
     </>
+  );
+}
+
+/**
+ * One date in the Dates box: read, or (given onChange) a date input that
+ * reads like text until hovered or focused and commits as soon as a whole
+ * date is picked. Clearing it clears the date.
+ */
+function DateRow({
+  label,
+  value,
+  empty = "—",
+  danger,
+  onChange,
+}: {
+  label: string;
+  value: string | null | undefined;
+  empty?: string;
+  danger?: boolean;
+  onChange?: (next: string | null) => void;
+}) {
+  return (
+    <div className="sk-invbook__date-row">
+      <dt>{label}</dt>
+      <dd className={cx(danger && "sk-text-danger")}>
+        {onChange ? (
+          <input
+            type="date"
+            className="sk-invbook__date"
+            aria-label={label}
+            value={toDateInput(value)}
+            onChange={(e) => {
+              const next = e.target.value ? fromDateInput(e.target.value) : null;
+              if (toDateInput(next) !== toDateInput(value)) onChange(next);
+            }}
+          />
+        ) : value ? (
+          fmtDate(value)
+        ) : (
+          <span className="sk-text-muted">{empty}</span>
+        )}
+      </dd>
+    </div>
   );
 }
 

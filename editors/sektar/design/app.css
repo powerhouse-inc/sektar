@@ -2119,6 +2119,23 @@
 .sk-app .sk-invbook__figs { display: grid; grid-template-columns: 1fr auto; gap: 2px 0; margin: var(--sk-space-2) 0 0; }
 .sk-app .sk-invbook__figs dd { padding-left: var(--sk-space-4); }
 .sk-app .sk-invbook__box:last-child .sk-invbook__figs { margin-top: var(--sk-space-1); }
+/* The Dates box: as tall as the amount beside it, its rows spread over that
+   height; a date that can change is an input that reads like text until
+   hovered or focused. */
+.sk-app .sk-invbook__box--dates .sk-invbook__dates { flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: var(--sk-space-1); margin: var(--sk-space-2) 0 0; }
+.sk-app .sk-invbook__date-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sk-space-3); min-height: 30px; }
+.sk-app .sk-invbook__date-row + .sk-invbook__date-row { border-top: 1px solid var(--sk-border-subtle); }
+.sk-app .sk-invbook__date-row dt { font-size: var(--sk-text-sm); color: var(--sk-text-secondary); white-space: nowrap; }
+.sk-app .sk-invbook__date-row dd { margin: 0; text-align: right; font-size: var(--sk-text-sm); font-weight: var(--sk-weight-medium); font-variant-numeric: tabular-nums; }
+.sk-app .sk-invbook__date {
+  font: inherit; color: inherit; text-align: right; background: transparent; cursor: pointer;
+  border: 1px solid transparent; border-radius: var(--sk-radius-sm); padding: 2px 4px; margin-right: -5px;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.sk-app .sk-invbook__date:hover { border-color: var(--sk-border); background: var(--sk-surface); }
+.sk-app .sk-invbook__date:focus-visible { outline: none; border-color: var(--sk-primary); background: var(--sk-surface); }
+.sk-app .sk-invbook__date::-webkit-calendar-picker-indicator { opacity: 0.45; cursor: pointer; }
+.sk-app .sk-invbook__date:hover::-webkit-calendar-picker-indicator { opacity: 0.8; }
 .sk-app .sk-invbook__figs .sk-invbook__fact { display: contents; }
 .sk-app .sk-invbook__figs dt { font-size: var(--sk-text-sm); color: var(--sk-text-secondary); }
 .sk-app .sk-invbook__figs dd { margin: 0; text-align: right; font-size: var(--sk-text-sm); font-weight: var(--sk-weight-medium); }
