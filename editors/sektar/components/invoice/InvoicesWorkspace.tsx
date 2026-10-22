@@ -324,7 +324,7 @@ export function InvoicesWorkspace({
           collapsedTitle={opened.kind === "line" ? "Line" : "Preview"}
           header={
             state && opened.kind === "line" && lineAt >= 0 ? (
-              <LineStepper at={lineAt} n={lines.indexOf(walk[lineAt]) + 1} count={walk.length} onStep={step} onClose={() => setOpened(invoiceView(state))} />
+              <LineStepper at={lineAt} n={lines.indexOf(walk[lineAt]) + 1} count={walk.length} onStep={step} />
             ) : state ? (
               <Selector
                 value={opened.kind === "invoice" ? opened.doc : PDF}
@@ -741,24 +741,22 @@ function LineRow({
 /* ----------------------------------------------------------- what's open */
 
 /**
- * The third column's header for a line: which line, a step up or down the
- * invoice as it reads (the arrow keys do the same), back to the invoice.
+ * The third column's header for a line: which line, and at the right a step
+ * up or down the invoice as it reads (the arrow keys do the same). Back to the
+ * invoice itself is "Show beside" in the middle pane.
  */
-function LineStepper({ at, n, count, onStep, onClose }: { at: number; n: number; count: number; onStep: (by: number) => void; onClose: () => void }) {
+function LineStepper({ at, n, count, onStep }: { at: number; n: number; count: number; onStep: (by: number) => void }) {
   return (
     <div className="sk-invbook__stepper">
       <span className="sk-invbook__step">
         Line <b>{n}</b> of {count}
       </span>
+      <span className="sk-pane__spacer" />
       <button type="button" className="sk-btn sk-btn--ghost sk-btn--sm sk-btn--icon" aria-label="Line above" title="Line above (↑)" disabled={at === 0} onClick={() => onStep(-1)}>
         <Icon name="chevron-down" size={16} mono className="sk-invbook__up" />
       </button>
       <button type="button" className="sk-btn sk-btn--ghost sk-btn--sm sk-btn--icon" aria-label="Line below" title="Line below (↓)" disabled={at === count - 1} onClick={() => onStep(1)}>
         <Icon name="chevron-down" size={16} mono />
-      </button>
-      <span className="sk-pane__spacer" />
-      <button type="button" className="sk-btn sk-btn--ghost sk-btn--sm sk-btn--icon sk-stack-hide" aria-label="Show the invoice" title="Show the invoice" onClick={onClose}>
-        <Icon name="close" size={16} mono />
       </button>
     </div>
   );
