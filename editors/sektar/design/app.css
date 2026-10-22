@@ -2195,6 +2195,15 @@
   padding: var(--sk-space-2) 0; border-bottom: 1px solid var(--sk-border);
   font-size: var(--sk-text-sm); font-weight: var(--sk-weight-semibold);
 }
+/* Stacked (a phone), a category's header spans the pane edge to edge, wider
+   than the line rows it leads (which reach 12px past the content); its text
+   keeps to the content's edges. */
+@container drive-app (max-width: 639px) {
+  .sk-app .sk-invoices .sk-invbook__group-head {
+    margin-inline: calc(-1 * var(--sk-space-6));
+    padding-inline: var(--sk-space-6);
+  }
+}
 .sk-app .sk-invbook__group-head > :last-child { color: var(--sk-text-secondary); font-weight: var(--sk-weight-medium); }
 .sk-app .sk-invbook__rows { list-style: none; margin: 0; padding: 0; }
 .sk-app .sk-invbook__line {
