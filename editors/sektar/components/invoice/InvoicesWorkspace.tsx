@@ -33,6 +33,7 @@ import { FileTypeTile, useDocumentLocation } from "../FilePreview.js";
 import { InvoiceStatusBadge } from "../InvoiceDetail.js";
 import { InvoicePrintPreview } from "./InvoicePrintPreview.js";
 import { IssueDialog, PaymentDialog } from "./InvoiceWorkspace.js";
+import { PartyDetails } from "./PartyEditor.js";
 import { FilePreviewFrame } from "./InvoicePreview.js";
 import { SendActions } from "./SendActions.js";
 
@@ -56,6 +57,20 @@ const DIRECTION_NAME: Record<InvoiceDirection, string> = { OUTGOING: "Sales", IN
 type Open = { kind: "invoice"; doc: string } | { kind: "line"; id: string };
 /** The invoice as its PDF will print, from the print HTML */
 const PDF = "pdf";
+/** A party of the invoice, as a view beside it ("party:buyer", "party:seller") */
+const PARTY = "party:";
+
+/**
+ * The invoice's parties as views beside it, in the order its reader meets
+ * them: a sale's recipient (the buyer) before its issuer (us), a purchase's
+ * issuer (the supplier) before its recipient (us).
+ */
+function partyViews(s: InvoiceState): { value: string; name: string; party: InvoiceState["buyer"]; ours: boolean }[] {
+  const outgoing = s.direction === "OUTGOING";
+  const recipient = { value: `${PARTY}buyer`, name: "Recipient", party: s.buyer, ours: !outgoing };
+  const issuer = { value: `${PARTY}seller`, name: "Issuer", party: s.seller, ours: outgoing };
+  return outgoing ? [recipient, issuer] : [issuer, recipient];
+}
 
 const isCurrent = (s: unknown): s is InvoiceState => typeof s === "object" && s !== null && "buyer" in s && "lines" in s;
 const lineAmount = (l: InvoiceLine) => Math.round(l.quantity * l.unitPrice * 100) / 100;
@@ -371,6 +386,7 @@ export function InvoicesWorkspace({
                 options={[
                   // Two lines, like the documents' tiles (name and role), so it sits on the header's edge as they do.
                   { value: PDF, name: "Print/PDF", meta: "Preview", media: <FileTypeTile kind="pdf" small /> },
+                  ...partyViews(state).map((v) => ({ value: v.value, name: v.name, meta: v.party.name ?? "Not filled in", icon: "customers" as const })),
                   // The file, with its type, here; what it is goes in the preview's toolbar below.
                   ...state.attachments.map((a) => ({
                     value: a.id,
@@ -594,13 +610,14 @@ function InvoiceRead({
         <div className="sk-eyebrow">Show beside</div>
         {[
           { value: PDF, name: "Print/PDF", meta: "Preview" },
+          ...partyViews(s).map((v) => ({ value: v.value, name: v.name, meta: v.party.name ?? "Not filled in" })),
           ...s.attachments.map((a) => ({ value: a.id, name: a.fileName, meta: roleLabel(a.role) })),
         ].map((o) => {
           const on = invoiceView === o.value;
           return (
             <button key={o.value} type="button" role="radio" aria-checked={on} className={cx("sk-invbook__view", on && "is-active")} onClick={() => onInvoice(o.value)}>
               <span className="sk-invbook__radio" aria-hidden="true" />
-              <Icon name={o.value === PDF ? "invoice" : "upload"} size={16} mono />
+              <Icon name={o.value === PDF ? "invoice" : o.value.startsWith(PARTY) ? "customers" : "upload"} size={16} mono />
               <span className="sk-invbook__view-text">
                 <span className="sk-invbook__view-name">{o.name}</span>
                 <span className="sk-invbook__view-meta">{o.meta}</span>
@@ -998,6 +1015,8 @@ function useColumnWidths(s: InvoiceState): number[] {
 function InvoiceDocView({ invoice, state: s, doc }: { invoice: InvoiceDocument; state: InvoiceState; doc: string }) {
   const attachment = s.attachments.find((a) => a.id === doc);
   if (attachment) return <FilePreviewFrame key={attachment.id} documentId={invoice.header.id} attachment={attachment} named />;
+  const party = partyViews(s).find((v) => v.value === doc);
+  if (party) return <PartyDetails role={party.name} party={party.party} ours={party.ours} />;
   return (
     <div className="sk-invbook-pdf">
       {s.direction === "OUTGOING" && (

@@ -2157,6 +2157,18 @@
 .sk-app .sk-invbook__figs .is-strong dd { color: var(--sk-text); font-weight: var(--sk-weight-semibold); }
 .sk-app .sk-invbook__figs .sk-invbook__fact.is-strong :is(dt, dd) { border-top: 1px solid var(--sk-border); padding-bottom: 0; }
 
+/* A party read in full beside the invoice (Recipient, Issuer) */
+.sk-app .sk-inv-partyview { display: flex; flex-direction: column; gap: var(--sk-space-3); }
+.sk-app .sk-inv-partyview__name {
+  margin: 0; font-family: var(--sk-font-display); font-size: var(--sk-text-xl); line-height: 1.2; letter-spacing: -0.015em;
+  font-variation-settings: "opsz" 30, "SOFT" 20, "WONK" 0; overflow-wrap: anywhere;
+}
+.sk-app .sk-inv-partyview__address { display: grid; font-style: normal; color: var(--sk-text-secondary); line-height: 1.5; }
+.sk-app .sk-inv-partyview__ids { margin: var(--sk-space-2) 0 0; border-top: 1px solid var(--sk-border-subtle); }
+.sk-app .sk-inv-partyview__ids > div { display: flex; justify-content: space-between; gap: var(--sk-space-4); padding: var(--sk-space-2) 0; border-bottom: 1px solid var(--sk-border-subtle); }
+.sk-app .sk-inv-partyview__ids dt { font-size: var(--sk-text-sm); color: var(--sk-text-secondary); white-space: nowrap; }
+.sk-app .sk-inv-partyview__ids dd { margin: 0; font-size: var(--sk-text-sm); font-weight: var(--sk-weight-medium); text-align: right; overflow-wrap: anywhere; }
+
 /* The list: an issued invoice's number as a label in front of the counterparty */
 /* compact: no taller than the name's line, so issued rows keep the drafts' height */
 .sk-app .sk-invoices .sk-badge.sk-invoices__number {

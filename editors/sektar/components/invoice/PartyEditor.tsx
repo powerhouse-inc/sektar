@@ -84,6 +84,48 @@ export function PartyCards({
   );
 }
 
+/**
+ * A party read in full, for a preview pane: who, where, and every identifier
+ * the invoice carries for them. Nothing to edit here; the editor does that.
+ */
+export function PartyDetails({ role, party, ours }: { role: string; party: InvoiceParty; ours: boolean }) {
+  const ids: [string, string | null][] = [
+    ["VAT number", party.vatId ?? null],
+    ["Registration", party.registrationId ? `${party.registrationScheme ? `${party.registrationScheme}: ` : ""}${party.registrationId}` : null],
+    ["Peppol address", party.endpointId ? `${party.endpointScheme ? `${party.endpointScheme}:` : ""}${party.endpointId}` : null],
+    ["Email", party.email ?? null],
+    ["Phone", party.phone ?? null],
+  ];
+  return (
+    <div className="sk-inv-partyview">
+      <div className="sk-inv-party__top">
+        <span className="sk-eyebrow">{role}</span>
+        {ours && <span className="sk-inv-party__ours">You</span>}
+      </div>
+      {party.name ? (
+        <>
+          <h3 className="sk-inv-partyview__name">{party.name}</h3>
+          <address className="sk-inv-partyview__address">
+            {lines(party).map((l) => (
+              <span key={l}>{l}</span>
+            ))}
+          </address>
+          <dl className="sk-inv-partyview__ids">
+            {ids.map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd className={cx(!value && "sk-text-muted")}>{value ?? "—"}</dd>
+              </div>
+            ))}
+          </dl>
+        </>
+      ) : (
+        <p className="sk-small sk-text-muted">Not filled in on this invoice.</p>
+      )}
+    </div>
+  );
+}
+
 function PartyCard({
   title,
   ours,
