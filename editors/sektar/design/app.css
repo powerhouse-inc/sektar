@@ -2178,7 +2178,6 @@
 
 /* "Show beside": the invoice's own views as selectable rows, a radio each, the open one marked */
 .sk-app .sk-invbook__views { display: flex; flex-direction: column; border: 1px solid var(--sk-border); border-radius: var(--sk-radius-md); overflow: hidden; }
-.sk-app .sk-invbook__views > .sk-eyebrow { padding: var(--sk-space-2) var(--sk-space-4); background: var(--sk-surface-2); border-bottom: 1px solid var(--sk-border-subtle); }
 .sk-app .sk-invbook__view {
   display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: var(--sk-space-3); align-items: center;
   padding: var(--sk-space-3) var(--sk-space-4); font: inherit; color: inherit; text-align: left; cursor: pointer;
@@ -2227,8 +2226,12 @@
   margin-inline: calc(-1 * var(--sk-space-6));
   padding-inline: var(--sk-space-6);
 }
-/* Stacked (a phone) no preview shows beside: "Show beside" is a list of
-   places to go, no radio and nothing marked as chosen. */
+/* With no preview showing beside (the pane folded, or stacked on a phone),
+   "Show beside" is a list of places to go: no radio, nothing marked chosen. */
+.sk-app .sk-invbook__views.is-plain .sk-invbook__radio { display: none; }
+.sk-app .sk-invbook__views.is-plain .sk-invbook__view { grid-template-columns: auto minmax(0, 1fr) auto; }
+.sk-app .sk-invbook__views.is-plain .sk-invbook__view.is-active { background: var(--sk-surface); }
+.sk-app .sk-invbook__views.is-plain .sk-invbook__view.is-active:hover { background: var(--sk-surface-2); }
 @container drive-app (max-width: 639px) {
   .sk-app .sk-invoices .sk-invbook__radio { display: none; }
   .sk-app .sk-invoices .sk-invbook__view { grid-template-columns: auto minmax(0, 1fr) auto; }

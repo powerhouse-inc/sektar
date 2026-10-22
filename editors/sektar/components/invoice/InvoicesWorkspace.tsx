@@ -356,7 +356,9 @@ export function InvoicesWorkspace({
               state={state}
               now={now}
               activeLine={opened.kind === "line" ? opened.id : null}
-              invoiceView={opened.kind === "invoice" ? opened.doc : null}
+              // Only with the preview open beside it is one of them "the one shown".
+              invoiceView={opened.kind === "invoice" && !sideCollapsed ? opened.doc : null}
+              folded={sideCollapsed}
               onLine={openLine}
               onInvoice={(doc) => {
                 setOpened({ kind: "invoice", doc });
@@ -497,6 +499,7 @@ function InvoiceRead({
   now,
   activeLine,
   invoiceView,
+  folded,
   onLine,
   onInvoice,
 }: {
@@ -504,8 +507,10 @@ function InvoiceRead({
   state: InvoiceState;
   now: number;
   activeLine: string | null;
-  /** The invoice view open beside (the PDF, or one of its documents); null while a line is */
+  /** The invoice view open beside (the PDF, or one of its documents); null while a line is, or nothing is */
   invoiceView: string | null;
+  /** The preview pane is folded: "Show beside" is then a plain list of places to go (no radio, nothing chosen) */
+  folded: boolean;
   onLine: (id: string) => void;
   onInvoice: (view: string) => void;
 }) {
@@ -606,8 +611,7 @@ function InvoiceRead({
       </div>
 
       {/* What the third column shows of the invoice itself: one of these, picked here or in its header. */}
-      <div className="sk-invbook__views" role="radiogroup" aria-label="Show beside">
-        <div className="sk-eyebrow">Show beside</div>
+      <div className={cx("sk-invbook__views", folded && "is-plain")} role="radiogroup" aria-label="Show beside">
         {[
           { value: PDF, name: "Print/PDF", meta: "Preview" },
           ...partyViews(s).map((v) => ({ value: v.value, name: v.name, meta: v.party.name ?? "Not filled in" })),
