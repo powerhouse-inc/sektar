@@ -26,7 +26,7 @@ import { counterparty, fmtDate, fmtShortDate, fromDateInput, invoiceTotals, isOv
 import { attachFile, invoiceChecks, roleLabel } from "../../kit/invoice.js";
 import { LINE_HEADERS, printedLine, type PrintedLine } from "../../kit/invoice-print.js";
 import { Menu } from "../../kit/menu.js";
-import { Avatar, Button, cx, EmptyState, Icon, ListItem, Selector } from "../../kit/ui.js";
+import { Avatar, Badge, Button, cx, EmptyState, Icon, ListItem, Selector } from "../../kit/ui.js";
 import { Pane, PaneSwitch, SubBar, Workspace } from "../../kit/workspace.js";
 import { useDocumentLocation } from "../FilePreview.js";
 import { InvoiceStatusBadge } from "../InvoiceDetail.js";
@@ -422,7 +422,11 @@ function InvoiceRowImpl({ doc, now, selected, onClick }: { doc: InvoiceDocument;
       icon={<Avatar name={name} variant={s.direction === "OUTGOING" ? "sage" : "forest"} />}
       title={
         <span className={cx(s.status === "VOID" && "sk-text-muted")}>
-          {s.number && <span className="sk-invoices__number">#{s.number}</span>}
+          {s.number && (
+            <Badge tone="outline" className="sk-invoices__number">
+              #{s.number}
+            </Badge>
+          )}
           {name}
         </span>
       }
