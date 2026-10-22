@@ -794,18 +794,19 @@ function LineRow({
         {qtyLabel(line.quantity)}
       </span>
       <span className="sk-invbook__line-main">
-        <span className="sk-invbook__line-desc">{line.description}</span>
-        {/* Under what it is: the supplier's reference, and, for more than one, what one costs. */}
-        {(reference || line.quantity !== 1 || line.note) && (
+        {/* The supplier's reference in front of what it is. */}
+        <span className="sk-invbook__line-desc">
+          {reference && (
+            <Badge tone="outline" className="sk-invbook__ref">
+              {reference}
+            </Badge>
+          )}
+          {line.description}
+        </span>
+        {/* More than one: what one costs, under what it is. */}
+        {(line.quantity !== 1 || line.note) && (
           <span className="sk-invbook__line-meta">
-            {reference && (
-              <Badge tone="outline" className="sk-invbook__ref">
-                {reference}
-              </Badge>
-            )}
-            <span className="sk-invbook__line-meta-text">
-              {[line.quantity !== 1 ? `Unit cost: ${money(line.unitPrice, currency)}` : null, line.note].filter(Boolean).join(" · ")}
-            </span>
+            {[line.quantity !== 1 ? `Unit cost: ${money(line.unitPrice, currency)}` : null, line.note].filter(Boolean).join(" · ")}
           </span>
         )}
       </span>
