@@ -471,6 +471,10 @@
 .sk-app button.sk-list-item--rich {
   border-bottom: 1px solid var(--sk-border-subtle);
 }
+/* A plain row in a card that opens something says so as a linked row does: its title takes the brand colour */
+.sk-app .sk-card button.sk-list-item:not(.sk-list-item--rich):is(:hover, :focus-visible) .sk-list-item__title {
+  color: var(--sk-text-brand);
+}
 .sk-app .sk-list--rich li:last-child button.sk-list-item--rich {
   border-bottom: 0;
 }

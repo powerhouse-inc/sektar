@@ -344,6 +344,12 @@ function Dashboard() {
                         {money(accountBalance(a), a.state.global.currency)}
                       </span>
                     }
+                    onClick={() =>
+                      void navigate({
+                        to: "/finops/transactions",
+                        search: { account: a.header.id },
+                      })
+                    }
                   />
                 </li>
               ))}

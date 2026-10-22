@@ -59,9 +59,17 @@ function TransactionsPage() {
   const rows = useTransactions();
   const contacts = useContacts();
   const { query } = useSearch();
-  const [accountId, setAccountId] = useState<string>("ALL");
+  const {
+    open: openParam,
+    import: importParam,
+    account: accountParam,
+  } = Route.useSearch();
+  // `?account=<id>` opens on one account (the dashboard's accounts link here)
+  const [accountId, setAccountId] = useState<string>(accountParam ?? "ALL");
+  useEffect(() => {
+    if (accountParam) setAccountId(accountParam);
+  }, [accountParam]);
   const [status, setStatus] = useState<StatusFilter>("ALL");
-  const { open: openParam, import: importParam } = Route.useSearch();
   const [selectedId, setSelectedId] = useState<string | null>(
     openParam ?? null,
   );
