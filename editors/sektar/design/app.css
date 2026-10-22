@@ -2116,7 +2116,7 @@
 .sk-app .sk-invbook__standing { font-size: var(--sk-text-sm); color: var(--sk-text-secondary); }
 /* The summary boxes' figures (not __rows, which is the lines' list). No column
    gap (the figures carry their own room), so the rule above Gross runs unbroken. */
-.sk-app .sk-invbook__figs { display: grid; grid-template-columns: 1fr auto; gap: 2px 0; margin: var(--sk-space-2) 0 0; }
+.sk-app .sk-invbook__figs { display: grid; grid-template-columns: 1fr auto; gap: 0; margin: var(--sk-space-3) 0 0; }
 .sk-app .sk-invbook__figs dd { padding-left: var(--sk-space-4); }
 .sk-app .sk-invbook__box:last-child .sk-invbook__figs { margin-top: var(--sk-space-1); }
 /* The Dates box: as tall as the amount beside it, its rows spread over that
@@ -2149,9 +2149,13 @@
 .sk-app .sk-invbook__date:hover::-webkit-calendar-picker-indicator { opacity: 0.8; }
 .sk-app .sk-invbook__figs .sk-invbook__fact { display: contents; }
 .sk-app .sk-invbook__figs dt { font-size: var(--sk-text-sm); color: var(--sk-text-secondary); }
+/* Rows with room and a faint hairline between them, as the Dates rows have */
+.sk-app .sk-invbook__figs :is(dt, dd) { padding-block: var(--sk-space-2); }
+.sk-app .sk-invbook__figs .sk-invbook__fact + .sk-invbook__fact :is(dt, dd) { border-top: 1px solid var(--sk-border-subtle); }
 .sk-app .sk-invbook__figs dd { margin: 0; text-align: right; font-size: var(--sk-text-sm); font-weight: var(--sk-weight-medium); }
 .sk-app .sk-invbook__figs .is-strong dt,
-.sk-app .sk-invbook__figs .is-strong dd { color: var(--sk-text); font-weight: var(--sk-weight-semibold); border-top: 1px solid var(--sk-border); padding-top: var(--sk-space-1); }
+.sk-app .sk-invbook__figs .is-strong dd { color: var(--sk-text); font-weight: var(--sk-weight-semibold); }
+.sk-app .sk-invbook__figs .sk-invbook__fact.is-strong :is(dt, dd) { border-top: 1px solid var(--sk-border); padding-bottom: 0; }
 
 /* The list: an issued invoice's number as a label in front of the counterparty */
 /* compact: no taller than the name's line, so issued rows keep the drafts' height */
