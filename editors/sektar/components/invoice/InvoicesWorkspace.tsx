@@ -67,15 +67,14 @@ function paneTitle(s: InvoiceState): string {
 /** "612 ×", "51.75 ×": how many, in front of a line. */
 const qtyLabel = (q: number) => `${Number.isInteger(q) ? q : q.toFixed(2)} ×`;
 
-/** The lines by category, in the order the categories first appear: how the invoice reads, and the order the stepper walks. */
-function groupLines(lines: readonly InvoiceLine[]): { name: string; lines: { line: InvoiceLine; n: number }[]; total: number }[] {
-  const out: { name: string; lines: { line: InvoiceLine; n: number }[]; total: number }[] = [];
+/** The lines by category, in the order the categories first appear: how the invoice reads, and the order the stepper walks (no subtotals). */
+function groupLines(lines: readonly InvoiceLine[]): { name: string; lines: { line: InvoiceLine; n: number }[] }[] {
+  const out: { name: string; lines: { line: InvoiceLine; n: number }[] }[] = [];
   lines.forEach((line, i) => {
     const name = line.category?.trim() || "Other";
     let g = out.find((x) => x.name === name);
-    if (!g) out.push((g = { name, lines: [], total: 0 }));
+    if (!g) out.push((g = { name, lines: [] }));
     g.lines.push({ line, n: i + 1 });
-    g.total += lineAmount(line);
   });
   return out;
 }
@@ -528,11 +527,6 @@ function InvoiceRead({
           {dateError && <p className="sk-small sk-text-danger">{dateError}</p>}
         </section>
       </div>
-      {s.vatCurrency && s.vatCurrency !== s.currency && s.exchangeRates[0] && (
-        <div className="sk-invbook__rate">
-          Exchange rate: 1 {s.exchangeRates[0].base} = {s.exchangeRates[0].rate} {s.exchangeRates[0].quote}
-        </div>
-      )}
 
       {/* What the third column shows of the invoice itself: one of these, picked here or in its header. */}
       <div className="sk-invbook__views" role="radiogroup" aria-label="Show beside">
@@ -579,21 +573,31 @@ function InvoiceRead({
       {dialog === "pay" && <PaymentDialog state={s} dispatch={dispatch} onClose={() => setDialog(null)} />}
 
       <section className="sk-invbook__lines" aria-label="Lines">
+        {/* "22 lines" (and what lacks a receipt) on the left, on the bottom
+            edge; the invoice's exchange rates on the right, one per line. */}
         <div className="sk-invbook__lines-head">
-          <span className="sk-eyebrow">{plural(s.lines.length, "line")}</span>
-          {missing > 0 && (
-            <span className="sk-invbook__missing">
-              <span className="sk-invbook__dot" aria-hidden="true" />
-              {missing} without a receipt
+          <span className="sk-invbook__lines-count">
+            <span className="sk-eyebrow">{plural(s.lines.length, "line")}</span>
+            {missing > 0 && (
+              <span className="sk-invbook__missing">
+                <span className="sk-invbook__dot" aria-hidden="true" />
+                {missing} without a receipt
+              </span>
+            )}
+          </span>
+          {s.exchangeRates.length > 0 && (
+            <span className="sk-invbook__rates">
+              {s.exchangeRates.map((r) => (
+                <span key={`${r.base}-${r.quote}-${r.date ?? ""}`}>
+                  1 {r.base} = {r.rate} {r.quote}
+                </span>
+              ))}
             </span>
           )}
         </div>
         {groups.map((g) => (
           <div key={g.name} className="sk-invbook__group">
-            <div className="sk-invbook__group-head">
-              <span>{g.name}</span>
-              <span className="sk-tabular">{money(g.total, s.currency)}</span>
-            </div>
+            <div className="sk-invbook__group-head">{g.name}</div>
             <ul className="sk-invbook__rows">
               {g.lines.map(({ line, n }) => (
                 <li key={line.id}>
