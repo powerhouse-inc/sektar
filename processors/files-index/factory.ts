@@ -43,8 +43,10 @@ export const filesIndexFactoryBuilder: ProcessorFactoryBuilder =
     const nodes = new FilesIndex(namespace, driveFilter, store, driveHeader.id);
     const files = new FilesIndex(namespace, fileFilter, store, driveHeader.id);
     await nodes.initAndUpgrade();
+    // Rows depend on the latest state alone: a replay needs only each
+    // document's latest state, not every operation in between.
     return [
-      { processor: nodes, filter: driveFilter },
-      { processor: files, filter: fileFilter },
+      { processor: nodes, filter: driveFilter, replayState: "collapse" },
+      { processor: files, filter: fileFilter, replayState: "collapse" },
     ];
   };

@@ -35,8 +35,10 @@ export const folderSyncFactoryBuilder: ProcessorFactoryBuilder =
     await processor.initAndUpgrade();
 
     return [
-      { processor, filter: mappingFilter },
-      { processor, filter: driveFilter },
-      { processor, filter: fileFilter },
+      // Reads the drive through the client and ignores history: a replay
+      // needs no state.
+      { processor, filter: mappingFilter, replayState: "operations" },
+      { processor, filter: driveFilter, replayState: "operations" },
+      { processor, filter: fileFilter, replayState: "operations" },
     ];
   };
