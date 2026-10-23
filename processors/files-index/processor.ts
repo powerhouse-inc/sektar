@@ -5,9 +5,13 @@
  * the drive's resulting state, so the rows are taken from it rather than
  * replayed from the action: a name the drive changed on a collision, or the
  * descendants a folder delete took along, come out right by construction.
- * Only the nodes an operation touched are rewritten; a delete, or a batch
- * touching many (a history replay on first install), reconciles the whole
- * list instead.
+ * Each batch with a drive operation reconciles the rows with the drive's
+ * last node list, against the rows as stored: an unchanged node is not
+ * rewritten, and a replay that skips operations (or one after a clear)
+ * still ends at the drive's truth.
+ *
+ * The processor keeps no rows in memory; the database is the only record of
+ * what it wrote.
  *
  * Processors are not routed by drive: every drive's processor sees every
  * matching operation. Node rows therefore come from this drive's operations
@@ -17,7 +21,7 @@
 import { RelationalDbProcessor } from "@powerhousedao/reactor-browser";
 import type { OperationWithContext } from "document-model";
 import { up } from "./migrations.js";
-import { fileDocRow, globalOf, nodeRows, sameNode, touchedIds } from "./rows.js";
+import { fileDocRow, globalOf, nodeRows, sameNode } from "./rows.js";
 import type { DB, FileDocRow, FileNodeRow } from "./schema.js";
 
 export const DRIVE_DOCUMENT_TYPE = "powerhouse/document-drive";
@@ -25,57 +29,25 @@ export const FILE_DOCUMENT_TYPE = "sektar/file";
 
 /** Rows per statement: well under any bind-parameter cap at these widths. */
 const BATCH = 300;
-/** Past this many touched nodes a batch reconciles the whole drive instead. */
-const RECONCILE_OVER = 200;
 
 /**
- * What the processors over one namespace share: the factory registers one
- * for the drive's operations and one for File documents' (two filters), and
- * their writes must not interleave.
+ * The factory registers one processor for the drive's operations and one for
+ * File documents' (two filters) over one namespace; their writes must not
+ * interleave.
  */
-interface Shared {
-  queue: Promise<void>;
-  /** The node rows as written, once read: the drive's own ops keep it current. */
-  nodes: Map<string, FileNodeRow> | null;
-  /**
-   * Whether this process has reconciled the rows with the drive's whole node
-   * list yet. A processor installed into a running reactor starts at the
-   * operations it is routed from then on, not at the drive's history, so a
-   * node made before then (and not touched since) would never be listed.
-   * The first drive operation it sees carries the drive's whole state: one
-   * full pass then, incremental after.
-   */
-  reconciled: boolean;
-}
-
-const sharedByNamespace = new Map<string, Shared>();
+const queueByNamespace = new Map<string, Promise<void>>();
 
 export class FilesIndex extends RelationalDbProcessor<DB> {
-  private get shared(): Shared {
-    let s = sharedByNamespace.get(this._namespace);
-    if (!s) {
-      s = { queue: Promise.resolve(), nodes: null, reconciled: false };
-      sharedByNamespace.set(this._namespace, s);
-    }
-    return s;
-  }
-
-  private get nodes(): Map<string, FileNodeRow> | null {
-    return this.shared.nodes;
-  }
-
-  private set nodes(value: Map<string, FileNodeRow> | null) {
-    this.shared.nodes = value;
-  }
-
   onOperations(operations: OperationWithContext[]): Promise<void> {
-    const shared = this.shared;
-    const next = shared.queue.then(() => this.index(operations));
+    const namespace = this._namespace;
+    const previous = queueByNamespace.get(namespace) ?? Promise.resolve();
+    const next = previous.then(() => this.index(operations));
     // Keep the chain alive after a failure, or one bad batch stalls every
-    // later one behind a rejected promise; the cache is re-read after one.
-    shared.queue = next.catch(() => {
-      shared.nodes = null;
-    });
+    // later one behind a rejected promise.
+    queueByNamespace.set(
+      namespace,
+      next.catch(() => undefined),
+    );
     return next;
   }
 
@@ -93,8 +65,6 @@ export class FilesIndex extends RelationalDbProcessor<DB> {
 
   private async index(operations: OperationWithContext[]): Promise<void> {
     const driveId = this._driveId;
-    const touched = new Set<string>();
-    let reconcile = false;
     let lastDriveState: ReturnType<typeof globalOf> = null;
     const docs = new Map<string, FileDocRow | null>();
 
@@ -105,7 +75,6 @@ export class FilesIndex extends RelationalDbProcessor<DB> {
         const id = input?.documentId ?? context.documentId;
         if (this.isNamespaceDrive(id)) {
           await this.dropNamespace();
-          this.nodes = null;
           return;
         }
         if (context.documentType === FILE_DOCUMENT_TYPE) docs.set(id, null);
@@ -115,8 +84,6 @@ export class FilesIndex extends RelationalDbProcessor<DB> {
 
       if (context.documentType === DRIVE_DOCUMENT_TYPE) {
         if (context.documentId !== driveId || context.scope !== "global") continue;
-        for (const id of touchedIds(type, operation.action.input)) touched.add(id);
-        if (type === "DELETE_NODE" || type === "COPY_NODE") reconcile = true;
         const state = globalOf(context.resultingState);
         if (state) lastDriveState = state;
         continue;
@@ -129,42 +96,22 @@ export class FilesIndex extends RelationalDbProcessor<DB> {
       }
     }
 
-    if (lastDriveState) {
-      const first = !this.shared.reconciled;
-      await this.writeNodes(
-        nodeRows(lastDriveState),
-        touched,
-        first || reconcile || touched.size > RECONCILE_OVER,
-      );
-      this.shared.reconciled = true;
-    }
+    if (lastDriveState) await this.writeNodes(nodeRows(lastDriveState));
     await this.writeDocs(docs);
   }
 
-  private async currentNodes(): Promise<Map<string, FileNodeRow>> {
-    if (this.nodes) return this.nodes;
+  /** Brings the node rows to the drive's node list, writing only the difference. */
+  private async writeNodes(truth: Map<string, FileNodeRow>): Promise<void> {
     const rows = await this.relationalDb.selectFrom("file_nodes").selectAll().execute();
-    this.nodes = new Map(rows.map((r) => [r.id, r]));
-    return this.nodes;
-  }
-
-  private async writeNodes(
-    truth: Map<string, FileNodeRow>,
-    touched: Set<string>,
-    reconcile: boolean,
-  ): Promise<void> {
-    const current = await this.currentNodes();
+    const current = new Map(rows.map((r) => [r.id, r]));
     const upserts: FileNodeRow[] = [];
     const deletes: string[] = [];
-    const consider = reconcile ? new Set([...truth.keys(), ...current.keys()]) : touched;
-    for (const id of consider) {
-      const want = truth.get(id);
+    for (const id of current.keys()) {
+      if (!truth.has(id)) deletes.push(id);
+    }
+    for (const [id, want] of truth) {
       const have = current.get(id);
-      if (!want) {
-        if (have) deletes.push(id);
-      } else if (!have || !sameNode(have, want)) {
-        upserts.push(want);
-      }
+      if (!have || !sameNode(have, want)) upserts.push(want);
     }
     for (let at = 0; at < deletes.length; at += BATCH) {
       await this.relationalDb
@@ -187,8 +134,6 @@ export class FilesIndex extends RelationalDbProcessor<DB> {
         )
         .execute();
     }
-    for (const id of deletes) current.delete(id);
-    for (const row of upserts) current.set(row.id, row);
   }
 
   private async writeDocs(docs: Map<string, FileDocRow | null>): Promise<void> {

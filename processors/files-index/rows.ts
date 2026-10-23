@@ -65,25 +65,6 @@ export function sameNode(a: FileNodeRow, b: FileNodeRow): boolean {
   );
 }
 
-/** The node ids a drive action touches; a delete touches its descendants too (found by diff). */
-export function touchedIds(type: string, input: unknown): string[] {
-  const i = (input && typeof input === "object" ? input : {}) as Json;
-  switch (type) {
-    case "ADD_FILE":
-    case "ADD_FOLDER":
-    case "UPDATE_FILE":
-    case "UPDATE_NODE":
-    case "DELETE_NODE":
-      return [str(i.id)].filter((x): x is string => x !== null);
-    case "MOVE_NODE":
-      return [str(i.srcFolder)].filter((x): x is string => x !== null);
-    case "COPY_NODE":
-      return [str(i.targetId)].filter((x): x is string => x !== null);
-    default:
-      return [];
-  }
-}
-
 const isImage = (mime: string | null) => (mime ?? "").toLowerCase().startsWith("image/");
 
 /** A File document's row from its global state. */

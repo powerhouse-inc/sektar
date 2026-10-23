@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { descendantsOf, scopeFor, searchWords, toListRow } from "./queries.js";
-import { fileDocRow, globalOf, nodeRow, nodeRows, sameNode, touchedIds } from "./rows.js";
+import { fileDocRow, globalOf, nodeRow, nodeRows, sameNode } from "./rows.js";
 
 const AT = "2026-10-20T15:00:00.000Z";
 
@@ -42,18 +42,6 @@ describe("node rows from the drive's state", () => {
     expect(sameNode(a, { ...a })).toBe(true);
     expect(sameNode(a, { ...a, name: "y" })).toBe(false);
     expect(sameNode(a, { ...a, parent_id: null })).toBe(false);
-  });
-
-  it("knows which node each drive action touches", () => {
-    expect(touchedIds("ADD_FILE", { id: "a" })).toEqual(["a"]);
-    expect(touchedIds("ADD_FOLDER", { id: "b" })).toEqual(["b"]);
-    expect(touchedIds("UPDATE_NODE", { id: "c" })).toEqual(["c"]);
-    expect(touchedIds("UPDATE_FILE", { id: "c" })).toEqual(["c"]);
-    expect(touchedIds("DELETE_NODE", { id: "d" })).toEqual(["d"]);
-    expect(touchedIds("MOVE_NODE", { srcFolder: "e", targetParentFolder: "f" })).toEqual(["e"]);
-    expect(touchedIds("COPY_NODE", { srcId: "e", targetId: "g" })).toEqual(["g"]);
-    expect(touchedIds("SET_DRIVE_NAME", { name: "x" })).toEqual([]);
-    expect(touchedIds("ADD_FILE", null)).toEqual([]);
   });
 
   it("reads the global state out of a resulting state, wrapped or bare", () => {
