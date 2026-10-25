@@ -25,7 +25,11 @@ export function hitTarget(hit: SearchHit): {
     case "contact":
       return { to: "/finops/contacts", search: { open: hit.document_id } };
     case "transaction":
-      return { to: "/finops/transactions", search: { open: hit.entity_id } };
+      // the account (the hit's document) is the one document the detail loads
+      return {
+        to: "/finops/transactions",
+        search: { open: hit.entity_id, account: hit.document_id },
+      };
     default:
       return {
         to: "/finops/transactions",

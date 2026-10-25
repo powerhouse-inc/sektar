@@ -95,12 +95,24 @@ function useIdsOfType(type: string): string[] {
   return useMemo(() => (key ? key.split(",") : []), [key]);
 }
 
+/**
+ * Every account document, whole (with every transaction ever imported).
+ * For lists, balances and counts use the finance index instead:
+ * `useAccountRows` in kit/finance-index.ts; to edit one account,
+ * `useBankAccountDocumentById`.
+ */
 export function useAccounts(): BankAccountDocument[] {
   return useDocumentsByIds(useIdsOfType(DOC_TYPES.account)).filter(
     isBankAccountDocument,
   );
 }
 
+/**
+ * Every invoice document, whole. For the Invoices list, counts and the
+ * dashboard's sums use the finance index instead: `useInvoiceList` /
+ * `useDashboardStats` in kit/finance-index.ts; to edit one invoice,
+ * `useInvoiceDocumentById`.
+ */
 export function useInvoices(): InvoiceDocument[] {
   return useDocumentsByIds(useIdsOfType(DOC_TYPES.invoice)).filter(
     isInvoiceDocument,
@@ -125,6 +137,11 @@ export type TransactionRow = {
   account: BankAccountDocument;
 };
 
+/**
+ * Every transaction of every account, built from the whole account
+ * documents. For the Transactions table and its counts use the finance
+ * index instead: `useTransactionList` in kit/finance-index.ts.
+ */
 export function useTransactions(): TransactionRow[] {
   const accounts = useAccounts();
   return useMemo(

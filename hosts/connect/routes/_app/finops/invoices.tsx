@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import type { InvoiceDirection, InvoiceDocument } from "document-models/invoice";
-import { useCallback, useState } from "react";
+import type { InvoiceDirection } from "document-models/invoice";
+import { useState } from "react";
 import { InvoicesWorkspace } from "../../../../../editors/sektar/components/invoice/InvoicesWorkspace.js";
-import { useInvoices, useSektarDrive } from "../../../../../editors/sektar/kit/data.js";
-import { counterparty, invoiceTotals, useNow } from "../../../../../editors/sektar/kit/format.js";
+import { useSektarDrive } from "../../../../../editors/sektar/kit/data.js";
+import { useInvoiceList, type InvoiceView } from "../../../../../editors/sektar/kit/finance-index.js";
+import { useNow } from "../../../../../editors/sektar/kit/format.js";
 import { NewInvoicePanel } from "../../-shared/forms.js";
-import { matches, useSearch } from "../../-shared/search.js";
+import { useSearch } from "../../-shared/search.js";
 import { SetupState } from "../../-shared/setup.js";
 
 export const Route = createFileRoute("/_app/finops/invoices")({
@@ -18,26 +19,34 @@ export const Route = createFileRoute("/_app/finops/invoices")({
 
 function InvoicesPage() {
   const drive = useSektarDrive();
-  const invoices = useInvoices();
   const now = useNow();
   const { query } = useSearch();
   const { open: openParam } = Route.useSearch();
   const [created, setCreated] = useState<string | null>(null);
   const [creating, setCreating] = useState<InvoiceDirection | null>(null);
+  // Which side and which status the list shows: the list is asked for exactly that.
+  const [direction, setDirection] = useState<InvoiceDirection>("OUTGOING");
+  const [view, setView] = useState<InvoiceView>("all");
+  const list = useInvoiceList({ direction, view, query, now });
 
-  const search = useCallback(
-    (i: InvoiceDocument) => {
-      const s = i.state.global;
-      return matches(query, s.number, counterparty(s).name, s.subject, s.references.buyerReference, invoiceTotals(s).gross);
-    },
-    [query],
-  );
-
-  if (!drive || invoices.length === 0) return <SetupState what="invoices" />;
+  // No invoice on either side yet (as the index has it): the setup state,
+  // unless one was just made or asked for (the index may not have it yet).
+  const none = list.counts !== undefined && list.counts.outgoing + list.counts.incoming === 0;
+  if (!drive || (none && !created && !openParam)) return <SetupState what="invoices" />;
 
   return (
     <>
-      <InvoicesWorkspace invoices={invoices} now={now} query={search} open={created ?? openParam ?? null} onNew={setCreating} />
+      <InvoicesWorkspace
+        list={list}
+        direction={direction}
+        onDirection={setDirection}
+        view={view}
+        onView={setView}
+        now={now}
+        query={query}
+        open={created ?? openParam ?? null}
+        onNew={setCreating}
+      />
       {creating && (
         <NewInvoicePanel
           drive={drive}

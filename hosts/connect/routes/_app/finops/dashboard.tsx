@@ -1,24 +1,21 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
-  accountBalance,
-  useAccounts,
-  useContacts,
   useExpenseReports,
-  useInvoices,
   useSektarDrive,
-  useTransactions,
 } from "../../../../../editors/sektar/kit/data.js";
+import {
+  accountKindOf,
+  categoryOf,
+  useAccountIndex,
+  useDashboardStats,
+} from "../../../../../editors/sektar/kit/finance-index.js";
 import {
   ACCOUNT_KIND,
   CATEGORY,
   expenseTotal,
   fmtMonth,
   fmtShortDate,
-  counterparty,
-  bookTotals,
-  invoiceTotals,
-  isOverdue,
   money,
   relativeDays,
   plural,
@@ -64,104 +61,39 @@ function greeting() {
 
 function Dashboard() {
   const drive = useSektarDrive();
-  const accounts = useAccounts();
-  const invoices = useInvoices();
+  // The dashboard's instant: fixed for the visit, so the numbers do not re-ask per render.
+  const [now] = useState(() => Date.now());
+  const index = useDashboardStats(drive, now);
+  const accountIndex = useAccountIndex(drive);
+  const accounts = accountIndex ?? [];
   const reports = useExpenseReports();
-  const contacts = useContacts();
-  const rows = useTransactions();
   const navigate = useNavigate();
   const [panel, setPanel] = useState<
     "invoice" | "expense" | "contact" | "import" | null
   >(null);
 
+  // The numbers come from the finance index; what is left here is
+  // presentation (month labels, the month-on-month delta) and the expense
+  // claims, which the index does not hold.
   const stats = useMemo(() => {
-    const now = Date.now();
-    const cash = accounts
-      .filter((a) => a.state.global.kind !== "CREDIT_CARD")
-      .reduce((s, a) => s + accountBalance(a), 0);
-    const card = accounts
-      .filter((a) => a.state.global.kind === "CREDIT_CARD")
-      .reduce((s, a) => s + accountBalance(a), 0);
-    const receivable = invoices
-      .filter(
-        (i) =>
-          i.state.global.direction === "OUTGOING" &&
-          i.state.global.status === "OPEN",
-      )
-      .reduce((s, i) => s + bookTotals(i.state.global).outstanding, 0);
-    const payable = invoices
-      .filter(
-        (i) =>
-          i.state.global.direction === "INCOMING" &&
-          i.state.global.status === "OPEN",
-      )
-      .reduce((s, i) => s + bookTotals(i.state.global).outstanding, 0);
-    const overdue = invoices.filter((i) => isOverdue(i.state.global, now));
-    const toReview = rows.filter((r) => r.tx.status === "NEW").length;
+    if (!index) return undefined;
+    const months = index.months.map((m) => ({
+      ...m,
+      label: fmtMonth(`${m.key}-01T00:00:00.000Z`),
+    }));
+    const empty = { key: "", label: "", in: 0, out: 0 };
+    const thisMonth = months[months.length - 1] ?? empty;
+    const lastMonth = months[months.length - 2] ?? empty;
+    const pct = (a: number, b: number) =>
+      b > 0 ? Math.round(((a - b) / b) * 100) : 0;
     const awaiting = reports.filter(
       (r) => r.state.global.status === "SUBMITTED",
     );
-    // money in / out per month over the last six months, excluding transfers
-    const months: { key: string; label: string; in: number; out: number }[] =
-      [];
-    for (let m = 5; m >= 0; m--) {
-      const d = new Date(now);
-      d.setUTCDate(1);
-      d.setUTCMonth(d.getUTCMonth() - m);
-      months.push({
-        key: d.toISOString().slice(0, 7),
-        label: fmtMonth(d.toISOString()),
-        in: 0,
-        out: 0,
-      });
-    }
-    for (const { tx } of rows) {
-      if (tx.status === "EXCLUDED" || tx.category === "TRANSFER") continue;
-      const bucket = months.find((x) => x.key === tx.bookedAt.slice(0, 7));
-      if (!bucket) continue;
-      if (tx.amount > 0) bucket.in += tx.amount;
-      else bucket.out += -tx.amount;
-    }
-    const thisMonth = months[months.length - 1];
-    const lastMonth = months[months.length - 2];
-    const pct = (a: number, b: number) =>
-      b > 0 ? Math.round(((a - b) / b) * 100) : 0;
-    // spend by category: card + current outflows, last 90 days
-    const spend = new Map<string, number>();
-    for (const { tx } of rows) {
-      if (
-        tx.amount >= 0 ||
-        tx.status === "EXCLUDED" ||
-        tx.category === "TRANSFER" ||
-        tx.category === "PAYROLL" ||
-        tx.category === "TAX"
-      )
-        continue;
-      if (Date.parse(tx.bookedAt) < now - 90 * 86_400_000) continue;
-      spend.set(tx.category, (spend.get(tx.category) ?? 0) + -tx.amount);
-    }
-    const spendSlices = [...spend.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 6);
-    const categorised = rows.filter((r) => r.tx.status !== "NEW").length;
-    const readiness = rows.length
-      ? Math.round((categorised / rows.length) * 100)
-      : 0;
     const pctOf = (n: number, d: number) => (d ? Math.round((n / d) * 100) : 100);
-    const issued = invoices.filter((i) => i.state.global.status !== "DRAFT");
     const readinessRows = [
-      { label: "Transactions categorised", value: pctOf(categorised, rows.length) },
-      {
-        label: "Payments matched to invoices",
-        value: pctOf(
-          rows.filter((r) => r.tx.status === "MATCHED").length,
-          rows.filter((r) => r.tx.category === "SALES").length,
-        ),
-      },
-      {
-        label: "Invoices issued",
-        value: pctOf(issued.length, invoices.length),
-      },
+      { label: "Transactions categorised", value: index.categorisedPct },
+      { label: "Payments matched to invoices", value: index.matchedPct },
+      { label: "Invoices issued", value: index.issuedPct },
       {
         label: "Claims decided",
         value: pctOf(
@@ -173,37 +105,42 @@ function Dashboard() {
       },
     ];
     return {
-      cash,
-      card,
-      receivable,
-      payable,
-      overdue,
-      toReview,
+      ...index,
       awaiting,
       months,
       thisMonth,
       lastMonth,
       pct,
-      spendSlices,
-      readiness,
+      spendSlices: index.spend.map((x) => [x.category, x.amount] as const),
       readinessRows,
     };
-  }, [accounts, invoices, reports, rows]);
+  }, [index, reports]);
 
   if (
     !drive ||
-    (accounts.length === 0 && invoices.length === 0 && contacts.length === 0)
+    (index &&
+      accountIndex &&
+      accountIndex.length === 0 &&
+      index.invoiceCount === 0 &&
+      reports.length === 0)
   ) {
     return <SetupState what="books" />;
+  }
+  if (!stats) {
+    return (
+      <div className="sk-page sk-stack sk-stack--6">
+        <div className="sk-small sk-text-muted">Loading the books…</div>
+      </div>
+    );
   }
 
   const attention = [
     ...stats.overdue.map((i) => ({
-      key: i.header.id,
+      key: i.id,
       icon: "invoice" as const,
-      title: `${i.state.global.number} is overdue`,
-      meta: `${counterparty(i.state.global).name ?? ""} · due ${relativeDays(i.state.global.dueAt)}`,
-      value: money(invoiceTotals(i.state.global).outstanding, i.state.global.currency),
+      title: `${i.number} is overdue`,
+      meta: `${i.counterpartyName ?? ""} · due ${relativeDays(i.dueAt)}`,
+      value: money(i.outstanding, i.currency),
       to: "/finops/invoices" as const,
     })),
     ...(stats.toReview > 0
@@ -249,8 +186,7 @@ function Dashboard() {
             label="Cash position"
             value={money(stats.cash, "EUR", { compact: true })}
             foot={`across ${plural(
-              accounts.filter((a) => a.state.global.kind !== "CREDIT_CARD")
-                .length,
+              accounts.filter((a) => a.kind !== "CREDIT_CARD").length,
               "account",
             )}`}
             spark={stats.months.map((m) => m.in - m.out)}
@@ -325,29 +261,25 @@ function Dashboard() {
           >
             <ul className="sk-list sk-list--divided">
               {accounts.map((a) => (
-                <li key={a.header.id}>
+                <li key={a.id}>
                   <ListItem
                     icon={
                       <IconTile
-                        name={
-                          a.state.global.kind === "CREDIT_CARD"
-                            ? "card"
-                            : "bank"
-                        }
+                        name={a.kind === "CREDIT_CARD" ? "card" : "bank"}
                         size="sm"
                       />
                     }
-                    title={a.state.global.name}
-                    meta={`${ACCOUNT_KIND[a.state.global.kind]} · ${a.state.global.institution ?? ""}`}
+                    title={a.name}
+                    meta={`${ACCOUNT_KIND[accountKindOf(a.kind)]} · ${a.institution ?? ""}`}
                     value={
                       <span className="sk-tabular sk-weight-medium">
-                        {money(accountBalance(a), a.state.global.currency)}
+                        {money(a.balance, a.currency)}
                       </span>
                     }
                     onClick={() =>
                       void navigate({
                         to: "/finops/transactions",
-                        search: { account: a.header.id },
+                        search: { account: a.id },
                       })
                     }
                   />
@@ -412,7 +344,7 @@ function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {rows.slice(0, 7).map(({ tx, account }) => (
+                {stats.recent.map((tx) => (
                   <tr key={tx.id}>
                     <td className="is-muted sk-nowrap">
                       {fmtShortDate(tx.bookedAt)}
@@ -420,12 +352,13 @@ function Dashboard() {
                     <td>
                       <div className="sk-table__primary">{tx.counterparty}</div>
                       <div className="sk-table__secondary">
-                        {tx.description ?? account.state.global.name}
+                        {tx.description ??
+                          accounts.find((a) => a.id === tx.accountId)?.name}
                       </div>
                     </td>
                     <td>
-                      <Badge tone={CATEGORY[tx.category].tone}>
-                        {CATEGORY[tx.category].label}
+                      <Badge tone={CATEGORY[categoryOf(tx.category)].tone}>
+                        {CATEGORY[categoryOf(tx.category)].label}
                       </Badge>
                     </td>
                     <td
@@ -433,7 +366,7 @@ function Dashboard() {
                         tx.amount > 0 ? "is-num sk-amount--in" : "is-num"
                       }
                     >
-                      {money(tx.amount, account.state.global.currency, {
+                      {money(tx.amount, tx.currency, {
                         signed: true,
                       })}
                     </td>
@@ -460,7 +393,7 @@ function Dashboard() {
               />
               <Legend
                 items={stats.spendSlices.map(([c, v]) => ({
-                  label: CATEGORY[c as keyof typeof CATEGORY].label,
+                  label: CATEGORY[categoryOf(c)].label,
                   value: money(v, "EUR", { compact: true }),
                 }))}
               />

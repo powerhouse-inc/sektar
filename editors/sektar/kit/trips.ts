@@ -45,7 +45,13 @@ export function tripIds(drive: DocumentDriveDocument | undefined): string[] {
     .map((n) => n.id);
 }
 
-/** Every trip in a drive (the Trips drive by default), newest first. */
+/**
+ * Every trip in a drive (the Trips drive by default), newest first.
+ *
+ * Loads every trip document: right for the trip editor, wrong for a list.
+ * The boards list trips from the index instead: `useTripList` and
+ * `useTripYears` in ./trip-index.ts, which load a document only when it is opened.
+ */
 export function useTrips(drive?: DocumentDriveDocument): TripDocument[] {
   const fallback = useTripsDrive();
   const key = tripIds(drive ?? fallback).join(",");
@@ -69,6 +75,11 @@ export const PURPOSE: Record<TripPurposeKind, { label: string; icon: IconName }>
   TRAINING: { label: "Training", icon: "help" },
   OTHER: { label: "Other", icon: "folder" },
 };
+/** The label and icon of a purpose as the index spells it (a plain string), or null. */
+export function purposeOf(kind: string | null | undefined): { label: string; icon: IconName } | null {
+  return kind && kind in PURPOSE ? PURPOSE[kind as TripPurposeKind] : null;
+}
+
 export const PURPOSE_ORDER = Object.keys(PURPOSE) as TripPurposeKind[];
 
 /** What a trip is now: its own status, or what its dates say. */
@@ -113,6 +124,11 @@ export const MODE: Record<TripTransportMode, { label: string; glyph: TripGlyph }
   PARKING: { label: "Parking", glyph: "parking" },
   OTHER: { label: "Other", glyph: "pin" },
 };
+/** The label and glyph of a transport mode as the index spells it, or null. */
+export function modeOf(mode: string | null | undefined): { label: string; glyph: TripGlyph } | null {
+  return mode && mode in MODE ? MODE[mode as TripTransportMode] : null;
+}
+
 export const MODE_ORDER = Object.keys(MODE) as TripTransportMode[];
 
 export const MEAL: Record<TripMealKind, { label: string; glyph: TripGlyph }> = {
@@ -222,6 +238,25 @@ export function yearsOf(trips: TripDocument[]): TravelYear[] {
 }
 
 /** The places most travelled to: city, visits, last visit. */
+/** The most visited places over index rows (cancelled trips left out). */
+export function topRowDestinations(
+  trips: readonly { status: string; startDate: string | null; destinations: { city: string; country: string | null }[] }[],
+  limit = 6,
+) {
+  const map = new Map<string, { city: string; country: string | null; visits: number; last: string | null }>();
+  for (const t of trips) {
+    if (t.status === "CANCELLED") continue;
+    for (const d of t.destinations) {
+      const key = d.city.toLowerCase();
+      const row = map.get(key) ?? { city: d.city, country: d.country ?? null, visits: 0, last: null };
+      row.visits++;
+      if (t.startDate && (!row.last || t.startDate > row.last)) row.last = t.startDate;
+      map.set(key, row);
+    }
+  }
+  return [...map.values()].sort((a, b) => b.visits - a.visits || (b.last ?? "").localeCompare(a.last ?? "")).slice(0, limit);
+}
+
 export function topDestinations(trips: TripDocument[], limit = 6) {
   const map = new Map<string, { city: string; country: string | null; visits: number; last: string | null }>();
   for (const t of trips) {

@@ -1,6 +1,17 @@
 // One bank/card transaction with the bookkeeping controls: categorise, link
 // a contact, match to an open invoice or approved claim, or exclude it.
-import type { TransactionCategory } from "document-models/bank-account";
+//
+// The writes dispatch on the account document. The Transactions board lists
+// transactions from the finance index and loads just the one account the
+// open transaction belongs to (`useAccountTransaction`); `onChanged` tells it
+// what a write changed, so its row follows before the index catches up.
+import {
+  useBankAccountDocumentById,
+  type MatchKind,
+  type Transaction,
+  type TransactionCategory,
+  type TransactionStatus,
+} from "document-models/bank-account";
 import { useMemo } from "react";
 import {
   categorizeTransaction,
@@ -38,8 +49,54 @@ export function TransactionStatusBadge({
   );
 }
 
-export function TransactionDetail({ row }: { row: TransactionRow }) {
+/** What a write changed on the transaction, in the finance index's row vocabulary. */
+export interface TransactionChange {
+  status?: TransactionStatus;
+  category?: TransactionCategory;
+  contactId?: string | null;
+  matchedDocumentId?: string | null;
+  matchedKind?: MatchKind | null;
+}
+
+/** The status the reducer leaves after a categorise (feed.ts). */
+export function statusAfterCategorise(status: TransactionStatus): TransactionStatus {
+  return status === "NEW" ? "CATEGORIZED" : status;
+}
+
+/** The status the reducer leaves after an unmatch or an include (feed.ts). */
+function statusUnsettled(category: TransactionCategory): TransactionStatus {
+  return category === "UNCATEGORIZED" ? "NEW" : "CATEGORIZED";
+}
+
+/**
+ * One transaction with its account document, loaded by id: the account is
+ * the one document the detail needs (its writes dispatch on it). Undefined
+ * while it loads, or when the account does not hold the transaction.
+ */
+export function useAccountTransaction(
+  accountId: string | null | undefined,
+  transactionId: string | null | undefined,
+): TransactionRow | undefined {
+  const [account] = useBankAccountDocumentById(accountId);
+  return useMemo(() => {
+    if (!account || !transactionId) return undefined;
+    const tx: Transaction | undefined = account.state.global.transactions.find(
+      (t) => t.id === transactionId,
+    );
+    return tx ? { tx, account } : undefined;
+  }, [account, transactionId]);
+}
+
+export function TransactionDetail({
+  row,
+  onChanged,
+}: {
+  row: TransactionRow;
+  /** Called after each write with what it changed. */
+  onChanged?: (change: TransactionChange) => void;
+}) {
   const { tx, account } = row;
+  const changed = (change: TransactionChange) => onChanged?.(change);
   const accountId = account.header.id;
   const currency = account.state.global.currency;
   const contacts = useContacts().filter(
@@ -119,9 +176,15 @@ export function TransactionDetail({ row }: { row: TransactionRow }) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() =>
-            void excludeTransaction(accountId, tx.id, tx.status !== "EXCLUDED")
-          }
+          onClick={() => {
+            const exclude = tx.status !== "EXCLUDED";
+            void excludeTransaction(accountId, tx.id, exclude);
+            changed(
+              exclude
+                ? { status: "EXCLUDED", matchedDocumentId: null, matchedKind: null }
+                : { status: statusUnsettled(tx.category) },
+            );
+          }}
         >
           {tx.status === "EXCLUDED" ? "Include again" : "Exclude"}
         </Button>
@@ -149,13 +212,11 @@ export function TransactionDetail({ row }: { row: TransactionRow }) {
           <Field label="Category">
             <Select
               value={tx.category}
-              onChange={(e) =>
-                void categorizeTransaction(
-                  accountId,
-                  tx.id,
-                  e.target.value as TransactionCategory,
-                )
-              }
+              onChange={(e) => {
+                const category = e.target.value as TransactionCategory;
+                void categorizeTransaction(accountId, tx.id, category);
+                changed({ category, status: statusAfterCategorise(tx.status) });
+              }}
             >
               {CATEGORY_ORDER.map((c) => (
                 <option key={c} value={c}>
@@ -175,12 +236,18 @@ export function TransactionDetail({ row }: { row: TransactionRow }) {
                   tx.category === "UNCATEGORIZED" && next
                     ? next.state.global.defaultCategory
                     : tx.category;
+                const contactId = e.target.value || null;
                 void categorizeTransaction(
                   accountId,
                   tx.id,
                   category,
-                  e.target.value || null,
+                  contactId,
                 );
+                changed({
+                  category,
+                  contactId,
+                  status: statusAfterCategorise(tx.status),
+                });
               }}
             >
               <option value="">— none —</option>
@@ -206,7 +273,14 @@ export function TransactionDetail({ row }: { row: TransactionRow }) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => void unmatchTransaction(accountId, tx.id)}
+            onClick={() => {
+              void unmatchTransaction(accountId, tx.id);
+              changed({
+                status: statusUnsettled(tx.category),
+                matchedDocumentId: null,
+                matchedKind: null,
+              });
+            }}
           >
             Unmatch
           </Button>
@@ -249,6 +323,11 @@ export function TransactionDetail({ row }: { row: TransactionRow }) {
                           );
                         }
                         await matchTransaction(accountId, tx.id, c.id, c.kind);
+                        changed({
+                          status: "MATCHED",
+                          matchedDocumentId: c.id,
+                          matchedKind: c.kind,
+                        });
                       })();
                     }}
                   >

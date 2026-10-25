@@ -1,22 +1,12 @@
 import { useDrives } from "@powerhousedao/reactor-browser";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { tripTotals, type TripDocument } from "document-models/trip";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import artDark from "../../../../editors/sektar/design/shapes/sektar-composition-rise-dark.svg";
 import artLight from "../../../../editors/sektar/design/shapes/sektar-composition-rise-light.svg";
 import { money, plural, relativeDays } from "../../../../editors/sektar/kit/format.js";
 import { Glyph, GlyphTile, TripSprite } from "../../../../editors/sektar/kit/trip-glyphs.js";
-import {
-  dateRange,
-  flag,
-  MODE,
-  PHASE,
-  phaseOf,
-  PURPOSE,
-  topDestinations,
-  useTrips,
-  yearsOf,
-} from "../../../../editors/sektar/kit/trips.js";
+import { useTripList, useTripPlaces, useTripYears, type TripPlace, type TripRow, type TripYear } from "../../../../editors/sektar/kit/trip-index.js";
+import { dateRange, flag, modeOf, PHASE, purposeOf } from "../../../../editors/sektar/kit/trips.js";
 import { Badge, Bars, Button, Card, EmptyState, IconTile, Legend, ListItem, PageHeader, Segmented, Stat } from "../../../../editors/sektar/kit/ui.js";
 import { driveFor, PRODUCTS } from "../-shared/products.js";
 
@@ -26,54 +16,63 @@ export const Route = createFileRoute("/_app/travel")({
 });
 
 const product = PRODUCTS.find((p) => p.id === "travel")!;
+const NO_YEARS: TripYear[] = [];
+const NO_PLACES: TripPlace[] = [];
 
 /** Business Travel's front page: where you are going next, and where you have been. */
 function TravelOverview() {
   const drives = useDrives();
   const navigate = useNavigate();
   const found = driveFor(drives, product);
-  const trips = useTrips(found?.drive);
-  const years = useMemo(() => yearsOf(trips), [trips]);
   const [year, setYear] = useState<number | "all">("all");
-  const now = Date.now();
+  const [now] = useState(() => Date.now());
+  // Rows and per-year figures come from the trip index; a trip document is
+  // loaded only when it is opened.
+  const yearsAnswer = useTripYears(found?.drive);
+  const years = yearsAnswer ?? NO_YEARS;
+  const ongoing = useTripList(found?.drive, { year, phases: ["ongoing"], query: "", now });
+  const upcoming = useTripList(found?.drive, { year, phases: ["upcoming"], query: "", now });
+  const places = useTripPlaces(found?.drive, year) ?? NO_PLACES;
+  const completed = useTripList(found?.drive, { year, phases: ["completed"], query: "", now });
 
-  const openTrip = (t?: TripDocument) => {
+  const openTrip = (t?: TripRow) => {
     if (!found) return;
-    void navigate({ to: "/d/$driveSlug/{-$nodeSlug}", params: { driveSlug: found.param, nodeSlug: t?.header.id } });
+    void navigate({ to: "/d/$driveSlug/{-$nodeSlug}", params: { driveSlug: found.param, nodeSlug: t?.id } });
   };
 
-  const scope = year === "all" ? trips : trips.filter((t) => t.state.global.startDate?.startsWith(String(year)));
-  const live = scope.filter((t) => t.state.global.status !== "CANCELLED");
-  const next = useMemo(
-    () =>
-      [...trips]
-        .filter((t) => ["upcoming", "ongoing"].includes(phaseOf(t.state.global, now)))
-        .sort((a, b) => (a.state.global.startDate ?? "").localeCompare(b.state.global.startDate ?? ""))
-        .at(0),
-    [trips, now],
+  // The index lists newest start first, so the soonest trip is the last upcoming row.
+  const { ensure: ensureUpcoming } = upcoming;
+  useEffect(() => {
+    if (upcoming.total > 0) ensureUpcoming(upcoming.total - 1, upcoming.total);
+  }, [upcoming.total, ensureUpcoming]);
+  const recent = useMemo(
+    () => Array.from({ length: Math.min(6, completed.total) }, (_, i) => completed.rowAt(i)).filter((t): t is TripRow => !!t),
+    // version bumps when the rows behind rowAt change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [completed.total, completed.version],
   );
+  const next = ongoing.rowAt(ongoing.total - 1) ?? upcoming.rowAt(upcoming.total - 1) ?? recent.at(0);
+  const scope = useMemo(() => (year === "all" ? years : years.filter((y) => y.year === year)), [years, year]);
   const stats = useMemo(() => {
-    const sum = { spend: 0, billed: 0, transport: 0, stays: 0, meals: 0, extras: 0, days: 0, nights: 0, legs: 0, flights: 0 };
-    for (const t of live) {
-      const s = t.state.global;
-      const x = tripTotals(s);
-      sum.spend += x.total;
-      sum.billed += x.billed;
-      sum.transport += x.transport;
-      sum.stays += x.stays;
-      sum.meals += x.meals;
-      sum.extras += x.extras;
-      sum.legs += s.transport.length;
-      sum.flights += s.transport.filter((l) => l.mode === "FLIGHT").length;
+    const sum = { trips: 0, spend: 0, billed: 0, transport: 0, stays: 0, meals: 0, extras: 0, days: 0, nights: 0, legs: 0, flights: 0 };
+    for (const y of scope) {
+      sum.trips += y.trips;
+      sum.spend += y.cost;
+      sum.billed += y.billed;
+      sum.days += y.days;
+      sum.nights += y.nights;
+      sum.flights += y.flights;
+      sum.legs += y.legs;
+      sum.transport += y.costByKind.transport;
+      sum.stays += y.costByKind.stays;
+      sum.meals += y.costByKind.meals;
+      sum.extras += y.costByKind.extras;
     }
-    const ys = year === "all" ? years : years.filter((y) => y.year === year);
-    sum.days = ys.reduce((n, y) => n + y.days, 0);
-    sum.nights = ys.reduce((n, y) => n + y.nights, 0);
     return sum;
-  }, [live, years, year]);
-  const places = useMemo(() => topDestinations(live), [live]);
-  const recent = live.filter((t) => phaseOf(t.state.global, now) === "completed").slice(0, 6);
+  }, [scope]);
   const chart = [...years].reverse().slice(-8);
+  const loaded = completed.loaded && upcoming.loaded && ongoing.loaded;
+  const empty = loaded && yearsAnswer !== null && !years.length && !completed.total && !upcoming.total && !ongoing.total;
 
   if (!found)
     return (
@@ -109,17 +108,17 @@ function TravelOverview() {
         </div>
       )}
 
-      {!trips.length ? (
+      {empty ? (
         <EmptyState icon="calendar" title="No trips yet" action={<Button variant="primary" onClick={() => openTrip()}>Open the Trips drive</Button>}>
           Trips are filled in from the sales invoices that billed them on and from the booking mails.
         </EmptyState>
       ) : (
         <div className="sk-dash-grid">
           <div className="c3">
-            <Stat icon="calendar" label="Trips" value={live.length} foot={`${plural(stats.days, "day")} away · ${plural(stats.nights, "night")}`} spark={chart.length > 1 ? chart.map((y) => y.trips) : undefined} />
+            <Stat icon="calendar" label="Trips" value={stats.trips} foot={`${plural(stats.days, "day")} away · ${plural(stats.nights, "night")}`} spark={chart.length > 1 ? chart.map((y) => y.trips) : undefined} />
           </div>
           <div className="c3">
-            <Stat icon="wallet" label="Spent on travel" value={money(stats.spend, "EUR", { compact: true })} foot={live.length ? `${money(stats.spend / live.length, "EUR", { compact: true })} a trip` : undefined} spark={chart.length > 1 ? chart.map((y) => Math.round(y.spend)) : undefined} />
+            <Stat icon="wallet" label="Spent on travel" value={money(stats.spend, "EUR", { compact: true })} foot={stats.trips ? `${money(stats.spend / stats.trips, "EUR", { compact: true })} a trip` : undefined} spark={chart.length > 1 ? chart.map((y) => Math.round(y.cost)) : undefined} />
           </div>
           <div className="c3">
             <Stat icon="invoice" label="Billed on to customers" value={money(stats.billed, "EUR", { compact: true })} foot={stats.spend ? `${Math.round((stats.billed / stats.spend) * 100)}% of the spend` : "nothing yet"} />
@@ -136,8 +135,8 @@ function TravelOverview() {
           </div>
 
           <div className="c6">
-            {(next ?? live.at(0)) ? (
-              <NextTrip trip={(next ?? live.at(0))!} onOpen={() => openTrip(next ?? live.at(0))} now={now} />
+            {next ? (
+              <NextTrip trip={next} onOpen={() => openTrip(next)} now={now} />
             ) : (
               <Card title="Next trip">
                 <EmptyState icon="sun" title="Nothing planned">
@@ -148,7 +147,7 @@ function TravelOverview() {
           </div>
           <div className="c6">
             <Card title="Spend by year" actions={<Legend items={[{ label: "Spent" }, { label: "Billed on", color: "var(--sk-chart-3)" }]} />}>
-              <Bars axis ticks={4} height={180} format={(v) => money(v, "EUR", { compact: true })} groups={chart.map((y) => ({ label: String(y.year), values: [Math.round(y.spend), Math.round(y.billed)] }))} />
+              <Bars axis ticks={4} height={180} format={(v) => money(v, "EUR", { compact: true })} groups={chart.map((y) => ({ label: String(y.year), values: [Math.round(y.cost), Math.round(y.billed)] }))} />
             </Card>
           </div>
 
@@ -193,16 +192,15 @@ function TravelOverview() {
             <Card title="Recent trips" actions={<Button variant="link" size="sm" onClick={() => openTrip()}>View all</Button>}>
               <ul className="sk-list sk-list--divided">
                 {recent.map((t) => {
-                  const s = t.state.global;
-                  const purpose = s.purposeKind ? PURPOSE[s.purposeKind] : null;
+                  const purpose = purposeOf(t.purposeKind);
                   return (
-                    <li key={t.header.id}>
+                    <li key={t.id}>
                       <ListItem
                         onClick={() => openTrip(t)}
                         icon={purpose ? <IconTile name={purpose.icon} size="sm" /> : <GlyphTile name="pin" size="sm" />}
-                        title={s.title ?? "Untitled trip"}
-                        meta={dateRange(s.startDate, s.endDate)}
-                        value={money(tripTotals(s).total, s.currency, { compact: true })}
+                        title={t.title ?? "Untitled trip"}
+                        meta={dateRange(t.startDate, t.endDate)}
+                        value={money(t.costTotal, t.currency, { compact: true })}
                       />
                     </li>
                   );
@@ -216,27 +214,26 @@ function TravelOverview() {
   );
 }
 
-function NextTrip({ trip, onOpen, now }: { trip: TripDocument; onOpen: () => void; now: number }) {
-  const s = trip.state.global;
-  const phase = phaseOf(s, now);
-  const first = [...s.transport].sort((a, b) => (a.departAt ?? "").localeCompare(b.departAt ?? ""))
-    .at(0);
+function NextTrip({ trip, onOpen, now }: { trip: TripRow; onOpen: () => void; now: number }) {
+  const phase = trip.phase;
+  const first = trip.firstLeg;
+  const mode = modeOf(first?.mode);
   return (
     <div className="sk-card sk-card--forest sk-travel-next">
       <div className="sk-travel-next__top">
-        <span className="sk-eyebrow">{phase === "ongoing" ? "Under way" : phase === "upcoming" ? `Next trip · ${relativeDays(s.startDate, now)}` : `Last trip · ${relativeDays(s.endDate ?? s.startDate, now)}`}</span>
+        <span className="sk-eyebrow">{phase === "ongoing" ? "Under way" : phase === "upcoming" ? `Next trip · ${relativeDays(trip.startDate, now)}` : `Last trip · ${relativeDays(trip.endDate ?? trip.startDate, now)}`}</span>
         <Badge tone={PHASE[phase].tone} pill>
           {PHASE[phase].label}
         </Badge>
       </div>
-      <h2 className="sk-travel-next__title">{s.title ?? "Untitled trip"}</h2>
+      <h2 className="sk-travel-next__title">{trip.title ?? "Untitled trip"}</h2>
       <p className="sk-travel-next__where">
-        {s.destinations.map((d) => `${flag(d.country)} ${d.city}`.trim()).join(" · ") || "Destination to come"} · {dateRange(s.startDate, s.endDate)}
+        {trip.destinations.map((d) => `${flag(d.country)} ${d.city}`.trim()).join(" · ") || "Destination to come"} · {dateRange(trip.startDate, trip.endDate)}
       </p>
-      {first && (
+      {first && mode && (
         <p className="sk-travel-next__leg">
-          <Glyph name={MODE[first.mode].glyph} size={20} className="sk-icon--inverse" />
-          {[MODE[first.mode].label, first.carrier, first.number, first.from && first.to ? `${first.from} → ${first.to}` : null].filter(Boolean).join(" · ")}
+          <Glyph name={mode.glyph} size={20} className="sk-icon--inverse" />
+          {[mode.label, first.carrier, first.number, first.from && first.to ? `${first.from} → ${first.to}` : null].filter(Boolean).join(" · ")}
         </p>
       )}
       <Button variant="inverse" size="sm" onClick={onOpen}>

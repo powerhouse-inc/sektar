@@ -1,6 +1,7 @@
 // The Invoices page as the design system's workspace pattern, like Mail and
 // Files, in three columns:
-//   the list     every invoice of one side (Sales or Purchases), by date
+//   the list     every invoice of one side (Sales or Purchases), in the
+//                workspace's order, from the finance index (kit/finance-index.ts)
 //   the invoice  read once, top to bottom: who and what, the amount and where
 //                it stands, the dates, then its lines grouped by category
 //   what's open  a line, with its receipts, stepping line by line; or, with
@@ -10,23 +11,41 @@
 // width, as a push navigation. Sales or Purchases is the "inbox" choice: a
 // sub-bar selector wide, a level-0 chooser opened from the list's title
 // when stacked. The top bar's search filters the list; a status menu narrows it.
+//
+// The list is index rows, windowed and fetched page by page where the reader
+// is; only the invoice that is open is loaded as a document.
 import { dispatchActions, makeNodeSlug, openTarget, useAttachments } from "@powerhousedao/reactor-browser";
 import {
   actions,
   computeTotals,
+  useInvoiceDocumentById,
   type InvoiceAction,
   type InvoiceDirection,
   type InvoiceDocument,
   type InvoiceLine,
   type InvoiceState,
 } from "document-models/invoice";
-import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Component, memo, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFillHeight, useNarrow } from "../../../backfills/components/measure.js";
-import { counterparty, fmtDate, fmtShortDate, fromDateInput, invoiceTotals, isOverdue, money, plural, relativeDays, toDateInput } from "../../kit/format.js";
+import type { InvoiceList, InvoiceRow, InvoiceView } from "../../kit/finance-index.js";
+import {
+  counterparty,
+  fmtDate,
+  fmtShortDate,
+  fromDateInput,
+  INVOICE_STATUS,
+  invoiceTotals,
+  isOverdue,
+  money,
+  plural,
+  relativeDays,
+  toDateInput,
+} from "../../kit/format.js";
 import { attachFile, invoiceChecks, roleLabel } from "../../kit/invoice.js";
 import { LINE_HEADERS, printedLine, type PrintedLine } from "../../kit/invoice-print.js";
 import { Menu } from "../../kit/menu.js";
-import { Avatar, Badge, Button, cx, EmptyState, Icon, ListItem, Selector } from "../../kit/ui.js";
+import { Avatar, Badge, Button, cx, EmptyState, Icon, ListItem, Selector, Skeleton } from "../../kit/ui.js";
+import { useRowWindow } from "../../kit/virtual.js";
 import { Pane, PaneSwitch, SubBar, Workspace } from "../../kit/workspace.js";
 import { bytes, fileKind } from "../../kit/files.js";
 import { FileTypeTile, useDocumentLocation } from "../FilePreview.js";
@@ -40,18 +59,19 @@ import { SendActions } from "./SendActions.js";
 /** Which level a stacked workspace shows: 0 Sales or Purchases · 1 list · 2 the invoice · 3 what's open */
 type Level = 0 | 1 | 2 | 3;
 
-type View = "all" | "draft" | "open" | "overdue" | "settled";
-
-/** The statuses the list can be narrowed to. */
-const VIEWS: { value: View; label: string; pick: (s: InvoiceState, now: number) => boolean }[] = [
-  { value: "all", label: "All", pick: () => true },
-  { value: "draft", label: "Drafts", pick: (s) => s.status === "DRAFT" },
-  { value: "open", label: "Open", pick: (s, now) => s.status === "OPEN" && !isOverdue(s, now) },
-  { value: "overdue", label: "Overdue", pick: (s, now) => isOverdue(s, now) },
-  { value: "settled", label: "Settled", pick: (s) => s.status === "PAID" || s.status === "VOID" },
+/** The statuses the list can be narrowed to; the index decides which invoice is in which. */
+const VIEWS: { value: InvoiceView; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "draft", label: "Drafts" },
+  { value: "open", label: "Open" },
+  { value: "overdue", label: "Overdue" },
+  { value: "settled", label: "Settled" },
 ];
 
 const DIRECTION_NAME: Record<InvoiceDirection, string> = { OUTGOING: "Sales", INCOMING: "Purchases" };
+
+/** The pages under the list's window are asked for once the scroll settles. */
+const ENSURE_DEBOUNCE_MS = 60;
 
 /** The third column: the invoice itself (its PDF preview, or one of its documents by id), or a line by id. */
 type Open = { kind: "invoice"; doc: string } | { kind: "line"; id: string };
@@ -74,36 +94,20 @@ function partyViews(s: InvoiceState): { value: string; name: string; party: Invo
 
 const isCurrent = (s: unknown): s is InvoiceState => typeof s === "object" && s !== null && "buyer" in s && "lines" in s;
 const lineAmount = (l: InvoiceLine) => Math.round(l.quantity * l.unitPrice * 100) / 100;
-/** The invoice pane's title: "Invoice #2026004" once issued ("Credit note #…", "Bill #…"), "Draft invoice" before. */
-function paneTitle(s: InvoiceState): string {
-  const kind = s.kind === "CREDIT_NOTE" ? "Credit note" : s.direction === "INCOMING" ? "Bill" : "Invoice";
-  return s.number ? `${kind} #${s.number}` : `Draft ${kind.toLowerCase()}`;
+
+/** "Invoice #2026004" once issued ("Credit note #…", "Bill #…"), "Draft invoice" before. */
+function titleFor(kind: string, direction: string, number: string | null | undefined): string {
+  const name = kind === "CREDIT_NOTE" ? "Credit note" : direction === "INCOMING" ? "Bill" : "Invoice";
+  return number ? `${name} #${number}` : `Draft ${name.toLowerCase()}`;
 }
+
+/** The invoice pane's title, from the document. */
+const paneTitle = (s: InvoiceState) => titleFor(s.kind, s.direction, s.number);
+
+const directionOf = (value: string): InvoiceDirection => (value === "INCOMING" ? "INCOMING" : "OUTGOING");
 
 /** "612 ×", "51.75 ×": how many, in front of a line. */
 const qtyLabel = (q: number) => `${Number.isInteger(q) ? q : q.toFixed(2)} ×`;
-
-/**
- * The list's order: drafts on top, latest first by what they cover (the
- * delivery date, else the period's end, else its start, else when made);
- * then the issued, by number, highest first ("2026010" before "2026009",
- * a supplier's "INV-10" after "INV-9").
- */
-function byListOrder(a: InvoiceDocument, b: InvoiceDocument): number {
-  const x = a.state.global;
-  const y = b.state.global;
-  const draftX = !x.number;
-  const draftY = !y.number;
-  if (draftX !== draftY) return draftX ? -1 : 1;
-  if (draftX) {
-    const when = (d: InvoiceDocument) => {
-      const s = d.state.global;
-      return s.deliveredAt ?? s.period?.end ?? s.period?.start ?? d.header.createdAtUtcIso;
-    };
-    return when(b).localeCompare(when(a));
-  }
-  return (y.number ?? "").localeCompare(x.number ?? "", undefined, { numeric: true });
-}
 
 /** A rate to at most 6 decimals, however precisely it is stored: 0.09186653286 → 0.091867. */
 const fmtRate = (rate: number) => String(Math.round(rate * 1e6) / 1e6);
@@ -143,25 +147,59 @@ function invoiceView(s: InvoiceState): Open {
   return { kind: "invoice", doc: sent?.id ?? PDF };
 }
 
+/**
+ * What a change this tab made to the open invoice does to its list row,
+ * laid over the row until the index catches up: issuing (status, number,
+ * dates), a payment (status, outstanding), voiding, a date edited.
+ */
+function rowPatch(s: InvoiceState, now: number): Partial<InvoiceRow> {
+  const t = invoiceTotals(s);
+  return {
+    status: s.status,
+    number: s.number ?? null,
+    issuedAt: s.issuedAt ?? null,
+    dueAt: s.dueAt ?? null,
+    deliveredAt: s.deliveredAt ?? null,
+    periodStart: s.period?.start ?? null,
+    periodEnd: s.period?.end ?? null,
+    gross: t.gross,
+    outstanding: t.outstanding,
+    overdue: isOverdue(s, now),
+    lastPaidAt: s.payments.at(-1)?.paidAt ?? null,
+  };
+}
+
 export function InvoicesWorkspace({
-  invoices,
+  list,
+  direction,
+  onDirection,
+  view,
+  onView,
   now,
   query,
   open,
   onNew,
 }: {
-  /** Every invoice, both directions */
-  invoices: InvoiceDocument[];
+  /** The list for `direction` and `view` (and the top bar's search), from the finance index */
+  list: InvoiceList;
+  direction: InvoiceDirection;
+  onDirection: (direction: InvoiceDirection) => void;
+  view: InvoiceView;
+  onView: (view: InvoiceView) => void;
   now: number;
-  /** The top bar's search */
-  query: (doc: InvoiceDocument) => boolean;
+  /** The top bar's search, as the list was asked for it */
+  query: string;
   /** An invoice to open (from the URL, or one just made): it is shown, in its direction */
   open?: string | null;
   onNew: (direction: InvoiceDirection) => void;
 }) {
-  const [direction, setDirection] = useState<InvoiceDirection>("OUTGOING");
-  const [view, setView] = useState<View>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  /** The row the invoice was picked from: its header while the document loads. */
+  const [picked, setPicked] = useState<InvoiceRow | null>(null);
+  /** Which side the open invoice is on, once known (from its row, or its document). */
+  const [selectedDirection, setSelectedDirection] = useState<InvoiceDirection | null>(null);
+  /** An invoice asked for by id: its direction is taken from its document once it has loaded. */
+  const [asked, setAsked] = useState<string | null>(null);
   const [opened, setOpened] = useState<Open>({ kind: "invoice", doc: PDF });
   const [level, setLevel] = useState<Level>(1);
   const [listCollapsed, setListCollapsed] = useState(false);
@@ -174,95 +212,92 @@ export function InvoicesWorkspace({
   const narrow = useNarrow(root, 1000, true);
   const sideCollapsed = sidePref ?? narrow;
 
-  const counts = useMemo(
-    () => ({
-      OUTGOING: invoices.filter((i) => i.state.global.direction === "OUTGOING").length,
-      INCOMING: invoices.filter((i) => i.state.global.direction === "INCOMING").length,
-    }),
-    [invoices],
-  );
+  const { counts, ensure, rowAt, invalidate, patch } = list;
   const pickView = VIEWS.find((v) => v.value === view) ?? VIEWS[0];
-  const rows = useMemo(
-    () =>
-      invoices
-        .filter((i) => i.state.global.direction === direction)
-        .filter((i) => pickView.pick(i.state.global, now))
-        .filter(query)
-        .sort(byListOrder),
-    [invoices, direction, pickView, now, query],
-  );
+  const viewCount = (v: InvoiceView) => counts?.byView.find((c) => c.direction === direction && c.view === v)?.count;
 
-  const selected = invoices.find((i) => i.header.id === selectedId);
-  const state = selected && isCurrent(selected.state.global) ? selected.state.global : null;
-  const lines = useMemo(() => state?.lines ?? [], [state]);
-  // The order the invoice reads in (by category): the stepper walks it.
-  const walk = useMemo(() => groupLines(lines).flatMap((g) => g.lines.map((x) => x.line)), [lines]);
-  const lineAt = opened.kind === "line" ? walk.findIndex((l) => l.id === opened.id) : -1;
+  // The list pane's body scrolls; the window keeps a screenful of rows in it.
+  const win = useRowWindow(listBody, list.total);
+  // The pages under the window, once the scroll settles.
+  useEffect(() => {
+    const timer = setTimeout(() => ensure(win.start, win.end), ENSURE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [ensure, win.start, win.end, list.version]);
+  const windowRows = useMemo(() => {
+    const out: { index: number; row: InvoiceRow | undefined }[] = [];
+    for (let i = win.start; i < win.end; i++) out.push({ index: i, row: rowAt(i) });
+    return out;
+  }, [win.start, win.end, rowAt]);
+  const firstReal = windowRows.find((r) => r.row)?.index;
+  // The open invoice's row as the list now has it (a patch shows there), else as it was picked.
+  const selectedRow = windowRows.find((r) => r.row?.id === selectedId)?.row ?? (picked?.id === selectedId ? picked : null);
 
-  const pick = (doc: InvoiceDocument) => {
-    setSelectedId(doc.header.id);
-    setOpened(isCurrent(doc.state.global) ? invoiceView(doc.state.global) : { kind: "invoice", doc: PDF });
+  const pick = (row: InvoiceRow) => {
+    setSelectedId(row.id);
+    setPicked(row);
+    setSelectedDirection(directionOf(row.direction));
+    setAsked(null);
+    setOpened({ kind: "invoice", doc: row.issuedCopyId ?? PDF });
     setLevel(2);
   };
 
-  // Opened from elsewhere (search, a contact, a new invoice): its direction too.
-  const asked = open ? invoices.find((i) => i.header.id === open) : undefined;
+  // Opened from elsewhere (search, a contact, a new invoice): it opens at
+  // once; its direction follows when its document has loaded. A new invoice
+  // is not in the index yet: the list is asked again.
   useEffect(() => {
-    if (!asked) return;
-    setDirection(asked.state.global.direction);
-    setView("all");
-    pick(asked);
-    // once per invoice asked for, not on every change to it
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [asked?.header.id]);
+    if (!open) return;
+    setSelectedId(open);
+    setPicked(null);
+    setSelectedDirection(null);
+    setAsked(open);
+    setOpened({ kind: "invoice", doc: PDF });
+    setLevel(2);
+    invalidate();
+  }, [open, invalidate]);
 
-  // A line removed from the invoice takes the third column back to the invoice.
-  useEffect(() => {
-    if (state && opened.kind === "line" && lineAt < 0) setOpened(invoiceView(state));
-  }, [state, opened, lineAt]);
+  const arrived = (state: InvoiceState) => {
+    setAsked(null);
+    setSelectedDirection(state.direction);
+    if (state.direction !== direction) onDirection(state.direction);
+    if (view !== "all") onView("all");
+    setOpened(invoiceView(state));
+  };
 
-  // A new direction or status starts the list at the top.
+  // A new direction, status or search starts the list at the top.
   useEffect(() => {
     if (listBody.current) listBody.current.scrollTop = 0;
-  }, [direction, view]);
+  }, [direction, view, query]);
 
   const chooseDirection = (d: InvoiceDirection) => {
-    setDirection(d);
+    onDirection(d);
     setLevel(1);
     // An invoice from the other side is not in this list: it closes.
-    if (selected && selected.state.global.direction !== d) setSelectedId(null);
-  };
-  const openLine = (id: string) => {
-    setOpened({ kind: "line", id });
-    setSidePref(false);
-    setLevel(3);
-  };
-  const step = (by: number) => {
-    const next = walk[lineAt + by];
-    if (next) setOpened({ kind: "line", id: next.id });
+    if (selectedDirection && selectedDirection !== d) setSelectedId(null);
   };
 
-  // Walking the lines with the arrow keys while one is open, unless typing.
-  useEffect(() => {
-    if (opened.kind !== "line") return;
-    const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target?.closest("input, textarea, select, [contenteditable]")) return;
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-        e.preventDefault();
-        step(e.key === "ArrowDown" ? 1 : -1);
-      }
+  const directionOptions = (["OUTGOING", "INCOMING"] as const).map((d) => {
+    const n = counts ? (d === "OUTGOING" ? counts.outgoing : counts.incoming) : undefined;
+    return {
+      value: d,
+      name: DIRECTION_NAME[d],
+      meta: n === undefined ? "…" : plural(n, d === "OUTGOING" ? "invoice" : "bill"),
+      icon: d === "OUTGOING" ? ("invoice" as const) : ("cart" as const),
     };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
   });
 
-  const directionOptions = (["OUTGOING", "INCOMING"] as const).map((d) => ({
-    value: d,
-    name: DIRECTION_NAME[d],
-    meta: plural(counts[d], d === "OUTGOING" ? "invoice" : "bill"),
-    icon: d === "OUTGOING" ? ("invoice" as const) : ("cart" as const),
-  }));
+  const panes: PanesProps = {
+    selectedId,
+    row: selectedRow,
+    asked,
+    now,
+    opened,
+    sideCollapsed,
+    onOpened: setOpened,
+    onSidePref: setSidePref,
+    onLevel: setLevel,
+    onArrived: arrived,
+    onPatch: patch,
+  };
 
   return (
     <div ref={root} className="sk-invoices" style={{ height: height ? `${height}px` : undefined }}>
@@ -284,13 +319,25 @@ export function InvoicesWorkspace({
           bodyRef={listBody}
           collapsed={listCollapsed}
           onToggle={() => setListCollapsed((v) => !v)}
-          count={rows.length}
+          count={list.total}
           header={<PaneSwitch label={DIRECTION_NAME[direction]} ariaLabel="Choose sales or purchases" onClick={() => setLevel(0)} />}
           trailing={
             <span className="sk-row" style={{ gap: "var(--sk-space-1)", flexWrap: "nowrap" }}>
               <Menu
                 label="Status"
-                items={VIEWS.map((v) => ({ label: v.label, active: v.value === view, onSelect: () => setView(v.value) }))}
+                items={VIEWS.map((v) => {
+                  const n = viewCount(v.value);
+                  return {
+                    label: (
+                      <>
+                        {v.label}
+                        {n !== undefined && <span className="sk-text-muted sk-tabular"> · {n}</span>}
+                      </>
+                    ),
+                    active: v.value === view,
+                    onSelect: () => onView(v.value),
+                  };
+                })}
                 trigger={(isOpen, toggle) => (
                   <button type="button" className="sk-btn sk-btn--ghost sk-btn--sm" aria-haspopup="menu" aria-expanded={isOpen} onClick={toggle}>
                     {pickView.label}
@@ -310,168 +357,350 @@ export function InvoicesWorkspace({
             </span>
           }
         >
-          {rows.length === 0 ? (
+          {list.total === 0 ? (
             <div style={{ padding: "var(--sk-space-6)" }}>
-              <EmptyState icon="invoice" title="Nothing here">
-                {view !== "all"
-                  ? `No ${pickView.label.toLowerCase()} ${direction === "OUTGOING" ? "sales invoices" : "purchase bills"}.`
-                  : "No invoice matches that search."}
-              </EmptyState>
+              {list.loaded && !list.stale ? (
+                <EmptyState icon="invoice" title="Nothing here">
+                  {list.error
+                    ? `The invoices could not be loaded: ${list.error}`
+                    : query.trim()
+                      ? "No invoice matches that search."
+                      : view !== "all"
+                        ? `No ${pickView.label.toLowerCase()} ${direction === "OUTGOING" ? "sales invoices" : "purchase bills"}.`
+                        : `No ${direction === "OUTGOING" ? "sales invoices" : "purchase bills"} yet.`}
+                </EmptyState>
+              ) : (
+                <div className="sk-stack sk-stack--4">
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <Skeleton key={i} height={64} />
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
-            <ul className="sk-list sk-list--rich">
-              {rows.map((doc) => (
-                <li key={doc.header.id}>
-                  <InvoiceRow doc={doc} now={now} selected={doc.header.id === selectedId} onClick={() => pick(doc)} />
-                </li>
-              ))}
+            <ul
+              className="sk-list sk-list--rich"
+              data-sk-more={win.end < list.total ? "" : undefined}
+              aria-busy={list.stale || undefined}
+              style={{ paddingTop: win.padTop, paddingBottom: win.padBottom, opacity: list.stale ? 0.6 : undefined }}
+            >
+              {windowRows.map(({ index, row }) =>
+                row ? (
+                  <li key={row.id} ref={index === firstReal ? win.measure : undefined}>
+                    <InvoiceListItem row={row} selected={row.id === selectedId} onPick={pick} />
+                  </li>
+                ) : (
+                  // Not fetched yet: a row's worth of placeholder, so the
+                  // list keeps its true length while the page arrives.
+                  <li key={`at-${index}`} className="sk-mail__placeholder" style={{ height: win.rowHeight }} aria-hidden="true">
+                    <Skeleton width={36} height={36} circle />
+                    <span className="sk-mail__placeholder-lines">
+                      <Skeleton width="45%" height={12} />
+                      <Skeleton width="80%" height={12} />
+                      <Skeleton width="65%" height={12} />
+                    </span>
+                  </li>
+                ),
+              )}
             </ul>
           )}
         </Pane>
 
-        <Pane
-          grow={1.3}
-          flush
-          onBack={() => setLevel(1)}
-          backLabel="Back to the list"
-          // Issued: its number and where it stands. A draft is simply that.
-          title={selected && state ? paneTitle(state) : "Invoice"}
-          header={selected && state?.number && <InvoiceStatusBadge doc={selected} />}
-        >
-          {!selected ? (
-            <div style={{ padding: "var(--sk-space-6)" }}>
-              <EmptyState icon="invoice" title="Pick an invoice">
-                It opens here, line by line; a line opens beside it with its receipt.
-              </EmptyState>
-            </div>
-          ) : !state ? (
-            <div style={{ padding: "var(--sk-space-6)" }}>
-              <EmptyState icon="invoice" title="This invoice uses the older format">
-                Open it in the invoice editor to upgrade it.
-              </EmptyState>
-            </div>
-          ) : (
-            <InvoiceRead
-              doc={selected}
-              state={state}
-              now={now}
-              activeLine={opened.kind === "line" ? opened.id : null}
-              // Only with the preview open beside it is one of them "the one shown".
-              invoiceView={opened.kind === "invoice" && !sideCollapsed ? opened.doc : null}
-              folded={sideCollapsed}
-              onLine={openLine}
-              onInvoice={(doc) => {
-                setOpened({ kind: "invoice", doc });
-                setSidePref(false);
-                setLevel(3);
-              }}
-            />
-          )}
-        </Pane>
-
-        <Pane
-          side="end"
-          grow={1}
-          // Wide enough that a receipt and the PDF read well (see app.css).
-          className="sk-invoices__side"
-          collapsed={sideCollapsed}
-          onToggle={() => setSidePref(!sideCollapsed)}
-          onBack={() => setLevel(2)}
-          backLabel="Back to the invoice"
-          collapsedTitle={opened.kind === "line" ? "Line" : "Preview"}
-          header={
-            state && opened.kind === "line" && lineAt >= 0 ? (
-              <LineStepper at={lineAt} n={lines.indexOf(walk[lineAt]) + 1} count={walk.length} onStep={step} />
-            ) : state ? (
-              <Selector
-                value={opened.kind === "invoice" ? opened.doc : PDF}
-                options={[
-                  // Two lines, like the documents' tiles (name and role), so it sits on the header's edge as they do.
-                  { value: PDF, name: "Print/PDF", meta: "Preview", media: <FileTypeTile kind="pdf" small /> },
-                  ...partyViews(state).map((v) => ({ value: v.value, name: v.name, meta: v.party.name ?? "Not filled in", icon: "customers" as const })),
-                  // The file, with its type, here; what it is goes in the preview's toolbar below.
-                  ...state.attachments.map((a) => ({
-                    value: a.id,
-                    name: a.fileName,
-                    meta: bytes(a.sizeBytes) || a.mimeType,
-                    media: <FileTypeTile kind={fileKind(a.mimeType, a.fileName)} small />,
-                  })),
-                ]}
-                onChange={(doc) => setOpened({ kind: "invoice", doc })}
-                label="Invoice document"
-              />
-            ) : undefined
-          }
-          title={state ? undefined : "Preview"}
-        >
-          {selected && state ? (
-            opened.kind === "line" && lineAt >= 0 ? (
-              <LineView key={opened.id} documentId={selected.header.id} state={state} line={walk[lineAt]} />
-            ) : (
-              <InvoiceDocView invoice={selected} state={state} doc={opened.kind === "invoice" ? opened.doc : PDF} />
-            )
-          ) : (
-            <p className="sk-small sk-text-muted">A line and its receipt open here.</p>
-          )}
-        </Pane>
+        {/* The open invoice's document loads here; until it has, its row heads the pane. */}
+        <LoadBoundary key={selectedId ?? ""} fallback={<InvoicePanes {...panes} doc={undefined} status="failed" />}>
+          <Suspense fallback={<InvoicePanes {...panes} doc={undefined} status="loading" />}>
+            <SelectedInvoicePanes {...panes} />
+          </Suspense>
+        </LoadBoundary>
       </Workspace>
     </div>
   );
 }
 
+/* ------------------------------------------------------------ the panes */
+
+/** A document that could not be loaded (removed, not found) shows as such, not as a broken page. */
+class LoadBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
+  override state = { failed: false };
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true };
+  }
+  override render(): ReactNode {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
+interface PanesProps {
+  selectedId: string | null;
+  /** The open invoice's list row, while it is known */
+  row: InvoiceRow | null;
+  /** The invoice asked for by id, whose direction is to follow */
+  asked: string | null;
+  now: number;
+  opened: Open;
+  sideCollapsed: boolean;
+  onOpened: (open: Open) => void;
+  onSidePref: (collapsed: boolean) => void;
+  onLevel: (level: Level) => void;
+  /** The invoice asked for by id has loaded */
+  onArrived: (state: InvoiceState) => void;
+  /** Show a change made here on the invoice's row before the index has it */
+  onPatch: (id: string, change: Partial<InvoiceRow>) => void;
+}
+
+/** Loads the open invoice (suspending while it does) and shows it. */
+function SelectedInvoicePanes(props: PanesProps) {
+  const [doc] = useInvoiceDocumentById(props.selectedId);
+  return <InvoicePanes {...props} doc={doc} status="ready" />;
+}
+
+/** The invoice and what is open beside it. */
+function InvoicePanes({
+  selectedId,
+  row,
+  asked,
+  now,
+  opened,
+  sideCollapsed,
+  onOpened,
+  onSidePref,
+  onLevel,
+  onArrived,
+  onPatch,
+  doc,
+  status,
+}: PanesProps & { doc: InvoiceDocument | undefined; status: "loading" | "ready" | "failed" }) {
+  const selected = selectedId ? doc : undefined;
+  const state = selected && isCurrent(selected.state.global) ? selected.state.global : null;
+  const lines = useMemo(() => state?.lines ?? [], [state]);
+  // The order the invoice reads in (by category): the stepper walks it.
+  const walk = useMemo(() => groupLines(lines).flatMap((g) => g.lines.map((x) => x.line)), [lines]);
+  const lineAt = opened.kind === "line" ? walk.findIndex((l) => l.id === opened.id) : -1;
+
+  // The invoice asked for by id has loaded: its side and its view follow.
+  const arrivedRef = useRef(onArrived);
+  arrivedRef.current = onArrived;
+  useEffect(() => {
+    if (state && selected && selected.header.id === asked) arrivedRef.current(state);
+  }, [state, selected, asked]);
+
+  // A change made while it is open (issued, paid, voided, a date): its row follows at once.
+  const patchRef = useRef(onPatch);
+  patchRef.current = onPatch;
+  const last = useRef<{ id: string; state: InvoiceState } | null>(null);
+  useEffect(() => {
+    if (!selected || !state) return;
+    const prev = last.current;
+    last.current = { id: selected.header.id, state };
+    if (prev?.id === selected.header.id && prev.state !== state) patchRef.current(selected.header.id, rowPatch(state, now));
+  }, [selected, state, now]);
+
+  // A line removed from the invoice takes the third column back to the invoice.
+  useEffect(() => {
+    if (state && opened.kind === "line" && lineAt < 0) onOpened(invoiceView(state));
+  }, [state, opened, lineAt, onOpened]);
+
+  const openLine = (id: string) => {
+    onOpened({ kind: "line", id });
+    onSidePref(false);
+    onLevel(3);
+  };
+  const step = (by: number) => {
+    const next = walk[lineAt + by];
+    if (next) onOpened({ kind: "line", id: next.id });
+  };
+
+  // Walking the lines with the arrow keys while one is open, unless typing.
+  useEffect(() => {
+    if (opened.kind !== "line") return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable]")) return;
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        step(e.key === "ArrowDown" ? 1 : -1);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  });
+
+  // Before the document is here, the row says what it is.
+  const title = selected && state ? paneTitle(state) : row ? titleFor(row.kind, row.direction, row.number) : "Invoice";
+  const badge = selected && state ? state.number && <InvoiceStatusBadge doc={selected} /> : row?.number && <RowStatusBadge row={row} />;
+
+  return (
+    <>
+      <Pane
+        grow={1.3}
+        flush
+        onBack={() => onLevel(1)}
+        backLabel="Back to the list"
+        // Issued: its number and where it stands. A draft is simply that.
+        title={title}
+        header={badge}
+      >
+        {!selectedId ? (
+          <div style={{ padding: "var(--sk-space-6)" }}>
+            <EmptyState icon="invoice" title="Pick an invoice">
+              It opens here, line by line; a line opens beside it with its receipt.
+            </EmptyState>
+          </div>
+        ) : !selected ? (
+          status === "loading" ? (
+            <div className="sk-stack sk-stack--4" style={{ padding: "var(--sk-space-6)" }} aria-busy="true">
+              <Skeleton height={56} />
+              <Skeleton height={140} />
+              <Skeleton height={220} />
+            </div>
+          ) : (
+            <div style={{ padding: "var(--sk-space-6)" }}>
+              <EmptyState icon="invoice" title="This invoice could not be opened">
+                It may have been removed.
+              </EmptyState>
+            </div>
+          )
+        ) : !state ? (
+          <div style={{ padding: "var(--sk-space-6)" }}>
+            <EmptyState icon="invoice" title="This invoice uses the older format">
+              Open it in the invoice editor to upgrade it.
+            </EmptyState>
+          </div>
+        ) : (
+          <InvoiceRead
+            doc={selected}
+            state={state}
+            now={now}
+            activeLine={opened.kind === "line" ? opened.id : null}
+            // Only with the preview open beside it is one of them "the one shown".
+            invoiceView={opened.kind === "invoice" && !sideCollapsed ? opened.doc : null}
+            folded={sideCollapsed}
+            onLine={openLine}
+            onInvoice={(view) => {
+              onOpened({ kind: "invoice", doc: view });
+              onSidePref(false);
+              onLevel(3);
+            }}
+          />
+        )}
+      </Pane>
+
+      <Pane
+        side="end"
+        grow={1}
+        // Wide enough that a receipt and the PDF read well (see app.css).
+        className="sk-invoices__side"
+        collapsed={sideCollapsed}
+        onToggle={() => onSidePref(!sideCollapsed)}
+        onBack={() => onLevel(2)}
+        backLabel="Back to the invoice"
+        collapsedTitle={opened.kind === "line" ? "Line" : "Preview"}
+        header={
+          state && opened.kind === "line" && lineAt >= 0 ? (
+            <LineStepper at={lineAt} n={lines.indexOf(walk[lineAt]) + 1} count={walk.length} onStep={step} />
+          ) : state ? (
+            <Selector
+              value={opened.kind === "invoice" ? opened.doc : PDF}
+              options={[
+                // Two lines, like the documents' tiles (name and role), so it sits on the header's edge as they do.
+                { value: PDF, name: "Print/PDF", meta: "Preview", media: <FileTypeTile kind="pdf" small /> },
+                ...partyViews(state).map((v) => ({ value: v.value, name: v.name, meta: v.party.name ?? "Not filled in", icon: "customers" as const })),
+                // The file, with its type, here; what it is goes in the preview's toolbar below.
+                ...state.attachments.map((a) => ({
+                  value: a.id,
+                  name: a.fileName,
+                  meta: bytes(a.sizeBytes) || a.mimeType,
+                  media: <FileTypeTile kind={fileKind(a.mimeType, a.fileName)} small />,
+                })),
+              ]}
+              onChange={(view) => onOpened({ kind: "invoice", doc: view })}
+              label="Invoice document"
+            />
+          ) : undefined
+        }
+        title={state ? undefined : "Preview"}
+      >
+        {selected && state ? (
+          opened.kind === "line" && lineAt >= 0 ? (
+            <LineView key={opened.id} documentId={selected.header.id} state={state} line={walk[lineAt]} />
+          ) : (
+            <InvoiceDocView invoice={selected} state={state} doc={opened.kind === "invoice" ? opened.doc : PDF} />
+          )
+        ) : (
+          <p className="sk-small sk-text-muted">A line and its receipt open here.</p>
+        )}
+      </Pane>
+    </>
+  );
+}
+
 /* ------------------------------------------------------------------ list */
 
-/** A row re-renders only when its invoice or its selection changes. */
-const InvoiceRow = memo(InvoiceRowImpl, (a, b) => a.doc === b.doc && a.selected === b.selected && a.now === b.now);
+/** Where an invoice stands, from its index row: as `InvoiceStatusBadge` says it from the document. */
+function RowStatusBadge({ row }: { row: InvoiceRow }) {
+  if (row.overdue)
+    return (
+      <Badge tone="danger" dot>
+        Overdue
+      </Badge>
+    );
+  const known = row.status in INVOICE_STATUS ? INVOICE_STATUS[row.status as keyof typeof INVOICE_STATUS] : null;
+  if (!known) return <Badge tone="outline">{row.status}</Badge>;
+  return (
+    <Badge tone={known.tone} dot={row.status === "OPEN"}>
+      {known.label}
+    </Badge>
+  );
+}
 
-function InvoiceRowImpl({ doc, now, selected, onClick }: { doc: InvoiceDocument; now: number; selected: boolean; onClick: () => void }) {
-  const s = doc.state.global;
-  const t = invoiceTotals(s);
-  const overdue = isOverdue(s, now);
-  const name = counterparty(s).name ?? "No counterparty yet";
+/** A row re-renders only when its index row or its selection changes. */
+const InvoiceListItem = memo(InvoiceListItemImpl);
+
+function InvoiceListItemImpl({ row: r, selected, onPick }: { row: InvoiceRow; selected: boolean; onPick: (row: InvoiceRow) => void }) {
+  const name = r.counterpartyName || "No counterparty yet";
   const when =
-    s.status === "OPEN"
-      ? `due ${relativeDays(s.dueAt)}`
-      : s.status === "PAID"
-        ? `paid ${fmtShortDate(s.payments.at(-1)?.paidAt)}`
-        : s.status === "DRAFT"
+    r.status === "OPEN"
+      ? `due ${relativeDays(r.dueAt)}`
+      : r.status === "PAID"
+        ? `paid ${fmtShortDate(r.lastPaidAt)}`
+        : r.status === "DRAFT"
           ? // What the draft covers: its delivery, else its period, else nothing yet.
-            s.deliveredAt
-            ? `delivered ${fmtShortDate(s.deliveredAt)}`
-            : s.period?.start || s.period?.end
-              ? `${fmtShortDate(s.period.start) || "…"} – ${fmtShortDate(s.period.end) || "…"}`
+            r.deliveredAt
+            ? `delivered ${fmtShortDate(r.deliveredAt)}`
+            : r.periodStart || r.periodEnd
+              ? `${r.periodStart ? fmtShortDate(r.periodStart) : "…"} – ${r.periodEnd ? fmtShortDate(r.periodEnd) : "…"}`
               : "no date"
           : "void";
   return (
     <ListItem
       rich
       selected={selected}
-      onClick={onClick}
+      onClick={() => onPick(r)}
       // Stacked, this row leads to the invoice screen: the chevron says so.
       drill={2}
-      icon={<Avatar name={name} variant={s.direction === "OUTGOING" ? "sage" : "forest"} />}
+      icon={<Avatar name={name} variant={r.direction === "OUTGOING" ? "sage" : "forest"} />}
       title={
-        <span className={cx(s.status === "VOID" && "sk-text-muted")}>
+        <span className={cx(r.status === "VOID" && "sk-text-muted")}>
           {/* The number as a label; a draft has none yet, so its label is just the hash. */}
           <Badge tone="outline" className="sk-invoices__number">
-            #{s.number ?? ""}
+            #{r.number ?? ""}
           </Badge>
           {name}
         </span>
       }
       sub={[
         <span key="what" style={{ color: "var(--sk-text)" }}>
-          {s.subject ?? s.lines[0]?.description ?? "No lines"}
+          {r.subject || r.firstLine || "No lines"}
         </span>,
-        <span key="when" className={cx(overdue && "sk-text-danger")}>
-          {s.issuedAt ? `${fmtShortDate(s.issuedAt)} · ` : ""}
+        <span key="when" className={cx(r.overdue && "sk-text-danger")}>
+          {r.issuedAt ? `${fmtShortDate(r.issuedAt)} · ` : ""}
           {when}
         </span>,
       ]}
       aside={
         <>
-          <span className="sk-tabular">{money(s.status === "OPEN" ? t.outstanding : t.gross, s.currency)}</span>
-          <InvoiceStatusBadge doc={doc} />
+          <span className="sk-tabular">{money(r.status === "OPEN" ? r.outstanding : r.gross, r.currency)}</span>
+          <RowStatusBadge row={r} />
         </>
       }
       chevron

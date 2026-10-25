@@ -903,8 +903,8 @@
 .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--panes {
   overscroll-behavior: contain;
 }
-/* A row not fetched yet: same height and hairline as a rich row. */
-.sk-app .sk-mail .sk-mail__placeholder {
+/* A row not fetched yet (Mail, Invoices): same height and hairline as a rich row. */
+.sk-app :is(.sk-mail, .sk-invoices) .sk-mail__placeholder {
   display: flex;
   align-items: flex-start;
   gap: var(--sk-space-3);
@@ -913,7 +913,7 @@
   border-bottom: 1px solid var(--sk-border-subtle);
   overflow: hidden;
 }
-.sk-app .sk-mail .sk-mail__placeholder-lines {
+.sk-app :is(.sk-mail, .sk-invoices) .sk-mail__placeholder-lines {
   flex: 1 1 0;
   display: flex;
   flex-direction: column;
@@ -923,10 +923,10 @@
 
 /* A windowed list: while rows remain below the window, the last rendered
    row is not the last row, so it keeps its hairline. */
-.sk-app .sk-mail .sk-list--rich[data-sk-more] li:last-child .sk-list-item--rich {
+.sk-app :is(.sk-mail, .sk-invoices) .sk-list--rich[data-sk-more] li:last-child .sk-list-item--rich {
   border-bottom: 1px solid var(--sk-border-subtle);
 }
-.sk-app .sk-mail .sk-list--rich[data-sk-more] li:last-child .sk-list-item--rich.is-selected::before {
+.sk-app :is(.sk-mail, .sk-invoices) .sk-list--rich[data-sk-more] li:last-child .sk-list-item--rich.is-selected::before {
   bottom: -1px;
 }
 
