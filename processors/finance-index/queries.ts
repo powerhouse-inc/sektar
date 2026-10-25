@@ -1,0 +1,667 @@
+// The questions the finance boards ask, as queries over the index. Shared by
+// the subgraph (the switchboard answers Connect over GraphQL) and by a tab
+// whose own reactor runs the processor (standalone Connect, a live query), so
+// the two never disagree on what "overdue" or "to review" means.
+import type { IRelationalDb } from "@powerhousedao/reactor-browser";
+import type { AccountRow, DB, InvoiceRow, TransactionRow } from "./schema.js";
+import { BOOK_CURRENCY } from "./rows.js";
+
+/** What both a namespaced query builder and a Kysely instance offer. */
+export type FinanceQueryBuilder = Pick<IRelationalDb<DB>, "selectFrom">;
+
+/** Rows per page by default; the subgraph caps a request at FINANCE_PAGE_MAX. */
+export const FINANCE_PAGE = 100;
+export const FINANCE_PAGE_MAX = 500;
+
+/** The Invoices workspace's status menu. */
+export type InvoiceView = "all" | "draft" | "open" | "overdue" | "settled";
+export const INVOICE_VIEWS: readonly InvoiceView[] = [
+  "all",
+  "draft",
+  "open",
+  "overdue",
+  "settled",
+];
+
+export type TransactionStatusFilter = "NEW" | "CATEGORIZED" | "MATCHED" | "EXCLUDED";
+
+/** The words of a search, lower-cased, at most `max` of them. */
+export function searchWords(
+  query: string | null | undefined,
+  max = 6,
+): string[] {
+  return (query ?? "")
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => w.trim())
+    .filter(Boolean)
+    .slice(0, max);
+}
+
+/** LIKE's own wildcards are dropped from a word: a search is for text, not patterns. */
+function likeWord(word: string): string {
+  return `%${word.replace(/[%_\\]/g, "")}%`;
+}
+
+/** `now` as the ISO instant the date columns are compared with. */
+export function isoNow(now: number | string | null | undefined): string {
+  if (typeof now === "number" && Number.isFinite(now)) return new Date(now).toISOString();
+  if (typeof now === "string" && now) {
+    const parsed = Date.parse(now);
+    if (Number.isFinite(parsed)) return new Date(parsed).toISOString();
+  }
+  return new Date().toISOString();
+}
+
+/* ---------------------------------------------------------------- invoices */
+
+export interface InvoiceFilter {
+  /** OUTGOING | INCOMING; both when absent. */
+  direction?: string | null;
+  view?: InvoiceView;
+  /** Lower-cased words, each of which must appear in the row's search text. */
+  words?: readonly string[];
+  /** ISO instant: an OPEN invoice due before it is overdue. */
+  now: string;
+}
+
+function invoicesFiltered(db: FinanceQueryBuilder, f: InvoiceFilter) {
+  let q = db.selectFrom("invoice_index");
+  if (f.direction) q = q.where("direction", "=", f.direction);
+  switch (f.view ?? "all") {
+    case "draft":
+      q = q.where("status", "=", "DRAFT");
+      break;
+    case "open":
+      // `isOverdue` is OPEN with a due date before now; open is OPEN without.
+      q = q
+        .where("status", "=", "OPEN")
+        .where((eb) => eb.or([eb("due_at", "is", null), eb("due_at", ">=", f.now)]));
+      break;
+    case "overdue":
+      q = q
+        .where("status", "=", "OPEN")
+        .where("due_at", "is not", null)
+        .where("due_at", "<", f.now);
+      break;
+    case "settled":
+      q = q.where("status", "in", ["PAID", "VOID"]);
+      break;
+    default:
+      break;
+  }
+  for (const word of f.words ?? []) {
+    if (word) q = q.where("search_text", "like", likeWord(word));
+  }
+  return q;
+}
+
+/**
+ * One page of invoices in the workspace's `byListOrder`: drafts first, latest
+ * first by what they cover; then the issued by number, highest first. Asks
+ * for one row more than the page so the caller knows whether another exists.
+ */
+export function invoicesQuery(
+  db: FinanceQueryBuilder,
+  f: InvoiceFilter,
+  page: { offset?: number | null; limit: number },
+) {
+  const ordered = invoicesFiltered(db, f)
+    .selectAll()
+    .orderBy("is_draft", "desc")
+    .orderBy("list_key", "desc")
+    .orderBy("document_id", "desc")
+    .limit(page.limit + 1);
+  return page.offset ? ordered.offset(page.offset) : ordered;
+}
+
+/** How many invoices the filters match. */
+export function invoiceCountQuery(db: FinanceQueryBuilder, f: InvoiceFilter) {
+  return invoicesFiltered(db, f).select((eb) => eb.fn.countAll<number>().as("n"));
+}
+
+/** Invoices per direction and per view, in one pass. */
+export function invoiceViewCountsQuery(db: FinanceQueryBuilder, now: string) {
+  return db
+    .selectFrom("invoice_index")
+    .select("direction")
+    .select((eb) => [
+      eb.fn.countAll<number>().as("all"),
+      eb.fn.countAll<number>().filterWhere("status", "=", "DRAFT").as("draft"),
+      eb.fn
+        .countAll<number>()
+        .filterWhere((w) =>
+          w.and([
+            w("status", "=", "OPEN"),
+            w.or([w("due_at", "is", null), w("due_at", ">=", now)]),
+          ]),
+        )
+        .as("open"),
+      eb.fn
+        .countAll<number>()
+        .filterWhere((w) =>
+          w.and([
+            w("status", "=", "OPEN"),
+            w("due_at", "is not", null),
+            w("due_at", "<", now),
+          ]),
+        )
+        .as("overdue"),
+      eb.fn
+        .countAll<number>()
+        .filterWhere("status", "in", ["PAID", "VOID"])
+        .as("settled"),
+    ])
+    .groupBy("direction");
+}
+
+export interface InvoiceViewCountRow {
+  direction: string;
+  all: number | string;
+  draft: number | string;
+  open: number | string;
+  overdue: number | string;
+  settled: number | string;
+}
+
+export interface ViewCount {
+  direction: string;
+  view: InvoiceView;
+  count: number;
+}
+
+export interface InvoiceCounts {
+  outgoing: number;
+  incoming: number;
+  byView: ViewCount[];
+}
+
+/** The per-direction counts folded into what the workspace shows. */
+export function toInvoiceCounts(rows: readonly InvoiceViewCountRow[]): InvoiceCounts {
+  const byView: ViewCount[] = [];
+  let outgoing = 0;
+  let incoming = 0;
+  for (const direction of ["OUTGOING", "INCOMING"]) {
+    const r = rows.find((x) => x.direction === direction);
+    for (const view of INVOICE_VIEWS) {
+      byView.push({ direction, view, count: Number(r?.[view] ?? 0) });
+    }
+    const all = Number(r?.all ?? 0);
+    if (direction === "OUTGOING") outgoing = all;
+    else incoming = all;
+  }
+  return { outgoing, incoming, byView };
+}
+
+/** An invoice as the list shows it: the row, in the subgraph's vocabulary. */
+export interface InvoiceListRow {
+  id: string;
+  direction: string;
+  kind: string;
+  status: string;
+  number: string | null;
+  counterpartyName: string | null;
+  counterpartyContactId: string | null;
+  subject: string | null;
+  firstLine: string | null;
+  currency: string;
+  issuedAt: string | null;
+  dueAt: string | null;
+  deliveredAt: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  createdAt: string;
+  gross: number;
+  outstanding: number;
+  bookGross: number;
+  bookOutstanding: number;
+  bookRateKnown: boolean;
+  /** OPEN with a due date before `now`. */
+  overdue: boolean;
+  issuedCopyId: string | null;
+  issuedCopyRef: string | null;
+  lineCount: number;
+  linesMissingAttachments: number;
+  lastPaidAt: string | null;
+  updatedAt: string;
+}
+
+export interface InvoicePageResult {
+  items: InvoiceListRow[];
+  total: number;
+  hasMore: boolean;
+}
+
+export function toInvoiceRow(r: InvoiceRow, now: string): InvoiceListRow {
+  return {
+    id: r.document_id,
+    direction: r.direction,
+    kind: r.kind,
+    status: r.status,
+    number: r.number,
+    counterpartyName: r.counterparty_name,
+    counterpartyContactId: r.counterparty_contact_id,
+    subject: r.subject,
+    firstLine: r.first_line,
+    currency: r.currency,
+    issuedAt: r.issued_at,
+    dueAt: r.due_at,
+    deliveredAt: r.delivered_at,
+    periodStart: r.period_start,
+    periodEnd: r.period_end,
+    createdAt: r.created_at,
+    gross: Number(r.gross),
+    outstanding: Number(r.outstanding),
+    bookGross: Number(r.book_gross),
+    bookOutstanding: Number(r.book_outstanding),
+    // SQLite has no boolean, so a driver may hand back 0/1.
+    bookRateKnown: Boolean(r.book_rate_known),
+    overdue: r.status === "OPEN" && !!r.due_at && r.due_at < now,
+    issuedCopyId: r.issued_copy_id,
+    issuedCopyRef: r.issued_copy_ref,
+    lineCount: Number(r.line_count),
+    linesMissingAttachments: Number(r.lines_missing_attachments),
+    lastPaidAt: r.last_paid_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+/* ---------------------------------------------------------------- accounts */
+
+/** Every account, by name. Small: one row per account document. */
+export function accountsQuery(db: FinanceQueryBuilder) {
+  return db
+    .selectFrom("account_index")
+    .selectAll()
+    .orderBy("name", "asc")
+    .orderBy("document_id", "asc");
+}
+
+export interface AccountListRow {
+  id: string;
+  name: string | null;
+  kind: string;
+  institution: string | null;
+  ibanLast4: string | null;
+  currency: string;
+  openingBalance: number;
+  balance: number;
+  txCount: number;
+  newCount: number;
+  lastImportedAt: string | null;
+  updatedAt: string;
+}
+
+export function toAccountRow(r: AccountRow): AccountListRow {
+  return {
+    id: r.document_id,
+    name: r.name,
+    kind: r.kind,
+    institution: r.institution,
+    ibanLast4: r.iban_last4,
+    currency: r.currency,
+    openingBalance: Number(r.opening_balance),
+    balance: Number(r.balance),
+    txCount: Number(r.tx_count),
+    newCount: Number(r.new_count),
+    lastImportedAt: r.last_imported_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+/* ------------------------------------------------------------ transactions */
+
+export interface TransactionFilter {
+  /** An account document id; every account when absent. */
+  accountId?: string | null;
+  status?: string | null;
+  category?: string | null;
+  /** Lower-cased words over counterparty, description, reference, amount, category label. */
+  words?: readonly string[];
+}
+
+function transactionsFiltered(db: FinanceQueryBuilder, f: TransactionFilter) {
+  let q = db.selectFrom("transaction_index");
+  if (f.accountId) q = q.where("account_id", "=", f.accountId);
+  if (f.status) q = q.where("status", "=", f.status);
+  if (f.category) q = q.where("category", "=", f.category);
+  for (const word of f.words ?? []) {
+    if (word) q = q.where("search_text", "like", likeWord(word));
+  }
+  return q;
+}
+
+/** One page of transactions, latest booked first. One row more than the page. */
+export function transactionsQuery(
+  db: FinanceQueryBuilder,
+  f: TransactionFilter,
+  page: { offset?: number | null; limit: number },
+) {
+  const ordered = transactionsFiltered(db, f)
+    .selectAll()
+    .orderBy("booked_at", "desc")
+    .orderBy("id", "desc")
+    .limit(page.limit + 1);
+  return page.offset ? ordered.offset(page.offset) : ordered;
+}
+
+/** How many transactions the filters match. */
+export function transactionCountQuery(db: FinanceQueryBuilder, f: TransactionFilter) {
+  return transactionsFiltered(db, f).select((eb) => eb.fn.countAll<number>().as("n"));
+}
+
+/** The status menu's counts, for one account or all. */
+export function transactionCountsQuery(
+  db: FinanceQueryBuilder,
+  accountId?: string | null,
+) {
+  let q = db.selectFrom("transaction_index");
+  if (accountId) q = q.where("account_id", "=", accountId);
+  return q.select((eb) => [
+    eb.fn.countAll<number>().as("all"),
+    eb.fn.countAll<number>().filterWhere("status", "=", "NEW").as("new"),
+    eb.fn.countAll<number>().filterWhere("status", "=", "CATEGORIZED").as("categorised"),
+    eb.fn.countAll<number>().filterWhere("status", "=", "MATCHED").as("matched"),
+    eb.fn.countAll<number>().filterWhere("status", "=", "EXCLUDED").as("excluded"),
+  ]);
+}
+
+export interface TransactionCounts {
+  all: number;
+  new: number;
+  categorised: number;
+  matched: number;
+  excluded: number;
+}
+
+export function toTransactionCounts(
+  r:
+    | {
+        all: number | string;
+        new: number | string;
+        categorised: number | string;
+        matched: number | string;
+        excluded: number | string;
+      }
+    | undefined,
+): TransactionCounts {
+  return {
+    all: Number(r?.all ?? 0),
+    new: Number(r?.new ?? 0),
+    categorised: Number(r?.categorised ?? 0),
+    matched: Number(r?.matched ?? 0),
+    excluded: Number(r?.excluded ?? 0),
+  };
+}
+
+export interface TransactionListRow {
+  id: string;
+  accountId: string;
+  bookedAt: string;
+  counterparty: string;
+  description: string | null;
+  reference: string | null;
+  category: string;
+  status: string;
+  amount: number;
+  currency: string;
+  contactId: string | null;
+  matchedDocumentId: string | null;
+  matchedKind: string | null;
+  importBatch: string | null;
+}
+
+export interface TransactionPageResult {
+  items: TransactionListRow[];
+  total: number;
+  hasMore: boolean;
+}
+
+export function toTransactionRow(r: TransactionRow): TransactionListRow {
+  return {
+    id: r.id,
+    accountId: r.account_id,
+    bookedAt: r.booked_at,
+    counterparty: r.counterparty,
+    description: r.description,
+    reference: r.reference,
+    category: r.category,
+    status: r.status,
+    amount: Number(r.amount),
+    currency: r.currency,
+    contactId: r.contact_id,
+    matchedDocumentId: r.matched_document_id,
+    matchedKind: r.matched_kind,
+    importBatch: r.import_batch,
+  };
+}
+
+/* --------------------------------------------------------------- dashboard */
+
+const DAY_MS = 86_400_000;
+
+
+/** The six months the cash-flow bars cover, oldest first, as "YYYY-MM": the dashboard's own bucketing. */
+export function dashboardMonths(nowMs: number): string[] {
+  const keys: string[] = [];
+  for (let m = 5; m >= 0; m--) {
+    const d = new Date(nowMs);
+    d.setUTCDate(1);
+    d.setUTCMonth(d.getUTCMonth() - m);
+    keys.push(d.toISOString().slice(0, 7));
+  }
+  return keys;
+}
+
+/** The month after "YYYY-MM", as "YYYY-MM". */
+function nextMonth(key: string): string {
+  const [y, m] = key.split("-").map(Number);
+  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
+}
+
+/**
+ * Every query the Finances dashboard needs, as builders: run them as one
+ * round of parallel reads (`loadDashboard`) or each as a live query, and
+ * fold the results with `toDashboardStats`.
+ */
+export function dashboardQueries(db: FinanceQueryBuilder, nowMs: number) {
+  const now = new Date(nowMs).toISOString();
+  const months = dashboardMonths(nowMs);
+  const since = new Date(nowMs - 90 * DAY_MS).toISOString();
+  return {
+    /** Cash (every account but cards) and card positions. */
+    positions: db
+      .selectFrom("account_index")
+      .select((eb) => [
+        eb.fn.sum<number>("balance").filterWhere("kind", "!=", "CREDIT_CARD").as("cash"),
+        eb.fn.sum<number>("balance").filterWhere("kind", "=", "CREDIT_CARD").as("card"),
+      ]),
+    /** Receivable and payable (book outstanding of OPEN invoices), and the readiness counts. */
+    invoices: db
+      .selectFrom("invoice_index")
+      .select((eb) => [
+        eb.fn
+          .sum<number>("book_outstanding")
+          .filterWhere((w) => w.and([w("direction", "=", "OUTGOING"), w("status", "=", "OPEN")]))
+          .as("receivable"),
+        eb.fn
+          .sum<number>("book_outstanding")
+          .filterWhere((w) => w.and([w("direction", "=", "INCOMING"), w("status", "=", "OPEN")]))
+          .as("payable"),
+        eb.fn.countAll<number>().as("total"),
+        eb.fn.countAll<number>().filterWhere("status", "!=", "DRAFT").as("issued"),
+      ]),
+    /** The overdue invoices themselves, the most overdue first. */
+    overdue: db
+      .selectFrom("invoice_index")
+      .selectAll()
+      .where("status", "=", "OPEN")
+      .where("due_at", "is not", null)
+      .where("due_at", "<", now)
+      .orderBy("due_at", "asc")
+      .orderBy("document_id", "asc"),
+    /** Transaction counts: to review and the readiness ratios. */
+    transactions: db
+      .selectFrom("transaction_index")
+      .select((eb) => [
+        eb.fn.countAll<number>().as("total"),
+        eb.fn.countAll<number>().filterWhere("status", "=", "NEW").as("new"),
+        eb.fn.countAll<number>().filterWhere("status", "=", "MATCHED").as("matched"),
+        eb.fn.countAll<number>().filterWhere("category", "=", "SALES").as("sales"),
+      ]),
+    /** Money in and out per month, transfers and excluded rows left out. */
+    months: db
+      .selectFrom("transaction_index")
+      .select((eb) => [
+        // "YYYY-MM": the dashboard's `bookedAt.slice(0, 7)`.
+        eb.fn<string>("substr", [eb.ref("booked_at"), eb.lit(1), eb.lit(7)]).as("month"),
+        eb.fn.sum<number>("amount").filterWhere("amount", ">", 0).as("in"),
+        eb.fn.sum<number>("amount").filterWhere("amount", "<", 0).as("out"),
+      ])
+      .where("status", "!=", "EXCLUDED")
+      .where("category", "!=", "TRANSFER")
+      .where("booked_at", ">=", months[0])
+      .where("booked_at", "<", nextMonth(months[months.length - 1]))
+      .groupBy((eb) => eb.fn<string>("substr", [eb.ref("booked_at"), eb.lit(1), eb.lit(7)])),
+    /** Spend by category over the last 90 days: outflows that are spending (not transfers, payroll, tax). */
+    spend: db
+      .selectFrom("transaction_index")
+      .select("category")
+      .select((eb) => eb.fn.sum<number>("amount").as("spent"))
+      .where("amount", "<", 0)
+      .where("status", "!=", "EXCLUDED")
+      .where("category", "not in", ["TRANSFER", "PAYROLL", "TAX"])
+      .where("booked_at", ">=", since)
+      .groupBy("category")
+      .orderBy("spent", "asc")
+      .limit(6),
+    /** The seven latest transactions. */
+    recent: db
+      .selectFrom("transaction_index")
+      .selectAll()
+      .orderBy("booked_at", "desc")
+      .orderBy("id", "desc")
+      .limit(7),
+  };
+}
+
+type Num = number | string | null | undefined;
+
+export interface DashboardResults {
+  positions: { cash: Num; card: Num } | undefined;
+  invoices: { receivable: Num; payable: Num; total: Num; issued: Num } | undefined;
+  overdue: readonly InvoiceRow[];
+  transactions: { total: Num; new: Num; matched: Num; sales: Num } | undefined;
+  months: readonly { month: string; in: Num; out: Num }[];
+  spend: readonly { category: string; spent: Num }[];
+  recent: readonly TransactionRow[];
+}
+
+export interface DashboardMonth {
+  /** "YYYY-MM" */
+  key: string;
+  in: number;
+  out: number;
+}
+
+export interface DashboardSpend {
+  category: string;
+  amount: number;
+}
+
+export interface DashboardStats {
+  /** What the amounts below are in. */
+  bookCurrency: string;
+  cash: number;
+  card: number;
+  receivable: number;
+  payable: number;
+  overdue: InvoiceListRow[];
+  toReview: number;
+  months: DashboardMonth[];
+  spend: DashboardSpend[];
+  /** Transactions categorised, as a percentage (0 with no transactions). */
+  readiness: number;
+  /** The readiness rows: percentages, 100 when there is nothing to count. */
+  categorisedPct: number;
+  matchedPct: number;
+  issuedPct: number;
+  transactionCount: number;
+  categorisedCount: number;
+  matchedCount: number;
+  salesCount: number;
+  invoiceCount: number;
+  issuedCount: number;
+  recent: TransactionListRow[];
+}
+
+const n = (v: Num): number => Number(v ?? 0) || 0;
+
+/** The dashboard's numbers from its queries' results, as the dashboard's `stats` computes them. */
+export function toDashboardStats(nowMs: number, r: DashboardResults): DashboardStats {
+  const now = new Date(nowMs).toISOString();
+  const byMonth = new Map(r.months.map((m) => [m.month, m]));
+  const months = dashboardMonths(nowMs).map((key) => {
+    const m = byMonth.get(key);
+    // `out` sums negative amounts: the bars show it as a positive outflow.
+    return { key, in: n(m?.in), out: Math.abs(n(m?.out)) };
+  });
+  const total = n(r.transactions?.total);
+  const categorised = total - n(r.transactions?.new);
+  const matched = n(r.transactions?.matched);
+  const sales = n(r.transactions?.sales);
+  const invoiceCount = n(r.invoices?.total);
+  const issued = n(r.invoices?.issued);
+  const pctOf = (num: number, den: number) => (den ? Math.round((num / den) * 100) : 100);
+  return {
+    bookCurrency: BOOK_CURRENCY,
+    cash: n(r.positions?.cash),
+    card: n(r.positions?.card),
+    receivable: n(r.invoices?.receivable),
+    payable: n(r.invoices?.payable),
+    overdue: r.overdue.map((row) => toInvoiceRow(row, now)),
+    toReview: n(r.transactions?.new),
+    months,
+    spend: r.spend
+      .map((s) => ({ category: s.category, amount: Math.abs(n(s.spent)) }))
+      .sort((a, b) => b.amount - a.amount),
+    readiness: total ? Math.round((categorised / total) * 100) : 0,
+    categorisedPct: pctOf(categorised, total),
+    matchedPct: pctOf(matched, sales),
+    issuedPct: pctOf(issued, invoiceCount),
+    transactionCount: total,
+    categorisedCount: categorised,
+    matchedCount: matched,
+    salesCount: sales,
+    invoiceCount,
+    issuedCount: issued,
+    recent: r.recent.map(toTransactionRow),
+  };
+}
+
+/** Every dashboard query in one parallel round, folded. */
+export async function loadDashboard(
+  db: FinanceQueryBuilder,
+  nowMs: number,
+): Promise<DashboardStats> {
+  const q = dashboardQueries(db, nowMs);
+  const [positions, invoices, overdue, transactions, months, spend, recent] =
+    await Promise.all([
+      q.positions.executeTakeFirst(),
+      q.invoices.executeTakeFirst(),
+      q.overdue.execute(),
+      q.transactions.executeTakeFirst(),
+      q.months.execute(),
+      q.spend.execute(),
+      q.recent.execute(),
+    ]);
+  return toDashboardStats(nowMs, {
+    positions,
+    invoices,
+    overdue,
+    transactions,
+    months,
+    spend,
+    recent,
+  });
+}

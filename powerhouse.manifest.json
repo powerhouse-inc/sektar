@@ -181,12 +181,28 @@
     {
       "name": "folder-sync",
       "id": "folder-sync"
+    },
+    {
+      "id": "finance-index",
+      "name": "finance-index"
+    },
+    {
+      "id": "trip-index",
+      "name": "trip-index"
     }
   ],
   "subgraphs": [
     {
       "id": "osc-index",
       "name": "osc-index"
+    },
+    {
+      "id": "finance-index",
+      "name": "finance-index"
+    },
+    {
+      "id": "trip-index",
+      "name": "trip-index"
     },
     {
       "id": "key-index",
