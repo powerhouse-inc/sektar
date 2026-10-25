@@ -3,7 +3,7 @@
 // whenever the folder changes, runs after the drive or one of its Files
 // changed. It acts on a mapping's current state, never on a single
 // operation, so a replay of old operations cannot start a run twice.
-import type { IReactorClient } from "@powerhousedao/reactor";
+import type { IReactorReadClient } from "@powerhousedao/reactor";
 import { RelationalDbProcessor, type IProcessorHostModule } from "@powerhousedao/reactor-browser";
 import type { IProcessorDispatch } from "@powerhousedao/shared/processors";
 import type { Action, OperationWithContext } from "document-model";
@@ -70,7 +70,8 @@ function mappingIds(nodes: readonly DriveNode[]): string[] {
 }
 
 export interface FolderSyncRuntime {
-  client: IReactorClient;
+  /** Reads only; every write goes through `dispatch`. */
+  read: IReactorReadClient;
   attachments: IProcessorHostModule["attachments"];
   dispatch: IProcessorDispatch;
 }
@@ -144,9 +145,9 @@ export class FolderSync extends RelationalDbProcessor<DB> {
   }
 
   private async driveNodes(): Promise<DriveNode[]> {
-    const client = this.runtime?.client;
-    if (!client) return [];
-    const drive = (await client.get(this.driveId)) as unknown as { state: { global: { nodes: DriveNode[] } } };
+    const read = this.runtime?.read;
+    if (!read) return [];
+    const drive = (await read.get(this.driveId)) as unknown as { state: { global: { nodes: DriveNode[] } } };
     return drive.state.global.nodes;
   }
 
@@ -215,7 +216,7 @@ export class FolderSync extends RelationalDbProcessor<DB> {
 
   private async stateOf(id: string): Promise<FolderSyncState | undefined> {
     try {
-      const doc = (await this.runtime?.client.get(id)) as unknown as { header: { documentType: string }; state: { global: FolderSyncState } } | undefined;
+      const doc = (await this.runtime?.read.get(id)) as unknown as { header: { documentType: string }; state: { global: FolderSyncState } } | undefined;
       return doc?.header.documentType === SYNC_TYPE ? doc.state.global : undefined;
     } catch {
       return undefined;
@@ -260,7 +261,7 @@ export class FolderSync extends RelationalDbProcessor<DB> {
   private deps(): RunnerDeps {
     const runtime = this.runtime as FolderSyncRuntime;
     return {
-      getDocument: (id) => runtime.client.get(id) as unknown as ReturnType<RunnerDeps["getDocument"]>,
+      getDocument: (id) => runtime.read.get(id) as unknown as ReturnType<RunnerDeps["getDocument"]>,
       download: async (documentId, ref) => {
         const { blob } = await runtime.attachments.downloadBlob({ documentId, ref: ref as `attachment://v${number}:${string}` });
         return new Uint8Array(await blob.arrayBuffer());
@@ -269,8 +270,8 @@ export class FolderSync extends RelationalDbProcessor<DB> {
       createFile: async (driveId, parentFolder, name) => {
         const doc = fileUtils.createDocument();
         doc.header.name = name;
-        const created = await runtime.client.createDocumentInDrive(driveId, doc, parentFolder ?? undefined);
-        return created.header.id;
+        const created = await runtime.dispatch.createInDrive(driveId, doc, parentFolder ?? undefined);
+        return created.documentId ?? doc.header.id;
       },
       createFolder: async (driveId, parentFolder, name) => {
         const id = randomUUID();
@@ -280,7 +281,7 @@ export class FolderSync extends RelationalDbProcessor<DB> {
       deleteNode: async (driveId, nodeId) => {
         await this.dispatch(driveId, [deleteNode({ id: nodeId })]);
         try {
-          await runtime.client.deleteDocument(nodeId);
+          await runtime.dispatch.deleteDocument(nodeId);
         } catch {
           // already gone with its node
         }

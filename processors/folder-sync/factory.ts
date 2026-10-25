@@ -28,7 +28,7 @@ export const folderSyncFactoryBuilder: ProcessorFactoryBuilder =
     const fileFilter: ProcessorFilter = { branch: ["main"], documentId: ["*"], documentType: [FILE_TYPE], scope: ["global"] };
 
     const processor = new FolderSync(namespace, mappingFilter, store, driveHeader.id).withRuntime(driveHeader.id, {
-      client: module.client,
+      read: module.read,
       attachments: module.attachments,
       dispatch: module.dispatch,
     });
