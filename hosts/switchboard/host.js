@@ -51,7 +51,11 @@ export default {
         icon: "./icons/sektar_symbol_64x64.png",
       },
       // Mail: captured emails (sektar/email), opened by the Mail workspace.
+      // Since 2026-10-26 this is a reactor-drive (children are drive/child
+      // relationships, not a node list in the document); the id pins the
+      // seeding to the converted drive so a boot never creates a legacy one.
       {
+        id: "HRsIHuMMTdmjgCdy9QGWyx96zOFByPo787oBQcEt9f4",
         slug: "mail",
         name: "Mail",
         preferredEditor: "email-workspace",

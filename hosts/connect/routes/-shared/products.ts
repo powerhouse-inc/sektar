@@ -43,8 +43,12 @@ export const PRODUCTS: readonly Product[] = [
     icon: { light: iconSageLight, dark: iconSageDark },
     nav: [
       { to: "/productivity", label: "Welcome", icon: "dashboard" },
-      // The Mail drive (hosts/*: slug "mail", drive app email-workspace)
-      { to: "/d/mail", label: "Mail", icon: "mail" },
+      // The Mail drive (hosts/*: reactor-drive, drive app email-workspace)
+      {
+        to: "/d/HRsIHuMMTdmjgCdy9QGWyx96zOFByPo787oBQcEt9f4",
+        label: "Mail",
+        icon: "mail",
+      },
       // The Files drive (hosts/*: slug "files", drive app files)
       { to: "/d/files", label: "Files", icon: "folder" },
     ],

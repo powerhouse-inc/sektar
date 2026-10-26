@@ -111,12 +111,14 @@ export function MailWorkspace() {
   });
   const accounts = useMailAccounts(drive, list.version) ?? [];
 
-  // New mail is filed as nodes on the drive; the index follows a beat later.
-  const nodeCount = drive.state.global.nodes.length;
+  // New mail is filed on the drive (a node on a legacy drive, a drive/child
+  // relationship on a reactor-drive); either way the drive document's last
+  // write moves, and the index follows a beat later.
+  const driveWrittenAt = drive.header.lastModifiedAtUtcIso;
   const { refreshSoon } = list;
   useEffect(() => {
-    if (nodeCount > 0) refreshSoon();
-  }, [nodeCount, refreshSoon]);
+    if (driveWrittenAt) refreshSoon();
+  }, [driveWrittenAt, refreshSoon]);
 
   // A message opened by URL (/d/mail/<node>) is the selection.
   useEffect(() => {
