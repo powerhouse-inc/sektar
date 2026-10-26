@@ -29,3 +29,5 @@ qa/screens/
 .DS_Store
 Thumbs.db
 *.log
+
+/scripts/
