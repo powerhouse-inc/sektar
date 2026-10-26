@@ -4,6 +4,7 @@
 // queries run live on its database. Either way the list is paged where the
 // reader is (kit/paged.ts) and a File document is loaded only when opened.
 import { useRelationalQuery } from "@powerhousedao/reactor-browser";
+import { indexGql as gql } from "./index-gql.js";
 import type { DocumentDriveDocument } from "@powerhousedao/shared/document-drive";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -41,18 +42,6 @@ const LISTING_QUERY = `query ($d: String!, $f: String, $deep: Boolean, $q: Strin
     items { id kind name parentId documentType title description tags { id label color } sourceKind sourceMime sourceName sourceSize sourceDocumentType sourceDocumentName renditionCount thumbRef diskChange }
   } }
 }`;
-
-async function gql<T>(base: string, query: string, variables: Record<string, unknown>): Promise<T> {
-  const response = await fetch(`${base}/graphql`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ query, variables }),
-  });
-  const json = (await response.json()) as { data?: T; errors?: { message: string }[] };
-  if (json.errors?.length) throw new Error(json.errors[0].message);
-  if (!json.data) throw new Error(`The index answered ${response.status}`);
-  return json.data;
-}
 
 /* --------------------------------------------------------------- local */
 

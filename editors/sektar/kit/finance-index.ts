@@ -13,6 +13,7 @@
 // its database. Both answer through one fetcher, so the paging, the memory
 // of answers and the refresh on change are shared (kit/paged.ts).
 import { useReactorClient, useRelationalDb } from "@powerhousedao/reactor-browser";
+import { indexGql as gql } from "./index-gql.js";
 import type { DocumentDriveDocument } from "@powerhousedao/shared/document-drive";
 import type {
   AccountKind,
@@ -125,18 +126,6 @@ function useFinanceSource(drive: DocumentDriveDocument | undefined): {
   }, [driveId, base, local, db]);
   const tag = source ? `${source.kind === "remote" ? source.base : "local"}|${source.driveId}` : "";
   return { source, tag, mode: mode.kind };
-}
-
-async function gql<T>(base: string, query: string, variables: Record<string, unknown>): Promise<T> {
-  const response = await fetch(`${base}/graphql`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ query, variables }),
-  });
-  const json = (await response.json()) as { data?: T; errors?: { message: string }[] };
-  if (json.errors?.length) throw new Error(json.errors[0].message);
-  if (!json.data) throw new Error(`The index answered ${response.status}`);
-  return json.data;
 }
 
 /* ---------------------------------------------------------------- wire */
@@ -503,7 +492,6 @@ const INVOICE_TYPES = [INVOICE_DOCUMENT_TYPE] as const;
 const ACCOUNT_TYPES = [ACCOUNT_DOCUMENT_TYPE] as const;
 const FINANCE_TYPES = [ACCOUNT_DOCUMENT_TYPE, INVOICE_DOCUMENT_TYPE] as const;
 const NO_ACCOUNTS: AccountRow[] = [];
-
 
 export interface InvoiceListFilter {
   direction: "OUTGOING" | "INCOMING";

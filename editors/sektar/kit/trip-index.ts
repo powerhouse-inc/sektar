@@ -4,6 +4,7 @@
 // on its database. The boards show rows; a trip document is loaded only when
 // it is opened.
 import { useReactorClient, useRelationalQuery } from "@powerhousedao/reactor-browser";
+import { indexGql as gql } from "./index-gql.js";
 import type { DocumentDriveDocument } from "@powerhousedao/shared/document-drive";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -68,18 +69,6 @@ const YEARS_QUERY = `query ($d: String!) {
 /** The wire speaks upper-case phases; the kit lower-case. */
 type WireTrip = Omit<TripListRow, "phase"> & { phase: string };
 const fromWire = (t: WireTrip): TripListRow => ({ ...t, phase: t.phase.toLowerCase() as TripPhase });
-
-async function gql<T>(base: string, query: string, variables: Record<string, unknown>): Promise<T> {
-  const response = await fetch(`${base}/graphql`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ query, variables }),
-  });
-  const json = (await response.json()) as { data?: T; errors?: { message: string }[] };
-  if (json.errors?.length) throw new Error(json.errors[0].message);
-  if (!json.data) throw new Error(`The index answered ${response.status}`);
-  return json.data;
-}
 
 /** The trip documents of a drive changed (a trip edited, added or removed): `onChange` is called. */
 function useTripChanges(enabled: boolean, onChange: () => void) {

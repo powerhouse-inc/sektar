@@ -18,6 +18,7 @@ import {
   useSwitchboardUrl,
   useSyncList,
 } from "@powerhousedao/reactor-browser";
+import { indexGql as gql } from "./index-gql.js";
 import type { DocumentDriveDocument } from "@powerhousedao/shared/document-drive";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -141,25 +142,6 @@ const MESSAGES_QUERY = `query ($d: String!, $a: String, $v: MailView, $q: String
 const ACCOUNTS_QUERY = `query ($d: String!) {
   emailIndex { accounts(driveId: $d) { address name provider total unread } }
 }`;
-
-async function gql<T>(
-  base: string,
-  query: string,
-  variables: Record<string, unknown>,
-): Promise<T> {
-  const response = await fetch(`${base}/graphql`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ query, variables }),
-  });
-  const json = (await response.json()) as {
-    data?: T;
-    errors?: { message: string }[];
-  };
-  if (json.errors?.length) throw new Error(json.errors[0].message);
-  if (!json.data) throw new Error(`The index answered ${response.status}`);
-  return json.data;
-}
 
 /**
  * Rows per request. A screen shows a dozen rows, so fifty is a few screens:
