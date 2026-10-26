@@ -14,6 +14,9 @@ export default {
     plugins: [
       "@powerhousedao/switchboard/plugins/mcp",
       "@powerhousedao/switchboard/plugins/attachments",
+      // Portle: the publication gate (`portleReadiness`) and, later, the
+      // relay tunnel. Presence is activation; it takes no config.
+      "@powerhousedao/portle/switchboard",
       // Workflows: the runtime AND the drive it serves (seeded here, opens in
       // Workflow Studio). The connect host attaches this same drive through
       // its own workflows plugin — one link, declared on both ends.

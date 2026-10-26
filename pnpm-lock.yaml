@@ -19,6 +19,7 @@ overrides:
   '@powerhousedao/opentelemetry-instrumentation-reactor': link:../powerhouse/packages/opentelemetry-instrumentation-reactor
   '@powerhousedao/ph-cli': link:../powerhouse/clis/ph-cli
   '@powerhousedao/pieces-framework': link:../powerhouse/packages/pieces-framework
+  '@powerhousedao/portle': link:../powerhouse/packages/portle
   '@powerhousedao/powerhouse-vetra-packages': link:../powerhouse/packages/powerhouse-vetra-packages
   '@powerhousedao/reactor': link:../powerhouse/packages/reactor
   '@powerhousedao/reactor-api': link:../powerhouse/packages/reactor-api
@@ -88,6 +89,9 @@ importers:
       '@powerhousedao/pieces-framework':
         specifier: link:../powerhouse/packages/pieces-framework
         version: link:../powerhouse/packages/pieces-framework
+      '@powerhousedao/portle':
+        specifier: link:../powerhouse/packages/portle
+        version: link:../powerhouse/packages/portle
       '@powerhousedao/reactor':
         specifier: link:../powerhouse/packages/reactor
         version: link:../powerhouse/packages/reactor

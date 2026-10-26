@@ -23,6 +23,7 @@ overrides:
   "@powerhousedao/opentelemetry-instrumentation-reactor": "link:../powerhouse/packages/opentelemetry-instrumentation-reactor"
   "@powerhousedao/ph-cli": "link:../powerhouse/clis/ph-cli"
   "@powerhousedao/pieces-framework": "link:../powerhouse/packages/pieces-framework"
+  "@powerhousedao/portle": "link:../powerhouse/packages/portle"
   "@powerhousedao/powerhouse-vetra-packages": "link:../powerhouse/packages/powerhouse-vetra-packages"
   "@powerhousedao/reactor": "link:../powerhouse/packages/reactor"
   "@powerhousedao/reactor-api": "link:../powerhouse/packages/reactor-api"

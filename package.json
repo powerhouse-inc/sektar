@@ -88,6 +88,7 @@
     "@powerhousedao/host-core": "link:../powerhouse/packages/host-core",
     "@powerhousedao/ph-cli": "link:../powerhouse/clis/ph-cli",
     "@powerhousedao/pieces-framework": "link:../powerhouse/packages/pieces-framework",
+    "@powerhousedao/portle": "link:../powerhouse/packages/portle",
     "@powerhousedao/reactor": "link:../powerhouse/packages/reactor",
     "@powerhousedao/reactor-api": "link:../powerhouse/packages/reactor-api",
     "@powerhousedao/reactor-browser": "link:../powerhouse/packages/reactor-browser",
