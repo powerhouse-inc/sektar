@@ -105,7 +105,7 @@ export const distyraUpsertDocumentsAction = createAction({
     lookup: Property.StaticDropdown({
       displayName: "Find existing documents by",
       description:
-        "Key index (default): the switchboard's key index knows every document of the type that holds a key, whatever created it — one small query per batch. Slug: documents this step creates carry a slug made from their key and are found by it; blind to documents made any other way. Scan: every document of the type in the drive is read with its state — a thousand emails is a hundred megabytes per run; never on a schedule.",
+        "Key index (default): the switchboard's key index knows every document of the type that holds a key, whatever created it — one small query per batch, run by the host as this workflow's user. Slug: documents this step creates carry a slug made from their key and are found by it; blind to documents made any other way. Scan: every document of the type in the drive is read with its state — a thousand emails is a hundred megabytes per run; never on a schedule.",
       required: false,
       defaultValue: "index",
       options: {
@@ -115,13 +115,6 @@ export const distyraUpsertDocumentsAction = createAction({
           { label: "Scan every document (slow, legacy)", value: "scan" },
         ],
       },
-    }),
-    indexUrl: Property.ShortText({
-      displayName: "Key index URL",
-      description:
-        "The switchboard that hosts the key index. Leave blank for this reactor's own.",
-      required: false,
-      advanced: true,
     }),
   },
   async run(context) {
@@ -146,7 +139,6 @@ export const distyraUpsertDocumentsAction = createAction({
       stopOnError: p.stopOnError === true,
       lookup:
         p.lookup === "scan" ? "scan" : p.lookup === "slug" ? "slug" : "index",
-      indexUrl: text(p.indexUrl),
     });
   },
 });

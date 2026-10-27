@@ -58,14 +58,18 @@ export interface SourceLocation {
 }
 
 /**
- * Ask the index where these identifiers already live.
+ * Ask the index where these identifiers already live. The host runs the
+ * query in process as this run's user, so the index's own access rules
+ * decide which collections the answer may name.
  *
- * Returns nothing rather than throwing when the index cannot be reached. A
+ * Returns nothing rather than throwing when the index cannot answer. A
  * lookup failure must not stop a capture: the index only decides WHICH
  * collection to write to, never whether to write, so the worst a miss costs
  * is a record filed in the default collection instead of beside its twin.
+ * The failure is reported on the console so it is not a silent miss.
  */
 export async function findLocations(
+  reactor: Pick<ReactorReadClient, "query">,
   driveId: string,
   identifiers: string[],
 ): Promise<SourceLocation[]> {
@@ -75,24 +79,28 @@ export async function findLocations(
   if (wanted.length === 0) return [];
 
   try {
-    const response = await fetch(`${switchboardUrl()}/graphql`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        query: `query ($d: String!, $ids: [String!]!) {
-          oscIndex { findSources(driveId: $d, identifiers: $ids) {
-            identifier documentId sourceId isAlias status title
-            capturedAt lastSeenAt collectionTitle
-          } }
-        }`,
-        variables: { d: driveId, ids: wanted },
-      }),
+    const result = await reactor.query({
+      subgraph: "osc-index",
+      query: `query ($d: String!, $ids: [String!]!) {
+        oscIndex { findSources(driveId: $d, identifiers: $ids) {
+          identifier documentId sourceId isAlias status title
+          capturedAt lastSeenAt collectionTitle
+        } }
+      }`,
+      variables: { d: driveId, ids: wanted },
     });
-    const json = (await response.json()) as {
-      data?: { oscIndex?: { findSources?: SourceLocation[] } };
-    };
-    return json.data?.oscIndex?.findSources ?? [];
-  } catch {
+    if (result.errors?.length) {
+      console.warn(
+        `osc-index refused the lookup: ${result.errors.map((e) => e.message).join("; ")}`,
+      );
+      return [];
+    }
+    const data = result.data as { oscIndex?: { findSources?: SourceLocation[] } } | null | undefined;
+    return data?.oscIndex?.findSources ?? [];
+  } catch (error) {
+    console.warn(
+      `osc-index could not be asked: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return [];
   }
 }

@@ -15,7 +15,7 @@
  * which filters on type and parent only, so the key comparison happens here.
  */
 import { createHash } from "node:crypto";
-import { switchboardUrl, toGlobalAction } from "../osc/client.js";
+import { toGlobalAction } from "../osc/client.js";
 import { asText, valueAt, type Template } from "./template.js";
 
 export const DEFAULT_LIMIT = 100;
@@ -37,8 +37,6 @@ const BRANCH = "main";
  * journaled every id it touched; it should not be used on a schedule.
  */
 export type Lookup = "index" | "slug" | "scan";
-
-export type Fetch = typeof fetch;
 
 /** The slice of a document this step reads or makes. */
 export interface DocumentLike {
@@ -74,6 +72,15 @@ export interface UpsertReactor {
     actions: ReturnType<typeof toGlobalAction>[],
   ): Promise<DocumentLike>;
   getDocumentModelModule(documentType: string): Promise<ModuleLike>;
+  /** A read of a read-model index (the key index), run by the host as this run's user. */
+  query(request: {
+    subgraph: string;
+    query: string;
+    variables?: Record<string, unknown>;
+  }): Promise<{
+    data?: Record<string, unknown> | null;
+    errors?: { message: string }[];
+  }>;
 }
 
 export interface UpsertOptions {
@@ -94,9 +101,6 @@ export interface UpsertOptions {
   limit?: number;
   stopOnError?: boolean;
   lookup?: Lookup;
-  /** The switchboard the key index is asked at; defaults to the host's. */
-  indexUrl?: string;
-  fetchImpl?: Fetch;
 }
 
 export interface Skipped {
@@ -253,40 +257,35 @@ export async function indexBySlug(
 
 /**
  * The documents of a batch that already exist, by key, asked of the key
- * index over HTTP. A failure here is a failure: answering "nothing exists"
- * when the index could not be reached would turn every item into a twin.
+ * index through the reactor: the host runs the query in process as this
+ * run's user, so the index's own access rules decide and no URL or
+ * credential is involved. A failure here is a failure: answering "nothing
+ * exists" when the index could not be asked would turn every item into a
+ * twin.
  */
 export async function indexByRemote(options: {
+  reactor: Pick<UpsertReactor, "query">;
   driveId: string;
   documentType: string;
   keys: string[];
-  indexUrl?: string;
-  fetchImpl?: Fetch;
 }): Promise<Map<string, DocumentLike>> {
   const index = new Map<string, DocumentLike>();
   const keys = [...new Set(options.keys)];
   if (keys.length === 0) return index;
-  const base = (options.indexUrl ?? switchboardUrl()).replace(/\/+$/, "");
-  const url = `${base}/graphql`;
-  const doFetch = options.fetchImpl ?? fetch;
   let payload: {
-    data?: { keyIndex?: { find?: { key: string; documentId: string }[] } };
+    data?: { keyIndex?: { find?: { key: string; documentId: string }[] } } | null;
     errors?: { message: string }[];
   };
   try {
-    const response = await doFetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        query:
-          "query ($d: String!, $t: String!, $k: [String!]!) { keyIndex { find(driveId: $d, documentType: $t, keys: $k) { key documentId } } }",
-        variables: { d: options.driveId, t: options.documentType, k: keys },
-      }),
-    });
-    payload = (await response.json()) as typeof payload;
+    payload = (await options.reactor.query({
+      subgraph: "key-index",
+      query:
+        "query ($d: String!, $t: String!, $k: [String!]!) { keyIndex { find(driveId: $d, documentType: $t, keys: $k) { key documentId } } }",
+      variables: { d: options.driveId, t: options.documentType, k: keys },
+    })) as typeof payload;
   } catch (error) {
     throw new Error(
-      `The key index at ${url} could not be reached (${error instanceof Error ? error.message : String(error)}); nothing was written. Is the key-index subgraph installed on the switchboard?`,
+      `The key index could not be asked (${error instanceof Error ? error.message : String(error)}); nothing was written. Is the key-index subgraph installed on the switchboard?`,
     );
   }
   if (payload.errors?.length) {
@@ -484,11 +483,10 @@ export async function runUpsert(
             keys,
           )
         : await indexByRemote({
+            reactor,
             driveId: options.driveId,
             documentType: options.documentType,
             keys,
-            indexUrl: options.indexUrl,
-            fetchImpl: options.fetchImpl,
           });
   const folders = new Folders(reactor, options.driveId);
   // Fetched lazily: a batch that only updates never needs the model.

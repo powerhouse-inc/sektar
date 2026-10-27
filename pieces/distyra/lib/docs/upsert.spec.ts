@@ -31,6 +31,7 @@ interface Call {
   target: string;
   actions?: { type: string; input?: unknown }[];
   slugs?: string[];
+  variables?: unknown;
 }
 
 interface Fake extends UpsertReactor {
@@ -40,7 +41,13 @@ interface Fake extends UpsertReactor {
 
 function fakeReactor(
   existing: { id: string; state: Record<string, unknown>; slug?: string }[] = [],
-  options: { failOn?: string; pageSize?: number; nodes?: unknown[] } = {},
+  options: {
+    failOn?: string;
+    pageSize?: number;
+    nodes?: unknown[];
+    /** How the key index answers; absent, it knows nothing. */
+    query?: UpsertReactor["query"];
+  } = {},
 ): Fake {
   const documents = new Map<string, DocumentLike>();
   for (const doc of existing) {
@@ -133,6 +140,12 @@ function fakeReactor(
         },
       });
     },
+    query(request) {
+      calls.push({ method: "query", target: request.subgraph, variables: request.variables });
+      return options.query
+        ? options.query(request)
+        : Promise.resolve({ data: { keyIndex: { find: [] } } });
+    },
   };
 }
 
@@ -148,21 +161,17 @@ const message = (id: string, subject = `Mail ${id}`) => ({
   ],
 });
 
-/** A key index that knows these keys, as the switchboard would answer. */
+/** A key index that knows these keys, as the host would answer the query. */
 function fakeIndex(known: Record<string, string>, fail?: string) {
-  const calls: { url: string; variables: unknown }[] = [];
-  const fetchImpl = ((url: string | URL | Request, init?: RequestInit) => {
-    const raw = typeof init?.body === "string" ? init.body : "{}";
-    const body = JSON.parse(raw) as { variables: { k: string[]; d: string; t: string } };
-    const target = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
-    calls.push({ url: target, variables: body.variables });
-    if (fail) return Promise.resolve(new Response(JSON.stringify({ errors: [{ message: fail }] })));
-    const find = body.variables.k
-      .filter((key) => key in known)
-      .map((key) => ({ key, documentId: known[key] }));
-    return Promise.resolve(new Response(JSON.stringify({ data: { keyIndex: { find } } })));
-  }) as typeof fetch;
-  return { fetchImpl, calls };
+  const calls: { subgraph: string; variables: unknown }[] = [];
+  const query: UpsertReactor["query"] = (request) => {
+    calls.push({ subgraph: request.subgraph, variables: request.variables });
+    if (fail) return Promise.resolve({ errors: [{ message: fail }] });
+    const k = (request.variables as { k: string[] }).k;
+    const find = k.filter((key) => key in known).map((key) => ({ key, documentId: known[key] }));
+    return Promise.resolve({ data: { keyIndex: { find } } });
+  };
+  return { query, calls };
 }
 
 const baseOptions = {
@@ -242,31 +251,30 @@ describe("the lookup", () => {
     expect((await indexByKey(reactor, TYPE, DRIVE, "externalId")).size).toBe(1);
   });
 
-  it("asks the key index for a batch, one query, and trusts its answer", async () => {
-    const { fetchImpl, calls } = fakeIndex({ "gmail:1": "d1", "gmail:3": "d3" });
+  it("asks the key index for a batch, one query through the reactor, and trusts its answer", async () => {
+    const { query, calls } = fakeIndex({ "gmail:1": "d1", "gmail:3": "d3" });
     const index = await indexByRemote({
+      reactor: { query },
       driveId: DRIVE,
       documentType: TYPE,
       keys: ["gmail:1", "gmail:2", "gmail:3", "gmail:1"],
-      indexUrl: "http://switchboard.test/",
-      fetchImpl,
     });
     expect([...index.keys()]).toEqual(["gmail:1", "gmail:3"]);
     expect(index.get("gmail:3")?.header.id).toBe("d3");
     expect(calls).toHaveLength(1);
-    expect(calls[0].url).toBe("http://switchboard.test/graphql");
+    expect(calls[0].subgraph).toBe("key-index");
     expect(calls[0].variables).toEqual({ d: DRIVE, t: TYPE, k: ["gmail:1", "gmail:2", "gmail:3"] });
   });
 
   it("fails loudly when the key index cannot answer, rather than creating twins", async () => {
-    const { fetchImpl } = fakeIndex({}, "no such drive");
+    const { query } = fakeIndex({}, "no such drive");
     await expect(
-      indexByRemote({ driveId: DRIVE, documentType: TYPE, keys: ["gmail:1"], fetchImpl }),
+      indexByRemote({ reactor: { query }, driveId: DRIVE, documentType: TYPE, keys: ["gmail:1"] }),
     ).rejects.toThrow(/key index refused the lookup: no such drive/);
-    const down = (() => Promise.reject(new Error("ECONNREFUSED"))) as typeof fetch;
+    const down: UpsertReactor["query"] = () => Promise.reject(new Error("host serves no indexes"));
     await expect(
-      indexByRemote({ driveId: DRIVE, documentType: TYPE, keys: ["gmail:1"], fetchImpl: down }),
-    ).rejects.toThrow(/could not be reached \(ECONNREFUSED\); nothing was written/);
+      indexByRemote({ reactor: { query: down }, driveId: DRIVE, documentType: TYPE, keys: ["gmail:1"] }),
+    ).rejects.toThrow(/could not be asked \(host serves no indexes\); nothing was written/);
   });
 
   it("pages through every document of the type and keys them by state", async () => {
@@ -343,26 +351,27 @@ describe("writing a batch", () => {
 
   it("updates a document the key index knows, whatever created it", async () => {
     // A document from before slugs: no slug, but the index saw its capture.
-    const reactor = fakeReactor([{ id: "old", state: { externalId: "gmail:1" } }]);
-    const { fetchImpl } = fakeIndex({ "gmail:1": "old" });
+    const { query } = fakeIndex({ "gmail:1": "old" });
+    const reactor = fakeReactor([{ id: "old", state: { externalId: "gmail:1" } }], { query });
     const result = await runUpsert(reactor, {
       ...baseOptions,
       lookup: "index",
-      fetchImpl,
       items: [message("1"), message("2")],
     });
     expect(result.counts).toMatchObject({ created: 1, updated: 1, failed: 0 });
     expect(result.updated[0]).toMatchObject({ key: "gmail:1", documentId: "old" });
     // No drive scan happened: the only find is none at all.
     expect(reactor.calls.filter((c) => c.method === "find")).toHaveLength(0);
+    expect(reactor.calls.filter((c) => c.method === "query")).toHaveLength(1);
   });
 
-  it("writes nothing when the key index is unreachable", async () => {
-    const reactor = fakeReactor();
-    const down = (() => Promise.reject(new Error("ECONNREFUSED"))) as typeof fetch;
+  it("writes nothing when the key index cannot be asked", async () => {
+    const reactor = fakeReactor([], {
+      query: () => Promise.reject(new Error("host serves no indexes")),
+    });
     await expect(
-      runUpsert(reactor, { ...baseOptions, lookup: "index", fetchImpl: down, items: [message("1")] }),
-    ).rejects.toThrow(/could not be reached/);
+      runUpsert(reactor, { ...baseOptions, lookup: "index", items: [message("1")] }),
+    ).rejects.toThrow(/could not be asked/);
     expect(reactor.calls.filter((c) => c.method === "create")).toHaveLength(0);
   });
 

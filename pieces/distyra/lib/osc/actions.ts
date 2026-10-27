@@ -11,7 +11,11 @@
  * connection and these reach the reactor instead; inheriting it would force
  * someone to attach a bank account before they could file an email.
  */
-import { createAction, Property } from "@powerhousedao/pieces-framework";
+import {
+  createAction,
+  Property,
+  type ReactorReadClient,
+} from "@powerhousedao/pieces-framework";
 import {
   applyToCollection,
   driveIdProp,
@@ -56,6 +60,8 @@ function asArray<T>(value: unknown): T[] {
 export const distyraOscFindSourceAction = createAction({
   name: "osc-find-source",
   requireAuth: false,
+  // The index is read through the reactor, as the run's user.
+  requireReactor: "read",
   displayName: "Find Source",
   description:
     "Ask whether an identifier has already been captured, and where. Returns the collection holding it, so a flow can skip fetching something it already has. A folded identifier resolves to the record that absorbed it, never to the tombstone.",
@@ -70,7 +76,11 @@ export const distyraOscFindSourceAction = createAction({
   },
   async run(context) {
     const identifiers = asArray<string>(context.propsValue.identifiers);
-    const matches = await findLocations(context.propsValue.driveId, identifiers);
+    const matches = await findLocations(
+      context.reactor,
+      context.propsValue.driveId,
+      identifiers,
+    );
     return {
       found: matches.length > 0,
       // The first hit is the ergonomic answer; `matches` is the honest one,
@@ -96,13 +106,14 @@ const captureProps = {
 
 /** Where a capture should land, and whether the index had seen it. */
 async function targetFor(
+  reactor: Pick<ReactorReadClient, "query">,
   driveId: string,
   fallback: string,
   identifiers: string[],
   search: boolean,
 ): Promise<{ documentId: string; known: boolean }> {
   if (!search) return { documentId: fallback, known: false };
-  const matches = await findLocations(driveId, identifiers);
+  const matches = await findLocations(reactor, driveId, identifiers);
   if (matches.length === 0) return { documentId: fallback, known: false };
   return { documentId: matches[0].documentId, known: true };
 }
@@ -167,6 +178,7 @@ export const distyraOscCaptureSourceAction = createAction({
 
     const aliases = asArray<string>(input.aliases).map((a) => a.trim());
     const { documentId, known } = await targetFor(
+      context.reactor,
       input.driveId,
       input.collection,
       [externalId, ...aliases],
@@ -269,6 +281,7 @@ export const distyraOscCaptureSourcesAction = createAction({
     const search = input.searchAllCollections ?? true;
     const locations = search
       ? await findLocations(
+          context.reactor,
           input.driveId,
           prepared.flatMap((entry) => entry.identifiers),
         )
