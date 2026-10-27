@@ -2461,3 +2461,7 @@ html { touch-action: manipulation; }
   .sk-app .sk-shell__content .sk-mail-headers__card .sk-mail-headers .sk-table .sk-mail-headers__key { font-size: var(--sk-text-xs); font-weight: var(--sk-weight-medium); white-space: normal; overflow: visible; overflow-wrap: anywhere; }
   .sk-app .sk-shell__content .sk-mail-headers__card .sk-mail-headers .sk-table .sk-mail-headers__value { margin-top: 2px; }
 }
+
+/* A long selector menu scrolls inside itself (kit/ui.tsx caps its height to
+   the screen below it); the page behind it does not scroll along. */
+.sk-app .sk-selector__menu { overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }

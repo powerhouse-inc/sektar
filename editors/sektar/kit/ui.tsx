@@ -667,6 +667,23 @@ export function Selector<T extends string>({
   const tiles = useRef<HTMLDivElement>(null);
   const [compact, setCompact] = useState(false);
   const [open, setOpen] = useState(false);
+  // The open menu fits the screen below its top edge and scrolls past that
+  // (a message with dozens of attachments made it taller than the screen).
+  const menu = useRef<HTMLDivElement>(null);
+  const [menuMax, setMenuMax] = useState<number | undefined>(undefined);
+  useLayoutEffect(() => {
+    if (!open || !menu.current) {
+      setMenuMax(undefined);
+      return;
+    }
+    const fit = () => {
+      const top = menu.current?.getBoundingClientRect().top ?? 0;
+      setMenuMax(Math.max(160, Math.floor(window.innerHeight - top - 12)));
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [open]);
   useLayoutEffect(() => {
     if (list || !root.current || !tiles.current) return;
     const el = root.current;
@@ -720,7 +737,10 @@ export function Selector<T extends string>({
             key={o.value}
             type="button"
             role="tab"
-            className={cx("sk-selector__tile", o.value === value && "is-active")}
+            className={cx(
+              "sk-selector__tile",
+              o.value === value && "is-active",
+            )}
             aria-pressed={o.value === value}
             aria-selected={o.value === value}
             onClick={() => onChange(o.value)}
@@ -738,11 +758,18 @@ export function Selector<T extends string>({
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
           >
-            <span className="sk-selector__current">{current && tile(current)}</span>
+            <span className="sk-selector__current">
+              {current && tile(current)}
+            </span>
             <span className="sk-selector__count">{options.length}</span>
             <Icon name="chevron-down" className="sk-selector__chevron" />
           </button>
-          <div className="sk-selector__menu" role="listbox">
+          <div
+            ref={menu}
+            className="sk-selector__menu"
+            role="listbox"
+            style={menuMax ? { maxHeight: menuMax } : undefined}
+          >
             {options.map((o) => (
               <button
                 key={o.value}
@@ -1112,8 +1139,17 @@ export function Chip({
 }) {
   const Tag = onClick ? "button" : "span";
   return (
-    <Tag className="sk-chip" onClick={onClick} type={onClick ? "button" : undefined}>
-      <span className={cx("sk-file-type sk-file-type--sm", kind && `sk-file-type--${kind}`)}>
+    <Tag
+      className="sk-chip"
+      onClick={onClick}
+      type={onClick ? "button" : undefined}
+    >
+      <span
+        className={cx(
+          "sk-file-type sk-file-type--sm",
+          kind && `sk-file-type--${kind}`,
+        )}
+      >
         {(kind ?? "file").toUpperCase()}
       </span>
       <span className="sk-chip__name">{name}</span>
@@ -1186,7 +1222,9 @@ export function PromoCard({
         <img className="sk-logo-swap__dark" src={art.dark} alt="" />
       </div>
       <h3 className="sk-h4">{title}</h3>
-      {children && <p className="sk-small sk-text-secondary sk-mt-1">{children}</p>}
+      {children && (
+        <p className="sk-small sk-text-secondary sk-mt-1">{children}</p>
+      )}
       {action && <div className="sk-mt-3">{action}</div>}
     </div>
   );
@@ -1194,7 +1232,9 @@ export function PromoCard({
 
 /** The overflow-menu button (three dots). */
 export function More(props: ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button type="button" className="sk-more" aria-label="More" {...props} />;
+  return (
+    <button type="button" className="sk-more" aria-label="More" {...props} />
+  );
 }
 
 export function ActionTile({
@@ -1530,7 +1570,10 @@ export function SidePanel({
             <div className="sk-stack sk-stack--2">
               {eyebrow && <div className="sk-eyebrow">{eyebrow}</div>}
               <div className="sk-row sk-row--2">
-                <h3 className="sk-h3" style={{ fontSize: "var(--sk-text-2xl)" }}>
+                <h3
+                  className="sk-h3"
+                  style={{ fontSize: "var(--sk-text-2xl)" }}
+                >
                   {title}
                 </h3>
                 {badge}
