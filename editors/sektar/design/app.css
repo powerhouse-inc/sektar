@@ -2396,3 +2396,6 @@ html { touch-action: manipulation; }
     max-width: 100%;
   }
 }
+
+/* Mail rows have no checkbox: its placeholder rows start where the avatar does. */
+.sk-app .sk-mail .sk-mail__placeholder { padding-left: var(--sk-space-4); }

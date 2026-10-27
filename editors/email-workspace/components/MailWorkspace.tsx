@@ -95,7 +95,6 @@ export function MailWorkspace() {
   const [account, setAccount] = useState<string>(ALL);
   const [view, setView] = useState<MailView>("inbox");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [checked, setChecked] = useState<Set<string>>(() => new Set());
   const [fileRef, setFileRef] = useState<string | null>(null);
   const [level, setLevel] = useState<Level>(1);
   const [listCollapsed, setListCollapsed] = useState(false);
@@ -135,7 +134,8 @@ export function MailWorkspace() {
       ? selectedQuery.data
       : undefined;
   const files = useMemo(
-    () => (selected ? uniqueAttachments(selected.state.global.attachments) : []),
+    () =>
+      selected ? uniqueAttachments(selected.state.global.attachments) : [],
     [selected],
   );
   const hasFiles = files.length > 0;
@@ -180,14 +180,6 @@ export function MailWorkspace() {
     setLevel(3);
   };
 
-  const toggleChecked = (id: string) =>
-    setChecked((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
   // One mailbox: nothing to choose between, so no selector, no chooser
   // screen and no switch; the list is simply titled after the mailbox.
   const single = accounts.length <= 1;
@@ -217,7 +209,8 @@ export function MailWorkspace() {
   // Once shown, the workspace stays: a filter that is still loading, or one
   // that matches nothing, is the list pane's business, not a page loader's.
   const shownOnce = useRef(false);
-  if (list.loaded && (accounts.length > 0 || list.total > 0)) shownOnce.current = true;
+  if (list.loaded && (accounts.length > 0 || list.total > 0))
+    shownOnce.current = true;
   const ready = shownOnce.current;
   const height = useFillHeight(root, ready);
   const narrow = useNarrow(root, 1000, ready);
@@ -232,12 +225,16 @@ export function MailWorkspace() {
   // The pages under the window, once the scroll settles: a drag across the
   // mailbox fetches where it stops, not every page it passed.
   useEffect(() => {
-    const timer = setTimeout(() => ensure(win.start, win.end), ENSURE_DEBOUNCE_MS);
+    const timer = setTimeout(
+      () => ensure(win.start, win.end),
+      ENSURE_DEBOUNCE_MS,
+    );
     return () => clearTimeout(timer);
   }, [ensure, win.start, win.end, list.version]);
   const windowRows = useMemo(() => {
     const out: { index: number; row: MailRow | undefined }[] = [];
-    for (let i = win.start; i < win.end; i++) out.push({ index: i, row: rowAt(i) });
+    for (let i = win.start; i < win.end; i++)
+      out.push({ index: i, row: rowAt(i) });
     return out;
   }, [win.start, win.end, rowAt]);
   const firstReal = windowRows.find((r) => r.row)?.index;
@@ -279,7 +276,10 @@ export function MailWorkspace() {
             indexed={list.mode !== "unknown"}
           />
         ) : (
-          <div className="sk-stack sk-stack--4" style={{ maxWidth: 560, margin: "0 auto" }}>
+          <div
+            className="sk-stack sk-stack--4"
+            style={{ maxWidth: 560, margin: "0 auto" }}
+          >
             <Skeleton width={180} height={20} />
             {[0, 1, 2, 3, 4].map((i) => (
               <Skeleton key={i} height={64} />
@@ -397,12 +397,13 @@ export function MailWorkspace() {
             >
               {windowRows.map(({ index, row }) =>
                 row ? (
-                  <li key={row.id} ref={index === firstReal ? win.measure : undefined}>
+                  <li
+                    key={row.id}
+                    ref={index === firstReal ? win.measure : undefined}
+                  >
                     <MessageRow
                       row={row}
                       selected={row.id === selectedId}
-                      checked={checked.has(row.id)}
-                      onCheck={() => toggleChecked(row.id)}
                       onClick={() => pick(row)}
                     />
                   </li>
@@ -519,28 +520,22 @@ export function MailWorkspace() {
 }
 
 /**
- * A row re-renders only when its own row, selection or checkbox changes.
- * Rows are replaced only when the index says they changed, so a refresh
- * that confirms what is shown re-renders nothing. React re-applies `type`
- * and `name` on each controlled checkbox it re-renders, which the browser
- * paints as a blink — the reason this is worth guarding.
+ * A row re-renders only when its own row or its selection changes. Rows are
+ * replaced only when the index says they changed, so a refresh that confirms
+ * what is shown re-renders nothing.
  */
 const MessageRow = memo(
   MessageRowImpl,
-  (a, b) => a.selected === b.selected && a.checked === b.checked && a.row === b.row,
+  (a, b) => a.selected === b.selected && a.row === b.row,
 );
 
 function MessageRowImpl({
   row,
   selected,
-  checked,
-  onCheck,
   onClick,
 }: {
   row: MailRow;
   selected: boolean;
-  checked: boolean;
-  onCheck: () => void;
   onClick: () => void;
 }) {
   traceRender("MessageRow");
@@ -553,15 +548,6 @@ function MessageRowImpl({
       onClick={onClick}
       // Stacked, this row leads to the message screen: the chevron says so.
       drill={2}
-      leading={
-        <label
-          className="sk-check"
-          onClick={(e) => e.stopPropagation()}
-          aria-label="Select message"
-        >
-          <input type="checkbox" checked={checked} onChange={onCheck} />
-        </label>
-      }
       icon={<Avatar name={name} />}
       title={
         <span className={cx(!row.read && "sk-mail__unread")}>
@@ -648,9 +634,9 @@ function MailEmpty({
           )
         }
       >
-        A workflow files mail here as it arrives: one document per message,
-        its attachments stored beside it. Until one runs, try it with a
-        morning's worth of mail for Juniper Studio
+        A workflow files mail here as it arrives: one document per message, its
+        attachments stored beside it. Until one runs, try it with a morning's
+        worth of mail for Juniper Studio
         {hasStore ? "." : " (files need a switchboard behind the drive)."}
       </EmptyState>
       {busy && (
