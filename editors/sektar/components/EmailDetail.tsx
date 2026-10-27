@@ -12,7 +12,7 @@ import type {
   EmailDocument,
   Mailbox,
 } from "document-models/email";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { fmtDate } from "../kit/format.js";
 import {
   attachmentKind,
@@ -20,7 +20,9 @@ import {
   fmtWhenTime,
   mail,
   mailboxLabel,
+  messagePeople,
   uniqueAttachments,
+  type MessagePerson,
   type AttachmentKind,
 } from "../kit/mail.js";
 import { traceRender } from "../kit/diagnostics.js";
@@ -38,7 +40,7 @@ import {
   Table,
   Tabs,
 } from "../kit/ui.js";
-import { PaneSection } from "../kit/workspace.js";
+import { PaneSection, useWorkspaceStacked } from "../kit/workspace.js";
 
 function fileKindClass(
   kind: AttachmentKind,
@@ -97,18 +99,146 @@ function Body({
   return mode === "text" && text ? (
     <pre className="sk-mail-body">{text}</pre>
   ) : (
+    <MessageFrame html={html ?? ""} />
+  );
+}
+
+/**
+ * The sender's HTML in a sandboxed frame as tall as its document, so the
+ * message scrolls with the pane instead of inside a box. Scripts stay off;
+ * same-origin only lets this page read the document's height.
+ */
+function MessageFrame({ html }: { html: string }) {
+  const frame = useRef<HTMLIFrameElement>(null);
+  const [height, setHeight] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    const el = frame.current;
+    if (!el) return;
+    const measure = () => {
+      const doc = el.contentDocument;
+      if (!doc?.documentElement) return;
+      const next = Math.max(
+        doc.documentElement.scrollHeight,
+        doc.body?.scrollHeight ?? 0,
+      );
+      setHeight((prev) => (prev === next ? prev : next));
+    };
+    // Images and fonts arrive after load: measure again for a while.
+    const timers = [0, 150, 500, 1500, 4000].map((ms) =>
+      window.setTimeout(measure, ms),
+    );
+    el.addEventListener("load", measure);
+    const widths = new ResizeObserver(measure);
+    widths.observe(el);
+    return () => {
+      timers.forEach((t) => window.clearTimeout(t));
+      el.removeEventListener("load", measure);
+      widths.disconnect();
+    };
+  }, [html]);
+  return (
     <iframe
+      ref={frame}
       className="sk-mail-frame"
       title="Message"
       // No scripts, no forms, no navigation: the HTML is the sender's.
-      sandbox=""
+      sandbox="allow-same-origin"
       referrerPolicy="no-referrer"
-      srcDoc={html ?? ""}
+      srcDoc={html}
+      style={height ? { height } : undefined}
     />
   );
 }
 
+/** A person on a message, opened from the preview pane's list. The picker
+ * above already names them and their role; for now the page is a placeholder. */
+export function PersonPreview(_props: { person: MessagePerson }) {
+  return (
+    <p className="sk-small sk-text-muted">
+      More about this person (their messages, files and contact details) will
+      appear here.
+    </p>
+  );
+}
+
+/** A person as the picker names them: the name, their role on the message beside it. */
+export function personName(p: MessagePerson): ReactNode {
+  return (
+    <span className="sk-mail__person">
+      <span className="sk-mail__person-name">{mailboxLabel(p.m)}</span>
+      <span className="sk-mail__person-role">{p.role}</span>
+    </span>
+  );
+}
+
 type MessageView = BodyMode | "headers";
+
+const plural = (n: number, one: string, many: string) =>
+  `${n} ${n === 1 ? one : many}`;
+
+/**
+ * The message's date and time, and under it the attachment and people
+ * counts. Stacked, the block leads to the attachments and people screen, with
+ * a caret saying so.
+ */
+function When({
+  iso,
+  files,
+  people,
+  onOpen,
+}: {
+  iso: string | null | undefined;
+  files: number;
+  people: number;
+  onOpen?: () => void;
+}) {
+  const stacked = useWorkspaceStacked();
+  const content = (
+    <>
+      <span className="sk-mail__when-text">
+        <span className="sk-small sk-text-muted" title={fmtDate(iso)}>
+          {fmtWhenTime(iso)}
+        </span>
+        <span className="sk-mail__when-counts sk-small sk-text-muted">
+          {files > 0 && (
+            <span
+              className="sk-mail__when-count"
+              title={plural(files, "attachment", "attachments")}
+              aria-label={plural(files, "attachment", "attachments")}
+            >
+              <Icon name="upload" size={16} mono />
+              {files}
+            </span>
+          )}
+          {people > 0 && (
+            <span
+              className="sk-mail__when-count"
+              title={plural(people, "person", "people")}
+              aria-label={plural(people, "person", "people")}
+            >
+              <Icon name="customers" size={16} mono />
+              {people}
+            </span>
+          )}
+        </span>
+      </span>
+    </>
+  );
+  if (stacked && onOpen && files + people > 0) {
+    return (
+      <button
+        type="button"
+        className="sk-mail__when sk-mail__when--drill"
+        onClick={onOpen}
+        aria-label={`Attachments and people: ${plural(files, "attachment", "attachments")}, ${plural(people, "person", "people")}`}
+      >
+        {content}
+        <Icon name="chevron-right" className="sk-mail__when-caret" />
+      </button>
+    );
+  }
+  return <span className="sk-mail__when">{content}</span>;
+}
 
 /** The labels on a message, as badges (the pane header wide, the body alone). */
 export function EmailBadges({ doc }: { doc: EmailDocument }) {
@@ -204,6 +334,8 @@ export function EmailDetail({
   doc,
   selectedRef,
   onPickAttachment,
+  onPickPerson,
+  onOpenDetails,
   compact,
   actions,
 }: {
@@ -211,6 +343,10 @@ export function EmailDetail({
   /** The attachment open in the preview, if any */
   selectedRef?: string | null;
   onPickAttachment?: (a: EmailAttachment) => void;
+  /** Stacked: a person picked from the list under the message (by key) */
+  onPickPerson?: (key: string) => void;
+  /** Stacked: the date block drills to the attachments and people */
+  onOpenDetails?: () => void;
   /** Inside a workspace pane: the header carries the badges and the menu */
   compact?: boolean;
   /** Standalone: the triage buttons beside the date */
@@ -239,13 +375,7 @@ export function EmailDetail({
     setHeadersOf(null);
     setBodyMode(v);
   };
-  const people: { m: Mailbox; role: string }[] = [
-    ...s.from.map((m) => ({ m, role: "Sender" })),
-    ...s.to.map((m) => ({ m, role: "To" })),
-    ...s.cc.map((m) => ({ m, role: "Cc" })),
-    ...s.bcc.map((m) => ({ m, role: "Bcc" })),
-    ...s.replyTo.map((m) => ({ m, role: "Reply to" })),
-  ];
+  const people = messagePeople(s);
   const recipients = [
     { label: "To", boxes: s.to },
     { label: "Cc", boxes: s.cc },
@@ -283,24 +413,12 @@ export function EmailDetail({
           className="sk-row sk-row--2 sk-row--wrap"
           style={{ alignItems: "flex-start" }}
         >
-          <span className="sk-mail__when">
-            <span
-              className="sk-small sk-text-muted"
-              title={fmtDate(s.sentAt ?? s.receivedAt)}
-            >
-              {fmtWhenTime(s.sentAt ?? s.receivedAt)}
-            </span>
-            {files.length > 0 && (
-              <span
-                className="sk-mail__when-files sk-small sk-text-muted"
-                title={`${files.length} ${files.length === 1 ? "attachment" : "attachments"}`}
-                aria-label={`${files.length} ${files.length === 1 ? "attachment" : "attachments"}`}
-              >
-                <Icon name="upload" size={16} mono />
-                {files.length}
-              </span>
-            )}
-          </span>
+          <When
+            iso={s.sentAt ?? s.receivedAt}
+            files={files.length}
+            people={people.length}
+            onOpen={onOpenDetails}
+          />
           {actions}
         </div>
       </div>
@@ -438,27 +556,24 @@ export function EmailDetail({
           </PaneSection>
         </div>
       )}
-
-      {/* the people, at the end */}
-      <div className="sk-stack sk-stack--3">
-        <h3 className="sk-eyebrow">People · {people.length}</h3>
-        <ul className="sk-list sk-list--divided">
-          {people.map(({ m, role }, i) => (
-            <li key={`${role}-${m.address}-${i}`} className="sk-list-item">
-              <Avatar name={mailboxLabel(m)} size="sm" />
-              <span className="sk-list-item__body">
-                <span className="sk-list-item__title">{mailboxLabel(m)}</span>
-                <span className="sk-list-item__meta">{m.address}</span>
-              </span>
-              <span className="sk-list-item__value">
-                <Badge tone={role === "Sender" ? "forest" : "outline"}>
-                  {role}
-                </Badge>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {compact && onPickPerson && people.length > 0 && (
+        <div className="sk-stack-only">
+          <PaneSection title="People" count={people.length}>
+            <Selector
+              list
+              label="People"
+              value={selectedRef ?? ""}
+              options={people.map((p) => ({
+                value: p.key,
+                name: personName(p),
+                meta: p.m.address,
+                icon: "customers" as const,
+              }))}
+              onChange={onPickPerson}
+            />
+          </PaneSection>
+        </div>
+      )}
     </div>
   );
 }

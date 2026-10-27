@@ -1069,8 +1069,10 @@
   line-height: var(--sk-leading-relaxed, 1.6);
 }
 .sk-app .sk-mail-frame {
+  display: block;
   width: 100%;
-  min-height: 420px;
+  /* As tall as the message (MessageFrame sets the height); this until measured. */
+  min-height: 120px;
   border: 1px solid var(--sk-border-subtle);
   border-radius: var(--sk-radius-sm);
   background: #fff;
@@ -2402,10 +2404,24 @@ html { touch-action: manipulation; }
 .sk-app .sk-mail__who > .sk-user { flex: 1 1 auto; }
 .sk-app .sk-mail__who > :last-child { flex: none; }
 .sk-app .sk-mail__when { display: grid; justify-items: end; gap: 2px; text-align: right; }
-.sk-app .sk-mail__when-files { display: inline-flex; align-items: center; gap: var(--sk-space-1); white-space: nowrap; }
+.sk-app .sk-mail__when-text { display: grid; justify-items: end; gap: 2px; }
+.sk-app .sk-mail__when-counts { display: inline-flex; align-items: center; gap: var(--sk-space-3); }
+.sk-app .sk-mail__when-count { display: inline-flex; align-items: center; gap: var(--sk-space-1); white-space: nowrap; }
+.sk-app .sk-mail__when--drill { display: inline-flex; align-items: center; gap: var(--sk-space-1); margin: calc(-1 * var(--sk-space-1)); padding: var(--sk-space-1); border: 0; border-radius: var(--sk-radius-sm); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.sk-app .sk-mail__when--drill:hover { background: var(--sk-bg-subtle); }
+.sk-app .sk-mail__when-caret { width: 16px; height: 16px; flex: none; --sk-icon-1: var(--sk-text-muted); --sk-icon-2: var(--sk-text-muted); --sk-icon-3: var(--sk-text-muted); }
 
 /* A message's recipients: a small To / Cc table under the sender. */
 .sk-app .sk-mail__recipients { border-collapse: collapse; font-size: var(--sk-text-sm); line-height: 1.5; }
-.sk-app .sk-mail__recipients th { width: 1%; padding: 0 var(--sk-space-3) 0 0; vertical-align: top; text-align: left; font-weight: var(--sk-weight-medium); color: var(--sk-text-muted); white-space: nowrap; }
+/* The label column is the sender's avatar wide (40px) plus the sender block's
+   gap, so the values start where the sender's name does; the label sits just
+   left of them. */
+.sk-app .sk-mail__recipients th { box-sizing: border-box; width: calc(40px + var(--sk-space-3)); min-width: calc(40px + var(--sk-space-3)); padding: 0 var(--sk-space-3) 0 0; vertical-align: top; text-align: right; font-weight: var(--sk-weight-medium); color: var(--sk-text-muted); white-space: nowrap; }
 .sk-app .sk-mail__recipients td { padding: 0; overflow-wrap: anywhere; }
 .sk-app .sk-mail__recipients tr + tr > :is(th, td) { padding-top: var(--sk-space-2); }
+
+/* A person in the attachments and people picker: the role beside the name. */
+.sk-app .sk-mail__person { display: flex; align-items: baseline; gap: var(--sk-space-1); min-width: 0; }
+.sk-app .sk-mail__person-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Only the name shortens: the role stays readable in a narrow picker. */
+.sk-app .sk-mail__person-role { flex: none; font-weight: var(--sk-weight-regular, 400); color: var(--sk-text-muted); }

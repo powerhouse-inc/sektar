@@ -29,6 +29,8 @@ import {
   EmailBadges,
   EmailDetail,
   EmailMenu,
+  PersonPreview,
+  personName,
 } from "../../sektar/components/EmailDetail.js";
 import {
   traceChange,
@@ -45,6 +47,8 @@ import {
   bytes,
   fmtWhen,
   mail,
+  mailboxLabel,
+  messagePeople,
   seedSampleMail,
   uniqueAttachments,
 } from "../../sektar/kit/mail.js";
@@ -140,6 +144,12 @@ export function MailWorkspace() {
   );
   const hasFiles = files.length > 0;
   const file = files.find((a) => a.ref === fileRef) ?? null;
+  // The people on the message share the preview pane's picker, after the files.
+  const people = useMemo(
+    () => (selected ? messagePeople(selected.state.global) : []),
+    [selected],
+  );
+  const person = people.find((p) => p.key === fileRef) ?? null;
 
   // Triage from the message pane (the more-menu, the badges) changes the
   // document; the row follows at once, and the index soon after.
@@ -463,6 +473,16 @@ export function MailWorkspace() {
               compact
               selectedRef={fileRef}
               onPickAttachment={pickFile}
+              onPickPerson={(key) => {
+                setFileRef(key);
+                setLevel(3);
+              }}
+              onOpenDetails={() => {
+                if (!file && !person) {
+                  setFileRef(files[0]?.ref ?? people[0]?.key ?? null);
+                }
+                setLevel(3);
+              }}
             />
           ) : selectedId && selectedQuery.isPending ? (
             <div className="sk-stack sk-stack--4">
@@ -485,24 +505,44 @@ export function MailWorkspace() {
           backLabel="Back to the message"
           // With files the header is the picker and the title appears only
           // when collapsed; without, the title is the header.
-          collapsedTitle={hasFiles ? "Attachments" : undefined}
-          title={hasFiles ? undefined : "Attachments"}
+          collapsedTitle={
+            selected && (hasFiles || people.length > 0)
+              ? hasFiles
+                ? "Attachments"
+                : "People"
+              : undefined
+          }
+          title={
+            selected && (hasFiles || people.length > 0)
+              ? undefined
+              : "Attachments"
+          }
           header={
-            hasFiles && selected ? (
+            selected && (hasFiles || people.length > 0) ? (
               <Selector
-                value={fileRef ?? files[0].ref}
-                options={files.map((a) => ({
-                  value: a.ref,
-                  name: a.fileName,
-                  meta: bytes(a.sizeBytes) || a.mimeType || undefined,
-                }))}
+                value={fileRef ?? files[0]?.ref ?? ""}
+                options={[
+                  ...files.map((a) => ({
+                    value: a.ref,
+                    name: a.fileName,
+                    meta: bytes(a.sizeBytes) || a.mimeType || undefined,
+                  })),
+                  ...people.map((p) => ({
+                    value: p.key,
+                    name: personName(p),
+                    meta: p.m.address,
+                    icon: "customers" as const,
+                  })),
+                ]}
                 onChange={(ref) => setFileRef(ref)}
-                label="Attachment"
+                label="Attachments and people"
               />
             ) : undefined
           }
         >
-          {selected ? (
+          {selected && person ? (
+            <PersonPreview person={person} />
+          ) : selected ? (
             <AttachmentPreview
               key={file?.ref ?? "none"}
               documentId={selected.header.id}

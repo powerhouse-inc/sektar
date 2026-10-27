@@ -16,6 +16,11 @@ import { cx, Icon } from "./ui.js";
 /** Whether the workspace around a pane shows its panes one at a time. */
 const StackedContext = createContext(false);
 
+/** Inside a Workspace: true while its panes show one at a time. */
+export function useWorkspaceStacked(): boolean {
+  return useContext(StackedContext);
+}
+
 /**
  * Whether the panes are stacked: the stylesheet sets `--sk-stacked: 1` on
  * them in the narrow state (components.css, app.css). Read on every resize of

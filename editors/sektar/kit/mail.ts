@@ -65,6 +65,36 @@ export function mailboxLabel(m: Mailbox): string {
   return m.name?.trim() || m.address;
 }
 
+/** Someone on a message, in the role they have on it. */
+export type MessagePerson = { key: string; m: Mailbox; role: string };
+
+/** Keys of people in the preview pane's picker start with this, beside file refs. */
+export const PERSON_KEY = "person:";
+
+/** Sender, To, Cc, Bcc and Reply to, in that order: each with a picker key. */
+export function messagePeople(s: {
+  from: Mailbox[];
+  to: Mailbox[];
+  cc: Mailbox[];
+  bcc: Mailbox[];
+  replyTo: Mailbox[];
+}): MessagePerson[] {
+  const roles: [string, Mailbox[]][] = [
+    ["Sender", s.from],
+    ["To", s.to],
+    ["Cc", s.cc],
+    ["Bcc", s.bcc],
+    ["Reply to", s.replyTo],
+  ];
+  return roles.flatMap(([role, boxes]) =>
+    boxes.map((m, i) => ({
+      key: `${PERSON_KEY}${role}:${m.address}:${i}`,
+      m,
+      role,
+    })),
+  );
+}
+
 /** A time for a list: the hour today, the day this year, the date otherwise. */
 export function fmtWhen(
   iso: string | null | undefined,
