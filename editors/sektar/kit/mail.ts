@@ -210,6 +210,20 @@ export function attachmentKind(
   return "other";
 }
 
+/** A plain-text file, previewed as text: `text/plain` (any charset), or a
+ * `.txt` name when no type is known. The served type wins over the declared. */
+export function isPlainText(
+  file: Pick<EmailAttachment, "fileName" | "mimeType">,
+  actualMime?: string,
+): boolean {
+  const mime = (actualMime ?? file.mimeType ?? "")
+    .toLowerCase()
+    .split(";")[0]
+    .trim();
+  if (mime) return mime === "text/plain";
+  return file.fileName.toLowerCase().endsWith(".txt");
+}
+
 /** Free-text match over the fields a person scans a mailbox by. */
 export function matchesMail(query: string, doc: EmailDocument): boolean {
   const q = query.trim().toLowerCase();

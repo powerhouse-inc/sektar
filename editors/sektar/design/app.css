@@ -2425,3 +2425,6 @@ html { touch-action: manipulation; }
 .sk-app .sk-mail__person-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Only the name shortens: the role stays readable in a narrow picker. */
 .sk-app .sk-mail__person-role { flex: none; font-weight: var(--sk-weight-regular, 400); color: var(--sk-text-muted); }
+
+/* A text/plain attachment in the preview pane: the file's own lines, wrapped. */
+.sk-app .sk-mail-preview-text { font-family: var(--sk-font-mono, ui-monospace, monospace); font-size: var(--sk-text-sm); overflow-wrap: anywhere; }

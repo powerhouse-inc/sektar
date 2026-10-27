@@ -17,6 +17,7 @@ import { fmtDate } from "../kit/format.js";
 import {
   attachmentKind,
   bytes,
+  isPlainText,
   fmtWhenTime,
   mail,
   mailboxLabel,
@@ -579,6 +580,74 @@ export function EmailDetail({
 }
 
 /** The file itself, beside the message it came with. */
+/** The most of a text file shown inline; the rest is a download away. */
+const TEXT_PREVIEW_LIMIT = 512 * 1024;
+
+/**
+ * A text file's bytes as text: the charset it is served with when it names
+ * one, else UTF-8, else Windows-1252 (old mail attachments: “quotes” that are
+ * not UTF-8 would otherwise show as replacement characters).
+ */
+function decodeText(bytes: ArrayBuffer, contentType: string | null): string {
+  const declared = /charset=([^;]+)/i.exec(contentType ?? "")?.[1]?.trim();
+  if (declared) {
+    try {
+      return new TextDecoder(declared).decode(bytes);
+    } catch {
+      // an unknown charset name: guess as below
+    }
+  }
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return new TextDecoder("windows-1252").decode(bytes);
+  }
+}
+
+/** A plain-text attachment, read from its preview URL and shown as text. */
+function TextPreview({ url }: { url: string }) {
+  const [text, setText] = useState<{ body: string; cut: boolean } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    setText(null);
+    setError(null);
+    fetch(url)
+      .then(async (r) =>
+        decodeText(await r.arrayBuffer(), r.headers.get("content-type")),
+      )
+      .then((body) => {
+        if (!live) return;
+        const cut = body.length > TEXT_PREVIEW_LIMIT;
+        setText({ body: cut ? body.slice(0, TEXT_PREVIEW_LIMIT) : body, cut });
+      })
+      .catch((e: unknown) => {
+        if (live) setError(e instanceof Error ? e.message : String(e));
+      });
+    return () => {
+      live = false;
+    };
+  }, [url]);
+  if (error) {
+    return (
+      <p className="sk-small sk-text-danger">
+        Could not read this file: {error}
+      </p>
+    );
+  }
+  if (!text) return <p className="sk-small sk-text-muted">Reading…</p>;
+  return (
+    <>
+      <pre className="sk-mail-body sk-mail-preview-text">{text.body}</pre>
+      {text.cut && (
+        <p className="sk-small sk-text-muted">
+          Showing the first 512 KB. Download the file for the rest.
+        </p>
+      )}
+    </>
+  );
+}
+
 export function AttachmentPreview({
   documentId,
   file,
@@ -598,6 +667,9 @@ export function AttachmentPreview({
   const kind = file
     ? attachmentKind(file, ready ? preview.header?.mimeType : undefined)
     : "other";
+  const plain = file
+    ? isPlainText(file, ready ? preview.header?.mimeType : undefined)
+    : false;
   if (!file) {
     return (
       <p className="sk-small sk-text-muted">
@@ -669,7 +741,8 @@ export function AttachmentPreview({
             className="sk-mail-preview-frame"
           />
         )}
-        {url && kind !== "image" && kind !== "pdf" && (
+        {url && plain && <TextPreview url={url} />}
+        {url && !plain && kind !== "image" && kind !== "pdf" && (
           <p className="sk-small sk-text-muted">
             No inline preview for {file.mimeType ?? "this file type"}. Open it
             in a new tab or download it.
