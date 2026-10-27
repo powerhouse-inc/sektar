@@ -45,6 +45,7 @@ import {
 import { ImportPanel } from "../../-shared/forms.js";
 import { useSearch } from "../../-shared/search.js";
 import { SetupState } from "../../-shared/setup.js";
+import { accountsByName } from "../../../../../editors/sektar/kit/account-order.js";
 
 export const Route = createFileRoute("/_app/finops/transactions")({
   validateSearch: (
@@ -147,7 +148,11 @@ function TransactionsPage() {
 
   // Only the contacts the loaded rows point at, not the whole address book.
   const contactIds = useMemo(
-    () => [...new Set(rows.map((r) => r?.contactId).filter((id): id is string => !!id))],
+    () => [
+      ...new Set(
+        rows.map((r) => r?.contactId).filter((id): id is string => !!id),
+      ),
+    ],
     [rows],
   );
   const contactDocs = useDocumentsByIds(contactIds).filter(isContactDocument);
@@ -186,7 +191,7 @@ function TransactionsPage() {
             icon: "bank",
             meta: plural(accounts.length, "account"),
           },
-          ...accounts.map((a) => ({
+          ...accountsByName(accounts).map((a) => ({
             value: a.id,
             name: a.name ?? "Account",
             icon:

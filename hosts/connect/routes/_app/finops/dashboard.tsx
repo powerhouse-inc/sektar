@@ -48,6 +48,7 @@ import {
   NewInvoicePanel,
 } from "../../-shared/forms.js";
 import { SetupState } from "../../-shared/setup.js";
+import { accountsWithBalance } from "../../../../../editors/sektar/kit/account-order.js";
 
 export const Route = createFileRoute("/_app/finops/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard · Sektar" }] }),
@@ -89,7 +90,8 @@ function Dashboard() {
     const awaiting = reports.filter(
       (r) => r.state.global.status === "SUBMITTED",
     );
-    const pctOf = (n: number, d: number) => (d ? Math.round((n / d) * 100) : 100);
+    const pctOf = (n: number, d: number) =>
+      d ? Math.round((n / d) * 100) : 100;
     const readinessRows = [
       { label: "Transactions categorised", value: index.categorisedPct },
       { label: "Payments matched to invoices", value: index.matchedPct },
@@ -98,7 +100,9 @@ function Dashboard() {
         label: "Claims decided",
         value: pctOf(
           reports.filter((r) =>
-            ["APPROVED", "REIMBURSED", "REJECTED"].includes(r.state.global.status),
+            ["APPROVED", "REIMBURSED", "REJECTED"].includes(
+              r.state.global.status,
+            ),
           ).length,
           reports.length,
         ),
@@ -260,7 +264,7 @@ function Dashboard() {
             }
           >
             <ul className="sk-list sk-list--divided">
-              {accounts.map((a) => (
+              {accountsWithBalance(accounts).map((a) => (
                 <li key={a.id}>
                   <ListItem
                     icon={
@@ -409,8 +413,8 @@ function Dashboard() {
                   {stats.toReview === 0
                     ? "Every transaction is categorised. You're on track."
                     : `${plural(stats.toReview, "transaction")} still ${
-                    stats.toReview === 1 ? "needs" : "need"
-                  } a category before the VAT return.`}
+                        stats.toReview === 1 ? "needs" : "need"
+                      } a category before the VAT return.`}
                 </p>
               </div>
               <div className="sk-stack sk-stack--3">

@@ -320,11 +320,6 @@ function TopBar({
         >
           <Icon name={searching ? "close" : "search"} mono={searching} />
         </button>
-        {product.id === "finance" && (
-          <span className="sk-badge sk-badge--success sk-badge--pill sk-badge--dot sk-hide-mobile">
-            Bank synced
-          </span>
-        )}
         <button
           type="button"
           className="sk-btn sk-btn--ghost sk-btn--icon"
