@@ -71,7 +71,12 @@ export type MessagePerson = { key: string; m: Mailbox; role: string };
 /** Keys of people in the preview pane's picker start with this, beside file refs. */
 export const PERSON_KEY = "person:";
 
-/** Sender, To, Cc, Bcc and Reply to, in that order: each with a picker key. */
+/**
+ * Sender, To, Cc, Bcc and Reply to, in that order, each address once: a
+ * person on the message in several roles (typically the sender who is also
+ * the reply-to) is one entry with the roles joined ("Sender · Reply to").
+ * The name is the first one given. Each entry has a picker key.
+ */
 export function messagePeople(s: {
   from: Mailbox[];
   to: Mailbox[];
@@ -86,13 +91,24 @@ export function messagePeople(s: {
     ["Bcc", s.bcc],
     ["Reply to", s.replyTo],
   ];
-  return roles.flatMap(([role, boxes]) =>
-    boxes.map((m, i) => ({
-      key: `${PERSON_KEY}${role}:${m.address}:${i}`,
-      m,
-      role,
-    })),
-  );
+  const byAddress = new Map<string, { m: Mailbox; roles: string[] }>();
+  for (const [role, boxes] of roles) {
+    for (const m of boxes) {
+      const id = m.address.trim().toLowerCase();
+      const seen = byAddress.get(id);
+      if (!seen) {
+        byAddress.set(id, { m, roles: [role] });
+        continue;
+      }
+      if (!seen.m.name?.trim() && m.name?.trim()) seen.m = m;
+      if (!seen.roles.includes(role)) seen.roles.push(role);
+    }
+  }
+  return [...byAddress.entries()].map(([id, { m, roles: r }]) => ({
+    key: `${PERSON_KEY}${id}`,
+    m,
+    role: r.join(" · "),
+  }));
 }
 
 /** A time for a list: the hour today, the day this year, the date otherwise. */
