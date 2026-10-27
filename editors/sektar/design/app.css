@@ -2428,3 +2428,17 @@ html { touch-action: manipulation; }
 
 /* A text/plain attachment in the preview pane: the file's own lines, wrapped. */
 .sk-app .sk-mail-preview-text { font-family: var(--sk-font-mono, ui-monospace, monospace); font-size: var(--sk-text-sm); overflow-wrap: anywhere; }
+
+/* An .ics attachment in the preview pane (components/IcsPreview.tsx). */
+/* One column as wide as the pane, never as wide as the longest line. */
+.sk-app .sk-ics { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sk-space-4); }
+.sk-app .sk-ics .sk-list-item__body { min-width: 0; }
+.sk-app .sk-ics .sk-list-item__title, .sk-app .sk-ics .sk-list-item__meta { overflow-wrap: anywhere; }
+.sk-app .sk-ics__title { margin: 0; font-size: var(--sk-text-xl); line-height: 1.3; }
+.sk-app .sk-ics__facts { display: grid; gap: var(--sk-space-2); margin: 0; padding: 0; list-style: none; font-size: var(--sk-text-sm); }
+.sk-app .sk-ics__facts > li { display: flex; align-items: flex-start; gap: var(--sk-space-2); min-width: 0; overflow-wrap: anywhere; }
+.sk-app .sk-ics__facts > li > .sk-icon { flex: none; margin-top: 2px; }
+.sk-app .sk-ics__facts a { color: var(--sk-text-brand); overflow-wrap: anywhere; }
+.sk-app .sk-ics__zone { color: var(--sk-text-muted); }
+.sk-app .sk-ics__description { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--sk-text-sm); color: var(--sk-text-secondary); }
+.sk-app .sk-ics__badges { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--sk-space-1); }

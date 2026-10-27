@@ -27,6 +27,8 @@ import {
   type AttachmentKind,
 } from "../kit/mail.js";
 import { traceRender } from "../kit/diagnostics.js";
+import { decodeText } from "../kit/text-decode.js";
+import { IcsPreview, isCalendarFile } from "./IcsPreview.js";
 import { printEmail } from "../kit/print-email.js";
 import { Menu, type MenuItem } from "../kit/menu.js";
 import {
@@ -591,27 +593,6 @@ export function EmailDetail({
 /** The most of a text file shown inline; the rest is a download away. */
 const TEXT_PREVIEW_LIMIT = 512 * 1024;
 
-/**
- * A text file's bytes as text: the charset it is served with when it names
- * one, else UTF-8, else Windows-1252 (old mail attachments: “quotes” that are
- * not UTF-8 would otherwise show as replacement characters).
- */
-function decodeText(bytes: ArrayBuffer, contentType: string | null): string {
-  const declared = /charset=([^;]+)/i.exec(contentType ?? "")?.[1]?.trim();
-  if (declared) {
-    try {
-      return new TextDecoder(declared).decode(bytes);
-    } catch {
-      // an unknown charset name: guess as below
-    }
-  }
-  try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-  } catch {
-    return new TextDecoder("windows-1252").decode(bytes);
-  }
-}
-
 /** A plain-text attachment, read from its preview URL and shown as text. */
 function TextPreview({ url }: { url: string }) {
   const [text, setText] = useState<{ body: string; cut: boolean } | null>(null);
@@ -677,6 +658,9 @@ export function AttachmentPreview({
     : "other";
   const plain = file
     ? isPlainText(file, ready ? preview.header?.mimeType : undefined)
+    : false;
+  const calendar = file
+    ? isCalendarFile(file, ready ? preview.header?.mimeType : undefined)
     : false;
   if (!file) {
     return (
@@ -750,7 +734,8 @@ export function AttachmentPreview({
           />
         )}
         {url && plain && <TextPreview url={url} />}
-        {url && !plain && kind !== "image" && kind !== "pdf" && (
+        {url && calendar && <IcsPreview url={url} />}
+        {url && !plain && !calendar && kind !== "image" && kind !== "pdf" && (
           <p className="sk-small sk-text-muted">
             No inline preview for {file.mimeType ?? "this file type"}. Open it
             in a new tab or download it.
