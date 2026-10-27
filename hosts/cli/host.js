@@ -33,6 +33,10 @@ export default {
     // client the Switchboard URL to proxy to.
     "cli-connect": {
       host: "connect",
+      // Connect's server proxies the switchboard's paths to the member, and
+      // serves the switchboard's URLs below as ${origin}: the browser talks
+      // to its own origin for everything.
+      runner: { proxy: { target: switchboard.origin } },
       reactor: {
         // the override is a full statement: keep the connect host's protocol
         protocol: connect.reactor.protocol,

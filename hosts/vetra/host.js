@@ -61,6 +61,13 @@ export default {
           ...connect.runner.plugins,
           { module: "@powerhousedao/vetra-studio/connect", verbs: ["dev"] },
         ],
+        // The studio's server proxies the switchboard's paths (/graphql,
+        // /d/*, /attachments, /mcp, /api/*) to the studio switchboard, so
+        // the browser talks to its own origin for everything and the served
+        // config names the switchboard as ${origin}. The same config then
+        // holds from http://localhost:<port> and from a published site
+        // (Portle), where the edge makes the same split.
+        proxy: { target: `http://127.0.0.1:${switchboard.runner.port}` },
       },
       // The studio Connect is a pure REMOTE CLIENT of the studio switchboard
       // (as the cli host's Connect is): no reactor and no PGlite in the tab,
@@ -69,18 +76,17 @@ export default {
       // messages with bodies, and re-derive the whole history into a sync
       // outbox on every fresh tab, which stalled the switchboard for minutes.
       // The studio drives (vetra, preview) are attached by the studio plugin.
+      // ${origin}: the page's own origin (see runner.proxy above).
       reactor: {
         backends: {
           sb: {
             kind: "remote",
-            remote: { url: `http://127.0.0.1:${switchboard.runner.port}/graphql` },
+            remote: { url: "${origin}/graphql" },
           },
         },
         drives: servedDrives.map((d) => ({
           slug: d.slug,
-          remote: {
-            url: `http://127.0.0.1:${switchboard.runner.port}/d/${d.slug}`,
-          },
+          remote: { url: "${origin}/d/" + d.slug },
         })),
       },
     },
