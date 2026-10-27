@@ -2353,3 +2353,32 @@
     0 18px 40px -12px rgb(0 0 0 / 0.20);
 }
 .sk-app .sk-inv-print__sheet iframe { display: block; border: 0; transform-origin: 0 0; background: #fff; }
+
+/* ---- Phones and tablets (audit 2026-10-27) ---------------------------------
+   No zoom: the viewport tag disables pinch zoom, double-tap zoom goes with
+   touch-action, and iOS zooms into any focused field under 16px whatever the
+   tag says, so fields are 16px on touch screens. */
+html { touch-action: manipulation; }
+@media (pointer: coarse) {
+  .sk-app :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea, .sk-input, .sk-select, .sk-textarea) {
+    font-size: 16px;
+  }
+}
+
+/* A compact selector keeps its tiles to measure them; they must not widen
+   the page while hidden (Transactions grew 6,800px sideways, Mail on tablet). */
+.sk-app .sk-selector.is-compact .sk-selector__tiles { overflow: hidden; }
+
+/* Long unbroken values (bank references, addresses) wrap inside their row. */
+.sk-app .sk-panel .sk-font-mono { overflow-wrap: anywhere; }
+.sk-app .sk-user { max-width: 100%; min-width: 0; }
+.sk-app .sk-user > :not(.sk-avatar) { min-width: 0; }
+.sk-app .sk-user__name, .sk-app .sk-user__meta { overflow-wrap: anywhere; }
+
+@media (max-width: 720px) {
+  /* Tabs and filter pills wrap rather than hide the last ones off-screen. */
+  .sk-app .sk-tabs { flex-wrap: wrap; }
+  .sk-app .sk-pills { flex-wrap: wrap; overflow-x: visible; }
+  /* The year filter fits a phone: All plus six years. */
+  .sk-app .sk-travel-years .sk-segmented__item { padding: 6px 8px; }
+}

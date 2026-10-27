@@ -21,6 +21,7 @@ import {
 import { ProductSwitch } from "./-shared/product-switch.js";
 import {
   driveFor,
+  navMatches,
   productFor,
   rememberProduct,
   rememberedProduct,
@@ -50,7 +51,7 @@ export const Route = createFileRoute("/_app")({
 
 function pageTitle(pathname: string, product: Product) {
   const nav = [...product.nav, ...(product.afterDrive ?? [])].find((n) =>
-    pathname.startsWith(n.to),
+    navMatches(pathname, n.to),
   );
   if (nav) return nav.label;
   if (pathname.startsWith("/d/")) return product.drive.label;
@@ -174,6 +175,7 @@ function Sidebar({
   // that slug (see driveFor), by slug until the drives have loaded.
   const drives = useDrives();
   const driveParam = driveFor(drives, product)?.param ?? product.drive.slug;
+  const pathname = useRouterState({ select: (st) => st.location.pathname });
   return (
     <aside className="sk-sidebar" aria-label="Main">
       {inDrawer && (
@@ -195,12 +197,13 @@ function Sidebar({
           <li key={item.to}>
             <Link
               to={item.to}
-              className="sk-nav__item"
+              className={
+                navMatches(pathname, item.to)
+                  ? "sk-nav__item is-active"
+                  : "sk-nav__item"
+              }
+              aria-current={navMatches(pathname, item.to) ? "page" : undefined}
               onClick={onNavigate}
-              activeProps={{
-                className: "sk-nav__item is-active",
-                "aria-current": "page",
-              }}
             >
               <Icon name={item.icon} />
               <span className="sk-nav__label">{item.label}</span>
@@ -229,12 +232,13 @@ function Sidebar({
           <li key={item.to}>
             <Link
               to={item.to}
-              className="sk-nav__item"
+              className={
+                navMatches(pathname, item.to)
+                  ? "sk-nav__item is-active"
+                  : "sk-nav__item"
+              }
+              aria-current={navMatches(pathname, item.to) ? "page" : undefined}
               onClick={onNavigate}
-              activeProps={{
-                className: "sk-nav__item is-active",
-                "aria-current": "page",
-              }}
             >
               <Icon name={item.icon} />
               <span className="sk-nav__label">{item.label}</span>

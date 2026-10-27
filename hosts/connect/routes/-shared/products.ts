@@ -145,6 +145,21 @@ export function driveFor<D extends DriveLike>(
 }
 
 /**
+ * Whether `pathname` is the page a nav item opens. A drive item names the
+ * drive by id (`/d/<id>`), but Connect shows a drive whose slug differs from
+ * its id as `/d/<slug>-<id>` (Mail: `/d/mail-HRsI…`), so both forms count.
+ */
+export function navMatches(pathname: string, to: string): boolean {
+  if (!to.startsWith("/d/")) {
+    return pathname === to || pathname.startsWith(`${to}/`);
+  }
+  if (!pathname.startsWith("/d/")) return false;
+  const want = to.slice(3).split("/")[0];
+  const have = pathname.slice(3).split("/")[0];
+  return have === want || have.endsWith(`-${want}`);
+}
+
+/**
  * Whether a URL opens the product's drive: by slug, or by an id derived from
  * the slug such as `workflows-03d82c74`.
  */
@@ -163,8 +178,8 @@ export function productFor(
 ): Product {
   const own = PRODUCTS.find(
     (p) =>
-      p.nav.some((n) => pathname.startsWith(n.to)) ||
-      (p.afterDrive ?? []).some((n) => pathname.startsWith(n.to)) ||
+      p.nav.some((n) => navMatches(pathname, n.to)) ||
+      (p.afterDrive ?? []).some((n) => navMatches(pathname, n.to)) ||
       isProductDrive(pathname, p),
   );
   return (

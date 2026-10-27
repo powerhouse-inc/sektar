@@ -8,8 +8,26 @@ import type { DocumentModelModule } from "document-model";
  * Document creation UI component.
  * Displays available document types as clickable buttons.
  */
+/** One module per document type: a model registered at several versions
+ * (invoice v1 and v2) is offered once, at its newest version. */
+function latestPerType(
+  modules: readonly DocumentModelModule[] | undefined,
+): DocumentModelModule[] {
+  const byType = new Map<string, DocumentModelModule>();
+  for (const module of modules ?? []) {
+    const type = module.documentModel.global.id;
+    const kept = byType.get(type);
+    if (!kept || (module.version ?? 0) > (kept.version ?? 0)) {
+      byType.set(type, module);
+    }
+  }
+  return [...byType.values()];
+}
+
 export function CreateDocument() {
-  const allowedDocumentModelModules = useAllowedDocumentModelModules();
+  const allowedDocumentModelModules = latestPerType(
+    useAllowedDocumentModelModules(),
+  );
 
   return (
     <div>
@@ -19,7 +37,7 @@ export function CreateDocument() {
       </h3>
       {/* Customize layout by changing flex-wrap, gap, or grid layout */}
       <div className="flex w-full flex-wrap gap-4">
-        {allowedDocumentModelModules?.map((documentModelModule) => {
+        {allowedDocumentModelModules.map((documentModelModule) => {
           return (
             <CreateDocumentButton
               key={documentModelModule.documentModel.global.id}
