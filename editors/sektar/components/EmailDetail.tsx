@@ -228,7 +228,9 @@ export function EmailDetail({
   const hasText = Boolean(s.text);
   const body: BodyMode =
     hasHtml && hasText ? bodyMode : hasHtml ? "html" : "text";
-  const view: MessageView = showHeaders ? "headers" : body;
+  // A message without a body has only its headers to show.
+  const view: MessageView =
+    showHeaders || (!hasHtml && !hasText) ? "headers" : body;
   const pickView = (v: MessageView) => {
     if (v === "headers") {
       setHeadersOf(doc.header.id);
@@ -244,7 +246,10 @@ export function EmailDetail({
     ...s.bcc.map((m) => ({ m, role: "Bcc" })),
     ...s.replyTo.map((m) => ({ m, role: "Reply to" })),
   ];
-  const toLine = s.to.map(mailboxLabel).join(", ");
+  const recipients = [
+    { label: "To", boxes: s.to },
+    { label: "Cc", boxes: s.cc },
+  ].filter((r) => r.boxes.length > 0);
   const files = uniqueAttachments(s.attachments);
   const headerRows: [string, string | null | undefined][] = [
     ["Message-ID", s.messageId],
@@ -262,7 +267,7 @@ export function EmailDetail({
     <div className="sk-stack sk-stack--4">
       {/* who and when */}
       <div
-        className="sk-row sk-row--between sk-row--wrap"
+        className="sk-row sk-row--between sk-mail__who"
         style={{ alignItems: "flex-start" }}
       >
         <span className="sk-user">
@@ -271,12 +276,7 @@ export function EmailDetail({
             <div className="sk-user__name">
               {sender ? mailboxLabel(sender) : "Unknown sender"}
             </div>
-            <div className="sk-user__meta">
-              {sender?.address}
-              {toLine && (
-                <span className="sk-mail__meta-to"> · To: {toLine}</span>
-              )}
-            </div>
+            <div className="sk-user__meta">{sender?.address}</div>
           </span>
         </span>
         <div
@@ -291,10 +291,13 @@ export function EmailDetail({
               {fmtWhenTime(s.sentAt ?? s.receivedAt)}
             </span>
             {files.length > 0 && (
-              <span className="sk-mail__when-files sk-small sk-text-muted">
+              <span
+                className="sk-mail__when-files sk-small sk-text-muted"
+                title={`${files.length} ${files.length === 1 ? "attachment" : "attachments"}`}
+                aria-label={`${files.length} ${files.length === 1 ? "attachment" : "attachments"}`}
+              >
                 <Icon name="upload" size={16} mono />
-                {files.length}{" "}
-                {files.length === 1 ? "attachment" : "attachments"}
+                {files.length}
               </span>
             )}
           </span>
@@ -311,6 +314,36 @@ export function EmailDetail({
             <EmailBadges doc={doc} />
           </div>
         </>
+      )}
+
+      {recipients.length > 0 && (
+        <table className="sk-mail__recipients">
+          <tbody>
+            {recipients.map(({ label, boxes }) => (
+              <tr key={label}>
+                <th scope="row">{label}</th>
+                <td>
+                  {boxes.map((m, i) => (
+                    <span
+                      key={`${m.address}-${i}`}
+                      className="sk-mail__recipient"
+                    >
+                      {m.name?.trim() ? (
+                        <>
+                          {m.name.trim()}{" "}
+                          <span className="sk-text-muted">{m.address}</span>
+                        </>
+                      ) : (
+                        m.address
+                      )}
+                      {i < boxes.length - 1 && ", "}
+                    </span>
+                  ))}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
 
       <div className="sk-stack sk-stack--3">

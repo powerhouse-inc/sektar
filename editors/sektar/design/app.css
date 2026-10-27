@@ -1061,10 +1061,6 @@
   font-variant-numeric: tabular-nums;
   color: var(--sk-text-muted);
 }
-/* The sender line: "address · To: name" */
-.sk-app .sk-mail__meta-to {
-  color: var(--sk-text-muted);
-}
 .sk-app .sk-mail-body {
   margin: 0;
   font: inherit;
@@ -2401,5 +2397,15 @@ html { touch-action: manipulation; }
 .sk-app .sk-mail .sk-mail__placeholder { padding-left: var(--sk-space-4); }
 
 /* A message's header: the date and time, the attachment count below it. */
-.sk-app .sk-mail__when { display: grid; justify-items: start; gap: 2px; }
+/* The sender shrinks (its address wraps) so the date block stays on the right. */
+.sk-app .sk-mail__who { flex-wrap: nowrap; gap: var(--sk-space-3); }
+.sk-app .sk-mail__who > .sk-user { flex: 1 1 auto; }
+.sk-app .sk-mail__who > :last-child { flex: none; }
+.sk-app .sk-mail__when { display: grid; justify-items: end; gap: 2px; text-align: right; }
 .sk-app .sk-mail__when-files { display: inline-flex; align-items: center; gap: var(--sk-space-1); white-space: nowrap; }
+
+/* A message's recipients: a small To / Cc table under the sender. */
+.sk-app .sk-mail__recipients { border-collapse: collapse; font-size: var(--sk-text-sm); line-height: 1.5; }
+.sk-app .sk-mail__recipients th { width: 1%; padding: 0 var(--sk-space-3) 0 0; vertical-align: top; text-align: left; font-weight: var(--sk-weight-medium); color: var(--sk-text-muted); white-space: nowrap; }
+.sk-app .sk-mail__recipients td { padding: 0; overflow-wrap: anywhere; }
+.sk-app .sk-mail__recipients tr + tr > :is(th, td) { padding-top: var(--sk-space-2); }
