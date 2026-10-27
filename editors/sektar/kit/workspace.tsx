@@ -3,8 +3,44 @@
 // width the panes become a push navigation (`data-level` says which one
 // shows; a `--parent` pane is a level-0 chooser). Collapse and drill state is
 // React state here; the classes and attributes are the design system's.
-import type { CSSProperties, ReactNode, Ref } from "react";
+import type { CSSProperties, ReactNode, Ref, RefObject } from "react";
+import {
+  createContext,
+  useContext,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { cx, Icon } from "./ui.js";
+
+/** Whether the workspace around a pane shows its panes one at a time. */
+const StackedContext = createContext(false);
+
+/**
+ * Whether the panes are stacked: the stylesheet sets `--sk-stacked: 1` on
+ * them in the narrow state (components.css, app.css). Read on every resize of
+ * the workspace, after the container queries have applied.
+ */
+function useStacked(ref: RefObject<HTMLDivElement | null>): boolean {
+  const [stacked, setStacked] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const read = () => {
+      const pane = el.querySelector(":scope > .sk-pane");
+      setStacked(
+        pane !== null &&
+          getComputedStyle(pane).getPropertyValue("--sk-stacked").trim() ===
+            "1",
+      );
+    };
+    read();
+    const observer = new ResizeObserver(read);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
+  return stacked;
+}
 
 export function Workspace({
   level,
@@ -21,17 +57,23 @@ export function Workspace({
   style?: CSSProperties;
   children: ReactNode;
 }) {
+  const root = useRef<HTMLDivElement>(null);
+  const stacked = useStacked(root);
   return (
     <div
+      ref={root}
       className={cx(
         "sk-workspace sk-workspace--panes sk-workspace--stack",
         hasParent && "sk-workspace--has-parent",
         className,
       )}
       data-level={level}
+      data-stacked={stacked ? "" : undefined}
       style={style}
     >
-      {children}
+      <StackedContext.Provider value={stacked}>
+        {children}
+      </StackedContext.Provider>
     </div>
   );
 }
@@ -83,18 +125,25 @@ export function Pane({
   bodyRef?: Ref<HTMLDivElement>;
   children?: ReactNode;
 }) {
+  // Stacked, a pane is a whole screen: a collapse chosen side by side is kept
+  // for when the panes are side by side again, never shown as a strip (its
+  // header lost the back button and its content to the strip's title).
+  const stacked = useContext(StackedContext);
+  const showCollapsed = Boolean(collapsed) && !stacked;
   return (
     <section
       className={cx(
         "sk-pane",
         side && `sk-pane--${side}`,
         parent && "sk-pane--parent",
-        collapsed && "is-collapsed",
+        showCollapsed && "is-collapsed",
         className,
       )}
       style={grow ? ({ "--sk-pane-grow": grow } as CSSProperties) : undefined}
     >
-      <header className={cx("sk-pane__header", tall && "sk-pane__header--tall")}>
+      <header
+        className={cx("sk-pane__header", tall && "sk-pane__header--tall")}
+      >
         {onBack && (
           <button
             type="button"
@@ -106,7 +155,7 @@ export function Pane({
           </button>
         )}
         {onToggle && side === "end" && (
-          <PaneToggle collapsed={collapsed} onToggle={onToggle} />
+          <PaneToggle collapsed={showCollapsed} onToggle={onToggle} />
         )}
         {collapsedTitle && (
           <h2 className="sk-pane__title sk-pane__title--collapsed-only">
@@ -130,7 +179,7 @@ export function Pane({
         )}
         {trailing}
         {onToggle && side !== "end" && (
-          <PaneToggle collapsed={collapsed} onToggle={onToggle} />
+          <PaneToggle collapsed={showCollapsed} onToggle={onToggle} />
         )}
       </header>
       <div

@@ -2382,3 +2382,17 @@ html { touch-action: manipulation; }
   /* The year filter fits a phone: All plus six years. */
   .sk-app .sk-travel-years .sk-segmented__item { padding: 6px 8px; }
 }
+
+/* Stacked (below 800px of workspace), every pane is exactly one screen wide,
+   collapsed or not. A pane collapsed side by side keeps .is-collapsed, and the
+   stacked rules give it flex-basis: auto, so between 640 and 800px it grew to
+   its content (the Mail list: ~1,360px) and the track slid to the wrong
+   place. Under 640px the drive-app rule above already pinned the width. */
+@container panes (width < 800px) {
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack > .sk-pane,
+  .sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) .sk-workspace--stack > .sk-pane.is-collapsed {
+    flex-basis: 100%;
+    width: 100%;
+    max-width: 100%;
+  }
+}
