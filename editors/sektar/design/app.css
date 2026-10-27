@@ -2399,3 +2399,7 @@ html { touch-action: manipulation; }
 
 /* Mail rows have no checkbox: its placeholder rows start where the avatar does. */
 .sk-app .sk-mail .sk-mail__placeholder { padding-left: var(--sk-space-4); }
+
+/* A message's header: the date and time, the attachment count below it. */
+.sk-app .sk-mail__when { display: grid; justify-items: start; gap: 2px; }
+.sk-app .sk-mail__when-files { display: inline-flex; align-items: center; gap: var(--sk-space-1); white-space: nowrap; }

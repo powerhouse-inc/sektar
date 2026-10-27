@@ -66,7 +66,10 @@ export function mailboxLabel(m: Mailbox): string {
 }
 
 /** A time for a list: the hour today, the day this year, the date otherwise. */
-export function fmtWhen(iso: string | null | undefined, now = new Date()): string {
+export function fmtWhen(
+  iso: string | null | undefined,
+  now = new Date(),
+): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
@@ -75,7 +78,10 @@ export function fmtWhen(iso: string | null | undefined, now = new Date()): strin
     d.getMonth() === now.getMonth() &&
     d.getDate() === now.getDate();
   if (sameDay) {
-    return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
   if (d.getFullYear() === now.getFullYear()) {
     return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
@@ -85,6 +91,34 @@ export function fmtWhen(iso: string | null | undefined, now = new Date()): strin
     month: "short",
     year: "numeric",
   });
+}
+
+/** A message's time in its header: the day as the list shows it, always
+ * with the hour and minute (24h), e.g. "26 Oct, 14:05" or "Today, 09:30". */
+export function fmtWhenTime(
+  iso: string | null | undefined,
+  now = new Date(),
+): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const time = d.toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  const day = sameDay
+    ? "Today"
+    : d.toLocaleDateString(undefined, {
+        day: "numeric",
+        month: "short",
+        ...(d.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }),
+      });
+  return `${day}, ${time}`;
 }
 
 export function bytes(size: number | null | undefined): string {
@@ -101,9 +135,9 @@ export function bytes(size: number | null | undefined): string {
  * same bytes. The capture keeps both, as received; the view shows the one
  * with a real name and the more specific type.
  */
-export function uniqueAttachments<T extends Pick<EmailAttachment, "ref" | "fileName" | "mimeType">>(
-  attachments: readonly T[],
-): T[] {
+export function uniqueAttachments<
+  T extends Pick<EmailAttachment, "ref" | "fileName" | "mimeType">,
+>(attachments: readonly T[]): T[] {
   const synthesised = (a: T) => /^attachment-\d+$/i.test(a.fileName);
   const byRef = new Map<string, T>();
   for (const a of attachments) {
@@ -118,7 +152,8 @@ export function uniqueAttachments<T extends Pick<EmailAttachment, "ref" | "fileN
         ? a
         : !synthesised(cur) && synthesised(a)
           ? cur
-          : /\.[a-z0-9]{2,5}$/i.test(a.fileName) && !/\.[a-z0-9]{2,5}$/i.test(cur.fileName)
+          : /\.[a-z0-9]{2,5}$/i.test(a.fileName) &&
+              !/\.[a-z0-9]{2,5}$/i.test(cur.fileName)
             ? a
             : cur;
     byRef.set(a.ref, better);
@@ -225,11 +260,15 @@ async function ensureAccountFolder(
   return created.id;
 }
 
-export function emailDocumentName(input: Pick<NewEmail, "subject" | "from">): string {
+export function emailDocumentName(
+  input: Pick<NewEmail, "subject" | "from">,
+): string {
   const subject = input.subject?.trim();
   if (subject) return subject.slice(0, 120);
   const sender = input.from[0];
-  return sender ? `(no subject) from ${sender.name ?? sender.address}` : "(no subject)";
+  return sender
+    ? `(no subject) from ${sender.name ?? sender.address}`
+    : "(no subject)";
 }
 
 /** File a message: one document in the mailbox's folder, captured in one batch. */
@@ -300,7 +339,12 @@ export async function attachFile(
   client: AttachmentClient,
   emailId: string,
   file: Blob,
-  meta: { fileName: string; mimeType?: string; contentId?: string; inline?: boolean },
+  meta: {
+    fileName: string;
+    mimeType?: string;
+    contentId?: string;
+    inline?: boolean;
+  },
 ): Promise<EmailAttachment["ref"]> {
   const pre = await client.preprocess(file, {
     fileName: meta.fileName,
@@ -421,11 +465,15 @@ function sampleMail(now = Date.now()): SampleEmail[] {
       subject: "Re: Brand refresh — round 2 feedback",
       from: [{ address: "priya@brightmedia.co.uk", name: "Priya Shah" }],
       to: [{ address: STUDIO.address, name: "Jane Doe" }],
-      cc: [{ address: "accounts@brightmedia.co.uk", name: "Bright Media accounts" }],
+      cc: [
+        {
+          address: "accounts@brightmedia.co.uk",
+          name: "Bright Media accounts",
+        },
+      ],
       sentAt: h(1.5),
       receivedAt: h(1.5),
-      text:
-        "Hi Jane,\n\nThanks for the second round. The team is aligned on direction B — the sage palette reads calmer on the product pages and the wordmark finally sits well at small sizes.\n\nTwo things before we sign off:\n1. Can the icon set lose the outlines? Filled shapes only, like the dashboard mock.\n2. We need the deck in our template by Thursday for the board.\n\nAttached is the marked-up board of what we meant.\n\nBest,\nPriya",
+      text: "Hi Jane,\n\nThanks for the second round. The team is aligned on direction B — the sage palette reads calmer on the product pages and the wordmark finally sits well at small sizes.\n\nTwo things before we sign off:\n1. Can the icon set lose the outlines? Filled shapes only, like the dashboard mock.\n2. We need the deck in our template by Thursday for the board.\n\nAttached is the marked-up board of what we meant.\n\nBest,\nPriya",
       html: "<p>Hi Jane,</p><p>Thanks for the second round. The team is aligned on <strong>direction B</strong> — the sage palette reads calmer on the product pages and the wordmark finally sits well at small sizes.</p><p>Two things before we sign off:</p><ol><li>Can the icon set lose the outlines? Filled shapes only, like the dashboard mock.</li><li>We need the deck in our template by Thursday for the board.</li></ol><p>Attached is the marked-up board of what we meant.</p><p>Best,<br>Priya</p>",
       headers: [
         { key: "message-id", value: "<brand-refresh-2@brightmedia.co.uk>" },
@@ -434,7 +482,11 @@ function sampleMail(now = Date.now()): SampleEmail[] {
       labels: ["INBOX", "client", "bright-media"],
       source: "sample",
       files: [
-        { blob: sampleSvg("Direction B — marked up"), fileName: "direction-b-markup.svg", mimeType: "image/svg+xml" },
+        {
+          blob: sampleSvg("Direction B — marked up"),
+          fileName: "direction-b-markup.svg",
+          mimeType: "image/svg+xml",
+        },
       ],
     },
     {
@@ -446,12 +498,15 @@ function sampleMail(now = Date.now()): SampleEmail[] {
       to: [{ address: STUDIO.address }],
       sentAt: h(5),
       receivedAt: h(5),
-      text:
-        "Dear Juniper Studio,\n\nWe confirm receipt of invoice INV-2026-0041 for EUR 8,470.00. It has been scheduled for payment on the next run, within the agreed 30 days.\n\nRemittance advice attached.\n\nAcme Client BV — Finance",
+      text: "Dear Juniper Studio,\n\nWe confirm receipt of invoice INV-2026-0041 for EUR 8,470.00. It has been scheduled for payment on the next run, within the agreed 30 days.\n\nRemittance advice attached.\n\nAcme Client BV — Finance",
       labels: ["INBOX", "invoice"],
       source: "sample",
       files: [
-        { blob: samplePdf("Remittance advice INV-2026-0041"), fileName: "remittance-INV-2026-0041.pdf", mimeType: "application/pdf" },
+        {
+          blob: samplePdf("Remittance advice INV-2026-0041"),
+          fileName: "remittance-INV-2026-0041.pdf",
+          mimeType: "application/pdf",
+        },
       ],
     },
     {
@@ -470,7 +525,11 @@ function sampleMail(now = Date.now()): SampleEmail[] {
       source: "sample",
       read: true,
       files: [
-        { blob: sampleIcs("Q4 planning", h(-60)), fileName: "invite.ics", mimeType: "text/calendar" },
+        {
+          blob: sampleIcs("Q4 planning", h(-60)),
+          fileName: "invite.ics",
+          mimeType: "text/calendar",
+        },
       ],
     },
     {
@@ -487,7 +546,11 @@ function sampleMail(now = Date.now()): SampleEmail[] {
       source: "sample",
       flagged: true,
       files: [
-        { blob: samplePdf("Hetzner invoice R0012845921"), fileName: "R0012845921.pdf", mimeType: "application/pdf" },
+        {
+          blob: samplePdf("Hetzner invoice R0012845921"),
+          fileName: "R0012845921.pdf",
+          mimeType: "application/pdf",
+        },
       ],
     },
     {

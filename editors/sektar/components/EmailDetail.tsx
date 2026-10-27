@@ -17,7 +17,7 @@ import { fmtDate } from "../kit/format.js";
 import {
   attachmentKind,
   bytes,
-  fmtWhen,
+  fmtWhenTime,
   mail,
   mailboxLabel,
   uniqueAttachments,
@@ -40,7 +40,9 @@ import {
 } from "../kit/ui.js";
 import { PaneSection } from "../kit/workspace.js";
 
-function fileKindClass(kind: AttachmentKind): "pdf" | "img" | "xls" | "doc" | undefined {
+function fileKindClass(
+  kind: AttachmentKind,
+): "pdf" | "img" | "xls" | "doc" | undefined {
   switch (kind) {
     case "pdf":
       return "pdf";
@@ -78,51 +80,35 @@ function useBodyMode(): [BodyMode, (m: BodyMode) => void] {
   return [mode, set];
 }
 
-/** The message body: the text as sent, or the HTML in a sandboxed frame. */
+/** The message body in the form the tabs picked: the text as sent, or the
+ * HTML in a sandboxed frame. */
 function Body({
   text,
   html,
   mode,
-  onMode,
 }: {
   text: string | null | undefined;
   html: string | null | undefined;
   mode: BodyMode;
-  onMode: (m: BodyMode) => void;
 }) {
   if (!text && !html) {
     return <p className="sk-small sk-text-muted">This message has no body.</p>;
   }
-  // The preference only applies when the message has both; otherwise
-  // whatever it has is shown.
-  const showText = text ? mode === "text" || !html : false;
-  return (
-    <div className="sk-stack sk-stack--3">
-      {showText ? (
-        <pre className="sk-mail-body">{text}</pre>
-      ) : (
-        <iframe
-          className="sk-mail-frame"
-          title="Message"
-          // No scripts, no forms, no navigation: the HTML is the sender's.
-          sandbox=""
-          referrerPolicy="no-referrer"
-          srcDoc={html ?? ""}
-        />
-      )}
-      {text && html && (
-        <button
-          type="button"
-          className="sk-btn sk-btn--link sk-btn--sm"
-          style={{ alignSelf: "flex-start" }}
-          onClick={() => onMode(mode === "text" ? "html" : "text")}
-        >
-          {mode === "text" ? "Show formatted" : "Show plain text"}
-        </button>
-      )}
-    </div>
+  return mode === "text" && text ? (
+    <pre className="sk-mail-body">{text}</pre>
+  ) : (
+    <iframe
+      className="sk-mail-frame"
+      title="Message"
+      // No scripts, no forms, no navigation: the HTML is the sender's.
+      sandbox=""
+      referrerPolicy="no-referrer"
+      srcDoc={html ?? ""}
+    />
   );
 }
+
+type MessageView = BodyMode | "headers";
 
 /** The labels on a message, as badges (the pane header wide, the body alone). */
 export function EmailBadges({ doc }: { doc: EmailDocument }) {
@@ -145,7 +131,10 @@ export function EmailBadges({ doc }: { doc: EmailDocument }) {
 }
 
 /** The triage actions, as menu items; with `onPrint`, printing too. */
-export function emailMenuItems(doc: EmailDocument, onPrint?: () => void): MenuItem[] {
+export function emailMenuItems(
+  doc: EmailDocument,
+  onPrint?: () => void,
+): MenuItem[] {
   const s = doc.state.global;
   const id = doc.header.id;
   return [
@@ -186,9 +175,7 @@ export function EmailMenu({ doc }: { doc: EmailDocument }) {
     <Menu
       label="Message actions"
       items={emailMenuItems(doc, () => void printEmail(doc, client))}
-      trigger={(open, toggle) => (
-        <More aria-expanded={open} onClick={toggle} />
-      )}
+      trigger={(open, toggle) => <More aria-expanded={open} onClick={toggle} />}
     />
   );
 }
@@ -232,8 +219,24 @@ export function EmailDetail({
   traceRender("EmailDetail");
   const s = doc.state.global;
   const sender = s.from[0];
-  const [tab, setTab] = useState<"people" | "headers">("people");
   const [bodyMode, setBodyMode] = useBodyMode();
+  // Headers is picked per message: the next message opens on its body.
+  const [headersOf, setHeadersOf] = useState<string | null>(null);
+  const showHeaders = headersOf === doc.header.id;
+  // The forms this message has; the remembered one when it has both.
+  const hasHtml = Boolean(s.html);
+  const hasText = Boolean(s.text);
+  const body: BodyMode =
+    hasHtml && hasText ? bodyMode : hasHtml ? "html" : "text";
+  const view: MessageView = showHeaders ? "headers" : body;
+  const pickView = (v: MessageView) => {
+    if (v === "headers") {
+      setHeadersOf(doc.header.id);
+      return;
+    }
+    setHeadersOf(null);
+    setBodyMode(v);
+  };
   const people: { m: Mailbox; role: string }[] = [
     ...s.from.map((m) => ({ m, role: "Sender" })),
     ...s.to.map((m) => ({ m, role: "To" })),
@@ -278,13 +281,22 @@ export function EmailDetail({
         </span>
         <div
           className="sk-row sk-row--2 sk-row--wrap"
-          style={{ alignItems: "center" }}
+          style={{ alignItems: "flex-start" }}
         >
-          <span
-            className="sk-small sk-text-muted"
-            title={fmtDate(s.sentAt ?? s.receivedAt)}
-          >
-            {fmtWhen(s.sentAt ?? s.receivedAt)}
+          <span className="sk-mail__when">
+            <span
+              className="sk-small sk-text-muted"
+              title={fmtDate(s.sentAt ?? s.receivedAt)}
+            >
+              {fmtWhenTime(s.sentAt ?? s.receivedAt)}
+            </span>
+            {files.length > 0 && (
+              <span className="sk-mail__when-files sk-small sk-text-muted">
+                <Icon name="upload" size={16} mono />
+                {files.length}{" "}
+                {files.length === 1 ? "attachment" : "attachments"}
+              </span>
+            )}
           </span>
           {actions}
         </div>
@@ -301,7 +313,50 @@ export function EmailDetail({
         </>
       )}
 
-      <Body text={s.text} html={s.html} mode={bodyMode} onMode={setBodyMode} />
+      <div className="sk-stack sk-stack--3">
+        <Tabs
+          value={view}
+          onChange={pickView}
+          options={[
+            ...(hasHtml
+              ? [{ value: "html" as const, label: "Formatted" }]
+              : []),
+            ...(hasText
+              ? [{ value: "text" as const, label: "Plain text" }]
+              : []),
+            {
+              value: "headers" as const,
+              label: "Headers",
+              count: shownHeaders.length,
+            },
+          ]}
+        />
+        {view === "headers" ? (
+          // The design system's data table: eyebrow headers, hairline rows.
+          // Raw header values are set in mono and wrap anywhere, so a long
+          // Message-ID or DKIM line never widens the pane.
+          <div className="sk-card sk-card--subtle sk-card--compact sk-table-wrap sk-mail-headers__card">
+            <Table compact className="sk-mail-headers">
+              <thead>
+                <tr>
+                  <th>Header</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shownHeaders.map(([k, v], i) => (
+                  <tr key={`${k}-${i}`}>
+                    <td className="sk-mail-headers__key">{k}</td>
+                    <td className="sk-mail-headers__value sk-font-mono">{v}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
+        ) : (
+          <Body text={s.text} html={s.html} mode={body} />
+        )}
+      </div>
 
       {s.notes && (
         <div className="sk-alert">
@@ -321,7 +376,9 @@ export function EmailDetail({
                   {a.fileName}
                 </span>
               }
-              meta={[a.mimeType, bytes(a.sizeBytes)].filter(Boolean).join(" · ")}
+              meta={[a.mimeType, bytes(a.sizeBytes)]
+                .filter(Boolean)
+                .join(" · ")}
               kind={fileKindClass(attachmentKind(a))}
               onClick={onPickAttachment ? () => onPickAttachment(a) : undefined}
             />
@@ -349,57 +406,25 @@ export function EmailDetail({
         </div>
       )}
 
-      {/* the people and the headers, at the end */}
+      {/* the people, at the end */}
       <div className="sk-stack sk-stack--3">
-        <Tabs
-          value={tab}
-          onChange={setTab}
-          options={[
-            { value: "people", label: "People", count: people.length },
-            { value: "headers", label: "Headers", count: shownHeaders.length },
-          ]}
-        />
-        {tab === "people" && (
-          <ul className="sk-list sk-list--divided">
-            {people.map(({ m, role }, i) => (
-              <li key={`${role}-${m.address}-${i}`} className="sk-list-item">
-                <Avatar name={mailboxLabel(m)} size="sm" />
-                <span className="sk-list-item__body">
-                  <span className="sk-list-item__title">{mailboxLabel(m)}</span>
-                  <span className="sk-list-item__meta">{m.address}</span>
-                </span>
-                <span className="sk-list-item__value">
-                  <Badge tone={role === "Sender" ? "forest" : "outline"}>
-                    {role}
-                  </Badge>
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-        {tab === "headers" && (
-          // The design system's data table: eyebrow headers, hairline rows.
-          // Raw header values are set in mono and wrap anywhere, so a long
-          // Message-ID or DKIM line never widens the pane.
-          <div className="sk-card sk-card--subtle sk-card--compact sk-table-wrap sk-mail-headers__card">
-            <Table compact className="sk-mail-headers">
-              <thead>
-                <tr>
-                  <th>Header</th>
-                  <th>Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {shownHeaders.map(([k, v], i) => (
-                  <tr key={`${k}-${i}`}>
-                    <td className="sk-mail-headers__key">{k}</td>
-                    <td className="sk-mail-headers__value sk-font-mono">{v}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          </div>
-        )}
+        <h3 className="sk-eyebrow">People · {people.length}</h3>
+        <ul className="sk-list sk-list--divided">
+          {people.map(({ m, role }, i) => (
+            <li key={`${role}-${m.address}-${i}`} className="sk-list-item">
+              <Avatar name={mailboxLabel(m)} size="sm" />
+              <span className="sk-list-item__body">
+                <span className="sk-list-item__title">{mailboxLabel(m)}</span>
+                <span className="sk-list-item__meta">{m.address}</span>
+              </span>
+              <span className="sk-list-item__value">
+                <Badge tone={role === "Sender" ? "forest" : "outline"}>
+                  {role}
+                </Badge>
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
@@ -483,10 +508,18 @@ export function AttachmentPreview({
           </p>
         )}
         {url && kind === "image" && (
-          <img src={url} alt={file.fileName} className="sk-mail-preview-image" />
+          <img
+            src={url}
+            alt={file.fileName}
+            className="sk-mail-preview-image"
+          />
         )}
         {url && kind === "pdf" && (
-          <iframe src={url} title={file.fileName} className="sk-mail-preview-frame" />
+          <iframe
+            src={url}
+            title={file.fileName}
+            className="sk-mail-preview-frame"
+          />
         )}
         {url && kind !== "image" && kind !== "pdf" && (
           <p className="sk-small sk-text-muted">
