@@ -5,24 +5,16 @@
  * them. Issuing, paying and categorising go through the documents, and the
  * processor brings the index up to date behind them.
  *
- * Access: an invoice row and an account row are one document each
- * (`document_id`); a transaction row derives from its bank account document
- * (`account_id`). Every query, the counts and the dashboard included, is
- * filtered through the host's readable documents read model for the caller
- * once the drive passed (`indexAccess`), so a total never counts a document
- * the caller could not open.
+ * Access is declared in index.ts and applied by the subgraph wrapper: every
+ * query goes through `restrict`; the dashboard names each of its queries'
+ * document column itself.
  */
-import {
-  applyReadableFilter,
-  type BaseSubgraph,
-  type Context,
-  type ReadableFilter,
-} from "@powerhousedao/reactor-api";
+import type { IndexQuery } from "@powerhousedao/reactor-api";
 import {
   accountsQuery,
   FINANCE_PAGE,
   FINANCE_PAGE_MAX,
-  FinanceIndex,
+  type FinanceIndex,
   INVOICE_VIEWS,
   invoiceCountQuery,
   invoicesQuery,
@@ -46,6 +38,8 @@ import {
   type TransactionCounts,
   type TransactionPageResult,
 } from "processors/finance-index";
+
+type Db = FinanceIndex["query"];
 
 interface InvoicesArgs {
   driveId: string;
@@ -79,181 +73,122 @@ const pageOffset = (offset: number | null | undefined) =>
 /** GraphQL enum values are upper case; the queries' views are lower. */
 const toEnumView = (view: InvoiceView) => view.toUpperCase();
 
-const EMPTY_PAGE = { items: [], total: 0, hasMore: false };
-
-export const getResolvers = (
-  subgraph: BaseSubgraph,
-): Record<string, unknown> => {
-  const db = (driveId: string) =>
-    FinanceIndex.query(driveId, subgraph.relationalDb);
-  /** The row filter for the caller, or null when the drive refuses them. */
-  const accessTo = async (
-    ctx: Context,
-    driveId: string,
-  ): Promise<ReadableFilter | null> => {
-    const access = await subgraph.indexAccess(ctx, driveId);
-    return access.kind === "none" ? null : access;
+async function invoices({
+  db,
+  args,
+  restrict,
+}: IndexQuery<Db, InvoicesArgs>): Promise<InvoicePageResult> {
+  const view = (args.view ?? "all").toLowerCase();
+  const now = isoNow(args.now);
+  const filter = {
+    direction: args.direction ?? null,
+    view: isView(view) ? view : ("all" as const),
+    words: searchWords(args.query),
+    now,
   };
-
-  async function invoices(
-    ctx: Context,
-    args: InvoicesArgs,
-  ): Promise<InvoicePageResult> {
-    const access = await accessTo(ctx, args.driveId);
-    if (!access) return EMPTY_PAGE;
-    const view = (args.view ?? "all").toLowerCase();
-    const now = isoNow(args.now);
-    const filter = {
-      direction: args.direction ?? null,
-      view: isView(view) ? view : ("all" as const),
-      words: searchWords(args.query),
-      now,
-    };
-    const limit = pageLimit(args.limit);
-    const q = db(args.driveId);
-    const [rows, count] = await Promise.all([
-      applyReadableFilter(
-        invoicesQuery(q, filter, { offset: pageOffset(args.offset), limit }),
-        "document_id",
-        access,
-      ).execute(),
-      applyReadableFilter(
-        invoiceCountQuery(q, filter),
-        "document_id",
-        access,
-      ).executeTakeFirst(),
-    ]);
-    const hasMore = rows.length > limit;
-    return {
-      items: (hasMore ? rows.slice(0, limit) : rows).map((r) =>
-        toInvoiceRow(r, now),
-      ),
-      total: Number(count?.n ?? 0),
-      hasMore,
-    };
-  }
-
-  async function invoiceCounts(
-    ctx: Context,
-    driveId: string,
-    now?: string | null,
-  ): Promise<InvoiceCounts> {
-    const access = await accessTo(ctx, driveId);
-    if (!access) return toInvoiceCounts([]);
-    const rows = await applyReadableFilter(
-      invoiceViewCountsQuery(db(driveId), isoNow(now)),
-      "document_id",
-      access,
-    ).execute();
-    return toInvoiceCounts(rows);
-  }
-
-  async function accounts(
-    ctx: Context,
-    driveId: string,
-  ): Promise<AccountListRow[]> {
-    const access = await accessTo(ctx, driveId);
-    if (!access) return [];
-    const rows = await applyReadableFilter(
-      accountsQuery(db(driveId)),
-      "document_id",
-      access,
-    ).execute();
-    return rows.map(toAccountRow);
-  }
-
-  async function transactions(
-    ctx: Context,
-    args: TransactionsArgs,
-  ): Promise<TransactionPageResult> {
-    const access = await accessTo(ctx, args.driveId);
-    if (!access) return EMPTY_PAGE;
-    const filter = {
-      accountId: args.accountId ?? null,
-      status: args.status ?? null,
-      category: args.category ?? null,
-      words: searchWords(args.query),
-    };
-    const limit = pageLimit(args.limit);
-    const q = db(args.driveId);
-    const [rows, count] = await Promise.all([
-      applyReadableFilter(
-        transactionsQuery(q, filter, {
-          offset: pageOffset(args.offset),
-          limit,
-        }),
-        "account_id",
-        access,
-      ).execute(),
-      applyReadableFilter(
-        transactionCountQuery(q, filter),
-        "account_id",
-        access,
-      ).executeTakeFirst(),
-    ]);
-    const hasMore = rows.length > limit;
-    return {
-      items: (hasMore ? rows.slice(0, limit) : rows).map(toTransactionRow),
-      total: Number(count?.n ?? 0),
-      hasMore,
-    };
-  }
-
-  async function transactionCounts(
-    ctx: Context,
-    driveId: string,
-    accountId?: string | null,
-  ): Promise<TransactionCounts> {
-    const access = await accessTo(ctx, driveId);
-    if (!access) return toTransactionCounts(undefined);
-    const row = await applyReadableFilter(
-      transactionCountsQuery(db(driveId), accountId),
-      "account_id",
-      access,
-    ).executeTakeFirst();
-    return toTransactionCounts(row);
-  }
-
-  async function dashboard(
-    ctx: Context,
-    driveId: string,
-    now: string,
-  ): Promise<DashboardStats> {
-    const access = (await accessTo(ctx, driveId)) ?? { kind: "none" as const };
-    return loadDashboard(db(driveId), Date.parse(isoNow(now)), (q, column) =>
-      applyReadableFilter(q, column, access),
-    );
-  }
-
+  const limit = pageLimit(args.limit);
+  const [rows, count] = await Promise.all([
+    restrict(
+      invoicesQuery(db, filter, { offset: pageOffset(args.offset), limit }),
+    ).execute(),
+    restrict(invoiceCountQuery(db, filter)).executeTakeFirst(),
+  ]);
+  const hasMore = rows.length > limit;
   return {
-    Query: {
-      financeIndex: () => ({}),
-    },
-    FinanceIndexQueries: {
-      invoices: (_parent: unknown, args: InvoicesArgs, ctx: Context) =>
-        invoices(ctx, args),
-      invoiceCounts: (
-        _parent: unknown,
-        args: { driveId: string; now?: string | null },
-        ctx: Context,
-      ) => invoiceCounts(ctx, args.driveId, args.now),
-      accounts: (_parent: unknown, args: { driveId: string }, ctx: Context) =>
-        accounts(ctx, args.driveId),
-      transactions: (_parent: unknown, args: TransactionsArgs, ctx: Context) =>
-        transactions(ctx, args),
-      transactionCounts: (
-        _parent: unknown,
-        args: { driveId: string; accountId?: string | null },
-        ctx: Context,
-      ) => transactionCounts(ctx, args.driveId, args.accountId),
-      dashboard: (
-        _parent: unknown,
-        args: { driveId: string; now: string },
-        ctx: Context,
-      ) => dashboard(ctx, args.driveId, args.now),
-    },
-    FinanceViewCount: {
-      view: (parent: { view: InvoiceView }) => toEnumView(parent.view),
-    },
+    items: (hasMore ? rows.slice(0, limit) : rows).map((r) =>
+      toInvoiceRow(r, now),
+    ),
+    total: Number(count?.n ?? 0),
+    hasMore,
   };
+}
+
+async function invoiceCounts({
+  db,
+  args,
+  restrict,
+}: IndexQuery<
+  Db,
+  { driveId: string; now?: string | null }
+>): Promise<InvoiceCounts> {
+  const rows = await restrict(
+    invoiceViewCountsQuery(db, isoNow(args.now)),
+  ).execute();
+  return toInvoiceCounts(rows);
+}
+
+async function accounts({
+  db,
+  restrict,
+}: IndexQuery<Db, { driveId: string }>): Promise<AccountListRow[]> {
+  const rows = await restrict(accountsQuery(db)).execute();
+  return rows.map(toAccountRow);
+}
+
+async function transactions({
+  db,
+  args,
+  restrict,
+}: IndexQuery<Db, TransactionsArgs>): Promise<TransactionPageResult> {
+  const filter = {
+    accountId: args.accountId ?? null,
+    status: args.status ?? null,
+    category: args.category ?? null,
+    words: searchWords(args.query),
+  };
+  const limit = pageLimit(args.limit);
+  const [rows, count] = await Promise.all([
+    restrict(
+      transactionsQuery(db, filter, { offset: pageOffset(args.offset), limit }),
+    ).execute(),
+    restrict(transactionCountQuery(db, filter)).executeTakeFirst(),
+  ]);
+  const hasMore = rows.length > limit;
+  return {
+    items: (hasMore ? rows.slice(0, limit) : rows).map(toTransactionRow),
+    total: Number(count?.n ?? 0),
+    hasMore,
+  };
+}
+
+async function transactionCounts({
+  db,
+  args,
+  restrict,
+}: IndexQuery<
+  Db,
+  { driveId: string; accountId?: string | null }
+>): Promise<TransactionCounts> {
+  const row = await restrict(
+    transactionCountsQuery(db, args.accountId),
+  ).executeTakeFirst();
+  return toTransactionCounts(row);
+}
+
+function dashboard({
+  db,
+  args,
+  restrict,
+}: IndexQuery<Db, { driveId: string; now: string }>): Promise<DashboardStats> {
+  return loadDashboard(db, Date.parse(isoNow(args.now)), (q, column) =>
+    restrict(q, column),
+  );
+}
+
+export const resolvers = {
+  Query: {
+    financeIndex: () => ({}),
+  },
+  FinanceViewCount: {
+    view: (parent: { view: InvoiceView }) => toEnumView(parent.view),
+  },
+};
+
+export const queries = {
+  "FinanceIndexQueries.invoices": invoices,
+  "FinanceIndexQueries.invoiceCounts": invoiceCounts,
+  "FinanceIndexQueries.accounts": accounts,
+  "FinanceIndexQueries.transactions": transactions,
+  "FinanceIndexQueries.transactionCounts": transactionCounts,
+  "FinanceIndexQueries.dashboard": dashboard,
 };

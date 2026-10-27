@@ -5,15 +5,10 @@
  * changes it. Edits go through the documents, and the processor brings the
  * index up to date behind it.
  *
- * Access: a trip row is one document (`document_id`); the years and places
- * derive from those rows. All are filtered through the host's readable
- * documents read model for the caller once the drive passed (`indexAccess`).
+ * Access is declared in index.ts and applied by the subgraph wrapper: every
+ * query goes through `restrict`.
  */
-import {
-  applyReadableFilter,
-  type BaseSubgraph,
-  type Context,
-} from "@powerhousedao/reactor-api";
+import type { IndexQuery } from "@powerhousedao/reactor-api";
 import {
   destinationsQuery,
   foldDestinations,
@@ -24,13 +19,15 @@ import {
   TRIP_PAGE_MAX,
   TRIP_PHASES,
   tripCountQuery,
-  TripIndex,
+  type TripIndex,
   tripsQuery,
   yearsQuery,
   type TripPageResult,
   type TripPhase,
   type TripYearRow,
 } from "processors/trip-index";
+
+type Db = TripIndex["query"];
 
 interface TripsArgs {
   driveId: string;
@@ -52,100 +49,75 @@ function instant(now: string | null | undefined): Date {
   return new Date();
 }
 
-export const getResolvers = (
-  subgraph: BaseSubgraph,
-): Record<string, unknown> => {
-  async function trips(ctx: Context, args: TripsArgs): Promise<TripPageResult> {
-    const access = await subgraph.indexAccess(ctx, args.driveId);
-    if (access.kind === "none") return { items: [], total: 0 };
-    const db = TripIndex.query(args.driveId, subgraph.relationalDb);
-    const now = instant(args.now);
-    const asked = args.phases?.length
-      ? args.phases
-      : args.phase
-        ? [args.phase]
-        : [];
-    const phases = asked
-      .map((p) => p.toLowerCase() as TripPhase)
-      .filter((p) => TRIP_PHASES.includes(p));
-    const filter = {
-      year: args.year ?? null,
-      phases,
-      words: searchWords(args.query),
-      now,
-    };
-    const limit = Math.min(Math.max(args.limit ?? TRIP_PAGE, 1), TRIP_PAGE_MAX);
-    const [rows, count] = await Promise.all([
-      applyReadableFilter(
-        tripsQuery(db, filter, {
-          offset: Math.max(0, Math.floor(args.offset ?? 0)),
-          limit,
-        }),
-        "document_id",
-        access,
-      ).execute(),
-      applyReadableFilter(
-        tripCountQuery(db, filter),
-        "document_id",
-        access,
-      ).executeTakeFirst(),
-    ]);
-    return {
-      items: rows.map((r) => toTripRow(r, now)),
-      total: Number(count?.n ?? 0),
-    };
-  }
-
-  async function years(ctx: Context, driveId: string): Promise<TripYearRow[]> {
-    const access = await subgraph.indexAccess(ctx, driveId);
-    if (access.kind === "none") return [];
-    const db = TripIndex.query(driveId, subgraph.relationalDb);
-    return foldYears(
-      await applyReadableFilter(
-        yearsQuery(db),
-        "document_id",
-        access,
-      ).execute(),
-    );
-  }
-
-  async function places(
-    ctx: Context,
-    driveId: string,
-    year: number | null,
-    limit: number,
-  ) {
-    const access = await subgraph.indexAccess(ctx, driveId);
-    if (access.kind === "none") return [];
-    const db = TripIndex.query(driveId, subgraph.relationalDb);
-    return foldDestinations(
-      await applyReadableFilter(
-        destinationsQuery(db, year),
-        "document_id",
-        access,
-      ).execute(),
-      Math.min(Math.max(limit, 1), 50),
-    );
-  }
-
-  return {
-    Query: {
-      tripIndex: () => ({}),
-    },
-    TripRow: {
-      // The enum is upper-case on the wire, lower-case in the kit.
-      phase: (row: { phase: string }) => row.phase.toUpperCase(),
-    },
-    TripIndexQueries: {
-      trips: (_parent: unknown, args: TripsArgs, ctx: Context) =>
-        trips(ctx, args),
-      years: (_parent: unknown, args: { driveId: string }, ctx: Context) =>
-        years(ctx, args.driveId),
-      places: (
-        _parent: unknown,
-        args: { driveId: string; year?: number | null; limit?: number | null },
-        ctx: Context,
-      ) => places(ctx, args.driveId, args.year ?? null, args.limit ?? 6),
-    },
+async function trips({
+  db,
+  args,
+  restrict,
+}: IndexQuery<Db, TripsArgs>): Promise<TripPageResult> {
+  const now = instant(args.now);
+  const asked = args.phases?.length
+    ? args.phases
+    : args.phase
+      ? [args.phase]
+      : [];
+  const phases = asked
+    .map((p) => p.toLowerCase() as TripPhase)
+    .filter((p) => TRIP_PHASES.includes(p));
+  const filter = {
+    year: args.year ?? null,
+    phases,
+    words: searchWords(args.query),
+    now,
   };
+  const limit = Math.min(Math.max(args.limit ?? TRIP_PAGE, 1), TRIP_PAGE_MAX);
+  const [rows, count] = await Promise.all([
+    restrict(
+      tripsQuery(db, filter, {
+        offset: Math.max(0, Math.floor(args.offset ?? 0)),
+        limit,
+      }),
+    ).execute(),
+    restrict(tripCountQuery(db, filter)).executeTakeFirst(),
+  ]);
+  return {
+    items: rows.map((r) => toTripRow(r, now)),
+    total: Number(count?.n ?? 0),
+  };
+}
+
+async function years({
+  db,
+  restrict,
+}: IndexQuery<Db, { driveId: string }>): Promise<TripYearRow[]> {
+  return foldYears(await restrict(yearsQuery(db)).execute());
+}
+
+async function places({
+  db,
+  args,
+  restrict,
+}: IndexQuery<
+  Db,
+  { driveId: string; year?: number | null; limit?: number | null }
+>) {
+  return foldDestinations(
+    await restrict(destinationsQuery(db, args.year ?? null)).execute(),
+    Math.min(Math.max(args.limit ?? 6, 1), 50),
+  );
+}
+
+export const resolvers = {
+  Query: {
+    tripIndex: () => ({}),
+  },
+  TripRow: {
+    // The enum is upper-case on the wire, lower-case in the kit.
+    phase: (row: { phase: string }) => row.phase.toUpperCase(),
+  },
+};
+
+export const queries = {
+  "TripIndexQueries.trips": trips,
+  "TripIndexQueries.years": years,
+  "TripIndexQueries.places": places,
 };

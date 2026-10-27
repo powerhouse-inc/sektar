@@ -5,18 +5,15 @@
  * whether to write one. The worst a stale row can do is point an update at
  * a document that is gone, which the write then reports by name.
  *
- * Access: every row is one document (`document_id`), so the host's readable
- * documents read model filters rows by the caller, after the drive itself
- * passed (`indexAccess`). A caller the drive refuses gets no rows, never an
- * error: a lookup that cannot see a key reports "absent", which the upsert
- * treats as "create" only when it may write there anyway.
+ * Access is declared in index.ts and applied by the subgraph wrapper: the
+ * handler gets `restrict`, which narrows a query to the caller's readable
+ * documents (a refused caller gets no rows, never an error, so a lookup
+ * that cannot see a key reports "absent").
  */
-import {
-  applyReadableFilter,
-  type BaseSubgraph,
-  type Context,
-} from "@powerhousedao/reactor-api";
-import { KeyIndex } from "processors/key-index";
+import type { IndexQuery } from "@powerhousedao/reactor-api";
+import type { KeyIndex } from "processors/key-index";
+
+type Db = KeyIndex["query"];
 
 interface Row {
   document_type: string;
@@ -24,55 +21,51 @@ interface Row {
   document_id: string;
 }
 
+interface FindArgs {
+  driveId: string;
+  documentType: string;
+  keys: string[];
+}
+
 /** Keys per query. 500 keys is 500 bind parameters, far under any driver's cap. */
 const CHUNK = 500;
 
-export const getResolvers = (
-  subgraph: BaseSubgraph,
-): Record<string, unknown> => {
-  async function find(
-    ctx: Context,
-    driveId: string,
-    documentType: string,
-    keys: string[],
-  ): Promise<{ key: string; documentId: string; documentType: string }[]> {
-    const access = await subgraph.indexAccess(ctx, driveId);
-    if (access.kind === "none") return [];
-    const wanted = [...new Set(keys.map((value) => value.trim()))].filter(
-      (value) => value !== "",
-    );
-    const out: { key: string; documentId: string; documentType: string }[] = [];
-    for (let at = 0; at < wanted.length; at += CHUNK) {
-      const rows = (await applyReadableFilter(
-        KeyIndex.query(driveId, subgraph.relationalDb)
-          .selectFrom("key_index")
-          .selectAll()
-          .where("document_type", "=", documentType)
-          .where("key", "in", wanted.slice(at, at + CHUNK)),
-        "document_id",
-        access,
-      ).execute()) as Row[];
-      for (const row of rows) {
-        out.push({
-          key: row.key,
-          documentId: row.document_id,
-          documentType: row.document_type,
-        });
-      }
+async function find({
+  db,
+  args,
+  restrict,
+}: IndexQuery<Db, FindArgs>): Promise<
+  { key: string; documentId: string; documentType: string }[]
+> {
+  const wanted = [...new Set(args.keys.map((value) => value.trim()))].filter(
+    (value) => value !== "",
+  );
+  const out: { key: string; documentId: string; documentType: string }[] = [];
+  for (let at = 0; at < wanted.length; at += CHUNK) {
+    const rows = (await restrict(
+      db
+        .selectFrom("key_index")
+        .selectAll()
+        .where("document_type", "=", args.documentType)
+        .where("key", "in", wanted.slice(at, at + CHUNK)),
+    ).execute()) as Row[];
+    for (const row of rows) {
+      out.push({
+        key: row.key,
+        documentId: row.document_id,
+        documentType: row.document_type,
+      });
     }
-    return out;
   }
+  return out;
+}
 
-  return {
-    Query: {
-      keyIndex: () => ({}),
-    },
-    KeyIndexQueries: {
-      find: (
-        _parent: unknown,
-        args: { driveId: string; documentType: string; keys: string[] },
-        ctx: Context,
-      ) => find(ctx, args.driveId, args.documentType, args.keys),
-    },
-  };
+export const resolvers = {
+  Query: {
+    keyIndex: () => ({}),
+  },
+};
+
+export const queries = {
+  "KeyIndexQueries.find": find,
 };

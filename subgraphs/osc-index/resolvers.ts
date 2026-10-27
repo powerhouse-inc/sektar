@@ -7,18 +7,12 @@
  * capture at the wrong collection, and CAPTURE_SOURCE is idempotent within
  * whichever one it lands in.
  *
- * Access: a location row names the collection document that holds the
- * identifier (`document_id`), so rows are filtered through the host's
- * readable documents read model for the caller once the drive passed
- * (`indexAccess`). A caller who may not see a collection is told the
- * identifier is absent there, never that it exists.
+ * Access is declared in index.ts and applied by the subgraph wrapper.
  */
-import {
-  applyReadableFilter,
-  type BaseSubgraph,
-  type Context,
-} from "@powerhousedao/reactor-api";
-import { OscIndex } from "processors/osc-index";
+import type { IndexQuery } from "@powerhousedao/reactor-api";
+import type { OscIndex } from "processors/osc-index";
+
+type Db = OscIndex["query"];
 
 interface Row {
   identifier: string;
@@ -47,49 +41,34 @@ function toLocation(row: Row) {
   };
 }
 
-export const getResolvers = (
-  subgraph: BaseSubgraph,
-): Record<string, unknown> => {
-  async function lookup(
-    ctx: Context,
-    driveId: string,
-    identifiers: string[],
-  ): Promise<ReturnType<typeof toLocation>[]> {
-    const wanted = [
-      ...new Set(identifiers.map((value) => value.trim())),
-    ].filter((value) => value !== "");
-    if (wanted.length === 0) return [];
-    const access = await subgraph.indexAccess(ctx, driveId);
-    if (access.kind === "none") return [];
+async function lookup(
+  { db, restrict }: IndexQuery<Db>,
+  identifiers: string[],
+): Promise<ReturnType<typeof toLocation>[]> {
+  const wanted = [...new Set(identifiers.map((value) => value.trim()))].filter(
+    (value) => value !== "",
+  );
+  if (wanted.length === 0) return [];
+  const rows = (await restrict(
+    db
+      .selectFrom("osc_identifier")
+      .selectAll()
+      .where("identifier", "in", wanted),
+  ).execute()) as Row[];
+  return rows.map(toLocation);
+}
 
-    const rows = (await applyReadableFilter(
-      OscIndex.query(driveId, subgraph.relationalDb)
-        .selectFrom("osc_identifier")
-        .selectAll()
-        .where("identifier", "in", wanted),
-      "document_id",
-      access,
-    ).execute()) as Row[];
+export const resolvers = {
+  Query: {
+    oscIndex: () => ({}),
+  },
+};
 
-    return rows.map(toLocation);
-  }
-
-  return {
-    Query: {
-      oscIndex: () => ({}),
-    },
-    OscIndexQueries: {
-      findSource: (
-        _parent: unknown,
-        args: { driveId: string; identifier: string },
-        ctx: Context,
-      ) => lookup(ctx, args.driveId, [args.identifier]),
-
-      findSources: (
-        _parent: unknown,
-        args: { driveId: string; identifiers: string[] },
-        ctx: Context,
-      ) => lookup(ctx, args.driveId, args.identifiers),
-    },
-  };
+export const queries = {
+  "OscIndexQueries.findSource": (
+    query: IndexQuery<Db, { driveId: string; identifier: string }>,
+  ) => lookup(query, [query.args.identifier]),
+  "OscIndexQueries.findSources": (
+    query: IndexQuery<Db, { driveId: string; identifiers: string[] }>,
+  ) => lookup(query, query.args.identifiers),
 };
