@@ -1,8 +1,19 @@
 /**
  * Reading the Files index. Read-only: the drive and the File documents are
  * changed through their own operations, and the processor follows.
+ *
+ * Access: a file row is one document (the node id is the File document's
+ * id), filtered through the host's readable documents read model for the
+ * caller once the drive passed (`indexAccess`). A folder row is drive
+ * structure, not a document: it is listed whenever the drive is, so the
+ * tree stays navigable, and what it holds is filtered file by file.
  */
-import { type BaseSubgraph } from "@powerhousedao/reactor-api";
+import {
+  applyReadableFilter,
+  type BaseSubgraph,
+  type Context,
+  type ReadableFilter,
+} from "@powerhousedao/reactor-api";
 import {
   FILES_PAGE,
   FILES_PAGE_MAX,
@@ -26,8 +37,25 @@ interface ListingArgs {
   syncFirst?: boolean | null;
 }
 
-export const getResolvers = (subgraph: BaseSubgraph): Record<string, unknown> => {
-  async function listing(args: ListingArgs): Promise<FileListPage> {
+/** Folders pass; a file row passes when its document is readable. */
+function readableNodes<Q extends { where(...args: any[]): Q }>(
+  q: Q,
+  access: ReadableFilter,
+): Q {
+  return applyReadableFilter(q, "n.id", access, {
+    passWhen: { column: "n.kind", equals: "folder" },
+  });
+}
+
+export const getResolvers = (
+  subgraph: BaseSubgraph,
+): Record<string, unknown> => {
+  async function listing(
+    ctx: Context,
+    args: ListingArgs,
+  ): Promise<FileListPage> {
+    const access = await subgraph.indexAccess(ctx, args.driveId);
+    if (access.kind === "none") return { items: [], total: 0 };
     const db = FilesIndex.query(args.driveId, subgraph.relationalDb);
     const deep = Boolean(args.deep);
     const folderId = args.folderId ?? null;
@@ -39,11 +67,22 @@ export const getResolvers = (subgraph: BaseSubgraph): Record<string, unknown> =>
       filesOnly: deep,
       words: searchWords(args.query),
     };
-    const limit = Math.min(Math.max(args.limit ?? FILES_PAGE, 1), FILES_PAGE_MAX);
+    const limit = Math.min(
+      Math.max(args.limit ?? FILES_PAGE, 1),
+      FILES_PAGE_MAX,
+    );
     const offset = Math.max(0, Math.floor(args.offset ?? 0));
     const [rows, count] = await Promise.all([
-      listingQuery(db, filter, { offset, limit }, { syncFirst: Boolean(args.syncFirst) }).execute(),
-      listingCountQuery(db, filter).executeTakeFirst(),
+      readableNodes(
+        listingQuery(
+          db,
+          filter,
+          { offset, limit },
+          { syncFirst: Boolean(args.syncFirst) },
+        ),
+        access,
+      ).execute(),
+      readableNodes(listingCountQuery(db, filter), access).executeTakeFirst(),
     ]);
     return { items: rows.map(toListRow), total: Number(count?.n ?? 0) };
   }
@@ -51,7 +90,8 @@ export const getResolvers = (subgraph: BaseSubgraph): Record<string, unknown> =>
   return {
     Query: { filesIndex: () => ({}) },
     FilesIndexQueries: {
-      listing: (_parent: unknown, args: ListingArgs) => listing(args),
+      listing: (_parent: unknown, args: ListingArgs, ctx: Context) =>
+        listing(ctx, args),
     },
   };
 };

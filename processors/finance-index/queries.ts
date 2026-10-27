@@ -23,7 +23,11 @@ export const INVOICE_VIEWS: readonly InvoiceView[] = [
   "settled",
 ];
 
-export type TransactionStatusFilter = "NEW" | "CATEGORIZED" | "MATCHED" | "EXCLUDED";
+export type TransactionStatusFilter =
+  | "NEW"
+  | "CATEGORIZED"
+  | "MATCHED"
+  | "EXCLUDED";
 
 /** The words of a search, lower-cased, at most `max` of them. */
 export function searchWords(
@@ -45,7 +49,8 @@ function likeWord(word: string): string {
 
 /** `now` as the ISO instant the date columns are compared with. */
 export function isoNow(now: number | string | null | undefined): string {
-  if (typeof now === "number" && Number.isFinite(now)) return new Date(now).toISOString();
+  if (typeof now === "number" && Number.isFinite(now))
+    return new Date(now).toISOString();
   if (typeof now === "string" && now) {
     const parsed = Date.parse(now);
     if (Number.isFinite(parsed)) return new Date(parsed).toISOString();
@@ -76,7 +81,9 @@ function invoicesFiltered(db: FinanceQueryBuilder, f: InvoiceFilter) {
       // `isOverdue` is OPEN with a due date before now; open is OPEN without.
       q = q
         .where("status", "=", "OPEN")
-        .where((eb) => eb.or([eb("due_at", "is", null), eb("due_at", ">=", f.now)]));
+        .where((eb) =>
+          eb.or([eb("due_at", "is", null), eb("due_at", ">=", f.now)]),
+        );
       break;
     case "overdue":
       q = q
@@ -117,7 +124,9 @@ export function invoicesQuery(
 
 /** How many invoices the filters match. */
 export function invoiceCountQuery(db: FinanceQueryBuilder, f: InvoiceFilter) {
-  return invoicesFiltered(db, f).select((eb) => eb.fn.countAll<number>().as("n"));
+  return invoicesFiltered(db, f).select((eb) =>
+    eb.fn.countAll<number>().as("n"),
+  );
 }
 
 /** Invoices per direction and per view, in one pass. */
@@ -177,7 +186,9 @@ export interface InvoiceCounts {
 }
 
 /** The per-direction counts folded into what the workspace shows. */
-export function toInvoiceCounts(rows: readonly InvoiceViewCountRow[]): InvoiceCounts {
+export function toInvoiceCounts(
+  rows: readonly InvoiceViewCountRow[],
+): InvoiceCounts {
   const byView: ViewCount[] = [];
   let outgoing = 0;
   let incoming = 0;
@@ -346,8 +357,13 @@ export function transactionsQuery(
 }
 
 /** How many transactions the filters match. */
-export function transactionCountQuery(db: FinanceQueryBuilder, f: TransactionFilter) {
-  return transactionsFiltered(db, f).select((eb) => eb.fn.countAll<number>().as("n"));
+export function transactionCountQuery(
+  db: FinanceQueryBuilder,
+  f: TransactionFilter,
+) {
+  return transactionsFiltered(db, f).select((eb) =>
+    eb.fn.countAll<number>().as("n"),
+  );
 }
 
 /** The status menu's counts, for one account or all. */
@@ -360,9 +376,18 @@ export function transactionCountsQuery(
   return q.select((eb) => [
     eb.fn.countAll<number>().as("all"),
     eb.fn.countAll<number>().filterWhere("status", "=", "NEW").as("new"),
-    eb.fn.countAll<number>().filterWhere("status", "=", "CATEGORIZED").as("categorised"),
-    eb.fn.countAll<number>().filterWhere("status", "=", "MATCHED").as("matched"),
-    eb.fn.countAll<number>().filterWhere("status", "=", "EXCLUDED").as("excluded"),
+    eb.fn
+      .countAll<number>()
+      .filterWhere("status", "=", "CATEGORIZED")
+      .as("categorised"),
+    eb.fn
+      .countAll<number>()
+      .filterWhere("status", "=", "MATCHED")
+      .as("matched"),
+    eb.fn
+      .countAll<number>()
+      .filterWhere("status", "=", "EXCLUDED")
+      .as("excluded"),
   ]);
 }
 
@@ -440,7 +465,6 @@ export function toTransactionRow(r: TransactionRow): TransactionListRow {
 
 const DAY_MS = 86_400_000;
 
-
 /** The six months the cash-flow bars cover, oldest first, as "YYYY-MM": the dashboard's own bucketing. */
 export function dashboardMonths(nowMs: number): string[] {
   const keys: string[] = [];
@@ -473,24 +497,35 @@ export function dashboardQueries(db: FinanceQueryBuilder, nowMs: number) {
     positions: db
       .selectFrom("account_index")
       .select((eb) => [
-        eb.fn.sum<number>("balance").filterWhere("kind", "!=", "CREDIT_CARD").as("cash"),
-        eb.fn.sum<number>("balance").filterWhere("kind", "=", "CREDIT_CARD").as("card"),
+        eb.fn
+          .sum<number>("balance")
+          .filterWhere("kind", "!=", "CREDIT_CARD")
+          .as("cash"),
+        eb.fn
+          .sum<number>("balance")
+          .filterWhere("kind", "=", "CREDIT_CARD")
+          .as("card"),
       ]),
     /** Receivable and payable (book outstanding of OPEN invoices), and the readiness counts. */
-    invoices: db
-      .selectFrom("invoice_index")
-      .select((eb) => [
-        eb.fn
-          .sum<number>("book_outstanding")
-          .filterWhere((w) => w.and([w("direction", "=", "OUTGOING"), w("status", "=", "OPEN")]))
-          .as("receivable"),
-        eb.fn
-          .sum<number>("book_outstanding")
-          .filterWhere((w) => w.and([w("direction", "=", "INCOMING"), w("status", "=", "OPEN")]))
-          .as("payable"),
-        eb.fn.countAll<number>().as("total"),
-        eb.fn.countAll<number>().filterWhere("status", "!=", "DRAFT").as("issued"),
-      ]),
+    invoices: db.selectFrom("invoice_index").select((eb) => [
+      eb.fn
+        .sum<number>("book_outstanding")
+        .filterWhere((w) =>
+          w.and([w("direction", "=", "OUTGOING"), w("status", "=", "OPEN")]),
+        )
+        .as("receivable"),
+      eb.fn
+        .sum<number>("book_outstanding")
+        .filterWhere((w) =>
+          w.and([w("direction", "=", "INCOMING"), w("status", "=", "OPEN")]),
+        )
+        .as("payable"),
+      eb.fn.countAll<number>().as("total"),
+      eb.fn
+        .countAll<number>()
+        .filterWhere("status", "!=", "DRAFT")
+        .as("issued"),
+    ]),
     /** The overdue invoices themselves, the most overdue first. */
     overdue: db
       .selectFrom("invoice_index")
@@ -506,15 +541,23 @@ export function dashboardQueries(db: FinanceQueryBuilder, nowMs: number) {
       .select((eb) => [
         eb.fn.countAll<number>().as("total"),
         eb.fn.countAll<number>().filterWhere("status", "=", "NEW").as("new"),
-        eb.fn.countAll<number>().filterWhere("status", "=", "MATCHED").as("matched"),
-        eb.fn.countAll<number>().filterWhere("category", "=", "SALES").as("sales"),
+        eb.fn
+          .countAll<number>()
+          .filterWhere("status", "=", "MATCHED")
+          .as("matched"),
+        eb.fn
+          .countAll<number>()
+          .filterWhere("category", "=", "SALES")
+          .as("sales"),
       ]),
     /** Money in and out per month, transfers and excluded rows left out. */
     months: db
       .selectFrom("transaction_index")
       .select((eb) => [
         // "YYYY-MM": the dashboard's `bookedAt.slice(0, 7)`.
-        eb.fn<string>("substr", [eb.ref("booked_at"), eb.lit(1), eb.lit(7)]).as("month"),
+        eb
+          .fn<string>("substr", [eb.ref("booked_at"), eb.lit(1), eb.lit(7)])
+          .as("month"),
         eb.fn.sum<number>("amount").filterWhere("amount", ">", 0).as("in"),
         eb.fn.sum<number>("amount").filterWhere("amount", "<", 0).as("out"),
       ])
@@ -522,7 +565,9 @@ export function dashboardQueries(db: FinanceQueryBuilder, nowMs: number) {
       .where("category", "!=", "TRANSFER")
       .where("booked_at", ">=", months[0])
       .where("booked_at", "<", nextMonth(months[months.length - 1]))
-      .groupBy((eb) => eb.fn<string>("substr", [eb.ref("booked_at"), eb.lit(1), eb.lit(7)])),
+      .groupBy((eb) =>
+        eb.fn<string>("substr", [eb.ref("booked_at"), eb.lit(1), eb.lit(7)]),
+      ),
     /** Spend by category over the last 90 days: outflows that are spending (not transfers, payroll, tax). */
     spend: db
       .selectFrom("transaction_index")
@@ -549,7 +594,9 @@ type Num = number | string | null | undefined;
 
 export interface DashboardResults {
   positions: { cash: Num; card: Num } | undefined;
-  invoices: { receivable: Num; payable: Num; total: Num; issued: Num } | undefined;
+  invoices:
+    | { receivable: Num; payable: Num; total: Num; issued: Num }
+    | undefined;
   overdue: readonly InvoiceRow[];
   transactions: { total: Num; new: Num; matched: Num; sales: Num } | undefined;
   months: readonly { month: string; in: Num; out: Num }[];
@@ -598,7 +645,10 @@ export interface DashboardStats {
 const n = (v: Num): number => Number(v ?? 0) || 0;
 
 /** The dashboard's numbers from its queries' results, as the dashboard's `stats` computes them. */
-export function toDashboardStats(nowMs: number, r: DashboardResults): DashboardStats {
+export function toDashboardStats(
+  nowMs: number,
+  r: DashboardResults,
+): DashboardStats {
   const now = new Date(nowMs).toISOString();
   const byMonth = new Map(r.months.map((m) => [m.month, m]));
   const months = dashboardMonths(nowMs).map((key) => {
@@ -612,7 +662,8 @@ export function toDashboardStats(nowMs: number, r: DashboardResults): DashboardS
   const sales = n(r.transactions?.sales);
   const invoiceCount = n(r.invoices?.total);
   const issued = n(r.invoices?.issued);
-  const pctOf = (num: number, den: number) => (den ? Math.round((num / den) * 100) : 100);
+  const pctOf = (num: number, den: number) =>
+    den ? Math.round((num / den) * 100) : 100;
   return {
     bookCurrency: BOOK_CURRENCY,
     cash: n(r.positions?.cash),
@@ -639,21 +690,34 @@ export function toDashboardStats(nowMs: number, r: DashboardResults): DashboardS
   };
 }
 
+/**
+ * Narrows a dashboard query to the rows the caller may see, given the column
+ * that names the row's document (`document_id` for invoices and accounts,
+ * `account_id` for transactions). The switchboard's subgraph passes the
+ * host's readable-documents filter; the browser, reading its own reactor,
+ * passes nothing.
+ */
+export type QueryRestriction = <Q extends { where(...args: any[]): Q }>(
+  q: Q,
+  documentColumn: string,
+) => Q;
+
 /** Every dashboard query in one parallel round, folded. */
 export async function loadDashboard(
   db: FinanceQueryBuilder,
   nowMs: number,
+  restrict: QueryRestriction = (q) => q,
 ): Promise<DashboardStats> {
   const q = dashboardQueries(db, nowMs);
   const [positions, invoices, overdue, transactions, months, spend, recent] =
     await Promise.all([
-      q.positions.executeTakeFirst(),
-      q.invoices.executeTakeFirst(),
-      q.overdue.execute(),
-      q.transactions.executeTakeFirst(),
-      q.months.execute(),
-      q.spend.execute(),
-      q.recent.execute(),
+      restrict(q.positions, "document_id").executeTakeFirst(),
+      restrict(q.invoices, "document_id").executeTakeFirst(),
+      restrict(q.overdue, "document_id").execute(),
+      restrict(q.transactions, "account_id").executeTakeFirst(),
+      restrict(q.months, "account_id").execute(),
+      restrict(q.spend, "account_id").execute(),
+      restrict(q.recent, "account_id").execute(),
     ]);
   return toDashboardStats(nowMs, {
     positions,

@@ -6,8 +6,18 @@
  * from being able to corrupt anything — the worst it can do is send a
  * capture at the wrong collection, and CAPTURE_SOURCE is idempotent within
  * whichever one it lands in.
+ *
+ * Access: a location row names the collection document that holds the
+ * identifier (`document_id`), so rows are filtered through the host's
+ * readable documents read model for the caller once the drive passed
+ * (`indexAccess`). A caller who may not see a collection is told the
+ * identifier is absent there, never that it exists.
  */
-import { type BaseSubgraph } from "@powerhousedao/reactor-api";
+import {
+  applyReadableFilter,
+  type BaseSubgraph,
+  type Context,
+} from "@powerhousedao/reactor-api";
 import { OscIndex } from "processors/osc-index";
 
 interface Row {
@@ -41,19 +51,25 @@ export const getResolvers = (
   subgraph: BaseSubgraph,
 ): Record<string, unknown> => {
   async function lookup(
+    ctx: Context,
     driveId: string,
     identifiers: string[],
   ): Promise<ReturnType<typeof toLocation>[]> {
-    const wanted = [...new Set(identifiers.map((value) => value.trim()))].filter(
-      (value) => value !== "",
-    );
+    const wanted = [
+      ...new Set(identifiers.map((value) => value.trim())),
+    ].filter((value) => value !== "");
     if (wanted.length === 0) return [];
+    const access = await subgraph.indexAccess(ctx, driveId);
+    if (access.kind === "none") return [];
 
-    const rows = (await OscIndex.query(driveId, subgraph.relationalDb)
-      .selectFrom("osc_identifier")
-      .selectAll()
-      .where("identifier", "in", wanted)
-      .execute()) as Row[];
+    const rows = (await applyReadableFilter(
+      OscIndex.query(driveId, subgraph.relationalDb)
+        .selectFrom("osc_identifier")
+        .selectAll()
+        .where("identifier", "in", wanted),
+      "document_id",
+      access,
+    ).execute()) as Row[];
 
     return rows.map(toLocation);
   }
@@ -66,12 +82,14 @@ export const getResolvers = (
       findSource: (
         _parent: unknown,
         args: { driveId: string; identifier: string },
-      ) => lookup(args.driveId, [args.identifier]),
+        ctx: Context,
+      ) => lookup(ctx, args.driveId, [args.identifier]),
 
       findSources: (
         _parent: unknown,
         args: { driveId: string; identifiers: string[] },
-      ) => lookup(args.driveId, args.identifiers),
+        ctx: Context,
+      ) => lookup(ctx, args.driveId, args.identifiers),
     },
   };
 };
