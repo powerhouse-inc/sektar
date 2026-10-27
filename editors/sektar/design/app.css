@@ -2442,3 +2442,22 @@ html { touch-action: manipulation; }
 .sk-app .sk-ics__zone { color: var(--sk-text-muted); }
 .sk-app .sk-ics__description { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--sk-text-sm); color: var(--sk-text-secondary); }
 .sk-app .sk-ics__badges { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--sk-space-1); }
+
+/* Squeezed (a phone, or a narrow message pane side by side): the headers
+   read as a list, each name over its value, instead of a two-column table
+   whose 30% name column cut most names short. */
+.sk-app .sk-mail-headers__card { container-type: inline-size; container-name: mail-headers; }
+/* Specific enough to beat the narrow-dashboard rule that keeps other
+   tables tabular (".sk-table:not(.sk-table--stack)", above). */
+@container mail-headers (max-width: 520px) {
+  .sk-app .sk-shell__content .sk-mail-headers__card .sk-mail-headers .sk-table,
+  .sk-app .sk-shell__content .sk-mail-headers__card .sk-mail-headers .sk-table tbody,
+  .sk-app .sk-shell__content .sk-mail-headers__card .sk-mail-headers .sk-table tr,
+  .sk-app .sk-shell__content .sk-mail-headers__card .sk-mail-headers .sk-table td { display: block; width: auto; }
+  .sk-app .sk-shell__content .sk-mail-headers__card .sk-mail-headers .sk-table thead { display: none; }
+  .sk-app .sk-shell__content .sk-mail-headers__card .sk-mail-headers .sk-table tr { padding: var(--sk-space-2) var(--sk-space-2); border-bottom: 1px solid var(--sk-border-subtle); }
+  .sk-app .sk-shell__content .sk-mail-headers__card .sk-mail-headers .sk-table tbody tr:last-child { border-bottom: 0; }
+  .sk-app .sk-shell__content .sk-mail-headers__card .sk-mail-headers .sk-table td { padding: 0; border-bottom: 0; }
+  .sk-app .sk-shell__content .sk-mail-headers__card .sk-mail-headers .sk-table .sk-mail-headers__key { font-size: var(--sk-text-xs); font-weight: var(--sk-weight-medium); white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+  .sk-app .sk-shell__content .sk-mail-headers__card .sk-mail-headers .sk-table .sk-mail-headers__value { margin-top: 2px; }
+}
