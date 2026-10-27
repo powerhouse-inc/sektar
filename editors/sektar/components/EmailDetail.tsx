@@ -111,25 +111,34 @@ function Body({
  */
 function MessageFrame({ html }: { html: string }) {
   const frame = useRef<HTMLIFrameElement>(null);
-  const [height, setHeight] = useState<number | undefined>(undefined);
   useEffect(() => {
     const el = frame.current;
     if (!el) return;
     const measure = () => {
       const doc = el.contentDocument;
       if (!doc?.documentElement) return;
-      const next = Math.max(
-        doc.documentElement.scrollHeight,
-        doc.body?.scrollHeight ?? 0,
-      );
-      setHeight((prev) => (prev === next ? prev : next));
+      // A document's scrollHeight never drops below the frame's own height,
+      // so the frame is collapsed for the reading; the border is added back
+      // (border-box), or the last pixels scroll inside the frame.
+      const border = el.offsetHeight - el.clientHeight;
+      el.style.height = "0px";
+      const content = doc.documentElement.scrollHeight;
+      el.style.height = `${content + border}px`;
+      // It is as tall as its content: never a scrollbar of its own.
+      doc.documentElement.style.overflowY = "hidden";
     };
     // Images and fonts arrive after load: measure again for a while.
     const timers = [0, 150, 500, 1500, 4000].map((ms) =>
       window.setTimeout(measure, ms),
     );
     el.addEventListener("load", measure);
-    const widths = new ResizeObserver(measure);
+    // Only a new width reflows the message; a height change is our own.
+    let width = el.clientWidth;
+    const widths = new ResizeObserver(() => {
+      if (el.clientWidth === width) return;
+      width = el.clientWidth;
+      measure();
+    });
     widths.observe(el);
     return () => {
       timers.forEach((t) => window.clearTimeout(t));
@@ -146,7 +155,6 @@ function MessageFrame({ html }: { html: string }) {
       sandbox="allow-same-origin"
       referrerPolicy="no-referrer"
       srcDoc={html}
-      style={height ? { height } : undefined}
     />
   );
 }
