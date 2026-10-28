@@ -2,7 +2,7 @@
 // @powerhousedao/ph-cli/runners/switchboard and the drives hosts/switchboard declares.
 // Do not edit: when either changes, hosts importing this file fail to load
 // until it is regenerated (`ph generate hosts`).
-export const outputsHash = "sha256:0ceacbdbd94af377169a29854a2614d6";
+export const outputsHash = "sha256:daffbe93c6c42e37bca83da2de787656";
 
 export const outputs = {
   origin: {
@@ -51,6 +51,20 @@ export const outputs = {
         $output: {
           host: "switchboard",
           path: ["drives", "files", "url"],
+        },
+      },
+    },
+    integrations: {
+      id: {
+        $output: {
+          host: "switchboard",
+          path: ["drives", "integrations", "id"],
+        },
+      },
+      url: {
+        $output: {
+          host: "switchboard",
+          path: ["drives", "integrations", "url"],
         },
       },
     },

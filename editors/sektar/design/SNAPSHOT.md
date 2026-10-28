@@ -1,7 +1,7 @@
 # Vendored design system
 
 Source: `../sektar-design-elements/design-system`
-Synced: 2026-10-28T06:44:46.317Z by `scripts/sync-design-system.mjs`
+Synced: 2026-10-28T08:09:21.070Z by `scripts/sync-design-system.mjs`
 
 Not vendored on purpose: `css/fonts.css` and `assets/fonts/` (Fraunces stays on Google Fonts), `css/docs.css`, `js/`, photos, stucco shape variants.
 `base.css` is vendored for reference only; `app.css` carries its typography scoped to `.sk-page` / `.sk-app`.
@@ -15,7 +15,7 @@ Not vendored on purpose: `css/fonts.css` and `assets/fonts/` (Fraunces stays on 
 | assets/app-icons/sektar-app-icon-sage-dark.svg | 2026-10-17T13:42:08.532Z | c9bfd5fa19b6 |
 | assets/app-icons/sektar-app-icon-sage-light.svg | 2026-10-17T13:42:08.533Z | 8609c8356ea2 |
 | assets/favicon.svg | 2026-10-18T11:45:08.149Z | e1fe1fda7cf9 |
-| assets/icons.svg | 2026-10-28T06:44:46.183Z | 57aeb9d95dfe |
+| assets/icons.svg | 2026-10-28T07:37:00.222Z | d3db87e81ee5 |
 | assets/logos/sektar-logo-horizontal-dark.svg | 2026-10-17T13:42:08.412Z | 1a90a04b302e |
 | assets/logos/sektar-logo-horizontal-light.svg | 2026-10-18T11:57:12.576Z | f52038c13f0c |
 | assets/logos/sektar-symbol-dark.svg | 2026-10-17T13:42:08.477Z | 1375330474ff |
@@ -34,6 +34,6 @@ Not vendored on purpose: `css/fonts.css` and `assets/fonts/` (Fraunces stays on 
 | assets/shapes/sektar-pattern-repeat-dark.svg | 2026-10-17T13:42:09.039Z | 665366309842 |
 | assets/shapes/sektar-pattern-repeat-light.svg | 2026-10-17T13:42:09.044Z | 4047ea229312 |
 | css/base.css | 2026-10-18T15:32:34.788Z | 83c54b31ce2d |
-| css/components.css | 2026-10-18T16:52:24.994Z | bddd0c124111 |
+| css/components.css | 2026-10-28T07:37:00.222Z | 94d5ba081bfc |
 | css/tokens.css | 2026-10-18T12:35:43.419Z | 42dcad27f324 |
 | css/utilities.css | 2026-10-17T13:49:03.104Z | fdf2aa06bd05 |

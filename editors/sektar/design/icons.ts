@@ -200,6 +200,14 @@ export const sprite = `<svg xmlns="http://www.w3.org/2000/svg" style="display:no
     <rect x="7" y="19.5" width="10" height="2" rx="1" style="fill:var(--sk-icon-2)"/>
   </symbol>
 
+
+  <symbol id="i-sync" viewBox="0 0 24 24">
+    <path d="M4.8 11.2A7.3 7.3 0 0 1 17.6 7.4" fill="none" stroke-width="2.2" stroke-linecap="round" style="stroke:var(--sk-icon-1)"/>
+    <path d="M18 3.6v4.2h-4.2" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--sk-icon-1)"/>
+    <path d="M19.2 12.8A7.3 7.3 0 0 1 6.4 16.6" fill="none" stroke-width="2.2" stroke-linecap="round" style="stroke:var(--sk-icon-2)"/>
+    <path d="M6 20.4v-4.2h4.2" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--sk-icon-2)"/>
+  </symbol>
+
   <!-- Glyphs (single tone, stroke) -->
   <symbol id="i-chevron-right" viewBox="0 0 24 24">
     <path d="M9 6l6 6-6 6" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--sk-icon-1)"/>

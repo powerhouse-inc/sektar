@@ -7,6 +7,7 @@ export { ExpenseReportEditor } from "./expense-report-editor/module.js";
 export { FileEditor } from "./file-editor/module.js";
 export { Files } from "./files/module.js";
 export { FolderSync } from "./folder-sync/module.js";
+export { Integrations } from "./integrations/module.js";
 export { InvoiceEditor } from "./invoice-editor/module.js";
 export { OriginalSourceCollectionEditor } from "./original-source-collection-editor/module.js";
 export { OriginalSourceQueueEditor } from "./original-source-queue-editor/module.js";

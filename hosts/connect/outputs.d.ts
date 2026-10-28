@@ -4,7 +4,7 @@
 // until it is regenerated (`ph generate hosts`).
 import type { ItemToken, OutputToken } from "@powerhousedao/host-core/schema";
 
-export declare const outputsHash: "sha256:6e667ec8bd8fa58f21fddcb7ce25855f";
+export declare const outputsHash: "sha256:b7875b4130be625feba9fff9e2850470";
 
 export declare const outputs: {
   origin: OutputToken<string>;

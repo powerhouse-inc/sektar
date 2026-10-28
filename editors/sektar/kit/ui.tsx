@@ -53,6 +53,7 @@ export type IconName =
   | "sun"
   | "moon"
   | "monitor"
+  | "sync"
   | "chevron-right"
   | "chevron-down"
   | "arrow-right"

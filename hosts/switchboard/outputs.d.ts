@@ -4,7 +4,7 @@
 // until it is regenerated (`ph generate hosts`).
 import type { ItemToken, OutputToken } from "@powerhousedao/host-core/schema";
 
-export declare const outputsHash: "sha256:0ceacbdbd94af377169a29854a2614d6";
+export declare const outputsHash: "sha256:daffbe93c6c42e37bca83da2de787656";
 
 export declare const outputs: {
   origin: OutputToken<string>;
@@ -15,6 +15,7 @@ export declare const outputs: {
   drives: {
     backfills: { id: OutputToken<string>; url: OutputToken<string> };
     files: { id: OutputToken<string>; url: OutputToken<string> };
+    integrations: { id: OutputToken<string>; url: OutputToken<string> };
     mail: { id: OutputToken<string>; url: OutputToken<string> };
     sektar: { id: OutputToken<string>; url: OutputToken<string> };
     trips: { id: OutputToken<string>; url: OutputToken<string> };

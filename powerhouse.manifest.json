@@ -84,6 +84,13 @@
       "documentTypes": [
         "powerhouse/document-drive"
       ]
+    },
+    {
+      "name": "Integrations",
+      "id": "integrations",
+      "documentTypes": [
+        "powerhouse/document-drive"
+      ]
     }
   ],
   "editors": [
@@ -180,8 +187,8 @@
       "name": "files-index"
     },
     {
-      "name": "folder-sync",
-      "id": "folder-sync"
+      "id": "folder-sync",
+      "name": "folder-sync"
     },
     {
       "id": "finance-index",

@@ -24,6 +24,7 @@ import {
   productFor,
   rememberProduct,
   rememberedProduct,
+  type NavItem,
   type Product,
 } from "./-shared/products.js";
 import { SearchBar } from "./-shared/search-bar.js";
@@ -49,7 +50,11 @@ export const Route = createFileRoute("/_app")({
 });
 
 function pageTitle(pathname: string, product: Product) {
-  const nav = [...product.nav, ...(product.afterDrive ?? [])].find((n) =>
+  const nav = [
+    ...product.nav,
+    ...(product.beforeDrive ?? []),
+    ...(product.afterDrive ?? []),
+  ].find((n) =>
     navMatches(pathname, n.to),
   );
   if (nav) return nav.label;
@@ -193,25 +198,24 @@ function Sidebar({
 
       <ul className="sk-nav">
         {product.nav.map((item) => (
-          <li key={item.to}>
-            <Link
-              to={item.to}
-              className={
-                navMatches(pathname, item.to)
-                  ? "sk-nav__item is-active"
-                  : "sk-nav__item"
-              }
-              aria-current={navMatches(pathname, item.to) ? "page" : undefined}
-              onClick={onNavigate}
-            >
-              <Icon name={item.icon} />
-              <span className="sk-nav__label">{item.label}</span>
-            </Link>
-          </li>
+          <NavLink
+            key={item.to}
+            item={item}
+            pathname={pathname}
+            onNavigate={onNavigate}
+          />
         ))}
         <li className="sk-nav__group">
           <hr className="sk-divider" style={{ margin: 0 }} />
         </li>
+        {(product.beforeDrive ?? []).map((item) => (
+          <NavLink
+            key={item.to}
+            item={item}
+            pathname={pathname}
+            onNavigate={onNavigate}
+          />
+        ))}
         <li>
           <Link
             to="/d/$driveSlug/{-$nodeSlug}"
@@ -228,21 +232,12 @@ function Sidebar({
           </Link>
         </li>
         {(product.afterDrive ?? []).map((item) => (
-          <li key={item.to}>
-            <Link
-              to={item.to}
-              className={
-                navMatches(pathname, item.to)
-                  ? "sk-nav__item is-active"
-                  : "sk-nav__item"
-              }
-              aria-current={navMatches(pathname, item.to) ? "page" : undefined}
-              onClick={onNavigate}
-            >
-              <Icon name={item.icon} />
-              <span className="sk-nav__label">{item.label}</span>
-            </Link>
-          </li>
+          <NavLink
+            key={item.to}
+            item={item}
+            pathname={pathname}
+            onNavigate={onNavigate}
+          />
         ))}
         <li>
           <Link
@@ -282,6 +277,32 @@ function Sidebar({
         <UserMenu />
       </div>
     </aside>
+  );
+}
+
+/** One sidebar entry: a route, active when the URL is that page. */
+function NavLink({
+  item,
+  pathname,
+  onNavigate,
+}: {
+  item: NavItem;
+  pathname: string;
+  onNavigate?: () => void;
+}) {
+  const active = navMatches(pathname, item.to);
+  return (
+    <li>
+      <Link
+        to={item.to}
+        className={active ? "sk-nav__item is-active" : "sk-nav__item"}
+        aria-current={active ? "page" : undefined}
+        onClick={onNavigate}
+      >
+        <Icon name={item.icon} />
+        <span className="sk-nav__label">{item.label}</span>
+      </Link>
+    </li>
   );
 }
 

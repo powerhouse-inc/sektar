@@ -73,6 +73,15 @@ export default {
         preferredEditor: "backfills",
         icon: "./icons/sektar_symbol_64x64.png",
       },
+      // Integrations: sektar/integration documents, opened by the
+      // Integrations drive app. What the user asked for (an account kept in
+      // sync) lives here; the reconciler builds the workflows behind it.
+      {
+        slug: "integrations",
+        name: "Integrations",
+        preferredEditor: "integrations",
+        icon: "./icons/sektar_symbol_64x64.png",
+      },
       // Files: any document or file, opened by the Files drive app.
       {
         slug: "files",

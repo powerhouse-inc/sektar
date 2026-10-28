@@ -30,6 +30,8 @@ export type Product = {
    * the drive app it is bound to (header.meta.preferredEditor).
    */
   drive: { slug: string; label: string; editor: string };
+  /** Above the drive's entry, below the divider: what the machinery serves, e.g. Integrations */
+  beforeDrive?: NavItem[];
   /** Below the drive's entry: the product's other machinery, e.g. Backfills */
   afterDrive?: NavItem[];
 };
@@ -57,6 +59,10 @@ export const PRODUCTS: readonly Product[] = [
       label: "Workflows",
       editor: "workflow-studio",
     },
+    beforeDrive: [
+      // The Integrations drive (hosts/switchboard: slug "integrations", drive app integrations)
+      { to: "/d/integrations", label: "Integrations", icon: "sync" },
+    ],
     afterDrive: [
       // The Backfills drive (hosts/*: slug "backfills", drive app backfills)
       { to: "/d/backfills", label: "Backfills", icon: "download" },
@@ -179,6 +185,7 @@ export function productFor(
   const own = PRODUCTS.find(
     (p) =>
       p.nav.some((n) => navMatches(pathname, n.to)) ||
+      (p.beforeDrive ?? []).some((n) => navMatches(pathname, n.to)) ||
       (p.afterDrive ?? []).some((n) => navMatches(pathname, n.to)) ||
       isProductDrive(pathname, p),
   );
