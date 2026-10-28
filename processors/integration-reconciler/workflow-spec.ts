@@ -18,7 +18,31 @@ export type WorkflowAction = ReturnType<
   | typeof wf.updateStep
   | typeof wf.publishWorkflow
   | typeof wf.setManagedBy
+  | typeof wf.setPolicy
 >;
+
+export type StepRetry = {
+  maxAttempts: number;
+  backoff: "FIXED" | "EXPONENTIAL";
+  initialDelaySeconds: number;
+  maxDelaySeconds: number;
+  retryOn: string[];
+};
+
+/**
+ * What every workflow the reconciler builds retries: a step whose piece the
+ * runtime could not fetch yet, which is what the first runs after a
+ * switchboard start meet while npm answers slowly. Any other failed step
+ * still parks the workflow at once. Without it, each restart parked the
+ * backfills and the slices skipped while parked were lost.
+ */
+export const STEP_RETRY: StepRetry = {
+  maxAttempts: 4,
+  backoff: "EXPONENTIAL",
+  initialDelaySeconds: 30,
+  maxDelaySeconds: 120,
+  retryOn: ["No source could be asked for"],
+};
 
 export type TriggerSpec = {
   pieceName: string;
@@ -85,6 +109,8 @@ export type WorkflowFacts = {
   }[];
   /** The document that manages it (managedBy.documentId); null: nobody */
   managedBy?: string | null;
+  /** The published policy's retry for a failed step; absent: not read */
+  defaultRetry?: StepRetry | null;
 };
 
 /** Marks a workflow as kept by an integration (Studio shows it read-only). */
@@ -115,6 +141,7 @@ export function buildWorkflow(
     ...stepIds.map((to, i) =>
       wf.addEdge({ id: newId(), from: chain[i], to, port: "next" }),
     ),
+    wf.setPolicy({ defaultRetry: STEP_RETRY }),
     wf.publishWorkflow({ publishedAt: now }),
     wf.setWorkflowStatus({ status: spec.enabled ? "ENABLED" : "DISABLED" }),
   ];
@@ -128,8 +155,8 @@ export type Drift = {
 
 /**
  * What to change so the published workflow is the spec again: the trigger's
- * config and connections, the steps' sign-ins (then a re-publish), and its
- * status. Empty when it already is.
+ * config and connections, the steps' sign-ins, the step retry (then a
+ * re-publish), and its status. Empty when it already is.
  */
 export function workflowDrift(
   spec: WorkflowSpec,
@@ -180,6 +207,13 @@ export function workflowDrift(
       differences.push(`${subject}'s step "${step.name}" was changed`);
       edits.push(wf.updateStep({ id: published.id, config: step.config }));
     }
+  }
+  if (
+    facts.defaultRetry !== undefined &&
+    !sameJson(facts.defaultRetry, STEP_RETRY)
+  ) {
+    differences.push(`${subject} did not retry a piece it could not fetch`);
+    edits.push(wf.setPolicy({ defaultRetry: STEP_RETRY }));
   }
   const unpublished =
     facts.publishedVersion === null || facts.publishedVersion !== facts.version;

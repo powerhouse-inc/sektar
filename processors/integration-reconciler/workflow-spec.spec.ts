@@ -10,6 +10,7 @@ import { reducer } from "document-models/integration/v1";
 import {
   buildWorkflow,
   humanSeconds,
+  STEP_RETRY,
   workflowDrift,
   type WorkflowFacts,
 } from "./workflow-spec.js";
@@ -92,6 +93,7 @@ describe("the live workflow (Google Calendar)", () => {
       ],
       ["ADD_EDGE", { id: "id-4", from: "id-1", to: "id-2", port: "next" }],
       ["ADD_EDGE", { id: "id-5", from: "id-2", to: "id-3", port: "next" }],
+      ["SET_POLICY", { defaultRetry: STEP_RETRY }],
       ["PUBLISH_WORKFLOW", { publishedAt: AT }],
       ["SET_WORKFLOW_STATUS", { status: "ENABLED" }],
     ]);
@@ -129,6 +131,25 @@ describe("the live workflow (Google Calendar)", () => {
         },
       }).differences,
     ).toEqual(["the workflow's trigger settings were changed"]);
+  });
+
+  // A switchboard start used to park every backfill: its first slice met
+  // npm still slow and failed fetching the piece
+  it("retries a piece it could not fetch, and puts that back", () => {
+    expect(drift({ defaultRetry: STEP_RETRY })).toEqual({
+      differences: [],
+      actions: [],
+    });
+    const d = drift({
+      defaultRetry: { ...STEP_RETRY, maxAttempts: 1, retryOn: [] },
+    });
+    expect(d.differences).toEqual([
+      "the workflow did not retry a piece it could not fetch",
+    ]);
+    expect(d.actions.map((a) => [a.type, a.input])).toEqual([
+      ["SET_POLICY", { defaultRetry: STEP_RETRY }],
+      ["PUBLISH_WORKFLOW", { publishedAt: AT }],
+    ]);
   });
 
   it("publishes unpublished edits, and switches the status", () => {
@@ -175,6 +196,7 @@ describe("the history workflow (Google Calendar)", () => {
       "ADD_EDGE",
       "ADD_EDGE",
       "ADD_EDGE",
+      "SET_POLICY",
       "PUBLISH_WORKFLOW",
       "SET_WORKFLOW_STATUS",
     ]);

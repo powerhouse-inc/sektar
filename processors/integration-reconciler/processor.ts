@@ -22,7 +22,11 @@ import { utils as queueUtils } from "document-models/original-source-queue";
 import type { QueueState } from "../../editors/backfills/progress.js";
 import type { IntegrationState } from "document-models/integration";
 import { hostname } from "node:os";
-import type { RuntimeHealth, WorkflowFacts } from "./workflow-spec.js";
+import type {
+  RuntimeHealth,
+  StepRetry,
+  WorkflowFacts,
+} from "./workflow-spec.js";
 import {
   reconcileIntegration,
   type ConnectionFacts,
@@ -249,6 +253,7 @@ export class IntegrationReconciler implements IProcessor {
                   connectionId?: string | null;
                   config?: Record<string, unknown> | null;
                 }[];
+                policy?: { defaultRetry?: StepRetry | null } | null;
               } | null;
             };
           }
@@ -263,6 +268,7 @@ export class IntegrationReconciler implements IProcessor {
           triggerConfig: trigger?.config ?? null,
           triggerReactorConnectionId: trigger?.reactorConnectionId ?? null,
           managedBy: g.managedBy?.documentId ?? null,
+          defaultRetry: g.published?.policy?.defaultRetry ?? null,
           steps: (g.published?.steps ?? []).map((step) => ({
             id: step.id,
             key: step.key,

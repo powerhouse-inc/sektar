@@ -311,6 +311,7 @@ describe("the live workflow", () => {
       "ADD_STEP",
       "ADD_EDGE",
       "ADD_EDGE",
+      "SET_POLICY",
       "PUBLISH_WORKFLOW",
       "SET_WORKFLOW_STATUS",
       "SET_MANAGED_BY",
