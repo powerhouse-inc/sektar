@@ -14,6 +14,7 @@ import {
 import { Menu } from "../../sektar/kit/menu.js";
 import { Alert, Badge, Button, Icon, Modal } from "../../sektar/kit/ui.js";
 import { AccountLabel, CardRows } from "./CardRows.js";
+import type { TriggerState } from "../../sektar/kit/workflow-runtime.js";
 import { SignIn } from "./SignIn.js";
 
 /**
@@ -23,7 +24,14 @@ import { SignIn } from "./SignIn.js";
  * the Live updates and Backfill rows follow (CardRows). Its menu
  * removes it, through a confirmation that says what removing does.
  */
-export function IntegrationCard({ doc }: { doc: IntegrationDocument }) {
+export function IntegrationCard({
+  doc,
+  triggers,
+}: {
+  doc: IntegrationDocument;
+  /** The runtime's trigger states by workflow id (useTriggerStates) */
+  triggers?: ReadonlyMap<string, TriggerState>;
+}) {
   const s = doc.state.global;
   const view = cardView(s);
   const kind = kindInfo(s.kind);
@@ -32,6 +40,9 @@ export function IntegrationCard({ doc }: { doc: IntegrationDocument }) {
     [provider?.lead, kind?.label].filter(Boolean)[0] ?? "Not set up";
   const [removing, setRemoving] = useState(false);
   const name = doc.header.name || kind?.label || "Integration";
+  // All well (Live, Paused): the rows below say it, and the badge sits in
+  // the head as in the design system; otherwise a Status row says what is up.
+  const quiet = view.state === "live" || view.state === "paused";
   return (
     <article
       className={
@@ -40,7 +51,13 @@ export function IntegrationCard({ doc }: { doc: IntegrationDocument }) {
           : "sk-card sk-integration"
       }
     >
-      <header className="sk-integration__head sk-integration__head--menu">
+      <header
+        className={
+          quiet
+            ? "sk-integration__head sk-integration__head--menu sk-integration__head--badge"
+            : "sk-integration__head sk-integration__head--menu"
+        }
+      >
         <span className="sk-icon-tile">
           <Icon name={kind?.icon ?? "sync"} />
         </span>
@@ -59,6 +76,11 @@ export function IntegrationCard({ doc }: { doc: IntegrationDocument }) {
             )}
           </div>
         </div>
+        {quiet && (
+          <Badge tone={view.badge.tone} dot={view.badge.dot}>
+            {view.badge.label}
+          </Badge>
+        )}
         <Menu
           label={`${name}: more`}
           items={[
@@ -81,24 +103,36 @@ export function IntegrationCard({ doc }: { doc: IntegrationDocument }) {
           )}
         />
       </header>
-      <div className="sk-integration__row">
-        <div>
-          <div className="sk-integration__label">
-            {view.state === "waiting-for-sign-in" || view.state === "incomplete"
-              ? "Next"
-              : "Status"}
+      {!quiet && (
+        <div className="sk-integration__row">
+          <div>
+            <div className="sk-integration__label">
+              {view.state === "waiting-for-sign-in" ||
+              view.state === "incomplete"
+                ? "Next"
+                : "Status"}
+            </div>
+            <div className="sk-integration__meta">{view.line}</div>
           </div>
-          <div className="sk-integration__meta">{view.line}</div>
+          <Badge tone={view.badge.tone} dot={view.badge.dot}>
+            {view.badge.label}
+          </Badge>
         </div>
-        <Badge tone={view.badge.tone} dot={view.badge.dot}>
-          {view.badge.label}
-        </Badge>
-      </div>
+      )}
       {view.state === "waiting-for-sign-in" && <SignIn doc={doc} />}
       {(view.state === "live" ||
         view.state === "paused" ||
         view.state === "applying" ||
-        view.state === "attention") && <CardRows doc={doc} />}
+        view.state === "attention") && (
+        <CardRows
+          doc={doc}
+          liveTrigger={
+            s.resources.liveWorkflowId
+              ? triggers?.get(s.resources.liveWorkflowId)
+              : undefined
+          }
+        />
+      )}
       {removing && (
         <RemoveDialog
           doc={doc}

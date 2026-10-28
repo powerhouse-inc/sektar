@@ -6,6 +6,8 @@
  * Design: workspace/integrations-design.md; pilot: calendar-integration-pilot.md.
  */
 import type { QueueProgress } from "../../backfills/progress.js";
+import { ago } from "./folder-sync.js";
+import type { TriggerState } from "./workflow-runtime.js";
 import {
   actions,
   type IntegrationAccess,
@@ -554,4 +556,41 @@ export function historyView(
     amount,
   ].filter(Boolean);
   return { line: parts.join(" · "), percent, complete: false };
+}
+
+/** What the Live updates row says, and its dot (design system: sk-sync-dot). */
+export type LiveLine = {
+  line: string;
+  dot: "ok" | "running" | "paused" | "warning" | "error" | null;
+};
+
+/**
+ * The Live updates row: when the live workflow last looked for changes and
+ * how often it does ("Synced 4 min ago · checks every 5 minutes"), from the
+ * runtime's trigger state. Without one (not read yet, or never polled) it
+ * says how often it checks.
+ */
+export function liveLine(
+  state: IntegrationState,
+  trigger: TriggerState | undefined,
+  now = Date.now(),
+): LiveLine {
+  const every = intervalLabel(state.intent.live.every);
+  if (!state.intent.live.enabled) return { line: "Off", dot: "paused" };
+  if (!trigger) return { line: `Checks for changes ${every}`, dot: null };
+  const last = trigger.lastPollAt ? ago(trigger.lastPollAt, now) : null;
+  if (trigger.status === "PARKED") {
+    return {
+      line: last ? `Stopped · last synced ${last}` : "Stopped",
+      dot: "error",
+    };
+  }
+  if (trigger.status === "ERROR" || trigger.lastError) {
+    return {
+      line: last ? `Failing · last synced ${last}` : "Failing",
+      dot: "warning",
+    };
+  }
+  if (!last) return { line: `Starting · checks ${every}`, dot: "running" };
+  return { line: `Synced ${last} · checks ${every}`, dot: "ok" };
 }

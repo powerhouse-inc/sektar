@@ -9,6 +9,7 @@ import { KINDS } from "../../sektar/kit/integrations.js";
 import { Button, EmptyState, PageHeader } from "../../sektar/kit/ui.js";
 import { CreateFlow, firstStep, STEPS, type CreateStep } from "./CreateFlow.js";
 import { IntegrationCard } from "./IntegrationCard.js";
+import { useTriggerStates } from "./use-trigger-states.js";
 import { useHashStep } from "./use-hash-step.js";
 
 /**
@@ -21,6 +22,7 @@ import { useHashStep } from "./use-hash-step.js";
 export function IntegrationsPage() {
   const [hash, setHash] = useHashStep();
   const docs = useIntegrationDocumentsInSelectedDrive() ?? [];
+  const triggers = useTriggerStates();
   const step = STEPS.find((s) => s === hash);
 
   if (step) {
@@ -93,7 +95,11 @@ export function IntegrationsPage() {
                 </h2>
                 <div className="sk-integration-grid">
                   {g.docs.map((d) => (
-                    <IntegrationCard key={d.header.id} doc={d} />
+                    <IntegrationCard
+                      key={d.header.id}
+                      doc={d}
+                      triggers={triggers}
+                    />
                   ))}
                 </div>
               </section>
@@ -108,7 +114,11 @@ export function IntegrationsPage() {
                 </h2>
                 <div className="sk-integration-grid">
                   {unset.map((d) => (
-                    <IntegrationCard key={d.header.id} doc={d} />
+                    <IntegrationCard
+                      key={d.header.id}
+                      doc={d}
+                      triggers={triggers}
+                    />
                   ))}
                 </div>
               </section>

@@ -6,7 +6,8 @@ import { actions, type IntegrationDocument } from "document-models/integration";
 import { isOriginalSourceQueueDocument } from "document-models/original-source-queue";
 import { Component, Suspense, useMemo, type ReactNode } from "react";
 import { queueProgress, type QueueProgress } from "../../backfills/progress.js";
-import { historyView, intervalLabel } from "../../sektar/kit/integrations.js";
+import { historyView, liveLine } from "../../sektar/kit/integrations.js";
+import type { TriggerState } from "../../sektar/kit/workflow-runtime.js";
 import { Switch } from "../../sektar/kit/ui.js";
 
 /**
@@ -15,8 +16,16 @@ import { Switch } from "../../sektar/kit/ui.js";
  * reconciler on the runner turns the workflow on or off. The Backfill row
  * reads its queues from the Backfills drive.
  */
-export function CardRows({ doc }: { doc: IntegrationDocument }) {
+export function CardRows({
+  doc,
+  liveTrigger,
+}: {
+  doc: IntegrationDocument;
+  /** The runtime's state of the live workflow's trigger, once read */
+  liveTrigger?: TriggerState;
+}) {
   const s = doc.state.global;
+  const live = liveLine(s, liveTrigger);
   const set = (action: Parameters<typeof dispatchActions>[0]) => {
     void dispatchActions(action, doc.header.id);
   };
@@ -40,9 +49,10 @@ export function CardRows({ doc }: { doc: IntegrationDocument }) {
         <div>
           <div className="sk-integration__label">Live updates</div>
           <div className="sk-integration__meta">
-            {s.intent.live.enabled
-              ? `Checks for changes ${intervalLabel(s.intent.live.every)}`
-              : "Off"}
+            {live.dot && (
+              <span className={`sk-sync-dot sk-sync-dot--${live.dot}`} />
+            )}
+            {live.line}
           </div>
         </div>
         <Switch

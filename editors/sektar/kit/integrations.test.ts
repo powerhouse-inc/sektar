@@ -8,6 +8,7 @@ import {
   accessOptions,
   cardView,
   historyView,
+  liveLine,
   hasBuiltAnything,
   removalPlan,
   createActions,
@@ -382,5 +383,59 @@ describe("historyView", () => {
     const none = structuredClone(created().state.global);
     none.intent.backfill.items = [];
     expect(historyView(none, new Map())).toBeNull();
+  });
+});
+
+describe("liveLine", () => {
+  const NOW_MS = Date.parse("2026-10-28T15:00:00.000Z");
+  const trigger = (
+    patch: Partial<Parameters<typeof liveLine>[1] & object> = {},
+  ) => ({
+    workflowId: "wf",
+    status: "ENABLED",
+    lastPollAt: "2026-10-28T14:56:00.000Z",
+    nextPollAt: null,
+    lastError: null,
+    ...patch,
+  });
+
+  it("says when it last looked and how often it does", () => {
+    const s = created().state.global;
+    expect(liveLine(s, trigger(), NOW_MS)).toEqual({
+      line: "Synced 4 min ago · checks every 5 minutes",
+      dot: "ok",
+    });
+    expect(liveLine(s, trigger({ lastPollAt: null }), NOW_MS)).toEqual({
+      line: "Starting · checks every 5 minutes",
+      dot: "running",
+    });
+    // Not read yet: only how often
+    expect(liveLine(s, undefined, NOW_MS)).toEqual({
+      line: "Checks for changes every 5 minutes",
+      dot: null,
+    });
+  });
+
+  it("says when it fails, stopped, or is off", () => {
+    const s = created().state.global;
+    expect(
+      liveLine(s, trigger({ status: "ERROR", lastError: "timeout" }), NOW_MS),
+    ).toEqual({ line: "Failing · last synced 4 min ago", dot: "warning" });
+    expect(liveLine(s, trigger({ status: "PARKED" }), NOW_MS)).toEqual({
+      line: "Stopped · last synced 4 min ago",
+      dot: "error",
+    });
+    expect(
+      liveLine(s, trigger({ status: "PARKED", lastPollAt: null }), NOW_MS).line,
+    ).toBe("Stopped");
+    expect(
+      liveLine(s, trigger({ status: "ERROR", lastPollAt: null }), NOW_MS).line,
+    ).toBe("Failing");
+    const off = structuredClone(s);
+    off.intent.live.enabled = false;
+    expect(liveLine(off, trigger(), NOW_MS)).toEqual({
+      line: "Off",
+      dot: "paused",
+    });
   });
 });

@@ -2584,3 +2584,5 @@ html { touch-action: manipulation; }
   flex-direction: column;
   min-height: 0;
 }
+/* An integration card with nothing to report: its badge in the head, before the menu */
+.sk-app .sk-integration__head--badge { grid-template-columns: auto minmax(0, 1fr) auto auto; }

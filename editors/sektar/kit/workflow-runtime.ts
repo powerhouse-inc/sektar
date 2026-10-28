@@ -122,3 +122,27 @@ export async function signInStatus(
   );
   return data.workflowRuntime.oauthAttempt;
 }
+
+/** How the runtime holds one workflow's trigger: when it last looked, and whether that worked. */
+export type TriggerState = {
+  workflowId: string;
+  /** ENABLED | DISABLED | ERROR | PARKED */
+  status: string;
+  lastPollAt: string | null;
+  nextPollAt: string | null;
+  lastError: string | null;
+};
+
+/** The triggers of the workflows this person may read. */
+export async function triggerStates(url: string): Promise<TriggerState[]> {
+  const data = await gql<{
+    workflowRuntime: { triggerStates: TriggerState[] };
+  }>(
+    url,
+    `query TriggerStates {
+      workflowRuntime { triggerStates { workflowId status lastPollAt nextPollAt lastError } }
+    }`,
+    {},
+  );
+  return data.workflowRuntime.triggerStates;
+}
