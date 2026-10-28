@@ -5,16 +5,19 @@
 import { createAction } from "document-model";
 import {
   AddDateRangeBackfillInputSchema,
+  AttachBackfillInputSchema,
   RemoveBackfillInputSchema,
   SetBackfillEnabledInputSchema,
 } from "../schema/zod.js";
 import type {
   AddDateRangeBackfillInput,
+  AttachBackfillInput,
   RemoveBackfillInput,
   SetBackfillEnabledInput,
 } from "../types.js";
 import type {
   AddDateRangeBackfillAction,
+  AttachBackfillAction,
   RemoveBackfillAction,
   SetBackfillEnabledAction,
 } from "./actions.js";
@@ -34,6 +37,15 @@ export const addDateRangeBackfill = (input: AddDateRangeBackfillInput) =>
     { ...input },
     undefined,
     AddDateRangeBackfillInputSchema,
+    "global",
+  );
+
+export const attachBackfill = (input: AttachBackfillInput) =>
+  createAction<AttachBackfillAction>(
+    "ATTACH_BACKFILL",
+    { ...input },
+    undefined,
+    AttachBackfillInputSchema,
     "global",
   );
 

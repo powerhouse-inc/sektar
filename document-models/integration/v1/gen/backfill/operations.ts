@@ -6,6 +6,7 @@ import { type SignalDispatch } from "document-model";
 import type { IntegrationGlobalState } from "../types.js";
 import type {
   AddDateRangeBackfillAction,
+  AttachBackfillAction,
   RemoveBackfillAction,
   SetBackfillEnabledAction,
 } from "./actions.js";
@@ -19,6 +20,11 @@ export interface IntegrationBackfillOperations {
   addDateRangeBackfillOperation: (
     state: IntegrationGlobalState,
     action: AddDateRangeBackfillAction,
+    dispatch?: SignalDispatch,
+  ) => void;
+  attachBackfillOperation: (
+    state: IntegrationGlobalState,
+    action: AttachBackfillAction,
     dispatch?: SignalDispatch,
   ) => void;
   removeBackfillOperation: (

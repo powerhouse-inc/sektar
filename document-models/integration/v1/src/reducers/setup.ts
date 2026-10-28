@@ -32,4 +32,30 @@ export const integrationSetupOperations: IntegrationSetupOperations = {
     state.intent.access = action.input.access;
     state.intent.generation += 1;
   },
+  setEmailSourceOperation(state, action) {
+    if (state.kind !== "EMAIL")
+      throw new WrongKindError("Only an email integration has a mailbox");
+    state.intent.source = {
+      mailbox: action.input.mailbox,
+      address: action.input.address ?? null,
+      folders: action.input.folders,
+    };
+    state.intent.generation += 1;
+  },
+  setTransactionsSourceOperation(state, action) {
+    if (state.kind !== "TRANSACTIONS")
+      throw new WrongKindError(
+        "Only a transactions integration has bank accounts",
+      );
+    state.intent.source = {
+      bankConnectionId: action.input.bankConnectionId,
+      accounts: action.input.accounts.map((a) => ({
+        accountId: a.accountId,
+        accountKey: a.accountKey,
+        bankAccountId: a.bankAccountId,
+        label: a.label ?? null,
+      })),
+    };
+    state.intent.generation += 1;
+  },
 };

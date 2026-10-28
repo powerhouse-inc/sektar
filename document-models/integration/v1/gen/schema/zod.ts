@@ -4,10 +4,13 @@ import * as z from "zod";
 import type {
   AddDateRangeBackfillInput,
   ArchiveInput,
+  AttachBackfillInput,
   BackfillBatch,
   BackfillDirection,
   BackfillIntent,
   BackfillItem,
+  BankAccountLink,
+  BankAccountLinkInput,
   CalendarRef,
   CalendarRefInput,
   CalendarSource,
@@ -41,8 +44,11 @@ import type {
   SetAccessInput,
   SetBackfillEnabledInput,
   SetCalendarSourceInput,
+  SetEmailSourceInput,
   SetLiveEnabledInput,
   SetLiveIntervalInput,
+  SetTransactionsSourceInput,
+  TransactionsSource,
 } from "./types.js";
 
 type Properties<T> = Required<{
@@ -93,6 +99,17 @@ export function ArchiveInputSchema(): z.ZodObject<Properties<ArchiveInput>> {
   });
 }
 
+export function AttachBackfillInputSchema(): z.ZodObject<
+  Properties<AttachBackfillInput>
+> {
+  return z.object({
+    documentId: z.string(),
+    documentType: z.string(),
+    id: z.string(),
+    label: z.string(),
+  });
+}
+
 export function BackfillBatchSchema(): z.ZodObject<Properties<BackfillBatch>> {
   return z.object({
     __typename: z.literal("BackfillBatch").optional(),
@@ -126,6 +143,29 @@ export function BackfillItemSchema(): z.ZodObject<Properties<BackfillItem>> {
 
 export function BackfillRequestSchema() {
   return z.union([DateRangeBackfillSchema(), FolderListBackfillSchema()]);
+}
+
+export function BankAccountLinkSchema(): z.ZodObject<
+  Properties<BankAccountLink>
+> {
+  return z.object({
+    __typename: z.literal("BankAccountLink").optional(),
+    accountId: z.string(),
+    accountKey: z.string(),
+    bankAccountId: z.string(),
+    label: z.string().nullish(),
+  });
+}
+
+export function BankAccountLinkInputSchema(): z.ZodObject<
+  Properties<BankAccountLinkInput>
+> {
+  return z.object({
+    accountId: z.string(),
+    accountKey: z.string(),
+    bankAccountId: z.string(),
+    label: z.string().nullish(),
+  });
 }
 
 export function CalendarRefSchema(): z.ZodObject<Properties<CalendarRef>> {
@@ -170,6 +210,7 @@ export function DateRangeBackfillSchema(): z.ZodObject<
 export function EmailSourceSchema(): z.ZodObject<Properties<EmailSource>> {
   return z.object({
     __typename: z.literal("EmailSource").optional(),
+    address: z.string().nullish(),
     folders: z.array(z.string()),
     mailbox: z.string(),
   });
@@ -317,7 +358,11 @@ export function IntegrationRunnerSchema(): z.ZodObject<
 }
 
 export function IntegrationSourceSchema() {
-  return z.union([CalendarSourceSchema(), EmailSourceSchema()]);
+  return z.union([
+    CalendarSourceSchema(),
+    EmailSourceSchema(),
+    TransactionsSourceSchema(),
+  ]);
 }
 
 export function IntegrationStateSchema(): z.ZodObject<
@@ -440,6 +485,16 @@ export function SetCalendarSourceInputSchema(): z.ZodObject<
   });
 }
 
+export function SetEmailSourceInputSchema(): z.ZodObject<
+  Properties<SetEmailSourceInput>
+> {
+  return z.object({
+    address: z.string().nullish(),
+    folders: z.array(z.string()),
+    mailbox: z.string(),
+  });
+}
+
 export function SetLiveEnabledInputSchema(): z.ZodObject<
   Properties<SetLiveEnabledInput>
 > {
@@ -454,5 +509,24 @@ export function SetLiveIntervalInputSchema(): z.ZodObject<
   return z.object({
     unit: IntervalUnitSchema,
     value: z.number(),
+  });
+}
+
+export function SetTransactionsSourceInputSchema(): z.ZodObject<
+  Properties<SetTransactionsSourceInput>
+> {
+  return z.object({
+    accounts: z.array(z.lazy(() => BankAccountLinkInputSchema())),
+    bankConnectionId: z.string(),
+  });
+}
+
+export function TransactionsSourceSchema(): z.ZodObject<
+  Properties<TransactionsSource>
+> {
+  return z.object({
+    __typename: z.literal("TransactionsSource").optional(),
+    accounts: z.array(z.lazy(() => BankAccountLinkSchema())),
+    bankConnectionId: z.string(),
   });
 }

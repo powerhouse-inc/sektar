@@ -78,6 +78,14 @@ export type ArchiveInput = {
   _?: InputMaybe<Scalars["Boolean"]["input"]>;
 };
 
+export type AttachBackfillInput = {
+  /** An existing backfill document, adopted as it is */
+  documentId: Scalars["PHID"]["input"];
+  documentType: Scalars["String"]["input"];
+  id: Scalars["OID"]["input"];
+  label: Scalars["String"]["input"];
+};
+
 export type BackfillBatch = {
   every: Interval;
   size: Scalars["Int"]["output"];
@@ -114,6 +122,23 @@ export type BackfillItem = {
 
 export type BackfillRequest = DateRangeBackfill | FolderListBackfill;
 
+export type BankAccountLink = {
+  /** The aggregator's account id */
+  accountId: Scalars["String"]["output"];
+  /** The aggregator's stable account key, used in transaction references */
+  accountKey: Scalars["String"]["output"];
+  /** The sektar/bank-account document its transactions go in */
+  bankAccountId: Scalars["PHID"]["output"];
+  label: Maybe<Scalars["String"]["output"]>;
+};
+
+export type BankAccountLinkInput = {
+  accountId: Scalars["String"]["input"];
+  accountKey: Scalars["String"]["input"];
+  bankAccountId: Scalars["PHID"]["input"];
+  label?: InputMaybe<Scalars["String"]["input"]>;
+};
+
 export type CalendarRef = {
   /** The provider's calendar id */
   id: Scalars["String"]["output"];
@@ -142,7 +167,11 @@ export type DateRangeBackfill = {
 };
 
 export type EmailSource = {
+  /** The account's address; null until the sign-in names it */
+  address: Maybe<Scalars["String"]["output"]>;
+  /** Labels or folders to bring in; empty: all mail */
   folders: Array<Scalars["String"]["output"]>;
+  /** The account's name in Sektar, and the Mail drive folder its messages go in, e.g. Personal */
   mailbox: Scalars["String"]["output"];
 };
 
@@ -258,7 +287,10 @@ export type IntegrationRunner = {
   reactorId: Scalars["String"]["output"];
 };
 
-export type IntegrationSource = CalendarSource | EmailSource;
+export type IntegrationSource =
+  | CalendarSource
+  | EmailSource
+  | TransactionsSource;
 
 export type IntegrationState = {
   /** The last intent generation the reconciler committed */
@@ -355,6 +387,12 @@ export type SetCalendarSourceInput = {
   calendars: Array<CalendarRefInput>;
 };
 
+export type SetEmailSourceInput = {
+  address?: InputMaybe<Scalars["String"]["input"]>;
+  folders: Array<Scalars["String"]["input"]>;
+  mailbox: Scalars["String"]["input"];
+};
+
 export type SetLiveEnabledInput = {
   enabled: Scalars["Boolean"]["input"];
 };
@@ -362,4 +400,16 @@ export type SetLiveEnabledInput = {
 export type SetLiveIntervalInput = {
   unit: IntervalUnit;
   value: Scalars["Int"]["input"];
+};
+
+export type SetTransactionsSourceInput = {
+  accounts: Array<BankAccountLinkInput>;
+  bankConnectionId: Scalars["String"]["input"];
+};
+
+export type TransactionsSource = {
+  /** Its accounts, each onto a Sektar bank account */
+  accounts: Array<BankAccountLink>;
+  /** The aggregator's own id of the bank connection (Distyra: connectionId), e.g. KBC */
+  bankConnectionId: Scalars["String"]["output"];
 };

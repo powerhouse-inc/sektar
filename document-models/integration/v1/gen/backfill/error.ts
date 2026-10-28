@@ -45,5 +45,7 @@ export const errors = {
     InvalidRangeError,
   },
 
+  AttachBackfill: { NotInitializedError, DuplicateBackfillIdError },
+
   RemoveBackfill: { UnknownBackfillError },
 };

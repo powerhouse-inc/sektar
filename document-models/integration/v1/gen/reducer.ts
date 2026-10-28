@@ -13,6 +13,7 @@ import { integrationSetupOperations } from "../src/reducers/setup.js";
 import {
   AddDateRangeBackfillInputSchema,
   ArchiveInputSchema,
+  AttachBackfillInputSchema,
   InitializeInputSchema,
   RecordBackfillDocumentInputSchema,
   RecordCheckInputSchema,
@@ -23,8 +24,10 @@ import {
   SetAccessInputSchema,
   SetBackfillEnabledInputSchema,
   SetCalendarSourceInputSchema,
+  SetEmailSourceInputSchema,
   SetLiveEnabledInputSchema,
   SetLiveIntervalInputSchema,
+  SetTransactionsSourceInputSchema,
 } from "./schema/zod.js";
 
 const schemaMemo = new Map<() => unknown, unknown>();
@@ -83,6 +86,30 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       break;
     }
 
+    case "SET_EMAIL_SOURCE": {
+      memoizedSchema(SetEmailSourceInputSchema).parse(action.input);
+
+      integrationSetupOperations.setEmailSourceOperation(
+        (state as any)[action.scope],
+        action as any,
+        dispatch,
+      );
+
+      break;
+    }
+
+    case "SET_TRANSACTIONS_SOURCE": {
+      memoizedSchema(SetTransactionsSourceInputSchema).parse(action.input);
+
+      integrationSetupOperations.setTransactionsSourceOperation(
+        (state as any)[action.scope],
+        action as any,
+        dispatch,
+      );
+
+      break;
+    }
+
     case "SET_LIVE_ENABLED": {
       memoizedSchema(SetLiveEnabledInputSchema).parse(action.input);
 
@@ -123,6 +150,18 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(AddDateRangeBackfillInputSchema).parse(action.input);
 
       integrationBackfillOperations.addDateRangeBackfillOperation(
+        (state as any)[action.scope],
+        action as any,
+        dispatch,
+      );
+
+      break;
+    }
+
+    case "ATTACH_BACKFILL": {
+      memoizedSchema(AttachBackfillInputSchema).parse(action.input);
+
+      integrationBackfillOperations.attachBackfillOperation(
         (state as any)[action.scope],
         action as any,
         dispatch,

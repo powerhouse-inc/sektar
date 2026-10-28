@@ -7,16 +7,22 @@ import {
   InitializeInputSchema,
   SetAccessInputSchema,
   SetCalendarSourceInputSchema,
+  SetEmailSourceInputSchema,
+  SetTransactionsSourceInputSchema,
 } from "../schema/zod.js";
 import type {
   InitializeInput,
   SetAccessInput,
   SetCalendarSourceInput,
+  SetEmailSourceInput,
+  SetTransactionsSourceInput,
 } from "../types.js";
 import type {
   InitializeAction,
   SetAccessAction,
   SetCalendarSourceAction,
+  SetEmailSourceAction,
+  SetTransactionsSourceAction,
 } from "./actions.js";
 
 export const initialize = (input: InitializeInput) =>
@@ -43,5 +49,23 @@ export const setCalendarSource = (input: SetCalendarSourceInput) =>
     { ...input },
     undefined,
     SetCalendarSourceInputSchema,
+    "global",
+  );
+
+export const setEmailSource = (input: SetEmailSourceInput) =>
+  createAction<SetEmailSourceAction>(
+    "SET_EMAIL_SOURCE",
+    { ...input },
+    undefined,
+    SetEmailSourceInputSchema,
+    "global",
+  );
+
+export const setTransactionsSource = (input: SetTransactionsSourceInput) =>
+  createAction<SetTransactionsSourceAction>(
+    "SET_TRANSACTIONS_SOURCE",
+    { ...input },
+    undefined,
+    SetTransactionsSourceInputSchema,
     "global",
   );

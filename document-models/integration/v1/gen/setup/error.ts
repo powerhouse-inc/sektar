@@ -34,4 +34,8 @@ export const errors = {
   SetAccess: { NotInitializedError },
 
   SetCalendarSource: { WrongKindError },
+
+  SetEmailSource: { WrongKindError },
+
+  SetTransactionsSource: { WrongKindError },
 };

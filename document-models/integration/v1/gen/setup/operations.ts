@@ -8,6 +8,8 @@ import type {
   InitializeAction,
   SetAccessAction,
   SetCalendarSourceAction,
+  SetEmailSourceAction,
+  SetTransactionsSourceAction,
 } from "./actions.js";
 
 export interface IntegrationSetupOperations {
@@ -24,6 +26,16 @@ export interface IntegrationSetupOperations {
   setCalendarSourceOperation: (
     state: IntegrationGlobalState,
     action: SetCalendarSourceAction,
+    dispatch?: SignalDispatch,
+  ) => void;
+  setEmailSourceOperation: (
+    state: IntegrationGlobalState,
+    action: SetEmailSourceAction,
+    dispatch?: SignalDispatch,
+  ) => void;
+  setTransactionsSourceOperation: (
+    state: IntegrationGlobalState,
+    action: SetTransactionsSourceAction,
     dispatch?: SignalDispatch,
   ) => void;
 }

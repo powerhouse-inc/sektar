@@ -51,4 +51,19 @@ export const integrationBackfillOperations: IntegrationBackfillOperations = {
       state.intent.backfill.pinnedId = null;
     state.intent.generation += 1;
   },
+  attachBackfillOperation(state, action) {
+    if (!state.kind)
+      throw new NotInitializedError("Set up the integration first");
+    const i = action.input;
+    if (state.intent.backfill.items.some((b) => b.id === i.id))
+      throw new DuplicateBackfillIdError(`A backfill ${i.id} exists`);
+    state.intent.backfill.items.push({
+      id: i.id,
+      label: i.label,
+      documentType: i.documentType,
+      documentId: i.documentId,
+      request: null,
+    });
+    state.intent.generation += 1;
+  },
 };

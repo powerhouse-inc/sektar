@@ -73,7 +73,7 @@ enum IntegrationAccess {
   READ_WRITE
 }
 
-union IntegrationSource = CalendarSource | EmailSource
+union IntegrationSource = CalendarSource | EmailSource | TransactionsSource
 
 type CalendarSource {
   "The calendars picked; empty while allOwned"
@@ -89,8 +89,29 @@ type CalendarRef {
 }
 
 type EmailSource {
+  "The account's name in Sektar, and the Mail drive folder its messages go in, e.g. Personal"
   mailbox: String!
+  "The account's address; null until the sign-in names it"
+  address: String
+  "Labels or folders to bring in; empty: all mail"
   folders: [String!]!
+}
+
+type TransactionsSource {
+  "The aggregator's own id of the bank connection (Distyra: connectionId), e.g. KBC"
+  bankConnectionId: String!
+  "Its accounts, each onto a Sektar bank account"
+  accounts: [BankAccountLink!]!
+}
+
+type BankAccountLink {
+  "The aggregator's account id"
+  accountId: String!
+  "The aggregator's stable account key, used in transaction references"
+  accountKey: String!
+  "The sektar/bank-account document its transactions go in"
+  bankAccountId: PHID!
+  label: String
 }
 
 type LiveIntent {
@@ -246,6 +267,24 @@ input SetCalendarSourceInput {
   allOwned: Boolean!
 }
 
+input SetEmailSourceInput {
+  mailbox: String!
+  address: String
+  folders: [String!]!
+}
+
+input BankAccountLinkInput {
+  accountId: String!
+  accountKey: String!
+  bankAccountId: PHID!
+  label: String
+}
+
+input SetTransactionsSourceInput {
+  bankConnectionId: String!
+  accounts: [BankAccountLinkInput!]!
+}
+
 # live
 
 input SetLiveEnabledInput {
@@ -272,6 +311,14 @@ input AddDateRangeBackfillInput {
   stepSeconds: Int!
   "Null: BACKWARD"
   direction: BackfillDirection
+}
+
+input AttachBackfillInput {
+  id: OID!
+  label: String!
+  documentType: String!
+  "An existing backfill document, adopted as it is"
+  documentId: PHID!
 }
 
 input RemoveBackfillInput {

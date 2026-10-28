@@ -1,5 +1,8 @@
 import {
   addDateRangeBackfill,
+  attachBackfill,
+  setEmailSource,
+  setTransactionsSource,
   recordBackfillDocument,
   recordCheck,
   recordResources,
@@ -270,6 +273,116 @@ describe("integration document", () => {
         .pinnedId,
     ).toBe("bf-other");
     rejects(doc, removeBackfill({ id: "bf-9" }), /No backfill bf-9/);
+  });
+
+  it("keeps an email account's mailbox and a bank connection's accounts, each only on its own kind", () => {
+    const mail = apply(
+      utils.createDocument(),
+      initialize({ kind: "EMAIL", provider: "gmail" }),
+      setEmailSource({ mailbox: "Personal", folders: [] }),
+    );
+    expect(mail.state.global.intent.source).toEqual({
+      mailbox: "Personal",
+      address: null,
+      folders: [],
+    });
+    const named = apply(
+      mail,
+      setEmailSource({
+        mailbox: "Personal",
+        address: "me@x.be",
+        folders: ["INBOX"],
+      }),
+    );
+    expect(named.state.global.intent.source).toMatchObject({
+      address: "me@x.be",
+    });
+
+    const bank = apply(
+      utils.createDocument(),
+      initialize({ kind: "TRANSACTIONS", provider: "distyra" }),
+      setTransactionsSource({
+        bankConnectionId: "kbc",
+        accounts: [
+          { accountId: "a1", accountKey: "ak1", bankAccountId: "bank-1" },
+          {
+            accountId: "a2",
+            accountKey: "ak2",
+            bankAccountId: "bank-2",
+            label: "Savings",
+          },
+        ],
+      }),
+    );
+    expect(bank.state.global.intent.source).toEqual({
+      bankConnectionId: "kbc",
+      accounts: [
+        {
+          accountId: "a1",
+          accountKey: "ak1",
+          bankAccountId: "bank-1",
+          label: null,
+        },
+        {
+          accountId: "a2",
+          accountKey: "ak2",
+          bankAccountId: "bank-2",
+          label: "Savings",
+        },
+      ],
+    });
+
+    rejects(
+      created(),
+      setEmailSource({ mailbox: "x", folders: [] }),
+      /email integration/,
+    );
+    rejects(
+      created(),
+      setTransactionsSource({ bankConnectionId: "x", accounts: [] }),
+      /transactions integration/,
+    );
+  });
+
+  it("adopts an existing backfill document as it is, once", () => {
+    const before = created().state.global.intent.generation;
+    const doc = apply(
+      created(),
+      attachBackfill({
+        id: "old-1",
+        label: "2023–2025",
+        documentType: OSQ,
+        documentId: "osq-old",
+      }),
+    );
+    expect(doc.state.global.intent.backfill.items.at(-1)).toEqual({
+      id: "old-1",
+      label: "2023–2025",
+      documentType: OSQ,
+      documentId: "osq-old",
+      request: null,
+    });
+    expect(doc.state.global.intent.generation).toBe(before + 1);
+    rejects(
+      doc,
+      attachBackfill({
+        id: "old-1",
+        label: "again",
+        documentType: OSQ,
+        documentId: "osq-x",
+      }),
+      /exists/,
+    );
+    rejects(
+      utils.createDocument(),
+      attachBackfill({
+        id: "x",
+        label: "x",
+        documentType: OSQ,
+        documentId: "osq",
+      }),
+      /Set up/,
+    );
   });
 
   it("archives once: asking again changes nothing", () => {
