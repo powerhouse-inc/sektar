@@ -10,6 +10,7 @@ import {
   renameDriveNode,
 } from "@powerhousedao/reactor-browser";
 import { generateId } from "document-model";
+import type { QueueState } from "./progress.js";
 import type {
   OriginalSourceQueueAction,
   OriginalSourceQueueDocument,
@@ -77,26 +78,7 @@ export type Filter = "all" | OsqStatus;
 
 /* ------------------------------------------------------------- reading */
 
-export type QueueState = OriginalSourceQueueDocument["state"]["global"];
-
-/** How many positions the whole space has: the product of the loops. */
-export function totalOf(state: QueueState): number {
-  if (state.cursors.length === 0) return 0;
-  return state.cursors.reduce((product, cursor) => product * cursor.count, 1);
-}
-
-/**
- * Where the walk is, counting from one. progress is index/total, so the
- * ordinal comes back out of it rather than being recomputed: one definition
- * of where we are, not two.
- */
-export function iterationOf(state: QueueState): number {
-  const total = totalOf(state);
-  if (total === 0) return 0;
-  if (state.status === "FINISHED") return total;
-  return Math.min(total, Math.round(state.progress * total) + 1);
-}
-
+export { iterationOf, totalOf, type QueueState } from "./progress.js";
 /** A percentage for a bar or a ring; sub-percent progress shows one decimal. */
 export function percentOf(state: QueueState): number {
   return Math.max(0, Math.min(100, state.progress * 100));
@@ -108,7 +90,9 @@ export function percentLabel(state: QueueState): string {
   return `${String(Math.round(pct))}%`;
 }
 
-export function kindOf(cursor: OsqCursor): "number" | "datetime" | "collection" {
+export function kindOf(
+  cursor: OsqCursor,
+): "number" | "datetime" | "collection" {
   if (isNumberCursor(cursor)) return "number";
   if (isDateTimeCursor(cursor)) return "datetime";
   return "collection";
@@ -205,7 +189,10 @@ export function readingFor(
 }
 
 /** One line on what a loop walks, and which way. */
-export function spanOf(cursor: OsqCursor, collections: OsqCollection[]): string {
+export function spanOf(
+  cursor: OsqCursor,
+  collections: OsqCollection[],
+): string {
   if (isNumberCursor(cursor)) {
     const down = cursor.last < cursor.first;
     return `${String(cursor.first)} ${down ? "down to" : "up to"} ${String(cursor.last)}, by ${String(cursor.step)}`;
@@ -224,7 +211,8 @@ export function walkedBy(
   cursors: OsqCursor[],
 ): OsqCursor | undefined {
   return cursors.find(
-    (cursor) => isCollectionCursor(cursor) && cursor.collection === collection.id,
+    (cursor) =>
+      isCollectionCursor(cursor) && cursor.collection === collection.id,
   );
 }
 
