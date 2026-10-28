@@ -141,23 +141,22 @@ const ACCESS: Record<string, AccessOption[]> = {
       access: "READ",
       label: "Read only",
       can: [
-        "See your calendars and their events",
-        "See guests, places, descriptions and attachments",
+        "See your calendars and events",
+        "See guests, places and attachments",
       ],
-      cannot: ["Create, change or delete anything"],
-      permission: "Google: See your calendars (calendar.readonly)",
+      cannot: ["Change or delete anything"],
+      permission: "Google: calendar.readonly",
     },
     {
       access: "READ_WRITE",
       label: "Read and write",
       can: [
         "Everything in Read only",
-        "Add events, such as trips you plan in Sektar",
+        "Add events, like trips you plan",
         "Change events Sektar added",
       ],
-      cannot: ["Delete events: Sektar never deletes"],
-      permission:
-        "Google: See and edit events on your calendars (calendar.events)",
+      cannot: ["Delete events"],
+      permission: "Google: calendar.events",
     },
   ],
 };
@@ -285,21 +284,24 @@ export function intervalLabel(every: {
 
 /** What Sektar will set up, in one or two sentences, for the flow's last steps. */
 export function setupSummary(choices: CreateChoices, now: Date): string {
-  const provider = providerInfo(choices.provider)?.label ?? "the account";
-  const live = choices.live
-    ? `checks your ${provider} calendars for changes ${intervalLabel(choices.every)}`
-    : `keeps live updates off for now`;
-  const history =
+  const ahead =
+    MONTHS_AHEAD === 12 ? "a year ahead" : `${MONTHS_AHEAD} months ahead`;
+  const range =
     choices.history.kind === "none"
-      ? `brings in your events from today to ${MONTHS_AHEAD} months ahead`
+      ? `from today to ${ahead}`
       : choices.history.kind === "everything"
-        ? `brings in all your events, up to ${MONTHS_AHEAD} months ahead`
-        : `brings in your events from ${MONTH.format(new Date(importRange(choices.history, now).from))} to ${MONTHS_AHEAD} months ahead`;
+        ? `everything, up to ${ahead}`
+        : `from ${MONTH.format(new Date(importRange(choices.history, now).from))} to ${ahead}`;
+  const live = choices.live
+    ? `, then checks for changes ${intervalLabel(choices.every)}`
+    : ". Live updates off";
   const access =
-    choices.access === "READ_WRITE"
-      ? "It may add events, and never deletes any."
-      : "It only reads.";
-  return `Sektar ${live}, and ${history}. ${access}`;
+    choices.access === "READ_WRITE" ? "Read and write." : "Read only.";
+  const lead =
+    choices.history.kind === "everything"
+      ? "Brings in events: "
+      : "Brings in events ";
+  return `${lead}${range}${live}. ${access}`;
 }
 
 /**

@@ -38,8 +38,14 @@ import {
   Switch,
 } from "../../sektar/kit/ui.js";
 
-/** The flow's steps, as they appear in the hash (`#add`, `#add/connect`, …). */
+/**
+ * The flow's steps, as they appear in the hash (`#add/before`, `#add`, …).
+ * `add/before` is shown only away from the computer that runs Sektar: the
+ * user acknowledges, before configuring anything, that the sign-in finishes
+ * there.
+ */
 export const STEPS = [
+  "add/before",
   "add",
   "add/connect",
   "add/how-much",
@@ -47,7 +53,13 @@ export const STEPS = [
 ] as const;
 export type CreateStep = (typeof STEPS)[number];
 
+const CONFIGURE: readonly CreateStep[] = STEPS.slice(1);
 const TITLES = ["What to bring in", "Connect", "How much", "Name and create"];
+
+/** Where Add integration starts: the handoff notice first, unless this is the runner. */
+export function firstStep(): CreateStep {
+  return onRunner() ? "add" : "add/before";
+}
 
 /**
  * Whether this browser runs on the computer that fetches (the runner): only
@@ -55,7 +67,7 @@ const TITLES = ["What to bring in", "Connect", "How much", "Name and create"];
  * is the runner's own; anything else (the phone, the tunnel) hands the
  * sign-in over. Step 3 of the pilot asks the switchboard instead.
  */
-function onRunner(): boolean {
+export function onRunner(): boolean {
   return ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
 }
 
@@ -70,10 +82,12 @@ export function CreateFlow({
   step,
   go,
   onDone,
+  onCancel,
 }: {
   step: CreateStep;
   go: (step: CreateStep) => void;
   onDone: () => void;
+  onCancel: () => void;
 }) {
   const now = useMemo(() => new Date(), []);
   const runner = useMemo(onRunner, []);
@@ -82,10 +96,17 @@ export function CreateFlow({
   const [choices, setChoices] = useState<CreateChoices | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Away from the runner, nothing is configured before the handoff is acknowledged.
+  const [acknowledged, setAcknowledged] = useState(runner);
 
+  const flow = runner ? CONFIGURE : STEPS;
+  const titles = runner ? TITLES : ["Before you start", ...TITLES];
+  const base = runner ? 0 : 1;
   // A reload or a deep link past a step without its choice starts over.
-  const wanted = STEPS.indexOf(step);
-  const at = choices ? wanted : kind ? Math.min(wanted, 1) : 0;
+  const wanted = Math.max(0, CONFIGURE.indexOf(step));
+  const conf = choices ? wanted : kind ? Math.min(wanted, 1) : 0;
+  const before = !acknowledged || step === "add/before";
+  const at = before ? 0 : base + conf;
   const patch = (p: Partial<CreateChoices>) =>
     setChoices((c) => (c ? { ...c, ...p } : c));
 
@@ -118,11 +139,43 @@ export function CreateFlow({
   };
 
   let body: ReactNode;
-  if (at === 0) {
+  if (before) {
+    body = (
+      <Panel title="You sign in on your computer">
+        <div className="sk-intg-signin sk-intg-signin--handoff">
+          <Icon name="monitor" />
+          <div className="sk-stack sk-stack--2">
+            <p className="sk-small" style={{ margin: 0 }}>
+              Set it up here. Sign in on the computer that runs Sektar; it asks
+              you the next time you open it there.
+            </p>
+            <p className="sk-small sk-text-muted" style={{ margin: 0 }}>
+              Your sign-in never passes through Sektar.
+            </p>
+          </div>
+        </div>
+        <div className="sk-row sk-row--between">
+          <Button variant="ghost" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setAcknowledged(true);
+              go("add");
+            }}
+          >
+            Continue
+          </Button>
+        </div>
+      </Panel>
+    );
+  } else if (conf === 0) {
     body = (
       <Panel
         title="What do you want to bring in?"
-        lead="Pick one. You can add more integrations later."
+        lead="You can add more later."
+        back={runner ? undefined : () => go("add/before")}
       >
         <div className="sk-intg-tiles">
           {KINDS.map((k) => (
@@ -140,13 +193,13 @@ export function CreateFlow({
         </div>
       </Panel>
     );
-  } else if (at === 1 && kind) {
+  } else if (conf === 1 && kind) {
     const info = kindInfo(kind);
     const provider = providerInfo(choices?.provider);
     body = (
       <Panel
         title={`Connect your ${info?.label.toLowerCase() ?? "account"}`}
-        lead="Where it is, and what Sektar may do there. You choose this before anything is set up."
+        lead="Where it is, and what Sektar may do."
         back={() => go("add")}
       >
         <div className="sk-intg-tiles">
@@ -180,21 +233,20 @@ export function CreateFlow({
         )}
       </Panel>
     );
-  } else if (at === 2 && choices) {
+  } else if (conf === 2 && choices) {
     const history = choices.history;
     const interval = `${choices.every.value}-${choices.every.unit}`;
     body = (
       <Panel
         title="How much?"
-        lead="You can change all of this later."
+        lead="You can change this later."
         back={() => go("add/connect")}
       >
         <div className="sk-intg-row">
           <div>
             <div className="sk-integration__label">Calendars</div>
             <div className="sk-integration__meta">
-              All calendars you own. You can pick specific ones after signing
-              in.
+              All you own. Pick specific ones after signing in.
             </div>
           </div>
         </div>
@@ -301,11 +353,11 @@ export function CreateFlow({
         />
       </Panel>
     );
-  } else if (at === 3 && choices) {
+  } else if (conf === 3 && choices) {
     body = (
       <Panel
         title="Name it"
-        lead="As it appears on the Integrations page."
+        lead="As it appears on the page."
         back={() => go("add/how-much")}
       >
         <Field label="Name">
@@ -319,8 +371,7 @@ export function CreateFlow({
         <Summary text={setupSummary(choices, now)} />
         {!runner && (
           <p className="sk-small sk-text-muted">
-            After Create, finish the sign-in on the computer that runs Sektar.
-            Until then the card says it is waiting.
+            Then sign in on the computer that runs Sektar.
           </p>
         )}
         {error && (
@@ -339,17 +390,19 @@ export function CreateFlow({
   }
 
   const done = (i: number) =>
-    i === 0
-      ? kindInfo(kind)?.label
-      : i === 1 && choices
-        ? `${providerInfo(choices.provider)?.label ?? ""} · ${choices.access === "READ_WRITE" ? "read and write" : "read only"}`
-        : undefined;
+    i < base
+      ? "Sign in on your computer"
+      : i - base === 0
+        ? kindInfo(kind)?.label
+        : i - base === 1 && choices
+          ? `${providerInfo(choices.provider)?.label ?? ""} · ${choices.access === "READ_WRITE" ? "read and write" : "read only"}`
+          : undefined;
 
   return (
     <div className="sk-intg-create">
       <div className="sk-intg-create__steps">
         <Steps
-          steps={TITLES.map((title, i) => ({
+          steps={titles.map((title, i) => ({
             title,
             desc: i < at ? done(i) : undefined,
           }))}
@@ -357,7 +410,7 @@ export function CreateFlow({
         />
       </div>
       <div className="sk-intg-create__phone-step sk-small sk-text-muted">
-        Step {at + 1} of {STEPS.length} · {TITLES[at]}
+        Step {at + 1} of {flow.length} · {titles[at]}
       </div>
       {body}
     </div>
@@ -416,8 +469,8 @@ function AccessChoice({
         ))}
       </div>
       <span className="sk-hint">
-        The provider asks you to confirm exactly this on its own sign-in screen.
-        You can change it later; Sektar then asks you to sign in again.
+        You confirm this when you sign in. Changing it later means signing in
+        again.
       </span>
     </fieldset>
   );
@@ -433,9 +486,7 @@ function SignIn({ runner, provider }: { runner: boolean; provider: string }) {
       <div className="sk-intg-signin">
         <div>
           <div className="sk-integration__label">Sign in</div>
-          <div className="sk-integration__meta">
-            A {provider} window opens; you come back here after.
-          </div>
+          <div className="sk-integration__meta">A {provider} window opens.</div>
         </div>
         <Button
           variant="secondary"
@@ -445,8 +496,7 @@ function SignIn({ runner, provider }: { runner: boolean; provider: string }) {
           Sign in with {provider}
         </Button>
         <p className="sk-hint" style={{ gridColumn: "1 / -1", margin: 0 }}>
-          Signing in arrives in the next pilot step. Continue for now: the card
-          asks you to sign in.
+          Sign-in arrives in the next pilot step. Continue for now.
         </p>
       </div>
     );
@@ -454,16 +504,8 @@ function SignIn({ runner, provider }: { runner: boolean; provider: string }) {
   return (
     <div className="sk-intg-signin sk-intg-signin--handoff">
       <Icon name="monitor" />
-      <div>
-        <div className="sk-integration__label">
-          You sign in on the computer that runs Sektar
-        </div>
-        <div className="sk-integration__meta">
-          {provider} sends the sign-in back to that computer, so it has to
-          happen there; your sign-in never passes through Sektar. Set the rest
-          up here now: the next time you open Sektar on that computer, it asks
-          you to sign in, and then everything starts.
-        </div>
+      <div className="sk-integration__meta">
+        You sign in to {provider} on your computer, after Create.
       </div>
     </div>
   );

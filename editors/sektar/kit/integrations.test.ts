@@ -99,20 +99,22 @@ describe("how much", () => {
     expect(intervalLabel({ value: 2, unit: "DAYS" })).toBe("every 2 days");
   });
 
-  it("summarises what Sektar will set up", () => {
+  it("summarises what Sektar will set up, briefly", () => {
     expect(setupSummary(calendar(), NOW)).toBe(
-      "Sektar checks your Google calendars for changes every 5 minutes, and brings in your events from 1 Jan 2025 to 12 months ahead. It only reads.",
+      "Brings in events from 1 Jan 2025 to a year ahead, then checks for changes every 5 minutes. Read only.",
     );
     expect(
       setupSummary(calendar({ live: false, history: { kind: "none" } }), NOW),
-    ).toContain(
-      "keeps live updates off for now, and brings in your events from today to 12 months ahead",
+    ).toBe(
+      "Brings in events from today to a year ahead. Live updates off. Read only.",
     );
     expect(
-      setupSummary(calendar({ history: { kind: "everything" } }), NOW),
-    ).toContain("brings in all your events, up to 12 months ahead");
-    expect(setupSummary(calendar({ access: "READ_WRITE" }), NOW)).toContain(
-      "It may add events, and never deletes any.",
+      setupSummary(
+        calendar({ history: { kind: "everything" }, access: "READ_WRITE" }),
+        NOW,
+      ),
+    ).toBe(
+      "Brings in events: everything, up to a year ahead, then checks for changes every 5 minutes. Read and write.",
     );
   });
 });
@@ -121,9 +123,9 @@ describe("access", () => {
   it("offers read only first, then read and write, with the provider permission each asks for", () => {
     const [read, write] = accessOptions("google-calendar");
     expect(read).toMatchObject({ access: "READ" });
-    expect(read.permission).toContain("calendar.readonly");
+    expect(read.permission).toBe("Google: calendar.readonly");
     expect(write).toMatchObject({ access: "READ_WRITE" });
-    expect(write.cannot.join(" ")).toContain("never deletes");
+    expect(write.cannot).toEqual(["Delete events"]);
     expect(accessOptions("caldav")).toEqual([]);
     expect(accessOptions(null)).toEqual([]);
   });

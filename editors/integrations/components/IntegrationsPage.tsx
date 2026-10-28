@@ -6,7 +6,7 @@ import growthDark from "../../sektar/design/shapes/sektar-growth-four-column-com
 import growthLight from "../../sektar/design/shapes/sektar-growth-four-column-combined-light.svg";
 import { KINDS } from "../../sektar/kit/integrations.js";
 import { Button, EmptyState, PageHeader } from "../../sektar/kit/ui.js";
-import { CreateFlow, STEPS, type CreateStep } from "./CreateFlow.js";
+import { CreateFlow, firstStep, STEPS, type CreateStep } from "./CreateFlow.js";
 import { IntegrationCard } from "./IntegrationCard.js";
 import { useHashStep } from "./use-hash-step.js";
 
@@ -41,13 +41,14 @@ export function IntegrationsPage() {
           step={step}
           go={(next: CreateStep) => setHash(next)}
           onDone={() => setHash(null, { replace: true })}
+          onCancel={() => setHash(null)}
         />
       </div>
     );
   }
 
   const add = (
-    <Button variant="primary" icon="plus" onClick={() => setHash("add")}>
+    <Button variant="primary" icon="plus" onClick={() => setHash(firstStep())}>
       Add integration
     </Button>
   );
