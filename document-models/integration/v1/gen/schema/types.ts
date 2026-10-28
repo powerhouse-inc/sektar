@@ -71,6 +71,11 @@ export type AddDateRangeBackfillInput = {
   to: Scalars["DateTime"]["input"];
 };
 
+export type ArchiveInput = {
+  /** The empty-input workaround: ARCHIVE takes nothing */
+  _?: InputMaybe<Scalars["Boolean"]["input"]>;
+};
+
 export type BackfillBatch = {
   every: Interval;
   size: Scalars["Int"]["output"];
@@ -140,6 +145,12 @@ export type InitializeInput = {
   provider: Scalars["String"]["input"];
 };
 
+export type IntegrationAccess =
+  /** See, never change: the provider's read-only permissions */
+  | "READ"
+  /** Also add and change; never delete */
+  | "READ_WRITE";
+
 export type IntegrationApplied = {
   at: Scalars["DateTime"]["output"];
   generation: Scalars["Int"]["output"];
@@ -171,6 +182,8 @@ export type IntegrationFix = {
 };
 
 export type IntegrationIntent = {
+  /** What Sektar may do with the account: only read, or read and write. Null: not chosen (read only) */
+  access: Maybe<IntegrationAccess>;
   /** An archived integration's workflows are archived; its data stays */
   archived: Scalars["Boolean"]["output"];
   backfill: BackfillIntent;
@@ -258,6 +271,10 @@ export type LiveIntent = {
   enabled: Scalars["Boolean"]["output"];
   /** How often to check for what is new */
   every: Interval;
+};
+
+export type SetAccessInput = {
+  access: IntegrationAccess;
 };
 
 export type SetBackfillEnabledInput = {

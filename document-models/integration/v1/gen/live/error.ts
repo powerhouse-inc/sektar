@@ -1,7 +1,14 @@
-export type ErrorCode = "InvalidIntervalError";
+export type ErrorCode = "NotInitializedError" | "InvalidIntervalError";
 
 export interface ReducerError {
   errorCode: ErrorCode;
+}
+
+export class NotInitializedError extends Error implements ReducerError {
+  errorCode = "NotInitializedError" as ErrorCode;
+  constructor(message = "NotInitializedError") {
+    super(message);
+  }
 }
 
 export class InvalidIntervalError extends Error implements ReducerError {
@@ -12,5 +19,7 @@ export class InvalidIntervalError extends Error implements ReducerError {
 }
 
 export const errors = {
-  SetLiveInterval: { InvalidIntervalError },
+  SetLiveEnabled: { NotInitializedError },
+
+  SetLiveInterval: { NotInitializedError, InvalidIntervalError },
 };

@@ -22,6 +22,7 @@ export function defaultGlobalState(): IntegrationGlobalState {
       generation: 0,
       connectionId: null,
       targetDriveId: null,
+      access: null,
       source: null,
       live: {
         enabled: true,

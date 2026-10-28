@@ -3,6 +3,7 @@
 import * as z from "zod";
 import type {
   AddDateRangeBackfillInput,
+  ArchiveInput,
   BackfillBatch,
   BackfillIntent,
   BackfillItem,
@@ -13,6 +14,7 @@ import type {
   EmailSource,
   FolderListBackfill,
   InitializeInput,
+  IntegrationAccess,
   IntegrationApplied,
   IntegrationCheck,
   IntegrationCheckRequest,
@@ -27,6 +29,7 @@ import type {
   IntervalUnit,
   IssueSeverity,
   LiveIntent,
+  SetAccessInput,
   SetBackfillEnabledInput,
   SetCalendarSourceInput,
   SetLiveEnabledInput,
@@ -45,6 +48,8 @@ export const isDefinedNonNullAny = (v: any): v is definedNonNullAny =>
 export const definedNonNullAnySchema = z
   .any()
   .refine((v) => isDefinedNonNullAny(v));
+
+export const IntegrationAccessSchema = z.enum(["READ", "READ_WRITE"]);
 
 export const IntegrationKindSchema = z.enum([
   "CALENDAR",
@@ -67,6 +72,12 @@ export function AddDateRangeBackfillInputSchema(): z.ZodObject<
     label: z.string(),
     stepSeconds: z.number(),
     to: z.iso.datetime(),
+  });
+}
+
+export function ArchiveInputSchema(): z.ZodObject<Properties<ArchiveInput>> {
+  return z.object({
+    _: z.boolean().nullish(),
   });
 }
 
@@ -221,6 +232,7 @@ export function IntegrationIntentSchema(): z.ZodObject<
 > {
   return z.object({
     __typename: z.literal("IntegrationIntent").optional(),
+    access: IntegrationAccessSchema.nullish(),
     archived: z.boolean(),
     backfill: z.lazy(() => BackfillIntentSchema()),
     connectionId: z.string().nullish(),
@@ -302,6 +314,14 @@ export function LiveIntentSchema(): z.ZodObject<Properties<LiveIntent>> {
     __typename: z.literal("LiveIntent").optional(),
     enabled: z.boolean(),
     every: z.lazy(() => IntervalSchema()),
+  });
+}
+
+export function SetAccessInputSchema(): z.ZodObject<
+  Properties<SetAccessInput>
+> {
+  return z.object({
+    access: IntegrationAccessSchema,
   });
 }
 

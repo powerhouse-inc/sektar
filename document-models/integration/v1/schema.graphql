@@ -56,12 +56,21 @@ type IntegrationIntent {
   connectionId: PHID
   "The drive the imported documents land in; null: the kind's default drive"
   targetDriveId: PHID
+  "What Sektar may do with the account: only read, or read and write. Null: not chosen (read only)"
+  access: IntegrationAccess
   "What to bring in, per kind and provider-neutral"
   source: IntegrationSource
   live: LiveIntent!
   backfill: BackfillIntent!
   "An archived integration's workflows are archived; its data stays"
   archived: Boolean!
+}
+
+enum IntegrationAccess {
+  "See, never change: the provider's read-only permissions"
+  READ
+  "Also add and change; never delete"
+  READ_WRITE
 }
 
 union IntegrationSource = CalendarSource | EmailSource
@@ -214,6 +223,10 @@ input InitializeInput {
   provider: String!
 }
 
+input SetAccessInput {
+  access: IntegrationAccess!
+}
+
 input CalendarRefInput {
   id: String!
   name: String
@@ -248,4 +261,11 @@ input AddDateRangeBackfillInput {
   from: DateTime!
   to: DateTime!
   stepSeconds: Int!
+}
+
+# lifecycle
+
+input ArchiveInput {
+  "The empty-input workaround: ARCHIVE takes nothing"
+  _: Boolean
 }

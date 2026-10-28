@@ -1,5 +1,7 @@
 import {
   addDateRangeBackfill,
+  archive,
+  setAccess,
   initialize,
   isIntegrationDocument,
   reducer,
@@ -207,5 +209,47 @@ describe("integration document", () => {
       setCalendarSource({ calendars: [], allOwned: true }),
       /calendar integration/,
     );
+  });
+
+  it("records the access the user chose, and only after the kind is set", () => {
+    const doc = apply(created(), setAccess({ access: "READ" }));
+    expect(doc.state.global.intent.access).toBe("READ");
+    expect(utils.createDocument().state.global.intent.access).toBeNull();
+    rejects(
+      utils.createDocument(),
+      setAccess({ access: "READ_WRITE" }),
+      /Set up/,
+    );
+  });
+
+  it("refuses every intent change before INITIALIZE, so a failed create leaves an empty document", () => {
+    let doc = utils.createDocument();
+    doc = rejects(doc, setLiveEnabled({ enabled: false }), /Set up/);
+    doc = rejects(
+      doc,
+      setLiveInterval({ value: 15, unit: "MINUTES" }),
+      /Set up/,
+    );
+    doc = rejects(doc, setBackfillEnabled({ enabled: false }), /Set up/);
+    rejects(
+      doc,
+      addDateRangeBackfill({
+        id: "bf-1",
+        label: "x",
+        documentType: OSQ,
+        from: "2024-01-01T00:00:00.000Z",
+        to: "2024-06-01T00:00:00.000Z",
+        stepSeconds: 3600,
+      }),
+      /Set up/,
+    );
+  });
+
+  it("archives once: asking again changes nothing", () => {
+    const doc = apply(created(), archive({}));
+    expect(doc.state.global.intent.archived).toBe(true);
+    const generation = doc.state.global.intent.generation;
+    const again = apply(doc, archive({}));
+    expect(again.state.global.intent.generation).toBe(generation);
   });
 });

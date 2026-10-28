@@ -2,14 +2,19 @@ import type { IntegrationBackfillOperations } from "document-models/integration/
 import {
   DuplicateBackfillIdError,
   InvalidRangeError,
+  NotInitializedError,
 } from "../../gen/backfill/error.js";
 
 export const integrationBackfillOperations: IntegrationBackfillOperations = {
   setBackfillEnabledOperation(state, action) {
+    if (!state.kind)
+      throw new NotInitializedError("Set up the integration first");
     state.intent.backfill.enabled = action.input.enabled;
     state.intent.generation += 1;
   },
   addDateRangeBackfillOperation(state, action) {
+    if (!state.kind)
+      throw new NotInitializedError("Set up the integration first");
     const i = action.input;
     if (state.intent.backfill.items.some((b) => b.id === i.id))
       throw new DuplicateBackfillIdError(`A backfill ${i.id} exists`);

@@ -1,4 +1,7 @@
-export type ErrorCode = "AlreadyInitializedError" | "WrongKindError";
+export type ErrorCode =
+  | "AlreadyInitializedError"
+  | "NotInitializedError"
+  | "WrongKindError";
 
 export interface ReducerError {
   errorCode: ErrorCode;
@@ -7,6 +10,13 @@ export interface ReducerError {
 export class AlreadyInitializedError extends Error implements ReducerError {
   errorCode = "AlreadyInitializedError" as ErrorCode;
   constructor(message = "AlreadyInitializedError") {
+    super(message);
+  }
+}
+
+export class NotInitializedError extends Error implements ReducerError {
+  errorCode = "NotInitializedError" as ErrorCode;
+  constructor(message = "NotInitializedError") {
     super(message);
   }
 }
@@ -20,6 +30,8 @@ export class WrongKindError extends Error implements ReducerError {
 
 export const errors = {
   Initialize: { AlreadyInitializedError },
+
+  SetAccess: { NotInitializedError },
 
   SetCalendarSource: { WrongKindError },
 };

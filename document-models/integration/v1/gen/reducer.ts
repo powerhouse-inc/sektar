@@ -5,12 +5,15 @@ import { createReducer, isDocumentAction } from "document-model";
 import type { IntegrationPHState } from "document-models/integration/v1";
 
 import { integrationBackfillOperations } from "../src/reducers/backfill.js";
+import { integrationLifecycleOperations } from "../src/reducers/lifecycle.js";
 import { integrationLiveOperations } from "../src/reducers/live.js";
 import { integrationSetupOperations } from "../src/reducers/setup.js";
 
 import {
   AddDateRangeBackfillInputSchema,
+  ArchiveInputSchema,
   InitializeInputSchema,
+  SetAccessInputSchema,
   SetBackfillEnabledInputSchema,
   SetCalendarSourceInputSchema,
   SetLiveEnabledInputSchema,
@@ -41,6 +44,18 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(InitializeInputSchema).parse(action.input);
 
       integrationSetupOperations.initializeOperation(
+        (state as any)[action.scope],
+        action as any,
+        dispatch,
+      );
+
+      break;
+    }
+
+    case "SET_ACCESS": {
+      memoizedSchema(SetAccessInputSchema).parse(action.input);
+
+      integrationSetupOperations.setAccessOperation(
         (state as any)[action.scope],
         action as any,
         dispatch,
@@ -101,6 +116,18 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(AddDateRangeBackfillInputSchema).parse(action.input);
 
       integrationBackfillOperations.addDateRangeBackfillOperation(
+        (state as any)[action.scope],
+        action as any,
+        dispatch,
+      );
+
+      break;
+    }
+
+    case "ARCHIVE": {
+      memoizedSchema(ArchiveInputSchema).parse(action.input);
+
+      integrationLifecycleOperations.archiveOperation(
         (state as any)[action.scope],
         action as any,
         dispatch,

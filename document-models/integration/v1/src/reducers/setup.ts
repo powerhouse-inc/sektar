@@ -1,6 +1,7 @@
 import type { IntegrationSetupOperations } from "document-models/integration/v1";
 import {
   AlreadyInitializedError,
+  NotInitializedError,
   WrongKindError,
 } from "../../gen/setup/error.js";
 
@@ -23,6 +24,12 @@ export const integrationSetupOperations: IntegrationSetupOperations = {
           })),
       allOwned: action.input.allOwned,
     };
+    state.intent.generation += 1;
+  },
+  setAccessOperation(state, action) {
+    if (!state.kind)
+      throw new NotInitializedError("Set up the integration first");
+    state.intent.access = action.input.access;
     state.intent.generation += 1;
   },
 };

@@ -5,6 +5,7 @@
 import { baseActions } from "document-model";
 import {
   integrationBackfillActions,
+  integrationLifecycleActions,
   integrationLiveActions,
   integrationSetupActions,
 } from "./gen/creators.js";
@@ -16,4 +17,5 @@ export const actions = {
   ...integrationSetupActions,
   ...integrationLiveActions,
   ...integrationBackfillActions,
+  ...integrationLifecycleActions,
 };

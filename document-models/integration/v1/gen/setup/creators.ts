@@ -5,10 +5,19 @@
 import { createAction } from "document-model";
 import {
   InitializeInputSchema,
+  SetAccessInputSchema,
   SetCalendarSourceInputSchema,
 } from "../schema/zod.js";
-import type { InitializeInput, SetCalendarSourceInput } from "../types.js";
-import type { InitializeAction, SetCalendarSourceAction } from "./actions.js";
+import type {
+  InitializeInput,
+  SetAccessInput,
+  SetCalendarSourceInput,
+} from "../types.js";
+import type {
+  InitializeAction,
+  SetAccessAction,
+  SetCalendarSourceAction,
+} from "./actions.js";
 
 export const initialize = (input: InitializeInput) =>
   createAction<InitializeAction>(
@@ -16,6 +25,15 @@ export const initialize = (input: InitializeInput) =>
     { ...input },
     undefined,
     InitializeInputSchema,
+    "global",
+  );
+
+export const setAccess = (input: SetAccessInput) =>
+  createAction<SetAccessAction>(
+    "SET_ACCESS",
+    { ...input },
+    undefined,
+    SetAccessInputSchema,
     "global",
   );
 

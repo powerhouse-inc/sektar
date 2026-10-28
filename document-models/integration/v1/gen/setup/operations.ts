@@ -4,12 +4,21 @@
  */
 import { type SignalDispatch } from "document-model";
 import type { IntegrationGlobalState } from "../types.js";
-import type { InitializeAction, SetCalendarSourceAction } from "./actions.js";
+import type {
+  InitializeAction,
+  SetAccessAction,
+  SetCalendarSourceAction,
+} from "./actions.js";
 
 export interface IntegrationSetupOperations {
   initializeOperation: (
     state: IntegrationGlobalState,
     action: InitializeAction,
+    dispatch?: SignalDispatch,
+  ) => void;
+  setAccessOperation: (
+    state: IntegrationGlobalState,
+    action: SetAccessAction,
     dispatch?: SignalDispatch,
   ) => void;
   setCalendarSourceOperation: (
