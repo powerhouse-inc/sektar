@@ -27,6 +27,12 @@ function source(state: IntegrationState): EmailSource {
   return { mailbox: s?.mailbox ?? "Mail", address: s?.address ?? null };
 }
 
+/** The Google account an address belongs to: lower case, without a +tag. */
+export function googleAccount(address: string): string {
+  const [local = "", domain = ""] = address.trim().toLowerCase().split("@");
+  return `${local.split("+")[0]}@${domain}`;
+}
+
 function searchStep(
   connectionId: string,
   config: Record<string, unknown>,
@@ -89,8 +95,13 @@ export const gmail: ProviderAdapter = {
   id: "gmail",
   label: "Google",
   auth: "oauth",
-  // A day of mail every 3 minutes, as the existing backfills walk
-  backfillPollSeconds: 180,
+  // A day of mail a minute, as the largest existing backfill walks
+  backfillPollSeconds: 60,
+
+  expectedAccount(state: IntegrationState) {
+    const address = source(state).address;
+    return address ? googleAccount(address) : null;
+  },
 
   connection(name: string) {
     return {

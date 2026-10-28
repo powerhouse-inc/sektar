@@ -91,11 +91,11 @@ describe("Gmail, as the existing mail workflows run", () => {
     expect(spec.steps[2]?.reactorConnectionId).toBe(REACTOR);
   });
 
-  it("walks a day of mail every 3 minutes under the queue's own cursor", () => {
+  it("walks a day of mail a minute under the queue's own cursor", () => {
     const spec = backfillWorkflowSpec(gmail, ctx, "WICX", true, "day");
     expect(spec.trigger.config).toEqual({
       documentId: "WICX",
-      pollEverySeconds: 180,
+      pollEverySeconds: 60,
     });
     expect(spec.steps[0]?.config).toEqual({
       after_date: "{{trigger.payload.ranges.day.from}}",

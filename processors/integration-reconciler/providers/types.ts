@@ -40,6 +40,12 @@ export interface ProviderAdapter {
   auth: "oauth" | "apiKey";
   /** The connection to make (oauth); null when this setup cannot be served */
   connection(name: string, state: IntegrationState): ConnectionSpec | null;
+  /**
+   * The account a sign-in must be (normalised, e.g. an address without its
+   * +tag); null: any. A sign-in as someone else is refused, so one account's
+   * data never lands in another's place.
+   */
+  expectedAccount?(state: IntegrationState): string | null;
   /** Seconds between backfill slices; absent: no backfill */
   backfillPollSeconds?: number;
   /** The live workflow: its name, trigger and steps */

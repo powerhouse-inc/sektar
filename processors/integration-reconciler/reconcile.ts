@@ -566,5 +566,20 @@ async function readyConnection(
     });
     return null;
   }
+  // Signed in as the account this integration is for: another account's
+  // data must not land in its place. The old workflows keep running.
+  const expected = provider.expectedAccount?.(s) ?? null;
+  const label = facts.accountLabel?.trim().toLowerCase() ?? null;
+  if (expected && label && label !== expected) {
+    issues.push({
+      code: "NEEDS_SIGN_IN",
+      severity: "BLOCKING",
+      subject: connectionId,
+      message: `Signed in to ${provider.label} as ${facts.accountLabel}; sign in again on ${io.me.label} as ${expected}`,
+      fixable: false,
+      since: since("NEEDS_SIGN_IN"),
+    });
+    return null;
+  }
   return { connectionId, accountLabel: facts.accountLabel ?? null };
 }

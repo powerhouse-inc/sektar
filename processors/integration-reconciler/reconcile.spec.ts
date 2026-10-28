@@ -640,6 +640,50 @@ describe("the history", () => {
   });
 });
 
+describe("a mail integration's sign-in", () => {
+  async function mail(address: string) {
+    const { actions } = await import("document-models/integration/v1");
+    const w = world("READ", [
+      actions.initialize({ kind: "EMAIL", provider: "gmail" }),
+      actions.setEmailSource({ mailbox: "Pre-KSDC", address, folders: [] }),
+    ]);
+    await w.pass();
+    return w;
+  }
+  const signInAs = (w: Awaited<ReturnType<typeof mail>>, label: string) => {
+    const c = w.connections.get("conn-1")!;
+    w.connections.set("conn-1", {
+      ...c,
+      status: "OK",
+      signedIn: true,
+      granted: [...c.scopes],
+      accountLabel: label,
+    });
+  };
+
+  it("refuses another Google account, so its mail never lands in this folder", async () => {
+    const w = await mail("wouter+imported@ksdc.be");
+    signInAs(w, "wkampmann@gmail.com");
+    await w.pass();
+    expect(w.doc.state.global.check?.issues).toEqual([
+      expect.objectContaining({
+        code: "NEEDS_SIGN_IN",
+        message:
+          "Signed in to Google as wkampmann@gmail.com; sign in again on pc as wouter@ksdc.be",
+      }),
+    ]);
+    expect(w.doc.state.global.resources.liveWorkflowId).toBeNull();
+  });
+
+  it("takes the account a +tag address belongs to", async () => {
+    const w = await mail("wouter+imported@ksdc.be");
+    signInAs(w, "Wouter@KSDC.be");
+    await w.pass();
+    expect(w.doc.state.global.check?.issues).toEqual([]);
+    expect(w.doc.state.global.resources.liveWorkflowId).not.toBeNull();
+  });
+});
+
 describe("an integration on a connection it is given (Distyra)", () => {
   async function bank() {
     const { actions } = await import("document-models/integration/v1");
