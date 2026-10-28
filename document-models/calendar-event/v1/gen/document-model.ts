@@ -1,0 +1,64 @@
+import type { DocumentModelGlobalState } from "document-model";
+
+export const documentModel: DocumentModelGlobalState = {
+  id: "sektar/calendar-event",
+  name: "Calendar Event",
+  author: {
+    name: "Sektar",
+    website: "https://sektar.app",
+  },
+  extension: "evt",
+  description:
+    "One calendar event as an integration brought it in: title, when, where, who and how it repeats, the calendar it is on and where it came from. Re-imports update it; a cancelled event stays, marked cancelled.",
+  specifications: [
+    {
+      version: 1,
+      changeLog: [],
+      state: {
+        global: {
+          schema:
+            'type CalendarEventState {\n  "The identity imports deduplicate on: cal:<account>:<UID>[:<recurrence-id>]"\n  externalId: String\n  "The iCalendar UID (Google: iCalUID)"\n  uid: String\n  "For a changed occurrence of a series: the original start it replaces"\n  recurrenceId: String\n  "The calendar the event is on"\n  calendar: CalendarEventCalendar\n  "Where it came from: google, microsoft, caldav"\n  source: String\n  "The provider\'s own id of the event"\n  sourceId: String\n  "The event on the provider\'s site"\n  sourceUrl: String\n  summary: String\n  description: String\n  location: String\n  "A video meeting link (Meet, Zoom, Teams)"\n  meetingUrl: String\n  start: CalendarEventTime\n  end: CalendarEventTime\n  "A whole-day event: start and end are dates, the end exclusive"\n  allDay: Boolean!\n  status: CalendarEventStatus!\n  "Busy or free in the person\'s availability"\n  busy: Boolean!\n  organizer: CalendarEventPerson\n  attendees: [CalendarEventAttendee!]!\n  "How a series repeats: its RRULE, EXDATE and RDATE lines"\n  recurrence: [String!]!\n  "When the provider last changed the event"\n  sourceUpdatedAt: DateTime\n  "When this document last took the provider\'s version"\n  capturedAt: DateTime\n}\n\ntype CalendarEventCalendar {\n  "The provider\'s calendar id"\n  id: String!\n  name: String\n  "The account the calendar belongs to, e.g. the Google address"\n  account: String\n}\n\ntype CalendarEventTime {\n  "A moment, for an event with times"\n  at: DateTime\n  "A date (yyyy-mm-dd), for a whole-day event: the Date scalar takes a date-time"\n  date: String\n  "The zone the event was planned in, e.g. Europe/Brussels"\n  timeZone: String\n}\n\ntype CalendarEventPerson {\n  email: String\n  name: String\n}\n\ntype CalendarEventAttendee {\n  "The address in lower case"\n  id: OID!\n  email: String!\n  name: String\n  response: CalendarEventResponse!\n  optional: Boolean!\n  organizer: Boolean!\n  "The account the calendar belongs to"\n  self: Boolean!\n}\n\nenum CalendarEventStatus {\n  CONFIRMED\n  TENTATIVE\n  CANCELLED\n}\n\nenum CalendarEventResponse {\n  NEEDS_ACTION\n  ACCEPTED\n  DECLINED\n  TENTATIVE\n}',
+          initialValue:
+            '{\n  "externalId": null,\n  "uid": null,\n  "recurrenceId": null,\n  "calendar": null,\n  "source": null,\n  "sourceId": null,\n  "sourceUrl": null,\n  "summary": null,\n  "description": null,\n  "location": null,\n  "meetingUrl": null,\n  "start": null,\n  "end": null,\n  "allDay": false,\n  "status": "CONFIRMED",\n  "busy": true,\n  "organizer": null,\n  "attendees": [],\n  "recurrence": [],\n  "sourceUpdatedAt": null,\n  "capturedAt": null\n}',
+          examples: [],
+        },
+        local: {
+          schema: "",
+          initialValue: "",
+          examples: [],
+        },
+      },
+      modules: [
+        {
+          id: "c8a28594-e2c8-49f3-abeb-3c477ccac0e6",
+          name: "capture",
+          description: "Taking the provider's version of the event",
+          operations: [
+            {
+              id: "443f3f74-f348-435d-b9b1-d06b7e7cce8a",
+              name: "CAPTURE_EVENT",
+              description: "",
+              schema:
+                "input CalendarEventCalendarInput {\n  id: String!\n  name: String\n  account: String\n}\n\ninput CalendarEventTimeInput {\n  at: DateTime\n  date: String\n  timeZone: String\n}\n\ninput CalendarEventPersonInput {\n  email: String\n  name: String\n}\n\ninput CalendarEventAttendeeInput {\n  email: String!\n  name: String\n  response: CalendarEventResponse!\n  optional: Boolean\n  organizer: Boolean\n  self: Boolean\n}\n\ninput CaptureEventInput {\n  externalId: String!\n  uid: String\n  recurrenceId: String\n  calendar: CalendarEventCalendarInput\n  source: String!\n  sourceId: String\n  sourceUrl: String\n  summary: String\n  description: String\n  location: String\n  meetingUrl: String\n  start: CalendarEventTimeInput\n  end: CalendarEventTimeInput\n  allDay: Boolean!\n  status: CalendarEventStatus!\n  busy: Boolean\n  organizer: CalendarEventPersonInput\n  attendees: [CalendarEventAttendeeInput!]\n  recurrence: [String!]\n  sourceUpdatedAt: DateTime\n  capturedAt: DateTime!\n}",
+              template: "",
+              reducer:
+                "const i = action.input;\nif (state.externalId && state.externalId !== i.externalId) throw new OtherEventError(`This document is ${state.externalId}, not ${i.externalId}`);\nconst time = (t: { at?: string | null; date?: string | null; timeZone?: string | null } | null | undefined) => (t ? { at: t.at ?? null, date: t.date ?? null, timeZone: t.timeZone ?? null } : null);\nstate.externalId = i.externalId;\nstate.uid = i.uid ?? null;\nstate.recurrenceId = i.recurrenceId ?? null;\nstate.calendar = i.calendar ? { id: i.calendar.id, name: i.calendar.name ?? null, account: i.calendar.account ?? null } : null;\nstate.source = i.source;\nstate.sourceId = i.sourceId ?? null;\nstate.sourceUrl = i.sourceUrl ?? null;\nstate.summary = i.summary ?? null;\nstate.description = i.description ?? null;\nstate.location = i.location ?? null;\nstate.meetingUrl = i.meetingUrl ?? null;\nstate.start = time(i.start);\nstate.end = time(i.end);\nstate.allDay = i.allDay;\nstate.status = i.status;\nstate.busy = i.busy ?? true;\nstate.organizer = i.organizer ? { email: i.organizer.email ?? null, name: i.organizer.name ?? null } : null;\nconst seen = new Set();\nstate.attendees = (i.attendees ?? []).flatMap((a) => {\n  const key = a.email.trim().toLowerCase();\n  if (!key || seen.has(key)) return [];\n  seen.add(key);\n  return [{ id: key, email: a.email.trim(), name: a.name ?? null, response: a.response, optional: a.optional ?? false, organizer: a.organizer ?? false, self: a.self ?? false }];\n});\nstate.recurrence = i.recurrence ?? [];\nstate.sourceUpdatedAt = i.sourceUpdatedAt ?? null;\nstate.capturedAt = i.capturedAt;",
+              errors: [
+                {
+                  id: "b652aab4-1fab-4a4f-9b27-51c13c38ef2f",
+                  code: "OTHER_EVENT",
+                  name: "OtherEventError",
+                  description:
+                    "A capture for another event: an event document keeps its identity",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};

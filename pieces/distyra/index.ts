@@ -5,6 +5,7 @@ import { distyraImportToBankAccountAction } from "./lib/bank/import-to-bank-acco
 import { distyraPullForLedgerAction } from "./lib/actions/pull-for-ledger.js";
 import { distyraAuth } from "./lib/auth.js";
 import { distyraGmailToEmailAction } from "./lib/docs/gmail-to-email.js";
+import { distyraGoogleEventToCalendarEventAction } from "./lib/docs/google-event-to-calendar-event.js";
 import { distyraUpsertDocumentsAction } from "./lib/docs/upsert-documents.js";
 import {
   distyraOsqAddCollectionValuesAction,
@@ -90,6 +91,7 @@ export const distyra = createPiece({
     // deduplicated on a key — and the Gmail mapper is its first adapter:
     // pure, so a test shows the exact actions before anything is written.
     distyraGmailToEmailAction,
+    distyraGoogleEventToCalendarEventAction,
     distyraUpsertDocumentsAction,
   ],
   triggers: [distyraForEveryTrigger, distyraOnNewSourceTrigger],

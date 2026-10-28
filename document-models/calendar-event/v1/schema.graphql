@@ -1,0 +1,156 @@
+scalar Unknown
+scalar DateTime
+scalar Address
+scalar AttachmentRef
+scalar Amount_Tokens
+scalar EthereumAddress
+scalar EmailAddress
+scalar Amount_Percentage
+scalar Date
+scalar URL
+scalar Amount_Money
+scalar OLabel
+scalar Currency
+scalar PHID
+scalar OID
+scalar Amount_Fiat
+scalar Amount_Currency
+scalar Amount_Crypto
+scalar Amount
+scalar Upload
+
+type CalendarEventState {
+  "The identity imports deduplicate on: cal:<account>:<UID>[:<recurrence-id>]"
+  externalId: String
+  "The iCalendar UID (Google: iCalUID)"
+  uid: String
+  "For a changed occurrence of a series: the original start it replaces"
+  recurrenceId: String
+  "The calendar the event is on"
+  calendar: CalendarEventCalendar
+  "Where it came from: google, microsoft, caldav"
+  source: String
+  "The provider's own id of the event"
+  sourceId: String
+  "The event on the provider's site"
+  sourceUrl: String
+  summary: String
+  description: String
+  location: String
+  "A video meeting link (Meet, Zoom, Teams)"
+  meetingUrl: String
+  start: CalendarEventTime
+  end: CalendarEventTime
+  "A whole-day event: start and end are dates, the end exclusive"
+  allDay: Boolean!
+  status: CalendarEventStatus!
+  "Busy or free in the person's availability"
+  busy: Boolean!
+  organizer: CalendarEventPerson
+  attendees: [CalendarEventAttendee!]!
+  "How a series repeats: its RRULE, EXDATE and RDATE lines"
+  recurrence: [String!]!
+  "When the provider last changed the event"
+  sourceUpdatedAt: DateTime
+  "When this document last took the provider's version"
+  capturedAt: DateTime
+}
+
+type CalendarEventCalendar {
+  "The provider's calendar id"
+  id: String!
+  name: String
+  "The account the calendar belongs to, e.g. the Google address"
+  account: String
+}
+
+type CalendarEventTime {
+  "A moment, for an event with times"
+  at: DateTime
+  "A date (yyyy-mm-dd), for a whole-day event: the Date scalar takes a date-time"
+  date: String
+  "The zone the event was planned in, e.g. Europe/Brussels"
+  timeZone: String
+}
+
+type CalendarEventPerson {
+  email: String
+  name: String
+}
+
+type CalendarEventAttendee {
+  "The address in lower case"
+  id: OID!
+  email: String!
+  name: String
+  response: CalendarEventResponse!
+  optional: Boolean!
+  organizer: Boolean!
+  "The account the calendar belongs to"
+  self: Boolean!
+}
+
+enum CalendarEventStatus {
+  CONFIRMED
+  TENTATIVE
+  CANCELLED
+}
+
+enum CalendarEventResponse {
+  NEEDS_ACTION
+  ACCEPTED
+  DECLINED
+  TENTATIVE
+}
+
+# capture
+
+input CalendarEventCalendarInput {
+  id: String!
+  name: String
+  account: String
+}
+
+input CalendarEventTimeInput {
+  at: DateTime
+  date: String
+  timeZone: String
+}
+
+input CalendarEventPersonInput {
+  email: String
+  name: String
+}
+
+input CalendarEventAttendeeInput {
+  email: String!
+  name: String
+  response: CalendarEventResponse!
+  optional: Boolean
+  organizer: Boolean
+  self: Boolean
+}
+
+input CaptureEventInput {
+  externalId: String!
+  uid: String
+  recurrenceId: String
+  calendar: CalendarEventCalendarInput
+  source: String!
+  sourceId: String
+  sourceUrl: String
+  summary: String
+  description: String
+  location: String
+  meetingUrl: String
+  start: CalendarEventTimeInput
+  end: CalendarEventTimeInput
+  allDay: Boolean!
+  status: CalendarEventStatus!
+  busy: Boolean
+  organizer: CalendarEventPersonInput
+  attendees: [CalendarEventAttendeeInput!]
+  recurrence: [String!]
+  sourceUpdatedAt: DateTime
+  capturedAt: DateTime!
+}

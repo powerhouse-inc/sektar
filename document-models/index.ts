@@ -1,4 +1,5 @@
 export { BankAccount as BankAccountV1 } from "./bank-account/v1/module.js";
+export { CalendarEvent as CalendarEventV1 } from "./calendar-event/v1/module.js";
 export { Contact as ContactV1 } from "./contact/v1/module.js";
 export { Email as EmailV1 } from "./email/v1/module.js";
 export { ExpenseReport as ExpenseReportV1 } from "./expense-report/v1/module.js";

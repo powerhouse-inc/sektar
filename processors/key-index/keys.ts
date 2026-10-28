@@ -23,6 +23,10 @@ export const KEYED_TYPES: readonly KeyedType[] = [
     documentType: "sektar/email",
     actions: [{ type: "CAPTURE_MESSAGE", path: "externalId" }],
   },
+  {
+    documentType: "sektar/calendar-event",
+    actions: [{ type: "CAPTURE_EVENT", path: "externalId" }],
+  },
 ];
 
 /** Read a dotted path off an action input. */

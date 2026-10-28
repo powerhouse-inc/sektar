@@ -4,6 +4,7 @@
  */
 import type { UpgradeManifest } from "document-model";
 import { bankAccountUpgradeManifest } from "document-models/bank-account/upgrades";
+import { calendarEventUpgradeManifest } from "document-models/calendar-event/upgrades";
 import { contactUpgradeManifest } from "document-models/contact/upgrades";
 import { emailUpgradeManifest } from "document-models/email/upgrades";
 import { expenseReportUpgradeManifest } from "document-models/expense-report/upgrades";
@@ -17,6 +18,7 @@ import { tripUpgradeManifest } from "document-models/trip/upgrades";
 
 export const upgradeManifests: UpgradeManifest<readonly number[]>[] = [
   bankAccountUpgradeManifest,
+  calendarEventUpgradeManifest,
   contactUpgradeManifest,
   emailUpgradeManifest,
   expenseReportUpgradeManifest,

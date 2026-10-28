@@ -50,6 +50,10 @@
     {
       "id": "sektar/integration",
       "name": "Integration"
+    },
+    {
+      "id": "sektar/calendar-event",
+      "name": "Calendar Event"
     }
   ],
   "apps": [
@@ -203,8 +207,8 @@
       "name": "trip-index"
     },
     {
-      "name": "integration-reconciler",
-      "id": "integration-reconciler"
+      "id": "integration-reconciler",
+      "name": "integration-reconciler"
     }
   ],
   "subgraphs": [

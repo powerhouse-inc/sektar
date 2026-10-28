@@ -82,6 +82,14 @@ export default {
         preferredEditor: "integrations",
         icon: "./icons/sektar_symbol_64x64.png",
       },
+      // Calendar: sektar/calendar-event documents that calendar integrations
+      // bring in, a folder per calendar. Its drive app (the calendar explorer)
+      // comes separately; until then Connect's default view opens it.
+      {
+        slug: "calendar",
+        name: "Calendar",
+        icon: "./icons/sektar_symbol_64x64.png",
+      },
       // Files: any document or file, opened by the Files drive app.
       {
         slug: "files",
