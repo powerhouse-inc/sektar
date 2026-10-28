@@ -153,33 +153,123 @@ export type RerunResult = {
   error: string | null;
 };
 
+export type RunSummary = {
+  id: string;
+  status: string;
+  error: string | null;
+  /** What the trigger fired it with (for a backfill: its slice) */
+  triggerPayload?: unknown;
+  /** rerun, manual, or the trigger's own kind */
+  triggerKind?: string;
+};
+
+/** How a run the runtime skipped because its workflow was parked begins its error. */
+const SKIPPED_PARKED = "Skipped: this workflow is PARKED";
+
+/** Runs an operator started (Try again's own reruns and fires); they never end a park. */
+const OPERATOR_KINDS = new Set(["rerun", "manual"]);
+
 /**
- * Runs a workflow's latest failed run again, with the payload it failed on
- * (for a backfill: its slice). Null when there is no failed run to retry.
+ * What "Try again" runs again after a park: the failed run that parked the
+ * workflow (rerun: it resumes where it failed), then every firing the
+ * runtime refused while parked, oldest first (fired again with its payload:
+ * a refused firing never ran, so it cannot be rerun; for a backfill each is
+ * a slice that would otherwise be missing). An earlier Try again's runs are
+ * looked past, and what they already brought in is left out, so pressing it
+ * again picks up where the last one stopped. Null when the newest outcome
+ * of the trigger is not a failure.
  */
-export async function rerunLastFailed(
+export function runsToRetry(
+  newestFirst: readonly RunSummary[],
+): { failed: RunSummary | null; skipped: RunSummary[] } | null {
+  const done = new Set<string>();
+  const skipped: RunSummary[] = [];
+  const key = (run: RunSummary) => JSON.stringify(run.triggerPayload ?? null);
+  for (const run of newestFirst) {
+    if (run.triggerKind && OPERATOR_KINDS.has(run.triggerKind)) {
+      if (run.status === "SUCCEEDED") done.add(key(run));
+      continue;
+    }
+    if (run.status === "CANCELLED" && run.error?.startsWith(SKIPPED_PARKED)) {
+      if (!done.has(key(run))) skipped.push(run);
+      continue;
+    }
+    if (run.status !== "FAILED") return null;
+    return {
+      failed: done.has(key(run)) ? null : run,
+      skipped: skipped.reverse(),
+    };
+  }
+  return null;
+}
+
+/** A workflow's latest runs, newest first (test runs left out). */
+export async function latestRuns(
   url: string,
   workflowId: string,
-): Promise<RerunResult | null> {
-  const runs = await gql<{
-    workflowRuntime: { runs: { id: string; status: string }[] };
-  }>(
+  limit = 200,
+): Promise<RunSummary[]> {
+  const data = await gql<{ workflowRuntime: { runs: RunSummary[] } }>(
     url,
-    `query Runs($workflowId: String!) {
-      workflowRuntime { runs(workflowId: $workflowId, limit: 10, excludeTriggerKinds: ["test"]) { id status } }
+    `query Runs($workflowId: String!, $limit: Int) {
+      workflowRuntime { runs(workflowId: $workflowId, limit: $limit, excludeTriggerKinds: ["test"]) { id status error triggerKind triggerPayload } }
     }`,
-    { workflowId },
+    { workflowId, limit },
   );
-  const failed = runs.workflowRuntime.runs.find((r) => r.status === "FAILED");
-  if (!failed) return null;
+  return data.workflowRuntime.runs;
+}
+
+/** Runs one run again, with the payload it had (for a backfill: its slice). */
+export async function rerun(url: string, runId: string): Promise<RerunResult> {
   const data = await gql<{ workflowRuntime: { rerun: RerunResult } }>(
     url,
     `mutation Rerun($runId: String!) {
       workflowRuntime { rerun(runId: $runId) { runId status error } }
     }`,
-    { runId: failed.id },
+    { runId },
   );
   return data.workflowRuntime.rerun;
+}
+
+/** Fires a workflow by hand with a payload, as its trigger would have (an operator run: a park does not hold it). */
+export async function fireWith(
+  url: string,
+  workflowId: string,
+  payload: unknown,
+): Promise<RerunResult> {
+  const data = await gql<{ workflowRuntime: { fire: RerunResult } }>(
+    url,
+    `mutation Fire($workflowId: String!, $payload: Unknown) {
+      workflowRuntime { fire(workflowId: $workflowId, payload: $payload) { runId status error } }
+    }`,
+    { workflowId, payload },
+  );
+  return data.workflowRuntime.fire;
+}
+
+/**
+ * Sets a workflow's status through the switchboard (its Workflow mutations,
+ * beside the runtime's subgraph), so the runtime sees it as its own write.
+ */
+export async function setWorkflowStatus(
+  url: string,
+  workflowId: string,
+  status: "ENABLED" | "DISABLED",
+): Promise<void> {
+  const supergraph = url.replace(/\/workflow-runtime\/?$/, "");
+  await gql(
+    supergraph,
+    `mutation SetStatus($id: String!, $input: Workflow_SetWorkflowStatusInput!) {
+      Workflow { setWorkflowStatus(documentIdOrSlug: $id, input: $input) { __typename } }
+    }`,
+    { id: workflowId, input: { status } },
+  );
+}
+
+/** Whether the runtime holds a workflow's trigger parked. */
+export async function isParked(url: string, workflowId: string): Promise<boolean> {
+  const states = await triggerStates(url);
+  return states.find((t) => t.workflowId === workflowId)?.status === "PARKED";
 }
 
 export type RuntimeConnection = {

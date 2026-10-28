@@ -1,20 +1,31 @@
 import { dispatchActions } from "@powerhousedao/reactor-browser";
-import { actions as workflowActions } from "@powerhousedao/workflow/document-models/workflow";
 import { generateId } from "document-model";
 import { actions, type IntegrationDocument } from "document-models/integration";
 import { useState } from "react";
 import {
-  rerunLastFailed,
+  fireWith,
+  isParked,
+  latestRuns,
+  rerun,
+  runsToRetry,
+  setWorkflowStatus,
   useWorkflowRuntimeUrl,
 } from "../../sektar/kit/workflow-runtime.js";
 import { Button } from "../../sektar/kit/ui.js";
 
+/** How long to wait for the runtime to see the switch-off before switching back on */
+const RELEASE_WAIT_MS = 20_000;
+const RELEASE_EVERY_MS = 1_000;
+
 /**
- * "Try again" for a workflow the runtime parked after a failed run: run the
- * failed run again (a backfill's slice included), and when it goes through,
- * switch the workflow off and on, which lifts the park; then ask the
- * reconciler to look again so the card catches up. A rerun that fails again
- * leaves it parked and says why.
+ * "Try again" for a workflow the runtime parked after a failed run. It reruns
+ * the failed run, then fires again every firing the runtime refused while
+ * parked (a backfill's skipped slices, oldest first), stopping at the first
+ * that still fails; pressed again, it picks up where it stopped. When they
+ * go through, it switches the workflow off, waits until the runtime has
+ * released the park, and switches it on again: two separate
+ * writes through the switchboard (one synced batch of both does not lift the
+ * park). Then it asks the reconciler to look again so the card catches up.
  */
 export function TryAgain({
   doc,
@@ -24,27 +35,42 @@ export function TryAgain({
   workflowId: string;
 }) {
   const url = useWorkflowRuntimeUrl();
-  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const retry = async () => {
-    setBusy(true);
+    setProgress("Trying again…");
     setError(null);
     try {
-      const result = await rerunLastFailed(url, workflowId);
-      if (result && result.status !== "SUCCEEDED") {
-        setError(
-          result.error ?? `The run ended ${result.status.toLowerCase()}`,
-        );
-        return;
+      const pending = runsToRetry(await latestRuns(url, workflowId));
+      const failed = pending?.failed;
+      const steps = pending
+        ? [
+            ...(failed ? [() => rerun(url, failed.id)] : []),
+            ...pending.skipped.map(
+              (run) => () => fireWith(url, workflowId, run.triggerPayload),
+            ),
+          ]
+        : [];
+      for (const [i, step] of steps.entries()) {
+        if (steps.length > 1) {
+          setProgress(`Trying again… ${i + 1} of ${steps.length}`);
+        }
+        const result = await step();
+        if (result.status !== "SUCCEEDED") {
+          setError(
+            result.error ?? `The run ended ${result.status.toLowerCase()}`,
+          );
+          return;
+        }
       }
-      await dispatchActions(
-        [
-          workflowActions.setWorkflowStatus({ status: "DISABLED" }),
-          workflowActions.setWorkflowStatus({ status: "ENABLED" }),
-        ],
-        workflowId,
-      );
+      setProgress("Starting it again…");
+      await setWorkflowStatus(url, workflowId, "DISABLED");
+      const until = Date.now() + RELEASE_WAIT_MS;
+      while ((await isParked(url, workflowId)) && Date.now() < until) {
+        await new Promise((r) => window.setTimeout(r, RELEASE_EVERY_MS));
+      }
+      await setWorkflowStatus(url, workflowId, "ENABLED");
       await dispatchActions(
         [
           actions.requestCheck({
@@ -57,7 +83,7 @@ export function TryAgain({
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setBusy(false);
+      setProgress(null);
     }
   };
 
@@ -68,9 +94,9 @@ export function TryAgain({
           variant="secondary"
           size="sm"
           onClick={() => void retry()}
-          disabled={busy}
+          disabled={progress !== null}
         >
-          {busy ? "Trying again…" : "Try again"}
+          {progress ?? "Try again"}
         </Button>
       </div>
       {error && (
