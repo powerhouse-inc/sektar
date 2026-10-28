@@ -2510,8 +2510,6 @@ html { touch-action: manipulation; }
 .sk-app .sk-intg-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .sk-app .sk-intg-since { flex-wrap: wrap; align-items: center; }
 .sk-app .sk-intg-since .sk-input { width: auto; margin-left: var(--sk-space-2); }
-.sk-app .sk-intg-summary { padding: var(--sk-space-4); border-radius: var(--sk-radius-lg); background: var(--sk-bg-subtle); color: var(--sk-text-secondary); }
-.sk-app .sk-intg-summary b { color: var(--sk-text); font-weight: var(--sk-weight-medium); }
 
 /* Integrations: what Sektar may do (Connect step), the sign-in, removal */
 .sk-app .sk-intg-access { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sk-space-3); }

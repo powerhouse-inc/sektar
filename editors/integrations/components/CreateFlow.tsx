@@ -22,7 +22,6 @@ import {
   kindInfo,
   providerInfo,
   providersFor,
-  setupSummary,
   type AccessOption,
   type CreateChoices,
 } from "../../sektar/kit/integrations.js";
@@ -390,7 +389,6 @@ export function CreateFlow({
           </label>
           <span className="sk-hint">Each includes the next 12 months.</span>
         </fieldset>
-        <Summary text={setupSummary(choices, now)} />
         <Footer
           back={() => go("add/connect")}
           next={() => go("add/name")}
@@ -413,7 +411,6 @@ export function CreateFlow({
             maxLength={80}
           />
         </Field>
-        <Summary text={setupSummary(choices, now)} />
         {error && (
           <Alert tone="danger" title="Could not create the integration">
             {error}
@@ -612,14 +609,6 @@ function Tile({
       </span>
       {badge && <Badge tone="outline">{badge}</Badge>}
     </button>
-  );
-}
-
-function Summary({ text }: { text: string }) {
-  return (
-    <div className="sk-intg-summary sk-small">
-      <b>What happens next.</b> {text}
-    </div>
   );
 }
 

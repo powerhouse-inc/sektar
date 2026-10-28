@@ -19,7 +19,6 @@ import {
   kindInfo,
   providersFor,
   rangeLabel,
-  setupSummary,
   type CreateChoices,
 } from "./integrations.js";
 
@@ -97,25 +96,6 @@ describe("how much", () => {
     );
     expect(intervalLabel({ value: 1, unit: "HOURS" })).toBe("every hour");
     expect(intervalLabel({ value: 2, unit: "DAYS" })).toBe("every 2 days");
-  });
-
-  it("summarises what Sektar will set up, briefly", () => {
-    expect(setupSummary(calendar(), NOW)).toBe(
-      "Brings in events from 1 Jan 2025 to a year ahead, then checks for changes every 5 minutes. Read only.",
-    );
-    expect(
-      setupSummary(calendar({ live: false, history: { kind: "none" } }), NOW),
-    ).toBe(
-      "Brings in events from today to a year ahead. Live updates off. Read only.",
-    );
-    expect(
-      setupSummary(
-        calendar({ history: { kind: "everything" }, access: "READ_WRITE" }),
-        NOW,
-      ),
-    ).toBe(
-      "Brings in events: everything, up to a year ahead, then checks for changes every 5 minutes. Read and write.",
-    );
   });
 });
 

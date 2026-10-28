@@ -282,28 +282,6 @@ export function intervalLabel(every: {
   return every.value === 1 ? `every ${unit}` : `every ${every.value} ${unit}s`;
 }
 
-/** What Sektar will set up, in one or two sentences, for the flow's last steps. */
-export function setupSummary(choices: CreateChoices, now: Date): string {
-  const ahead =
-    MONTHS_AHEAD === 12 ? "a year ahead" : `${MONTHS_AHEAD} months ahead`;
-  const range =
-    choices.history.kind === "none"
-      ? `from today to ${ahead}`
-      : choices.history.kind === "everything"
-        ? `everything, up to ${ahead}`
-        : `from ${MONTH.format(new Date(importRange(choices.history, now).from))} to ${ahead}`;
-  const live = choices.live
-    ? `, then checks for changes ${intervalLabel(choices.every)}`
-    : ". Live updates off";
-  const access =
-    choices.access === "READ_WRITE" ? "Read and write." : "Read only.";
-  const lead =
-    choices.history.kind === "everything"
-      ? "Brings in events: "
-      : "Brings in events ";
-  return `${lead}${range}${live}. ${access}`;
-}
-
 /**
  * The actions Create dispatches on the new document, in one batch: the kind,
  * the source, live updates, and the first import as a date-range backfill.
