@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   accessOptions,
   cardView,
+  historyView,
   hasBuiltAnything,
   removalPlan,
   createActions,
@@ -319,5 +320,67 @@ describe("cardView", () => {
       badge: { label: "Needs attention", tone: "danger", dot: true },
       line: "Google access was removed. Reconnect.",
     });
+  });
+});
+
+describe("historyView", () => {
+  const ready = () => {
+    const s = structuredClone(created().state.global);
+    s.intent.backfill.items[0].documentId = "q-ahead";
+    s.intent.backfill.items[1].documentId = "q-back";
+    s.resources.pluggedItemId = "bf-1";
+    return s;
+  };
+  const progress = (
+    ahead: [number, number, boolean],
+    back: [number, number, boolean],
+  ) =>
+    new Map([
+      ["q-ahead", { done: ahead[0], total: ahead[1], finished: ahead[2] }],
+      ["q-back", { done: back[0], total: back[1], finished: back[2] }],
+    ]);
+
+  it("says it is starting until every backfill has its queue", () => {
+    expect(historyView(created().state.global, new Map())).toEqual({
+      line: "Starting",
+      percent: null,
+      complete: false,
+    });
+  });
+
+  it("says which backfill runs, how many are done, and how far all of them are", () => {
+    expect(
+      historyView(ready(), progress([13, 53, false], [0, 96, false])),
+    ).toEqual({
+      line: "Running Next 12 months · 0 of 2 done · 13 of 149 weeks",
+      percent: 9,
+      complete: false,
+    });
+    const back = ready();
+    back.resources.pluggedItemId = "bf-2";
+    expect(
+      historyView(back, progress([53, 53, true], [48, 96, false]))?.line,
+    ).toBe("Running Back to 1 Jan 2025 · 1 of 2 done · 101 of 149 weeks");
+  });
+
+  it("says paused when the switch is off, and complete when all are walked", () => {
+    const off = ready();
+    off.intent.backfill.enabled = false;
+    expect(
+      historyView(off, progress([13, 53, false], [0, 96, false]))?.line,
+    ).toBe("Paused · 13 of 149 weeks");
+    expect(
+      historyView(ready(), progress([53, 53, true], [96, 96, true])),
+    ).toEqual({
+      line: "Complete · 149 weeks",
+      percent: 100,
+      complete: true,
+    });
+  });
+
+  it("is not there without backfills", () => {
+    const none = structuredClone(created().state.global);
+    none.intent.backfill.items = [];
+    expect(historyView(none, new Map())).toBeNull();
   });
 });

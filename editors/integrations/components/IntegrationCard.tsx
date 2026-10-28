@@ -13,13 +13,14 @@ import {
 } from "../../sektar/kit/integrations.js";
 import { Menu } from "../../sektar/kit/menu.js";
 import { Alert, Badge, Button, Icon, Modal } from "../../sektar/kit/ui.js";
+import { CardRows } from "./CardRows.js";
 import { SignIn } from "./SignIn.js";
 
 /**
  * One integration on the page (design system: Patterns · Integrations ·
  * card). While it waits for the sign-in on the runner there is nothing to
- * switch yet, so the card shows the state and what to do; the Live updates
- * and Backfill rows come with the workflows (pilot steps 4 and 5). Its menu
+ * switch yet, so the card shows the state and what to do; once it is set up,
+ * the Live updates and Backfill rows follow (CardRows). Its menu
  * removes it, through a confirmation that says what removing does.
  */
 export function IntegrationCard({ doc }: { doc: IntegrationDocument }) {
@@ -83,6 +84,10 @@ export function IntegrationCard({ doc }: { doc: IntegrationDocument }) {
         </Badge>
       </div>
       {view.state === "waiting-for-sign-in" && <SignIn doc={doc} />}
+      {(view.state === "live" ||
+        view.state === "paused" ||
+        view.state === "applying" ||
+        view.state === "attention") && <CardRows doc={doc} />}
       {removing && (
         <RemoveDialog
           doc={doc}

@@ -5,6 +5,7 @@
  * the actions Create dispatches, and the state a card shows.
  * Design: workspace/integrations-design.md; pilot: calendar-integration-pilot.md.
  */
+import type { QueueProgress } from "../../backfills/progress.js";
 import {
   actions,
   type IntegrationAccess,
@@ -487,4 +488,70 @@ export function removalPlan(state: IntegrationState): RemovalPlan {
     ],
     keeps,
   };
+}
+
+/** What the Backfill row on a card says, from the integration and its queues. */
+export type HistoryView = {
+  line: string;
+  /** 0–100; null while no queue exists yet */
+  percent: number | null;
+  complete: boolean;
+};
+
+/** A slice size in words, for counting: "weeks", "days", or plain "slices". */
+export function sliceUnit(stepSeconds: number): string {
+  if (stepSeconds === 7 * 86400) return "weeks";
+  if (stepSeconds === 86400) return "days";
+  return "slices";
+}
+
+const count = (n: number) => n.toLocaleString("en-GB");
+
+/**
+ * The Backfill row (design system: Patterns · Integrations · card), from
+ * the integration and the progress of its queues (by queue id). Null when
+ * it asks for no history.
+ */
+export function historyView(
+  state: IntegrationState,
+  progress: ReadonlyMap<string, QueueProgress>,
+): HistoryView | null {
+  const items = state.intent.backfill.items;
+  if (items.length === 0) return null;
+  const known = items.map((item) =>
+    item.documentId ? progress.get(item.documentId) : undefined,
+  );
+  if (known.some((p) => !p)) {
+    return { line: "Starting", percent: null, complete: false };
+  }
+  const all = known as QueueProgress[];
+  const done = all.reduce((n, p) => n + p.done, 0);
+  const total = all.reduce((n, p) => n + p.total, 0);
+  const finished = all.filter((p) => p.finished).length;
+  const percent = total === 0 ? 100 : Math.round((done / total) * 100);
+  const steps = items.map((i) => {
+    const r = i.request as { stepSeconds?: number } | null;
+    return r?.stepSeconds ?? 0;
+  });
+  const unit = steps.every((x) => x === steps[0])
+    ? sliceUnit(steps[0] ?? 0)
+    : "slices";
+  const amount = `${count(done)} of ${count(total)} ${unit}`;
+  if (finished === items.length) {
+    return {
+      line: `Complete · ${count(total)} ${unit}`,
+      percent: 100,
+      complete: true,
+    };
+  }
+  if (!state.intent.backfill.enabled) {
+    return { line: `Paused · ${amount}`, percent, complete: false };
+  }
+  const plugged = items.find((i) => i.id === state.resources.pluggedItemId);
+  const parts = [
+    plugged ? `Running ${plugged.label}` : "Running",
+    items.length > 1 ? `${finished} of ${items.length} done` : null,
+    amount,
+  ].filter(Boolean);
+  return { line: parts.join(" · "), percent, complete: false };
 }

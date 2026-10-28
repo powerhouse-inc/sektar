@@ -9,10 +9,9 @@ import {
   type OriginalSourceQueueAction,
 } from "document-models/original-source-queue";
 import type { IntegrationState } from "document-models/integration";
-import {
-  iterationOf,
-  totalOf,
-  type QueueState,
+export {
+  queueProgress,
+  type QueueProgress,
 } from "../../editors/backfills/progress.js";
 
 export const OSQ_TYPE = "distyra/original-source-queue";
@@ -69,25 +68,6 @@ export function queueSetup(
       }),
     ],
   };
-}
-
-export type QueueProgress = {
-  /** Slices walked */
-  done: number;
-  total: number;
-  finished: boolean;
-};
-
-/**
- * How far a queue has walked. The trigger moves the cursor before each run,
- * so the slice in hand is not done yet: done counts the ones before it.
- */
-export function queueProgress(state: QueueState): QueueProgress {
-  const total = totalOf(state);
-  if (state.status === "FINISHED")
-    return { done: total, total, finished: true };
-  if (state.status === "DRAFT") return { done: 0, total, finished: false };
-  return { done: Math.max(0, iterationOf(state) - 1), total, finished: false };
 }
 
 /** The for-every trigger's config for a queue. */
