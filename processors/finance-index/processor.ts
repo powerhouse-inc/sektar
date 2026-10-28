@@ -18,6 +18,7 @@
  */
 import { RelationalDbProcessor } from "@powerhousedao/reactor-browser";
 import type { OperationWithContext } from "document-model";
+import { statelessWarning } from "../stateless-warning.js";
 import { up } from "./migrations.js";
 import {
   accountRows,
@@ -75,7 +76,7 @@ export class FinanceIndex extends RelationalDbProcessor<DB> {
     // The first operation's time per document: its creation time when the
     // batch holds its CREATE_DOCUMENT (scope "document", first of all).
     const firstAt = new Map<string, string>();
-    let withoutState = 0;
+    const withoutState = new Map<string, number>();
 
     for (const { operation, context } of operations) {
       const type = operation.action.type;
@@ -91,14 +92,18 @@ export class FinanceIndex extends RelationalDbProcessor<DB> {
         continue;
       }
       const { documentId, documentType } = context;
-      if (documentType !== INVOICE_DOCUMENT_TYPE && documentType !== ACCOUNT_DOCUMENT_TYPE) continue;
+      if (
+        documentType !== INVOICE_DOCUMENT_TYPE &&
+        documentType !== ACCOUNT_DOCUMENT_TYPE
+      )
+        continue;
       if (!firstAt.has(documentId)) firstAt.set(documentId, timeOf(operation));
       if (context.scope !== "global") continue;
       // A refused operation left the document as it was.
       if (operation.error || operation.deniedReason !== undefined) continue;
       if (deleted.has(documentId)) continue;
       if (!context.resultingState) {
-        withoutState++;
+        withoutState.set(documentId, (withoutState.get(documentId) ?? 0) + 1);
         continue;
       }
       latest.set(documentId, {
@@ -108,11 +113,8 @@ export class FinanceIndex extends RelationalDbProcessor<DB> {
       });
     }
 
-    if (withoutState > 0) {
-      console.warn(
-        `[finance-index] ${withoutState} operation(s) without a resulting state left their rows unchanged`,
-      );
-    }
+    const warning = statelessWarning("finance-index", withoutState);
+    if (warning) console.warn(warning);
 
     await this.deleteDocuments([...deleted]);
 
@@ -131,9 +133,18 @@ export class FinanceIndex extends RelationalDbProcessor<DB> {
   private async deleteDocuments(ids: string[]): Promise<void> {
     for (let at = 0; at < ids.length; at += BATCH) {
       const chunk = ids.slice(at, at + BATCH);
-      await this.relationalDb.deleteFrom("invoice_index").where("document_id", "in", chunk).execute();
-      await this.relationalDb.deleteFrom("account_index").where("document_id", "in", chunk).execute();
-      await this.relationalDb.deleteFrom("transaction_index").where("account_id", "in", chunk).execute();
+      await this.relationalDb
+        .deleteFrom("invoice_index")
+        .where("document_id", "in", chunk)
+        .execute();
+      await this.relationalDb
+        .deleteFrom("account_index")
+        .where("document_id", "in", chunk)
+        .execute();
+      await this.relationalDb
+        .deleteFrom("transaction_index")
+        .where("account_id", "in", chunk)
+        .execute();
     }
   }
 
@@ -147,15 +158,22 @@ export class FinanceIndex extends RelationalDbProcessor<DB> {
       const stored = await this.relationalDb
         .selectFrom("invoice_index")
         .select(["document_id", "created_at"])
-        .where("document_id", "in", chunk.map(([id]) => id))
+        .where(
+          "document_id",
+          "in",
+          chunk.map(([id]) => id),
+        )
         .execute();
-      const createdAt = new Map(stored.map((r) => [r.document_id, r.created_at]));
+      const createdAt = new Map(
+        stored.map((r) => [r.document_id, r.created_at]),
+      );
       const rows: InvoiceRow[] = [];
       for (const [documentId, entry] of chunk) {
         const json = parseState(entry.resultingState);
         const state = json ? invoiceState(json) : null;
         if (!state) continue;
-        const created = createdAt.get(documentId) ?? firstAt.get(documentId) ?? entry.at;
+        const created =
+          createdAt.get(documentId) ?? firstAt.get(documentId) ?? entry.at;
         rows.push(invoiceRow(documentId, state, created, entry.at));
       }
       if (rows.length === 0) continue;
@@ -188,7 +206,9 @@ export class FinanceIndex extends RelationalDbProcessor<DB> {
             issued_copy_id: eb.ref("excluded.issued_copy_id"),
             issued_copy_ref: eb.ref("excluded.issued_copy_ref"),
             line_count: eb.ref("excluded.line_count"),
-            lines_missing_attachments: eb.ref("excluded.lines_missing_attachments"),
+            lines_missing_attachments: eb.ref(
+              "excluded.lines_missing_attachments",
+            ),
             last_paid_at: eb.ref("excluded.last_paid_at"),
             search_text: eb.ref("excluded.search_text"),
             updated_at: eb.ref("excluded.updated_at"),

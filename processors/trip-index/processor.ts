@@ -12,6 +12,7 @@ import type { OperationWithContext } from "document-model";
 import { up } from "./migrations.js";
 import { parseState, rowFromState } from "./rows.js";
 import type { DB, TripRow } from "./schema.js";
+import { statelessWarning } from "../stateless-warning.js";
 
 export const TRIP_DOCUMENT_TYPE = "sektar/trip";
 
@@ -45,7 +46,7 @@ export class TripIndex extends RelationalDbProcessor<DB> {
     // One row per document however many operations arrived for it; null
     // marks a document the batch deletes.
     const pending = new Map<string, TripRow | null>();
-    let missing = 0;
+    const missing = new Map<string, number>();
     for (const { operation, context } of operations) {
       const type = operation.action.type;
       if (type === "DELETE_DOCUMENT" || type === "PURGE_DOCUMENT") {
@@ -65,7 +66,7 @@ export class TripIndex extends RelationalDbProcessor<DB> {
       if (pending.get(documentId) === null) continue;
       const state = parseState(context.resultingState);
       if (!state) {
-        missing++;
+        missing.set(documentId, (missing.get(documentId) ?? 0) + 1);
         continue;
       }
       pending.set(
@@ -73,11 +74,8 @@ export class TripIndex extends RelationalDbProcessor<DB> {
         rowFromState(documentId, state, timeOf(operation)),
       );
     }
-    if (missing > 0) {
-      console.warn(
-        `[trip-index] ${missing} operation(s) carried no resultingState; their rows were left unchanged`,
-      );
-    }
+    const warning = statelessWarning("trip-index", missing);
+    if (warning) console.warn(warning);
 
     const rows: TripRow[] = [];
     for (const [documentId, row] of pending) {
