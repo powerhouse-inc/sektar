@@ -1,4 +1,4 @@
-import { initTheme, useDrives, useTheme } from "@powerhousedao/reactor-browser";
+import { initTheme, useDrives } from "@powerhousedao/reactor-browser";
 import {
   createFileRoute,
   Link,
@@ -16,7 +16,6 @@ import {
   PromoCard,
   Skeleton,
   Sprite,
-  type IconName,
 } from "../../../editors/sektar/kit/ui.js";
 import { ProductSwitch } from "./-shared/product-switch.js";
 import {
@@ -327,9 +326,6 @@ function TopBar({
         >
           <Icon name="bell" />
         </button>
-        <span className="sk-hide-mobile">
-          <ThemeSwitch />
-        </span>
         {/* The sidebar (and its footer) is a drawer on small screens, so the
             sign-in / user chip surfaces here too. */}
         <span className="sk-topbar__user">
@@ -337,39 +333,6 @@ function TopBar({
         </span>
       </div>
     </header>
-  );
-}
-
-function ThemeSwitch() {
-  const { theme, isSystem, setTheme } = useTheme();
-  const current = isSystem ? "system" : theme;
-  const options: {
-    value: "light" | "dark" | "system";
-    icon: IconName;
-    label: string;
-  }[] = [
-    { value: "light", icon: "sun", label: "Light" },
-    { value: "dark", icon: "moon", label: "Dark" },
-    { value: "system", icon: "leaf", label: "Auto" },
-  ];
-  return (
-    <div className="sk-segmented" role="group" aria-label="Theme">
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          className={cx(
-            "sk-segmented__item",
-            current === o.value && "is-active",
-          )}
-          aria-pressed={current === o.value}
-          title={o.label}
-          onClick={() => setTheme(o.value)}
-        >
-          <Icon name={o.icon} size={16} />
-        </button>
-      ))}
-    </div>
   );
 }
 

@@ -627,6 +627,14 @@
 .sk-app .sk-user-menu__head {
   padding: var(--sk-space-2) var(--sk-space-3);
 }
+/* Theme: a label and the light / dark / system switch on one row */
+.sk-app .sk-user-menu__theme {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sk-space-3);
+  padding: var(--sk-space-1) var(--sk-space-3);
+}
 /* In the sidebar footer: full width, panel opens upward */
 .sk-app .sk-sidebar .sk-user-menu {
   width: 100%;

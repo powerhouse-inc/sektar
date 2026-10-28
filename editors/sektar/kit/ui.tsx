@@ -52,6 +52,7 @@ export type IconName =
   | "leaf"
   | "sun"
   | "moon"
+  | "monitor"
   | "chevron-right"
   | "chevron-down"
   | "arrow-right"

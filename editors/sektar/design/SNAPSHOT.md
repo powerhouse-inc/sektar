@@ -1,7 +1,7 @@
 # Vendored design system
 
 Source: `../sektar-design-elements/design-system`
-Synced: 2026-10-20T21:29:32.387Z by `scripts/sync-design-system.mjs`
+Synced: 2026-10-28T06:44:46.317Z by `scripts/sync-design-system.mjs`
 
 Not vendored on purpose: `css/fonts.css` and `assets/fonts/` (Fraunces stays on Google Fonts), `css/docs.css`, `js/`, photos, stucco shape variants.
 `base.css` is vendored for reference only; `app.css` carries its typography scoped to `.sk-page` / `.sk-app`.
@@ -15,7 +15,7 @@ Not vendored on purpose: `css/fonts.css` and `assets/fonts/` (Fraunces stays on 
 | assets/app-icons/sektar-app-icon-sage-dark.svg | 2026-10-17T13:42:08.532Z | c9bfd5fa19b6 |
 | assets/app-icons/sektar-app-icon-sage-light.svg | 2026-10-17T13:42:08.533Z | 8609c8356ea2 |
 | assets/favicon.svg | 2026-10-18T11:45:08.149Z | e1fe1fda7cf9 |
-| assets/icons.svg | 2026-10-17T13:52:19.054Z | 015de510169f |
+| assets/icons.svg | 2026-10-28T06:44:46.183Z | 57aeb9d95dfe |
 | assets/logos/sektar-logo-horizontal-dark.svg | 2026-10-17T13:42:08.412Z | 1a90a04b302e |
 | assets/logos/sektar-logo-horizontal-light.svg | 2026-10-18T11:57:12.576Z | f52038c13f0c |
 | assets/logos/sektar-symbol-dark.svg | 2026-10-17T13:42:08.477Z | 1375330474ff |

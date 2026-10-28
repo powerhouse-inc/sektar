@@ -193,6 +193,13 @@ export const sprite = `<svg xmlns="http://www.w3.org/2000/svg" style="display:no
     <path d="M20.5 14.3A8.8 8.8 0 0 1 9.7 3.5a8.8 8.8 0 1 0 10.8 10.8z" style="fill:var(--sk-icon-1)"/>
   </symbol>
 
+  <symbol id="i-monitor" viewBox="0 0 24 24">
+    <rect x="2" y="3.5" width="20" height="13.5" rx="2.5" style="fill:var(--sk-icon-1)"/>
+    <rect x="4.2" y="5.7" width="15.6" height="9.1" rx="1" style="fill:var(--sk-icon-3)"/>
+    <rect x="10.5" y="17" width="3" height="2.5" style="fill:var(--sk-icon-2)"/>
+    <rect x="7" y="19.5" width="10" height="2" rx="1" style="fill:var(--sk-icon-2)"/>
+  </symbol>
+
   <!-- Glyphs (single tone, stroke) -->
   <symbol id="i-chevron-right" viewBox="0 0 24 24">
     <path d="M9 6l6 6-6 6" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--sk-icon-1)"/>

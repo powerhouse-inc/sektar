@@ -1,12 +1,18 @@
-import { useRenownAuth } from "@powerhousedao/reactor-browser";
+import { useRenownAuth, useTheme } from "@powerhousedao/reactor-browser";
 import { useEffect, useRef, useState } from "react";
-import { Avatar, Icon } from "../../../../editors/sektar/kit/ui.js";
+import {
+  Avatar,
+  cx,
+  Icon,
+  type IconName,
+} from "../../../../editors/sektar/kit/ui.js";
 
 // Who is signed in, via Renown — the same hook Connect's own sidebar uses.
 // Signed out: a "Sign in" button. With no wallet adapters configured (this
 // project) `login()` sends the tab to renown.id and Renown returns to this URL
 // with `?user=<did>`, which Connect consumes at boot. Signed in: the design
-// system's user chip with a small menu (profile, copy address, sign out).
+// system's user chip with a small menu (profile, copy address, theme, sign
+// out).
 export function UserMenu() {
   const auth = useRenownAuth();
   const [open, setOpen] = useState(false);
@@ -121,6 +127,11 @@ export function UserMenu() {
             </button>
           </li>
           <li className="sk-menu__sep" role="separator" />
+          <li className="sk-user-menu__theme">
+            <span className="sk-caption sk-text-muted">Theme</span>
+            <ThemeSwitch />
+          </li>
+          <li className="sk-menu__sep" role="separator" />
           <li>
             <button
               type="button"
@@ -136,6 +147,41 @@ export function UserMenu() {
           </li>
         </ul>
       )}
+    </div>
+  );
+}
+
+/** Light, dark, or following the device. */
+function ThemeSwitch() {
+  const { theme, isSystem, setTheme } = useTheme();
+  const current = isSystem ? "system" : theme;
+  const options: {
+    value: "light" | "dark" | "system";
+    icon: IconName;
+    label: string;
+  }[] = [
+    { value: "light", icon: "sun", label: "Light" },
+    { value: "dark", icon: "moon", label: "Dark" },
+    { value: "system", icon: "monitor", label: "System" },
+  ];
+  return (
+    <div className="sk-segmented" role="group" aria-label="Theme">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          className={cx(
+            "sk-segmented__item",
+            current === o.value && "is-active",
+          )}
+          aria-pressed={current === o.value}
+          aria-label={o.label}
+          title={o.label}
+          onClick={() => setTheme(o.value)}
+        >
+          <Icon name={o.icon} size={16} />
+        </button>
+      ))}
     </div>
   );
 }
