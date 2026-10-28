@@ -23,7 +23,14 @@ import {
   type EmailAttachment,
   type EmailDocument,
 } from "document-models/email";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   AttachmentPreview,
   EmailBadges,
@@ -54,7 +61,23 @@ import {
 } from "../../sektar/kit/mail.js";
 import { Menu } from "../../sektar/kit/menu.js";
 import { printEmail } from "../../sektar/kit/print-email.js";
+import {
+  PullHeader,
+  pullResult,
+  usePullToRefresh,
+} from "../../sektar/kit/pull-to-refresh.js";
 import { useSearch } from "../../sektar/kit/search-context.js";
+import {
+  bringsMailFor,
+  syncRow,
+  syncSummary,
+  type SyncRow,
+} from "../../sektar/kit/sync-status.js";
+import {
+  useIntegrations,
+  useSyncNow,
+  useTriggerStates,
+} from "../../sektar/kit/use-sync.js";
 import {
   Avatar,
   Badge,
@@ -230,7 +253,44 @@ export function MailWorkspace() {
 
   // The list pane's body scrolls; the window keeps a screenful of rows in it.
   const listBody = useRef<HTMLDivElement>(null);
+  const [listEl, setListEl] = useState<HTMLDivElement | null>(null);
+  const listRef = useCallback((el: HTMLDivElement | null) => {
+    listBody.current = el;
+    setListEl(el);
+  }, []);
   const win = useRowWindow(listBody, list.total, { mounted: ready });
+  // Pull to refresh (phone): the live updates of the inbox in view, or of
+  // every email integration under All inboxes; never a backfill.
+  const integrations = useIntegrations();
+  const triggers = useTriggerStates();
+  const { syncing, sync } = useSyncNow();
+  const mailbox = single ? (accounts[0]?.address ?? null) : account === ALL ? null : account;
+  const pullRows = integrations
+    .filter((d) => bringsMailFor(d.state.global, mailbox))
+    .map((d) =>
+      syncRow(
+        d.header.id,
+        d.header.name,
+        d.state.global,
+        d.state.global.resources.liveWorkflowId
+          ? triggers.get(d.state.global.resources.liveWorkflowId)
+          : undefined,
+      ),
+    )
+    .filter((r): r is SyncRow => r !== null);
+  const pullIds = pullRows
+    .map((r) => r.workflowId)
+    .filter((id): id is string => Boolean(id));
+  const pullSummary = syncSummary(
+    pullRows,
+    triggers,
+    pullIds.some((id) => syncing.has(id)),
+  );
+  const ptr = usePullToRefresh(listEl, async () => {
+    const result = await sync(pullIds);
+    list.refreshSoon();
+    return pullResult(result);
+  });
   const { ensure, rowAt } = list;
   // The pages under the window, once the scroll settles: a drag across the
   // mailbox fetches where it stops, not every page it passed.
@@ -342,7 +402,7 @@ export function MailWorkspace() {
           side="start"
           grow={1}
           flush
-          bodyRef={listBody}
+          bodyRef={listRef}
           collapsed={listCollapsed}
           onToggle={() => setListCollapsed((v) => !v)}
           count={list.total}
@@ -380,6 +440,16 @@ export function MailWorkspace() {
             />
           }
         >
+          <PullHeader
+            {...ptr}
+            words={{
+              idle: pullSummary
+                ? `${accountName} · ${pullSummary.label.toLowerCase()}`
+                : accountName,
+              busy: "Checking for new mail…",
+              busySub: accountName,
+            }}
+          />
           {list.total === 0 ? (
             <div style={{ padding: "var(--sk-space-6)" }}>
               {list.loaded ? (

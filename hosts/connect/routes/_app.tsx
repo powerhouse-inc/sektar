@@ -41,6 +41,7 @@ import {
 } from "./-shared/products.js";
 import { SearchBar } from "./-shared/search-bar.js";
 import { SearchContext } from "./-shared/search.js";
+import { SyncStatus } from "./-shared/sync-status.js";
 import { UserMenu } from "./-shared/user-menu.js";
 
 // Sektar replaces Connect's layout with the design system's app shell: the
@@ -383,6 +384,10 @@ function TopBar({
         >
           <Icon name={searching ? "close" : "search"} mono={searching} />
         </button>
+        {/* Every integration in one line; reads documents, so it may suspend */}
+        <Suspense fallback={null}>
+          <SyncStatus />
+        </Suspense>
         <button
           type="button"
           className="sk-btn sk-btn--ghost sk-btn--icon"

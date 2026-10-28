@@ -236,3 +236,18 @@ export async function blockOptions(
   );
   return data.workflowRuntime.blockOptions ?? { options: [] };
 }
+
+/**
+ * Runs a workflow's trigger now, as its schedule or poll would ("sync now").
+ * False when it has no armed trigger (live updates off, stopped, failing).
+ */
+export async function pollNow(url: string, workflowId: string): Promise<boolean> {
+  const data = await gql<{ workflowRuntime: { pollNow: boolean } }>(
+    url,
+    `mutation PollNow($workflowId: String!) {
+      workflowRuntime { pollNow(workflowId: $workflowId) }
+    }`,
+    { workflowId },
+  );
+  return data.workflowRuntime.pollNow;
+}

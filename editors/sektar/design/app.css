@@ -684,6 +684,45 @@ html:has(.sk-app.sk-shell) body {
   min-width: 0;
   max-width: none;
 }
+/* Sync status in the top bar (design system: Integrations · Sync status):
+   the chip on a wide bar, an icon with a dot below 900px, and nothing on the
+   phone, where pull to refresh says it. The panel's rows open the
+   Integrations page, so they are buttons laid out as the design system's rows. */
+.sk-app .sk-sync-chip__icon {
+  display: none;
+  position: relative;
+}
+.sk-app .sk-sync-chip__dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  box-shadow: 0 0 0 2px var(--sk-surface);
+}
+@media (max-width: 899px) {
+  .sk-app .sk-sync-chip__full {
+    display: none;
+  }
+  .sk-app .sk-sync-chip__icon {
+    display: inline-flex;
+  }
+}
+@media (max-width: 720px) {
+  .sk-app .sk-sync-chip {
+    display: none;
+  }
+}
+.sk-app button.sk-sync-panel__item {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sk-app .sk-sync-panel__list > li {
+  margin: 0;
+}
 /* The top-bar copy of the user menu exists only once the sidebar is a drawer */
 .sk-app .sk-topbar__user {
   display: none;
