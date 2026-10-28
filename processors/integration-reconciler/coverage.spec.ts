@@ -14,7 +14,7 @@ describe("coverage", () => {
     ];
     const gaps = coverageGaps(personal);
     expect(gaps).toEqual([span("2025-08-12", "2026-01-01")]);
-    expect(spanLabel(gaps[0]!)).toBe("12 Aug 2025 – 1 Jan 2026");
+    expect(spanLabel(gaps[0])).toBe("12 Aug 2025 – 1 Jan 2026");
   });
 
   it("finds nothing where backfills touch or overlap, in any order", () => {
