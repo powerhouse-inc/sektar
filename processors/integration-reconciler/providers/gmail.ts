@@ -14,7 +14,12 @@ import type { ProviderAdapter, ProviderContext } from "./types.js";
 
 export const GMAIL_PIECE = "@activepieces/piece-gmail";
 export const GMAIL_PIECE_VERSION = "0.18.1";
-export const MAIL_DRIVE = "mail";
+/**
+ * The Mail drive, by id: hosts/switchboard pins it (a converted
+ * reactor-drive whose slug is its id), and the legacy mail workflows wrote
+ * to it by id. Its "mail" slug does not resolve.
+ */
+export const MAIL_DRIVE = "HRsIHuMMTdmjgCdy9QGWyx96zOFByPo787oBQcEt9f4";
 export const EMAIL_TYPE = "sektar/email";
 
 const IDENTITY = ["openid", "https://www.googleapis.com/auth/userinfo.email"];

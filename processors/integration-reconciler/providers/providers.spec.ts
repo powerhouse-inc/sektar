@@ -16,7 +16,7 @@ import {
 } from "../backfill-workflow.js";
 import { workflowDrift, type WorkflowFacts } from "../workflow-spec.js";
 import { distyra } from "./distyra.js";
-import { gmail } from "./gmail.js";
+import { gmail, MAIL_DRIVE } from "./gmail.js";
 
 type Action = Parameters<typeof reducer>[1];
 const state = (...list: Action[]) =>
@@ -76,7 +76,7 @@ describe("Gmail, as the existing mail workflows run", () => {
           name: "$item.name",
           items: "{{steps.map_emails.output.items}}",
           limit: 500,
-          driveId: "mail",
+          driveId: MAIL_DRIVE,
           folderName: "$item.folder",
           itemKeyPath: "key",
           stopOnError: false,
