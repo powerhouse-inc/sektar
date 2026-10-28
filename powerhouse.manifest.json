@@ -201,6 +201,10 @@
     {
       "id": "trip-index",
       "name": "trip-index"
+    },
+    {
+      "name": "integration-reconciler",
+      "id": "integration-reconciler"
     }
   ],
   "subgraphs": [

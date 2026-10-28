@@ -13,6 +13,7 @@ import {
 } from "../../sektar/kit/integrations.js";
 import { Menu } from "../../sektar/kit/menu.js";
 import { Alert, Badge, Button, Icon, Modal } from "../../sektar/kit/ui.js";
+import { SignIn } from "./SignIn.js";
 
 /**
  * One integration on the page (design system: Patterns · Integrations ·
@@ -81,6 +82,7 @@ export function IntegrationCard({ doc }: { doc: IntegrationDocument }) {
           {view.badge.label}
         </Badge>
       </div>
+      {view.state === "waiting-for-sign-in" && <SignIn doc={doc} />}
       {removing && (
         <RemoveDialog
           doc={doc}

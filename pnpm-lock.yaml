@@ -107,6 +107,9 @@ importers:
       '@powerhousedao/vetra-studio':
         specifier: link:../powerhouse/packages/vetra-studio
         version: link:../powerhouse/packages/vetra-studio
+      '@powerhousedao/workflow':
+        specifier: link:../powerhouse/packages/workflow
+        version: link:../powerhouse/packages/workflow
       '@tailwindcss/cli':
         specifier: ^4.1.18
         version: 4.3.3
