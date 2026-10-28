@@ -226,8 +226,14 @@ export class IntegrationReconciler implements IProcessor {
                 trigger: {
                   triggerName: string;
                   connectionId: string | null;
+                  reactorConnectionId?: string | null;
                   config: Record<string, unknown>;
                 } | null;
+                steps?: {
+                  id: string;
+                  key: string;
+                  connectionId?: string | null;
+                }[];
               } | null;
             };
           }
@@ -240,6 +246,12 @@ export class IntegrationReconciler implements IProcessor {
           triggerName: trigger?.triggerName ?? null,
           triggerConnectionId: trigger?.connectionId ?? null,
           triggerConfig: trigger?.config ?? null,
+          triggerReactorConnectionId: trigger?.reactorConnectionId ?? null,
+          steps: (g.published?.steps ?? []).map((step) => ({
+            id: step.id,
+            key: step.key,
+            connectionId: step.connectionId ?? null,
+          })),
         };
         return facts;
       },

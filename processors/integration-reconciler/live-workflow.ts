@@ -25,6 +25,7 @@ export type WorkflowAction = ReturnType<
   | typeof wf.setTriggerConnection
   | typeof wf.addStep
   | typeof wf.addEdge
+  | typeof wf.updateStep
   | typeof wf.publishWorkflow
 >;
 
@@ -45,6 +46,10 @@ export type WorkflowFacts = {
   triggerName: string | null;
   triggerConnectionId: string | null;
   triggerConfig: Record<string, unknown> | null;
+  /** The trigger's reactor connection (a trigger that writes documents) */
+  triggerReactorConnectionId?: string | null;
+  /** The published steps, as far as their connections go */
+  steps?: { id: string; key: string; connectionId: string | null }[];
 };
 
 /**
@@ -101,41 +106,8 @@ export function buildLiveWorkflow(
       connectionId: spec.connectionId,
       config: spec.triggerConfig,
     }),
-    wf.addStep({
-      id: ids.map,
-      key: "map_events",
-      name: "Google Calendar Events to Calendar Events",
-      pieceName: DISTYRA_PIECE,
-      pieceVersion: DISTYRA_PIECE_VERSION,
-      actionName: "google-event-to-calendar-event",
-      config: {
-        events: "{{trigger.payload}}",
-        calendarId: PRIMARY_CALENDAR,
-        calendarName,
-      },
-    }),
-    wf.addStep({
-      id: ids.upsert,
-      key: "upsert_events",
-      name: "Upsert Documents",
-      pieceName: DISTYRA_PIECE,
-      pieceVersion: DISTYRA_PIECE_VERSION,
-      actionName: "upsert-documents",
-      reactorConnectionId: spec.reactorConnectionId,
-      config: {
-        items: "{{steps.map_events.output.items}}",
-        documentType: CALENDAR_EVENT_TYPE,
-        driveId: CALENDAR_DRIVE,
-        folderName: "$item.folder",
-        itemKeyPath: "key",
-        documentKeyPath: "externalId",
-        name: "$item.name",
-        createActions: "$item.actions",
-        updateActions: "$item.updateActions",
-        limit: 500,
-        stopOnError: false,
-      },
-    }),
+    mapEventsStep(ids.map, "{{trigger.payload}}", calendarName),
+    upsertEventsStep(ids.upsert, spec.reactorConnectionId),
     wf.addEdge({ id: ids.e1, from: ids.trigger, to: ids.map, port: "next" }),
     wf.addEdge({ id: ids.e2, from: ids.map, to: ids.upsert, port: "next" }),
     wf.publishWorkflow({ publishedAt: now }),
@@ -143,7 +115,50 @@ export function buildLiveWorkflow(
   ];
 }
 
-const sameJson = (a: unknown, b: unknown) =>
+/** The step that turns Google events into upsert items; the live and backfill workflows share it. */
+export function mapEventsStep(
+  id: string,
+  events: string,
+  calendarName: string,
+) {
+  return wf.addStep({
+    id,
+    key: "map_events",
+    name: "Google Calendar Events to Calendar Events",
+    pieceName: DISTYRA_PIECE,
+    pieceVersion: DISTYRA_PIECE_VERSION,
+    actionName: "google-event-to-calendar-event",
+    config: { events, calendarId: PRIMARY_CALENDAR, calendarName },
+  });
+}
+
+/** The step that writes the events into the Calendar drive, keyed so nothing doubles. */
+export function upsertEventsStep(id: string, reactorConnectionId: string) {
+  return wf.addStep({
+    id,
+    key: "upsert_events",
+    name: "Upsert Documents",
+    pieceName: DISTYRA_PIECE,
+    pieceVersion: DISTYRA_PIECE_VERSION,
+    actionName: "upsert-documents",
+    reactorConnectionId,
+    config: {
+      items: "{{steps.map_events.output.items}}",
+      documentType: CALENDAR_EVENT_TYPE,
+      driveId: CALENDAR_DRIVE,
+      folderName: "$item.folder",
+      itemKeyPath: "key",
+      documentKeyPath: "externalId",
+      name: "$item.name",
+      createActions: "$item.actions",
+      updateActions: "$item.updateActions",
+      limit: 500,
+      stopOnError: false,
+    },
+  });
+}
+
+export const sameJson = (a: unknown, b: unknown) =>
   JSON.stringify(sortKeys(a)) === JSON.stringify(sortKeys(b));
 
 function sortKeys(value: unknown): unknown {
