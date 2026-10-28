@@ -12,11 +12,13 @@
 import type { OriginalSourceQueueAction } from "document-models/original-source-queue";
 import type { QueueState } from "../../editors/backfills/progress.js";
 import {
+  OSQ_TYPE,
   queueProgress,
   queueSetup,
   rangeOf,
   SLICE_RANGE,
 } from "./backfill-osq.js";
+import { coverageGaps, itemSpan, spanLabel, type Span } from "./coverage.js";
 import { backfillWorkflowSpec, liveWorkflowSpec } from "./backfill-workflow.js";
 import {
   providerFor,
@@ -361,6 +363,37 @@ async function reconcileBackfill(
     }
     const made = await io.readQueue(id);
     if (made) queues.set(item.id, { id, state: made });
+  }
+
+  // Coverage: a hole between the backfills is filled with one more, newest
+  // first, which the next pass makes a queue for and walks after the others.
+  const gaps = coverageGaps(
+    items
+      .map((item) => itemSpan(item, queues.get(item.id)?.state))
+      .filter((span): span is Span => span !== null),
+  );
+  if (gaps.length > 0 && provider.backfillSliceSeconds) {
+    const at = io.now();
+    await io.dispatch(
+      gaps.map((gap) =>
+        actions.addDateRangeBackfill({
+          id: io.newId(),
+          label: `Gap: ${spanLabel(gap)}`,
+          documentType: OSQ_TYPE,
+          from: new Date(gap.from).toISOString(),
+          to: new Date(gap.to).toISOString(),
+          stepSeconds: provider.backfillSliceSeconds!,
+          direction: "BACKWARD",
+        }),
+      ),
+    );
+    for (const gap of gaps) {
+      fixes.push({
+        at,
+        code: "COVERAGE_GAP",
+        message: `Filled a gap in the history: ${spanLabel(gap)}`,
+      });
+    }
   }
 
   const unfinished = (item: (typeof items)[number]) => {

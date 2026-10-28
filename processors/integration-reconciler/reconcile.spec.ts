@@ -615,6 +615,66 @@ describe("the history", () => {
     expect(s().fixes).toEqual([]);
   });
 
+  it("fills a gap between backfills with one more, newest first, once", async () => {
+    const { actions } = await import("document-models/integration/v1");
+    const w = world("READ", [
+      actions.initialize({ kind: "EMAIL", provider: "gmail" }),
+      actions.setEmailSource({
+        mailbox: "KSDC",
+        address: "wouter@ksdc.be",
+        folders: [],
+      }),
+      actions.addDateRangeBackfill({
+        id: "old",
+        label: "2014–2024",
+        documentType: "distyra/original-source-queue",
+        from: "2014-04-18T00:00:00.000Z",
+        to: "2024-07-18T00:00:00.000Z",
+        stepSeconds: 86400,
+      }),
+      actions.addDateRangeBackfill({
+        id: "q1",
+        label: "Q1-Q2 2026",
+        documentType: "distyra/original-source-queue",
+        from: "2026-01-01T00:00:00.000Z",
+        to: "2026-07-01T00:00:00.000Z",
+        stepSeconds: 86400,
+      }),
+    ]);
+    await w.pass();
+    const c = w.connections.get("conn-1")!;
+    w.connections.set("conn-1", {
+      ...c,
+      status: "OK",
+      signedIn: true,
+      granted: [...c.scopes],
+      accountLabel: "wouter@ksdc.be",
+    });
+    await w.pass();
+    const s = w.doc.state.global;
+    expect(s.intent.backfill.items.at(-1)).toMatchObject({
+      label: "Gap: 18 Jul 2024 – 1 Jan 2026",
+      request: {
+        from: "2024-07-18T00:00:00.000Z",
+        to: "2026-01-01T00:00:00.000Z",
+        stepSeconds: 86400,
+        direction: "BACKWARD",
+      },
+    });
+    expect(s.fixes[0]).toMatchObject({
+      code: "COVERAGE_GAP",
+      message: "Filled a gap in the history: 18 Jul 2024 – 1 Jan 2026",
+    });
+    // Covered now: the next passes add nothing, and make its queue
+    const items = s.intent.backfill.items.length;
+    await w.pass();
+    await w.pass();
+    expect(w.doc.state.global.intent.backfill.items.length).toBe(items);
+    expect(
+      w.doc.state.global.intent.backfill.items.at(-1)?.documentId,
+    ).toBeTruthy();
+  });
+
   it("says so when the history workflow is parked", async () => {
     const { w, s } = await ready();
     w.health.set(s().resources.backfillWorkflowId!, {

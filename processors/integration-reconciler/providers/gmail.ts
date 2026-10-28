@@ -97,6 +97,7 @@ export const gmail: ProviderAdapter = {
   auth: "oauth",
   // A day of mail a minute, as the largest existing backfill walks
   backfillPollSeconds: 60,
+  backfillSliceSeconds: 86_400,
 
   expectedAccount(state: IntegrationState) {
     const address = source(state).address;

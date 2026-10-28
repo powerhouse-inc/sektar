@@ -48,6 +48,8 @@ export interface ProviderAdapter {
   expectedAccount?(state: IntegrationState): string | null;
   /** Seconds between backfill slices; absent: no backfill */
   backfillPollSeconds?: number;
+  /** One backfill slice, for backfills the reconciler adds (a gap) */
+  backfillSliceSeconds?: number;
   /** The live workflow: its name, trigger and steps */
   live(ctx: ProviderContext): {
     name: string;

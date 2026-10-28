@@ -77,6 +77,7 @@ export const googleCalendar: ProviderAdapter = {
   label: "Google",
   auth: "oauth",
   backfillPollSeconds: 60,
+  backfillSliceSeconds: 7 * 86_400,
 
   connection(name: string, state: IntegrationState) {
     const scopes = [
