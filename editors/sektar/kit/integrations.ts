@@ -54,7 +54,7 @@ export const KINDS: readonly KindInfo[] = [
     label: "Bank transactions",
     lead: "Payments in and out",
     icon: "bank",
-    available: false,
+    available: true,
   },
   {
     kind: "TIME_TRACKING",
@@ -110,7 +110,7 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     lead: "Open banking",
     badge: "Every 6 hours",
     mark: "D",
-    available: false,
+    available: true,
   },
   {
     id: "microsoft-calendar",
@@ -157,6 +157,15 @@ export type AccessOption = {
 };
 
 const ACCESS: Record<string, AccessOption[]> = {
+  distyra: [
+    {
+      access: "READ",
+      label: "Read only",
+      can: ["See your accounts and their transactions"],
+      cannot: ["Move money or change anything at the bank"],
+      permission: "Distyra: account information (PSD2)",
+    },
+  ],
   gmail: [
     {
       access: "READ",
@@ -211,6 +220,13 @@ export type CreateChoices = {
   live: boolean;
   every: { value: number; unit: IntervalUnit };
   history: History;
+  /** Bank transactions: the aggregator connection (API key) to use */
+  connectionId?: string;
+  /** Bank transactions: the aggregator's bank connection, and its name */
+  bankConnectionId?: string;
+  bankName?: string;
+  /** Bank transactions: the accounts to bring in */
+  accounts?: BankAccountChoice[];
 };
 
 /** The intervals the "Check every" select offers. */
@@ -267,10 +283,12 @@ export type KindCopy = {
   /** "fetches your calendar" */
   thing: string;
   every: { value: number; unit: IntervalUnit };
-  /** One backfill slice */
+  /** One backfill slice; 0: the provider keeps the history itself */
   sliceSeconds: number;
   /** Also bring in what is ahead (a calendar's coming months) */
   ahead: boolean;
+  /** The "Check every" choices; absent: INTERVALS */
+  intervals?: typeof INTERVALS;
 };
 
 export const KIND_COPY: Partial<Record<IntegrationKind, KindCopy>> = {
@@ -295,6 +313,36 @@ export const KIND_COPY: Partial<Record<IntegrationKind, KindCopy>> = {
     sliceSeconds: 24 * 3600,
     ahead: false,
   },
+  TRANSACTIONS: {
+    sourceLabel: "Accounts",
+    sourceMeta: "The accounts you pick, each onto a bank account in Sektar",
+    liveMeta: "New transactions",
+    historyLegend: "",
+    thing: "your bank",
+    // Banks allow about four unattended fetches a day
+    every: { value: 6, unit: "HOURS" },
+    sliceSeconds: 0,
+    ahead: false,
+    intervals: [
+      { value: 6, unit: "HOURS", label: "6 hours" },
+      { value: 12, unit: "HOURS", label: "12 hours" },
+      { value: 1, unit: "DAYS", label: "day" },
+    ],
+  },
+};
+
+/** One bank account the create flow brings in, and the Sektar bank account it goes onto. */
+export type BankAccountChoice = {
+  accountId: string;
+  accountKey: string;
+  label: string;
+  /** A sektar/bank-account id, or null: make a new one at Create */
+  bankAccountId: string | null;
+  /** For a new one */
+  name: string;
+  currency: string | null;
+  ibanMasked: string | null;
+  kind: string | null;
 };
 
 export function defaultName(kind: IntegrationKind, provider: string): string {
@@ -406,6 +454,34 @@ export function createActions(
   now: Date,
   newId: () => string,
 ): IntegrationAction[] {
+  if (choices.kind === "TRANSACTIONS") {
+    // Every account already onto a Sektar bank account (Create makes the new ones first)
+    const accounts = (choices.accounts ?? []).filter(
+      (a): a is BankAccountChoice & { bankAccountId: string } =>
+        a.bankAccountId !== null,
+    );
+    return [
+      actions.initialize({ kind: choices.kind, provider: choices.provider }),
+      actions.setAccess({ access: "READ" }),
+      actions.setConnection({ connectionId: choices.connectionId }),
+      actions.setTransactionsSource({
+        bankConnectionId: choices.bankConnectionId ?? "",
+        accounts: accounts.map((a) => ({
+          accountId: a.accountId,
+          accountKey: a.accountKey,
+          bankAccountId: a.bankAccountId,
+          label: a.label,
+        })),
+      }),
+      actions.setLiveEnabled({ enabled: choices.live }),
+      actions.setLiveInterval({
+        value: choices.every.value,
+        unit: choices.every.unit,
+      }),
+      // The aggregator keeps the history: no backfill
+      actions.setBackfillEnabled({ enabled: false }),
+    ];
+  }
   return [
     actions.initialize({ kind: choices.kind, provider: choices.provider }),
     actions.setAccess({ access: choices.access }),
@@ -611,13 +687,16 @@ export function historyView(
   const total = all.reduce((n, p) => n + p.total, 0);
   const finished = all.filter((p) => p.finished).length;
   const percent = total === 0 ? 100 : Math.round((done / total) * 100);
-  const steps = items.map((i) => {
-    const r = i.request as { stepSeconds?: number } | null;
-    return r?.stepSeconds ?? 0;
-  });
-  const unit = steps.every((x) => x === steps[0])
-    ? sliceUnit(steps[0] ?? 0)
-    : "slices";
+  // Adopted backfills carry no request: the unit comes from the ones that say
+  const steps = items
+    .map(
+      (i) => (i.request as { stepSeconds?: number } | null)?.stepSeconds ?? 0,
+    )
+    .filter((x) => x > 0);
+  const unit =
+    steps.length > 0 && steps.every((x) => x === steps[0])
+      ? sliceUnit(steps[0] ?? 0)
+      : "slices";
   const amount = `${count(done)} of ${count(total)} ${unit}`;
   if (finished === items.length) {
     return {

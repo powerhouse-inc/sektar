@@ -181,3 +181,58 @@ export async function rerunLastFailed(
   );
   return data.workflowRuntime.rerun;
 }
+
+export type RuntimeConnection = {
+  id: string;
+  name: string;
+  connectorId: string;
+  status: string;
+  accountLabel: string | null;
+};
+
+/** The connections this person may use, as the runtime holds them. */
+export async function runtimeConnections(
+  url: string,
+): Promise<RuntimeConnection[]> {
+  const data = await gql<{
+    workflowRuntime: { connections: RuntimeConnection[] };
+  }>(
+    url,
+    `query Connections { workflowRuntime { connections { id name connectorId status accountLabel } } }`,
+    {},
+  );
+  return data.workflowRuntime.connections;
+}
+
+export type BlockRef = {
+  pieceName: string;
+  pieceVersion: string;
+  name: string;
+  kind: "action" | "trigger";
+};
+
+export type DropdownOptions = {
+  options: { label: string; value: unknown }[];
+  placeholder?: string;
+  disabled?: boolean;
+};
+
+/** A piece's dropdown, resolved by the runtime on a connection (no workflow needed). */
+export async function blockOptions(
+  url: string,
+  block: BlockRef,
+  propName: string,
+  input: Record<string, unknown>,
+  connectionId: string,
+): Promise<DropdownOptions> {
+  const data = await gql<{
+    workflowRuntime: { blockOptions: DropdownOptions | null };
+  }>(
+    url,
+    `query BlockOptions($block: BlockInput!, $prop: String!, $input: Unknown, $connectionId: String) {
+      workflowRuntime { blockOptions(block: $block, propName: $prop, input: $input, connectionId: $connectionId) }
+    }`,
+    { block, prop: propName, input, connectionId },
+  );
+  return data.workflowRuntime.blockOptions ?? { options: [] };
+}

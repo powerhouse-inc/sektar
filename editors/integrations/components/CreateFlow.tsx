@@ -37,6 +37,8 @@ import {
   Steps,
   Switch,
 } from "../../sektar/kit/ui.js";
+import { createAccount, useSektarDrive } from "../../sektar/kit/data.js";
+import { BankAccounts, BankConnect } from "./BankSetup.js";
 
 /**
  * The flow's steps, as they appear in the hash (`#add/before`, `#add`, …).
@@ -92,6 +94,7 @@ export function CreateFlow({
   const now = useMemo(() => new Date(), []);
   const runner = useMemo(onRunner, []);
   const [drive] = useSelectedDrive();
+  const sektarDrive = useSektarDrive();
   const [kind, setKind] = useState<IntegrationKind | null>(null);
   const [choices, setChoices] = useState<CreateChoices | null>(null);
   const [busy, setBusy] = useState(false);
@@ -130,9 +133,31 @@ export function CreateFlow({
     try {
       const name =
         choices.name.trim() || defaultName(choices.kind, choices.provider);
+      let ready = choices;
+      if (choices.kind === "TRANSACTIONS") {
+        // New bank accounts first: the integration names them
+        if (!sektarDrive) throw new Error("The Business drive is not open");
+        const accounts = [];
+        for (const a of choices.accounts ?? []) {
+          const bankAccountId =
+            a.bankAccountId ??
+            (await createAccount(sektarDrive, {
+              name: a.name,
+              institution: choices.bankName,
+              iban: a.ibanMasked ?? undefined,
+              kind: (a.kind ?? "CURRENT") as Parameters<
+                typeof createAccount
+              >[1]["kind"],
+              currency: a.currency ?? undefined,
+            }));
+          accounts.push({ ...a, bankAccountId });
+        }
+        ready = { ...choices, accounts };
+      }
       const node = await addDocument(drive.header.id, name, INTEGRATION_TYPE);
-      await dispatchActions(createActions(choices, now, generateId), node.id);
-      if (runner) onDone();
+      await dispatchActions(createActions(ready, now, generateId), node.id);
+      // Nothing to sign in to for a bank on a key this computer holds
+      if (runner || choices.kind === "TRANSACTIONS") onDone();
       else {
         setFinished(name);
         setBusy(false);
@@ -267,14 +292,42 @@ export function CreateFlow({
               options={accessOptions(choices.provider)}
               value={choices.access}
               onChange={(access) => patch({ access })}
+              hint={
+                choices.kind === "TRANSACTIONS"
+                  ? "Your bank asked you to agree when you connected it in Distyra; Sektar only reads."
+                  : undefined
+              }
             />
+            {choices.kind === "TRANSACTIONS" && (
+              <BankConnect choices={choices} patch={patch} />
+            )}
             <Footer
               back={() => go("add")}
               next={() => go("add/how-much")}
               nextLabel="Continue"
+              disabled={
+                choices.kind === "TRANSACTIONS" &&
+                !(choices.connectionId && choices.bankConnectionId)
+              }
             />
           </>
         )}
+      </Panel>
+    );
+  } else if (conf === 2 && choices && choices.kind === "TRANSACTIONS") {
+    body = (
+      <Panel
+        title="Which accounts?"
+        lead={`From ${choices.bankName ?? "your bank"}, each onto a bank account in Sektar.`}
+        back={() => go("add/connect")}
+      >
+        <BankAccounts choices={choices} patch={patch} />
+        <Footer
+          back={() => go("add/connect")}
+          next={() => go("add/name")}
+          nextLabel="Continue"
+          disabled={(choices.accounts ?? []).length === 0}
+        />
       </Panel>
     );
   } else if (conf === 2 && choices) {
@@ -309,7 +362,7 @@ export function CreateFlow({
             <Select
               value={interval}
               onChange={(e) => {
-                const found = INTERVALS.find(
+                const found = (copy.intervals ?? INTERVALS).find(
                   (i) => `${i.value}-${i.unit}` === e.target.value,
                 );
                 if (found)
@@ -322,7 +375,7 @@ export function CreateFlow({
               }}
               style={{ maxWidth: 240 }}
             >
-              {INTERVALS.map((i) => (
+              {(copy.intervals ?? INTERVALS).map((i) => (
                 <option
                   key={`${i.value}-${i.unit}`}
                   value={`${i.value}-${i.unit}`}
@@ -384,7 +437,9 @@ export function CreateFlow({
             />{" "}
             Everything in the account
           </label>
-          <span className="sk-hint">Each includes the next 12 months.</span>
+          {copy.ahead && (
+            <span className="sk-hint">Each includes the next 12 months.</span>
+          )}
         </fieldset>
         <Footer
           back={() => go("add/connect")}
@@ -458,10 +513,12 @@ function AccessChoice({
   options,
   value,
   onChange,
+  hint,
 }: {
   options: AccessOption[];
   value: IntegrationAccess;
   onChange: (access: IntegrationAccess) => void;
+  hint?: string;
 }) {
   if (options.length === 0) return null;
   return (
@@ -505,8 +562,8 @@ function AccessChoice({
         ))}
       </div>
       <span className="sk-hint">
-        You confirm this when you sign in. Changing it later means signing in
-        again.
+        {hint ??
+          "You confirm this when you sign in. Changing it later means signing in again."}
       </span>
     </fieldset>
   );

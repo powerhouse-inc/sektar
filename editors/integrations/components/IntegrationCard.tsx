@@ -37,8 +37,12 @@ export function IntegrationCard({
   const view = cardView(s);
   const kind = kindInfo(s.kind);
   const provider = providerInfo(s.provider);
+  const linked = (s.intent.source as { accounts?: unknown[] } | null)?.accounts;
   const account =
-    [provider?.lead, kind?.label].filter(Boolean)[0] ?? "Not set up";
+    s.kind === "TRANSACTIONS" && linked
+      ? `${linked.length} ${linked.length === 1 ? "account" : "accounts"} · ${provider?.lead ?? "Bank"}`
+      : ([provider?.lead, kind?.label].filter(Boolean)[0] ?? "Not set up");
+  // A bank's key names nobody's account: the account count says more
   const [removing, setRemoving] = useState(false);
   const name = doc.header.name || kind?.label || "Integration";
   // All well (Live, Paused): the rows below say it, and the badge sits in
@@ -69,7 +73,7 @@ export function IntegrationCard({
         <div style={{ minWidth: 0 }}>
           <div className="sk-integration__name">{name}</div>
           <div className="sk-integration__account">
-            {s.resources.connectionId ? (
+            {s.resources.connectionId && s.kind !== "TRANSACTIONS" ? (
               <Suspense fallback={account}>
                 <AccountLabel
                   connectionId={s.resources.connectionId}

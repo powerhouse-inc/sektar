@@ -46,10 +46,10 @@ function created(choices: CreateChoices = calendar()): IntegrationDocument {
 }
 
 describe("what the create flow offers", () => {
-  it("offers Calendar and Email with Google; bank transactions come by adoption for now", () => {
+  it("offers Calendar and Email with Google, and bank transactions with Distyra", () => {
     expect(kindInfo("CALENDAR")?.available).toBe(true);
     expect(kindInfo("EMAIL")?.available).toBe(true);
-    expect(kindInfo("TRANSACTIONS")?.available).toBe(false);
+    expect(kindInfo("TRANSACTIONS")?.available).toBe(true);
     expect(providersFor("CALENDAR").map((p) => [p.id, p.available])).toEqual([
       ["google-calendar", true],
       ["microsoft-calendar", false],
