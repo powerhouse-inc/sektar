@@ -21,6 +21,7 @@ import {
 } from "./providers/index.js";
 import {
   buildWorkflow,
+  managedByAction,
   runtimeIssue,
   workflowDrift,
   type RuntimeHealth,
@@ -291,8 +292,10 @@ async function reconcileLiveWorkflow(
     await io.dispatch([
       actions.recordResources({ liveWorkflowId: workflowId }),
     ]);
+    await markManaged(io, workflowId, null, doc);
     return true;
   }
+  await markManaged(io, id, facts, doc);
   const drift = workflowDrift(spec, facts, io.now());
   if (drift.actions.length === 0) {
     // The workflow is what the integration asks for: is it running?
@@ -413,8 +416,10 @@ async function reconcileBackfill(
     await io.dispatch([
       actions.recordResources({ backfillWorkflowId: created }),
     ]);
+    await markManaged(io, created, null, doc);
     return true;
   }
+  await markManaged(io, workflowId, facts, doc);
 
   // All done, it keeps pointing at the queue it walked last, switched off
   const walking =
@@ -462,4 +467,23 @@ async function reconcileBackfill(
     }
   }
   return true;
+}
+
+/**
+ * Marks a workflow this integration keeps (managedBy), so Workflow Studio
+ * shows it read-only. Quietly: a runtime whose workflow model has no
+ * SET_MANAGED_BY yet refuses it, and the next pass after an upgrade marks it.
+ */
+async function markManaged(
+  io: ReconcileIO,
+  workflowId: string,
+  facts: WorkflowFacts | null,
+  doc: { id: string; name: string },
+): Promise<void> {
+  if (facts && facts.managedBy === doc.id) return;
+  try {
+    await io.updateWorkflow(workflowId, [managedByAction(doc)]);
+  } catch {
+    // An older workflow model: unmarked until it knows the operation
+  }
 }

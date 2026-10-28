@@ -56,6 +56,8 @@ function world(access: "READ" | "READ_WRITE" = "READ") {
   >();
   let reactorConnection: string | null = "reactor-conn";
   const health = new Map<string, RuntimeHealth>();
+  /** An older workflow model: SET_MANAGED_BY is refused */
+  let refuseManaged = false;
   /** Queues as the real model keeps them, so a test can walk one */
   const queues = new Map<string, OriginalSourceQueueDocument>();
   const applyQueue = (id: string, list: OriginalSourceQueueAction[]) => {
@@ -110,6 +112,8 @@ function world(access: "READ" | "READ_WRITE" = "READ") {
             (input.reactorConnectionId as string) || null;
         }
         w.version++;
+      } else if (a.type === "SET_MANAGED_BY") {
+        w.managedBy = (input.documentId as string) ?? null;
       } else if (a.type === "PUBLISH_WORKFLOW") {
         w.publishedVersion = w.version;
       } else if (a.type === "SET_WORKFLOW_STATUS") {
@@ -184,6 +188,9 @@ function world(access: "READ" | "READ_WRITE" = "READ") {
     },
     readQueue: (id) => Promise.resolve(queues.get(id)?.state.global ?? null),
     updateWorkflow: (id, list) => {
+      if (refuseManaged && list.some((a) => a.type === "SET_MANAGED_BY")) {
+        return Promise.reject(new Error("unknown action SET_MANAGED_BY"));
+      }
       applyWorkflow(id, list);
       writes.push(`update ${id} ${list.map((a) => a.type).join(",")}`);
       return Promise.resolve();
@@ -220,6 +227,9 @@ function world(access: "READ" | "READ_WRITE" = "READ") {
         signedIn: true,
         granted: [...c.scopes],
       });
+    },
+    refuseManaged: () => {
+      refuseManaged = true;
     },
     noReactorConnection: () => {
       reactorConnection = null;
@@ -259,6 +269,8 @@ describe("the live workflow", () => {
     expect(w.writes).toEqual([
       `create workflow ${id} Personal Google Calendar · new events`,
       "RECORD_RESOURCES",
+      // Marked as the integration's, so Studio shows it read-only
+      `update ${id} SET_MANAGED_BY`,
       expect.stringMatching(
         /^create queue q-\d+ Personal Google Calendar · Next 12 months$/,
       ),
@@ -272,6 +284,7 @@ describe("the live workflow", () => {
         /^create workflow wf-\d+ Personal Google Calendar · history$/,
       ),
       "RECORD_RESOURCES",
+      expect.stringMatching(/^update wf-\d+ SET_MANAGED_BY$/),
       "RECORD_CHECK",
     ]);
     const wf = w.workflows.get(id)!;
@@ -284,9 +297,11 @@ describe("the live workflow", () => {
       "ADD_EDGE",
       "PUBLISH_WORKFLOW",
       "SET_WORKFLOW_STATUS",
+      "SET_MANAGED_BY",
     ]);
     expect(wf).toMatchObject({
       status: "ENABLED",
+      managedBy: w.doc.header.id,
       triggerName: "new_or_updated_event",
       triggerConnectionId: "conn-1",
       triggerConfig: { calendar_id: "primary", expandRecurringEvent: false },
@@ -390,6 +405,20 @@ describe("the live workflow", () => {
     });
     await w.pass();
     expect(w.doc.state.global.check?.issues).toEqual([]);
+  });
+
+  it("builds and commits on a runtime that cannot mark workflows as managed yet", async () => {
+    const w = world();
+    w.refuseManaged();
+    await w.pass();
+    w.signIn();
+    await w.pass();
+    const s = w.doc.state.global;
+    expect(w.workflows.get(s.resources.liveWorkflowId!)?.status).toBe(
+      "ENABLED",
+    );
+    expect(s.applied?.generation).toBe(s.intent.generation);
+    expect(s.check?.issues).toEqual([]);
   });
 
   it("is built again when its workflow was deleted", async () => {

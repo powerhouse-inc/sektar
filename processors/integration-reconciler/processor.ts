@@ -232,6 +232,7 @@ export class IntegrationReconciler implements IProcessor {
             global: {
               status: string;
               version: number;
+              managedBy?: { documentId: string } | null;
               published: {
                 version: number;
                 trigger: {
@@ -258,6 +259,7 @@ export class IntegrationReconciler implements IProcessor {
           triggerConnectionId: trigger?.connectionId ?? null,
           triggerConfig: trigger?.config ?? null,
           triggerReactorConnectionId: trigger?.reactorConnectionId ?? null,
+          managedBy: g.managedBy?.documentId ?? null,
           steps: (g.published?.steps ?? []).map((step) => ({
             id: step.id,
             key: step.key,

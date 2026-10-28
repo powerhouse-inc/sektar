@@ -17,6 +17,7 @@ export type WorkflowAction = ReturnType<
   | typeof wf.addEdge
   | typeof wf.updateStep
   | typeof wf.publishWorkflow
+  | typeof wf.setManagedBy
 >;
 
 export type TriggerSpec = {
@@ -77,7 +78,18 @@ export type WorkflowFacts = {
   triggerReactorConnectionId?: string | null;
   /** The published steps, as far as their connections go */
   steps?: { id: string; key: string; connectionId: string | null }[];
+  /** The document that manages it (managedBy.documentId); null: nobody */
+  managedBy?: string | null;
 };
+
+/** Marks a workflow as kept by an integration (Studio shows it read-only). */
+export function managedByAction(integration: { id: string; name: string }) {
+  return wf.setManagedBy({
+    documentId: integration.id,
+    documentType: "sektar/integration",
+    label: integration.name,
+  });
+}
 
 /**
  * Everything a new workflow document needs, in the order the runtime wants:
