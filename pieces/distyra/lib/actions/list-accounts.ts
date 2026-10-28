@@ -1,6 +1,7 @@
 import { createAction, Property } from "@powerhousedao/pieces-framework";
 import { distyraAuth } from "../auth.js";
 import { distyraRequest } from "../common/client.js";
+import { distyraAccountProp } from "../common/account-dropdown.js";
 import { distyraConnectionIdProp } from "../common/connection-dropdown.js";
 
 /** One row of GET /v1/connect/connections/{id}/accounts, as far as this piece reads it. */
@@ -37,6 +38,8 @@ export const distyraListAccountsAction = createAction({
       required: false,
       defaultValue: false,
     }),
+    // Not read by the run: an app's setup picks accounts through it
+    account: distyraAccountProp,
   },
   errorHandlingOptions: {
     // Off by default: every attempt spends one of the bank's daily fetches.
