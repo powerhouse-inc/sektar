@@ -19,8 +19,10 @@ import type {
   IntegrationCheck,
   IntegrationCheckRequest,
   IntegrationFix,
+  IntegrationFixInput,
   IntegrationIntent,
   IntegrationIssue,
+  IntegrationIssueInput,
   IntegrationKind,
   IntegrationResources,
   IntegrationRunner,
@@ -29,6 +31,10 @@ import type {
   IntervalUnit,
   IssueSeverity,
   LiveIntent,
+  RecordCheckInput,
+  RecordResourcesInput,
+  RecordRunnerInput,
+  RequestCheckInput,
   SetAccessInput,
   SetBackfillEnabledInput,
   SetCalendarSourceInput,
@@ -227,6 +233,17 @@ export function IntegrationFixSchema(): z.ZodObject<
   });
 }
 
+export function IntegrationFixInputSchema(): z.ZodObject<
+  Properties<IntegrationFixInput>
+> {
+  return z.object({
+    at: z.iso.datetime(),
+    code: z.string(),
+    message: z.string(),
+    subject: z.string().nullish(),
+  });
+}
+
 export function IntegrationIntentSchema(): z.ZodObject<
   Properties<IntegrationIntent>
 > {
@@ -248,6 +265,19 @@ export function IntegrationIssueSchema(): z.ZodObject<
 > {
   return z.object({
     __typename: z.literal("IntegrationIssue").optional(),
+    code: z.string(),
+    fixable: z.boolean(),
+    message: z.string(),
+    severity: IssueSeveritySchema,
+    since: z.iso.datetime(),
+    subject: z.string().nullish(),
+  });
+}
+
+export function IntegrationIssueInputSchema(): z.ZodObject<
+  Properties<IntegrationIssueInput>
+> {
+  return z.object({
     code: z.string(),
     fixable: z.boolean(),
     message: z.string(),
@@ -314,6 +344,50 @@ export function LiveIntentSchema(): z.ZodObject<Properties<LiveIntent>> {
     __typename: z.literal("LiveIntent").optional(),
     enabled: z.boolean(),
     every: z.lazy(() => IntervalSchema()),
+  });
+}
+
+export function RecordCheckInputSchema(): z.ZodObject<
+  Properties<RecordCheckInput>
+> {
+  return z.object({
+    at: z.iso.datetime(),
+    committed: z.boolean(),
+    fixes: z.array(z.lazy(() => IntegrationFixInputSchema())),
+    generation: z.number(),
+    host: z.string().nullish(),
+    issues: z.array(z.lazy(() => IntegrationIssueInputSchema())),
+    request: z.string().nullish(),
+  });
+}
+
+export function RecordResourcesInputSchema(): z.ZodObject<
+  Properties<RecordResourcesInput>
+> {
+  return z.object({
+    backfillWorkflowId: z.string().nullish(),
+    connectionId: z.string().nullish(),
+    liveWorkflowId: z.string().nullish(),
+    pluggedItemId: z.string().nullish(),
+  });
+}
+
+export function RecordRunnerInputSchema(): z.ZodObject<
+  Properties<RecordRunnerInput>
+> {
+  return z.object({
+    label: z.string().nullish(),
+    reactorId: z.string(),
+  });
+}
+
+export function RequestCheckInputSchema(): z.ZodObject<
+  Properties<RequestCheckInput>
+> {
+  return z.object({
+    id: z.string(),
+    requestedAt: z.iso.datetime(),
+    requestedBy: z.string().nullish(),
   });
 }
 

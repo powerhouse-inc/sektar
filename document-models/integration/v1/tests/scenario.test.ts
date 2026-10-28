@@ -1,5 +1,9 @@
 import {
   addDateRangeBackfill,
+  recordCheck,
+  recordResources,
+  recordRunner,
+  requestCheck,
   archive,
   setAccess,
   initialize,
@@ -251,5 +255,149 @@ describe("integration document", () => {
     const generation = doc.state.global.intent.generation;
     const again = apply(doc, archive({}));
     expect(again.state.global.intent.generation).toBe(generation);
+  });
+
+  describe("what the reconciler writes back", () => {
+    const AT = "2026-10-28T12:00:00.000Z";
+    const PC = { reactorId: "switchboard@pc", label: "pc" };
+    const signIn = {
+      code: "NEEDS_SIGN_IN",
+      severity: "BLOCKING" as const,
+      subject: "conn-1",
+      message: "Sign in to Google on pc to finish",
+      fixable: false,
+      since: AT,
+    };
+
+    it("is claimed once: the runner can rename itself, nobody else can take it", () => {
+      let doc = apply(created(), recordRunner(PC));
+      expect(doc.state.global.runner).toEqual(PC);
+      doc = apply(doc, recordRunner({ reactorId: "switchboard@pc" }));
+      expect(doc.state.global.runner).toEqual({
+        reactorId: "switchboard@pc",
+        label: null,
+      });
+      rejects(
+        doc,
+        recordRunner({ reactorId: "switchboard@cloud" }),
+        /switchboard@pc runs/,
+      );
+    });
+
+    it("records what it built, one resource at a time, without a new generation", () => {
+      const before = created().state.global.intent.generation;
+      const doc = apply(
+        created(),
+        recordResources({ connectionId: "conn-1" }),
+        recordResources({ liveWorkflowId: "wf-live", pluggedItemId: "bf-1" }),
+        recordResources({ backfillWorkflowId: "wf-bf" }),
+      );
+      expect(doc.state.global.resources).toEqual({
+        connectionId: "conn-1",
+        liveWorkflowId: "wf-live",
+        backfillWorkflowId: "wf-bf",
+        pluggedItemId: "bf-1",
+      });
+      expect(doc.state.global.intent.generation).toBe(before);
+    });
+
+    it("records a check, answers the request it was asked for, and keeps the latest 20 fixes", () => {
+      let doc = apply(
+        created(),
+        requestCheck({ id: "req-1", requestedAt: AT, requestedBy: "app" }),
+      );
+      expect(doc.state.global.checkRequest).toEqual({
+        id: "req-1",
+        requestedAt: AT,
+        requestedBy: "app",
+      });
+      const fix = (n: number) => ({
+        at: AT,
+        code: "SCHEDULE_DRIFT",
+        message: `Put back ${n}`,
+      });
+      doc = apply(
+        doc,
+        recordCheck({
+          at: AT,
+          host: "pc",
+          generation: 4,
+          request: "req-1",
+          issues: [signIn],
+          fixes: Array.from({ length: 15 }, (_, n) => fix(n)),
+          committed: false,
+        }),
+        recordCheck({
+          at: AT,
+          generation: 4,
+          issues: [{ ...signIn, subject: undefined }],
+          fixes: Array.from({ length: 10 }, (_, n) => fix(100 + n)),
+          committed: false,
+        }),
+      );
+      const s = doc.state.global;
+      expect(s.checkRequest).toBeNull();
+      expect(s.check).toMatchObject({
+        host: null,
+        request: null,
+        generation: 4,
+      });
+      expect(s.check?.issues[0]).toMatchObject({
+        code: "NEEDS_SIGN_IN",
+        subject: null,
+      });
+      expect(s.fixes).toHaveLength(20);
+      expect(s.fixes[0]).toMatchObject({
+        message: "Put back 100",
+        subject: null,
+      });
+      expect(s.applied).toBeNull();
+      // A request that is not the one pending stays pending
+      doc = apply(
+        doc,
+        requestCheck({ id: "req-2", requestedAt: AT }),
+        recordCheck({
+          at: AT,
+          generation: 4,
+          request: "req-1",
+          issues: [],
+          fixes: [],
+          committed: false,
+        }),
+      );
+      expect(doc.state.global.checkRequest?.id).toBe("req-2");
+    });
+
+    it("commits the generation it evaluated, unless the user changed something meanwhile", () => {
+      let doc = apply(
+        created(),
+        recordCheck({
+          at: AT,
+          host: "pc",
+          generation: 4,
+          issues: [],
+          fixes: [],
+          committed: true,
+        }),
+      );
+      expect(doc.state.global.applied).toEqual({
+        generation: 4,
+        at: AT,
+        host: "pc",
+      });
+      doc = apply(
+        doc,
+        setLiveEnabled({ enabled: false }),
+        recordCheck({
+          at: AT,
+          generation: 4,
+          issues: [],
+          fixes: [],
+          committed: true,
+        }),
+      );
+      expect(doc.state.global.applied?.generation).toBe(4);
+      expect(doc.state.global.intent.generation).toBe(5);
+    });
   });
 });

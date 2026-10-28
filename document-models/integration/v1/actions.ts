@@ -7,6 +7,7 @@ import {
   integrationBackfillActions,
   integrationLifecycleActions,
   integrationLiveActions,
+  integrationReconcilerActions,
   integrationSetupActions,
 } from "./gen/creators.js";
 
@@ -17,5 +18,6 @@ export const actions = {
   ...integrationSetupActions,
   ...integrationLiveActions,
   ...integrationBackfillActions,
+  ...integrationReconcilerActions,
   ...integrationLifecycleActions,
 };

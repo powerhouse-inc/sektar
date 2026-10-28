@@ -7,12 +7,17 @@ import type { IntegrationPHState } from "document-models/integration/v1";
 import { integrationBackfillOperations } from "../src/reducers/backfill.js";
 import { integrationLifecycleOperations } from "../src/reducers/lifecycle.js";
 import { integrationLiveOperations } from "../src/reducers/live.js";
+import { integrationReconcilerOperations } from "../src/reducers/reconciler.js";
 import { integrationSetupOperations } from "../src/reducers/setup.js";
 
 import {
   AddDateRangeBackfillInputSchema,
   ArchiveInputSchema,
   InitializeInputSchema,
+  RecordCheckInputSchema,
+  RecordResourcesInputSchema,
+  RecordRunnerInputSchema,
+  RequestCheckInputSchema,
   SetAccessInputSchema,
   SetBackfillEnabledInputSchema,
   SetCalendarSourceInputSchema,
@@ -116,6 +121,54 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(AddDateRangeBackfillInputSchema).parse(action.input);
 
       integrationBackfillOperations.addDateRangeBackfillOperation(
+        (state as any)[action.scope],
+        action as any,
+        dispatch,
+      );
+
+      break;
+    }
+
+    case "REQUEST_CHECK": {
+      memoizedSchema(RequestCheckInputSchema).parse(action.input);
+
+      integrationReconcilerOperations.requestCheckOperation(
+        (state as any)[action.scope],
+        action as any,
+        dispatch,
+      );
+
+      break;
+    }
+
+    case "RECORD_RUNNER": {
+      memoizedSchema(RecordRunnerInputSchema).parse(action.input);
+
+      integrationReconcilerOperations.recordRunnerOperation(
+        (state as any)[action.scope],
+        action as any,
+        dispatch,
+      );
+
+      break;
+    }
+
+    case "RECORD_RESOURCES": {
+      memoizedSchema(RecordResourcesInputSchema).parse(action.input);
+
+      integrationReconcilerOperations.recordResourcesOperation(
+        (state as any)[action.scope],
+        action as any,
+        dispatch,
+      );
+
+      break;
+    }
+
+    case "RECORD_CHECK": {
+      memoizedSchema(RecordCheckInputSchema).parse(action.input);
+
+      integrationReconcilerOperations.recordCheckOperation(
         (state as any)[action.scope],
         action as any,
         dispatch,

@@ -181,6 +181,13 @@ export type IntegrationFix = {
   subject: Maybe<Scalars["PHID"]["output"]>;
 };
 
+export type IntegrationFixInput = {
+  at: Scalars["DateTime"]["input"];
+  code: Scalars["String"]["input"];
+  message: Scalars["String"]["input"];
+  subject?: InputMaybe<Scalars["PHID"]["input"]>;
+};
+
 export type IntegrationIntent = {
   /** What Sektar may do with the account: only read, or read and write. Null: not chosen (read only) */
   access: Maybe<IntegrationAccess>;
@@ -209,6 +216,15 @@ export type IntegrationIssue = {
   since: Scalars["DateTime"]["output"];
   /** The workflow, backfill or connection it is about */
   subject: Maybe<Scalars["PHID"]["output"]>;
+};
+
+export type IntegrationIssueInput = {
+  code: Scalars["String"]["input"];
+  fixable: Scalars["Boolean"]["input"];
+  message: Scalars["String"]["input"];
+  severity: IssueSeverity;
+  since: Scalars["DateTime"]["input"];
+  subject?: InputMaybe<Scalars["PHID"]["input"]>;
 };
 
 export type IntegrationKind =
@@ -271,6 +287,37 @@ export type LiveIntent = {
   enabled: Scalars["Boolean"]["output"];
   /** How often to check for what is new */
   every: Interval;
+};
+
+export type RecordCheckInput = {
+  at: Scalars["DateTime"]["input"];
+  /** Everything the reconciler can do for this generation is done */
+  committed: Scalars["Boolean"]["input"];
+  fixes: Array<IntegrationFixInput>;
+  /** The intent generation this pass evaluated */
+  generation: Scalars["Int"]["input"];
+  host?: InputMaybe<Scalars["String"]["input"]>;
+  issues: Array<IntegrationIssueInput>;
+  /** The check request it answered, if any */
+  request?: InputMaybe<Scalars["OID"]["input"]>;
+};
+
+export type RecordResourcesInput = {
+  backfillWorkflowId?: InputMaybe<Scalars["PHID"]["input"]>;
+  connectionId?: InputMaybe<Scalars["PHID"]["input"]>;
+  liveWorkflowId?: InputMaybe<Scalars["PHID"]["input"]>;
+  pluggedItemId?: InputMaybe<Scalars["OID"]["input"]>;
+};
+
+export type RecordRunnerInput = {
+  label?: InputMaybe<Scalars["String"]["input"]>;
+  reactorId: Scalars["String"]["input"];
+};
+
+export type RequestCheckInput = {
+  id: Scalars["OID"]["input"];
+  requestedAt: Scalars["DateTime"]["input"];
+  requestedBy?: InputMaybe<Scalars["String"]["input"]>;
 };
 
 export type SetAccessInput = {

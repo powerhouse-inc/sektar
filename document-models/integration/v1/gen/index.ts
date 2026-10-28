@@ -18,6 +18,7 @@ export {
   defaultLocalState,
   defaultPHState,
 } from "./ph-factories.js";
+export * from "./reconciler/operations.js";
 export * from "./reducer.js";
 export * from "./schema/index.js";
 export * from "./setup/operations.js";

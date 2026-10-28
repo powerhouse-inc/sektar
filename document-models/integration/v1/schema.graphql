@@ -263,6 +263,55 @@ input AddDateRangeBackfillInput {
   stepSeconds: Int!
 }
 
+# reconciler
+
+input RequestCheckInput {
+  id: OID!
+  requestedAt: DateTime!
+  requestedBy: String
+}
+
+input RecordRunnerInput {
+  reactorId: String!
+  label: String
+}
+
+input RecordResourcesInput {
+  connectionId: PHID
+  liveWorkflowId: PHID
+  backfillWorkflowId: PHID
+  pluggedItemId: OID
+}
+
+input IntegrationIssueInput {
+  code: String!
+  severity: IssueSeverity!
+  subject: PHID
+  message: String!
+  fixable: Boolean!
+  since: DateTime!
+}
+
+input IntegrationFixInput {
+  at: DateTime!
+  code: String!
+  subject: PHID
+  message: String!
+}
+
+input RecordCheckInput {
+  at: DateTime!
+  host: String
+  "The intent generation this pass evaluated"
+  generation: Int!
+  "The check request it answered, if any"
+  request: OID
+  issues: [IntegrationIssueInput!]!
+  fixes: [IntegrationFixInput!]!
+  "Everything the reconciler can do for this generation is done"
+  committed: Boolean!
+}
+
 # lifecycle
 
 input ArchiveInput {
