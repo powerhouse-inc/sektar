@@ -98,6 +98,7 @@ export function CreateFlow({
   const [error, setError] = useState<string | null>(null);
   // Away from the runner, nothing is configured before the handoff is acknowledged.
   const [acknowledged, setAcknowledged] = useState(runner);
+  const [finished, setFinished] = useState<string | null>(null);
 
   const flow = runner ? CONFIGURE : STEPS;
   const titles = runner ? TITLES : ["Before you start", ...TITLES];
@@ -131,7 +132,11 @@ export function CreateFlow({
         choices.name.trim() || defaultName(choices.kind, choices.provider);
       const node = await addDocument(drive.header.id, name, INTEGRATION_TYPE);
       await dispatchActions(createActions(choices, now, generateId()), node.id);
-      onDone();
+      if (runner) onDone();
+      else {
+        setFinished(name);
+        setBusy(false);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);
@@ -139,7 +144,29 @@ export function CreateFlow({
   };
 
   let body: ReactNode;
-  if (before) {
+  if (finished) {
+    body = (
+      <Panel title={`${finished} is set up`} lead="One step left.">
+        <div className="sk-intg-handoff">
+          <Steps
+            current={1}
+            steps={[
+              { title: "Configure on this device", desc: "Done" },
+              {
+                title: "Continue on your computer",
+                desc: "Open Sektar there and sign in to start",
+              },
+            ]}
+          />
+        </div>
+        <div className="sk-row sk-row--end">
+          <Button variant="primary" onClick={onDone}>
+            Done
+          </Button>
+        </div>
+      </Panel>
+    );
+  } else if (before) {
     body = (
       <Panel
         title="Sektar is local-first"
@@ -387,11 +414,6 @@ export function CreateFlow({
           />
         </Field>
         <Summary text={setupSummary(choices, now)} />
-        {!runner && (
-          <p className="sk-small sk-text-muted">
-            Then sign in on the computer that runs Sektar.
-          </p>
-        )}
         {error && (
           <Alert tone="danger" title="Could not create the integration">
             {error}
@@ -409,7 +431,7 @@ export function CreateFlow({
 
   const done = (i: number) =>
     i < base
-      ? "Sign in on your computer"
+      ? "Local-first"
       : i - base === 0
         ? kindInfo(kind)?.label
         : i - base === 1 && choices
@@ -424,12 +446,14 @@ export function CreateFlow({
             title,
             desc: i < at ? done(i) : undefined,
           }))}
-          current={at}
+          current={finished ? flow.length : at}
         />
       </div>
-      <div className="sk-intg-create__phone-step sk-small sk-text-muted">
-        Step {at + 1} of {flow.length} · {titles[at]}
-      </div>
+      {!finished && (
+        <div className="sk-intg-create__phone-step sk-small sk-text-muted">
+          Step {at + 1} of {flow.length} · {titles[at]}
+        </div>
+      )}
       {body}
     </div>
   );
@@ -495,36 +519,28 @@ function AccessChoice({
 }
 
 /**
- * The connection itself. On the computer that runs Sektar this is the
- * sign-in; anywhere else it is handed over, and the card asks for it there.
+ * The sign-in, on the computer that runs Sektar. Anywhere else there is
+ * nothing here: the notice before the flow said it, the end of the flow
+ * reminds once.
  */
 function SignIn({ runner, provider }: { runner: boolean; provider: string }) {
-  if (runner) {
-    return (
-      <div className="sk-intg-signin">
-        <div>
-          <div className="sk-integration__label">Sign in</div>
-          <div className="sk-integration__meta">A {provider} window opens.</div>
-        </div>
-        <Button
-          variant="secondary"
-          disabled
-          title="Arrives in the next pilot step"
-        >
-          Sign in with {provider}
-        </Button>
-        <p className="sk-hint" style={{ gridColumn: "1 / -1", margin: 0 }}>
-          Sign-in arrives in the next pilot step. Continue for now.
-        </p>
-      </div>
-    );
-  }
+  if (!runner) return null;
   return (
-    <div className="sk-intg-signin sk-intg-signin--handoff">
-      <Icon name="monitor" />
-      <div className="sk-integration__meta">
-        You sign in to {provider} on your computer, after Create.
+    <div className="sk-intg-signin">
+      <div>
+        <div className="sk-integration__label">Sign in</div>
+        <div className="sk-integration__meta">A {provider} window opens.</div>
       </div>
+      <Button
+        variant="secondary"
+        disabled
+        title="Arrives in the next pilot step"
+      >
+        Sign in with {provider}
+      </Button>
+      <p className="sk-hint" style={{ gridColumn: "1 / -1", margin: 0 }}>
+        Sign-in arrives in the next pilot step. Continue for now.
+      </p>
     </div>
   );
 }
