@@ -2551,6 +2551,12 @@ html { touch-action: manipulation; }
 .sk-app .sk-intg-more summary::-webkit-details-marker { display: none; }
 .sk-app .sk-intg-more[open] summary { margin-bottom: var(--sk-space-2); }
 .sk-app .sk-intg-more p { margin: 0; color: var(--sk-text-secondary); max-width: 60ch; }
-/* The end mark sits under the panel, in the panel's column */
-.sk-app .sk-intg-create__end { grid-column: 2; }
-@container intg (max-width: 720px) { .sk-app .sk-intg-create__end { grid-column: 1; } }
+/* Integrations pages end in a 48px margin (plus the home indicator on
+   phones) at every width: the end mark sits in it (.sk-endmark--margin) */
+.sk-app .sk-shell__content--flush .sk-integrations-app > .sk-page {
+  --sk-endmark-room: calc(var(--sk-space-12) + env(safe-area-inset-bottom));
+  padding-bottom: var(--sk-endmark-room);
+}
+/* The mark takes the whole margin, home-indicator inset included, so it sits
+   midway between the content and the bottom of the screen: equal space above
+   and below. */

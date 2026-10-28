@@ -15,7 +15,14 @@ function scrollerOf(el: HTMLElement): HTMLElement {
   return (document.scrollingElement as HTMLElement) ?? document.documentElement;
 }
 
-export function EndMark({ rise = true }: { rise?: boolean }) {
+export function EndMark({
+  rise = true,
+  margin = false,
+}: {
+  rise?: boolean;
+  /** In the page's bottom margin (the page's last child), not on top of it */
+  margin?: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [scrolls, setScrolls] = useState(false);
   const [risen, setRisen] = useState(false);
@@ -26,17 +33,18 @@ export function EndMark({ rise = true }: { rise?: boolean }) {
     if (!el) return;
     const scroller = scrollerOf(el);
     // The mark's own height counts only while it is shown.
-    const measure = () =>
-      setScrolls(
-        scroller.scrollHeight - (el.offsetHeight || 0) >
-          scroller.clientHeight + 1,
-      );
+    // In the margin the mark adds no height; on top of it, its own height
+    // must not count, or showing it would decide that it shows.
+    const measure = () => {
+      const own = margin ? 0 : el.offsetHeight || 0;
+      setScrolls(scroller.scrollHeight - own > scroller.clientHeight + 1);
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(scroller);
     if (scroller.firstElementChild) ro.observe(scroller.firstElementChild);
     return () => ro.disconnect();
-  }, []);
+  }, [margin]);
 
   useEffect(() => {
     const el = ref.current;
@@ -61,7 +69,12 @@ export function EndMark({ rise = true }: { rise?: boolean }) {
     return () => io.disconnect();
   }, [rise, risen, scrolls]);
 
-  const cls = ["sk-endmark", rise && "sk-endmark--rise", risen && "is-risen"]
+  const cls = [
+    "sk-endmark",
+    rise && "sk-endmark--rise",
+    margin && "sk-endmark--margin",
+    risen && "is-risen",
+  ]
     .filter(Boolean)
     .join(" ");
   return (
@@ -72,7 +85,14 @@ export function EndMark({ rise = true }: { rise?: boolean }) {
       style={
         scrolls
           ? undefined
-          : { visibility: "hidden", height: 0, padding: 0, overflow: "hidden" }
+          : margin
+            ? { visibility: "hidden" }
+            : {
+                visibility: "hidden",
+                height: 0,
+                padding: 0,
+                overflow: "hidden",
+              }
       }
     >
       <svg className="sk-endmark__mark" viewBox="0 0 167 152">

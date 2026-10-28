@@ -1653,6 +1653,11 @@ a.sk-list-item:hover .sk-list-item__title { color: var(--sk-text-brand); }
 .sk-endmark::after { transform-origin: left center; }
 .sk-endmark__mark { width: 22px; height: 20px; flex: none; }
 .sk-endmark__mark g { transform-box: fill-box; transform-origin: 50% 100%; }
+/* In the page's bottom margin, not on top of it: the mark takes the
+   margin's room (--sk-endmark-room, 48px) and gives it back with a negative
+   margin, so a page is as tall with the mark as without. The page's bottom
+   padding must be at least that room (plus any safe-area inset below it). */
+.sk-endmark--margin { padding: 0; height: var(--sk-endmark-room, var(--sk-space-12)); margin-bottom: calc(-1 * var(--sk-endmark-room, var(--sk-space-12))); }
 .sk-endmark--growth img { width: 56px; height: auto; vertical-align: bottom; filter: grayscale(1); opacity: 0.4; }   /* display stays with .sk-logo-swap: one image per theme */
 
 .sk-endmark--rise:not(.is-risen) .sk-endmark__mark g { transform: scaleY(0); }
