@@ -4,6 +4,13 @@ import {
   type IntegrationAction,
   type IntegrationDocument,
 } from "document-models/integration/v1";
+import {
+  actions as osq,
+  reducer as queueReducer,
+  utils as queueUtils,
+  type OriginalSourceQueueAction,
+  type OriginalSourceQueueDocument,
+} from "document-models/original-source-queue";
 import { describe, expect, it } from "vitest";
 import {
   createActions,
@@ -48,6 +55,16 @@ function world(access: "READ" | "READ_WRITE" = "READ") {
   >();
   let reactorConnection: string | null = "reactor-conn";
   const health = new Map<string, RuntimeHealth>();
+  /** Queues as the real model keeps them, so a test can walk one */
+  const queues = new Map<string, OriginalSourceQueueDocument>();
+  const applyQueue = (id: string, list: OriginalSourceQueueAction[]) => {
+    let q = queues.get(id)!;
+    for (const a of list) {
+      q = queueReducer(q, a);
+      expect(q.operations.global.at(-1)?.error).toBeFalsy();
+    }
+    queues.set(id, q);
+  };
   let n = 0;
   /** Applies workflow actions the way the workflow model would, as far as the facts go */
   const applyWorkflow = (id: string, list: WorkflowAction[]) => {
@@ -57,14 +74,40 @@ function world(access: "READ" | "READ_WRITE" = "READ") {
       const input = a.input as Record<string, unknown>;
       if (a.type === "SET_TRIGGER") {
         w.triggerName = input.triggerName as string;
-        w.triggerConnectionId = input.connectionId as string;
+        w.triggerConnectionId = (input.connectionId as string) ?? null;
+        w.triggerReactorConnectionId =
+          (input.reactorConnectionId as string) ?? null;
         w.triggerConfig = input.config as Record<string, unknown>;
+        w.version++;
+      } else if (a.type === "ADD_STEP") {
+        w.steps = [
+          ...(w.steps ?? []),
+          {
+            id: input.id as string,
+            key: input.key as string,
+            connectionId: (input.connectionId as string) ?? null,
+          },
+        ];
+        w.version++;
+      } else if (a.type === "UPDATE_STEP") {
+        w.steps = (w.steps ?? []).map((step) =>
+          step.id === input.id && input.connectionId !== undefined
+            ? { ...step, connectionId: input.connectionId as string }
+            : step,
+        );
         w.version++;
       } else if (a.type === "SET_TRIGGER_CONFIG") {
         w.triggerConfig = input.config as Record<string, unknown>;
         w.version++;
       } else if (a.type === "SET_TRIGGER_CONNECTION") {
-        w.triggerConnectionId = input.connectionId as string;
+        // As the workflow model: undefined leaves a field, null clears it
+        if (input.connectionId !== undefined) {
+          w.triggerConnectionId = (input.connectionId as string) || null;
+        }
+        if (input.reactorConnectionId !== undefined) {
+          w.triggerReactorConnectionId =
+            (input.reactorConnectionId as string) || null;
+        }
         w.version++;
       } else if (a.type === "PUBLISH_WORKFLOW") {
         w.publishedVersion = w.version;
@@ -131,6 +174,14 @@ function world(access: "READ" | "READ_WRITE" = "READ") {
       return Promise.resolve(id);
     },
     workflowHealth: (id) => Promise.resolve(health.get(id) ?? null),
+    createQueue: (name, list) => {
+      const id = `q-${++n}`;
+      queues.set(id, queueUtils.createDocument());
+      applyQueue(id, list);
+      writes.push(`create queue ${id} ${name}`);
+      return Promise.resolve(id);
+    },
+    readQueue: (id) => Promise.resolve(queues.get(id)?.state.global ?? null),
     updateWorkflow: (id, list) => {
       applyWorkflow(id, list);
       writes.push(`update ${id} ${list.map((a) => a.type).join(",")}`);
@@ -167,6 +218,17 @@ function world(access: "READ" | "READ_WRITE" = "READ") {
       reactorConnection = null;
     },
     health,
+    queues,
+    /** The for-every trigger's walk: start, then a slice per call */
+    walk: (id: string, slices: number) => {
+      if (queues.get(id)!.state.global.status === "DRAFT") {
+        applyQueue(id, [osq.start({})]);
+      }
+      applyQueue(
+        id,
+        Array.from({ length: slices }, () => osq.proceed({})),
+      );
+    },
     get doc() {
       return doc;
     },
@@ -186,8 +248,22 @@ describe("the live workflow", () => {
     await w.pass();
     const s = w.doc.state.global;
     const id = s.resources.liveWorkflowId!;
+    // Then the history: a queue per backfill, and the workflow that walks them
     expect(w.writes).toEqual([
       `create workflow ${id} Personal Google Calendar · new events`,
+      "RECORD_RESOURCES",
+      expect.stringMatching(
+        /^create queue q-\d+ Personal Google Calendar · Next 12 months$/,
+      ),
+      "RECORD_BACKFILL_DOCUMENT",
+      expect.stringMatching(
+        /^create queue q-\d+ Personal Google Calendar · Back to 1 Jan 2025$/,
+      ),
+      "RECORD_BACKFILL_DOCUMENT",
+      "RECORD_RESOURCES",
+      expect.stringMatching(
+        /^create workflow wf-\d+ Personal Google Calendar · history$/,
+      ),
       "RECORD_RESOURCES",
       "RECORD_CHECK",
     ]);
@@ -340,6 +416,160 @@ describe("the live workflow", () => {
     expect(s.applied).toBeNull();
     expect(s.check?.issues.map((i) => [i.code, i.severity])).toEqual([
       ["NO_REACTOR_CONNECTION", "BLOCKING"],
+    ]);
+  });
+});
+
+describe("the history", () => {
+  /** Signed in and settled: live workflow, queues and history workflow built */
+  async function ready() {
+    const w = world();
+    await w.pass();
+    w.signIn();
+    await w.pass();
+    const s = () => w.doc.state.global;
+    const [ahead, back] = s().intent.backfill.items;
+    const history = () => w.workflows.get(s().resources.backfillWorkflowId!)!;
+    return { w, s, ahead, back, history };
+  }
+
+  it("makes a queue per backfill, walks what is coming first, a week a minute, and commits", async () => {
+    const { w, s, ahead, back, history } = await ready();
+    const q = (id: string | null | undefined) =>
+      w.queues.get(id ?? "")!.state.global;
+    // Forward from today; back from today, newest first
+    expect(q(ahead.documentId).cursors[0]).toMatchObject({
+      name: "Slice",
+      first: "2026-10-28T00:00:00.000Z",
+      deltaSeconds: 604800,
+    });
+    expect(q(back.documentId).cursors[0]).toMatchObject({
+      first: "2026-10-28T00:00:00.000Z",
+      last: "2025-01-01T00:00:00.000Z",
+    });
+    expect(s().resources.pluggedItemId).toBe(ahead.id);
+    expect(history()).toMatchObject({
+      status: "ENABLED",
+      triggerName: "for-every",
+      triggerConfig: { documentId: ahead.documentId, pollEverySeconds: 60 },
+      triggerReactorConnectionId: "reactor-conn",
+    });
+    expect(history().steps?.find((x) => x.key === "get_events")).toMatchObject({
+      connectionId: "conn-1",
+    });
+    expect(s().applied?.generation).toBe(s().intent.generation);
+    expect(s().check?.issues).toEqual([]);
+
+    // Walking, nothing to do: no writes
+    w.walk(ahead.documentId!, 3);
+    const before = w.writes.length;
+    await w.pass();
+    expect(w.writes.length).toBe(before);
+  });
+
+  it("moves on to the next backfill when one is done, and switches off when all are, quietly", async () => {
+    const { w, s, ahead, back, history } = await ready();
+    const total = (id: string) =>
+      w.queues.get(id)!.state.global.cursors[0].count;
+    w.walk(ahead.documentId!, total(ahead.documentId!));
+    await w.pass();
+    expect(s().resources.pluggedItemId).toBe(back.id);
+    expect(history()).toMatchObject({
+      status: "ENABLED",
+      triggerConfig: { documentId: back.documentId },
+    });
+    expect(history().publishedVersion).toBe(history().version);
+
+    w.walk(back.documentId!, total(back.documentId!));
+    await w.pass();
+    expect(history().status).toBe("DISABLED");
+    // It keeps pointing at the queue it walked last
+    expect(history().triggerConfig).toMatchObject({
+      documentId: back.documentId,
+    });
+    expect(s().fixes).toEqual([]);
+    expect(s().check?.issues).toEqual([]);
+
+    const settled = w.writes.length;
+    await w.pass();
+    await w.pass();
+    expect(w.writes.length).toBe(settled);
+  });
+
+  it("follows the backfill switch, leaving the queue where it was", async () => {
+    const { w, s, ahead, history } = await ready();
+    w.walk(ahead.documentId!, 5);
+    const { actions } = await import("document-models/integration/v1");
+    w.act(actions.setBackfillEnabled({ enabled: false }));
+    await w.pass();
+    expect(history().status).toBe("DISABLED");
+    w.act(actions.setBackfillEnabled({ enabled: true }));
+    await w.pass();
+    expect(history().status).toBe("ENABLED");
+    expect(
+      w.queues.get(ahead.documentId!)!.state.global.progress,
+    ).toBeGreaterThan(0);
+    expect(s().fixes).toEqual([]);
+  });
+
+  it("puts back a change nobody asked for, and makes a deleted queue again", async () => {
+    const { w, s, ahead, history } = await ready();
+    const id = s().resources.backfillWorkflowId!;
+    history().triggerConfig = {
+      documentId: ahead.documentId,
+      pollEverySeconds: 5,
+    };
+    await w.pass();
+    expect(history().triggerConfig).toMatchObject({ pollEverySeconds: 60 });
+    expect(s().fixes[0]).toMatchObject({
+      code: "BACKFILL_WORKFLOW_DRIFT",
+      subject: id,
+      message: "Put back: the history workflow's pace was changed",
+    });
+
+    const gone = ahead.documentId!;
+    w.queues.delete(gone);
+    await w.pass();
+    const remade = s().intent.backfill.items[0].documentId!;
+    expect(remade).not.toBe(gone);
+    expect(history().triggerConfig).toMatchObject({ documentId: remade });
+    expect(s().fixes[0]).toMatchObject({
+      code: "BACKFILL_QUEUE_DELETED",
+      message:
+        'Put back: the backfill "Next 12 months" was deleted; it starts again',
+    });
+  });
+
+  it("says so when the history workflow is parked", async () => {
+    const { w, s } = await ready();
+    w.health.set(s().resources.backfillWorkflowId!, {
+      trigger: { status: "DISABLED", lastError: null, consecutiveFailures: 0 },
+      park: { reason: "Google has more than one page", parkedAt: "t" },
+    });
+    await w.pass();
+    expect(s().check?.issues).toEqual([
+      expect.objectContaining({
+        code: "BACKFILL_WORKFLOW_PARKED",
+        severity: "BLOCKING",
+        message:
+          "Bringing in history stopped after a failed run: Google has more than one page",
+      }),
+    ]);
+  });
+
+  it("takes its queues down with the integration", async () => {
+    const { w, s, ahead, back } = await ready();
+    const { actions } = await import("document-models/integration/v1");
+    w.act(actions.archive({}));
+    w.writes.length = 0;
+    await w.pass();
+    expect(w.writes).toEqual([
+      `delete ${s().resources.liveWorkflowId}`,
+      `delete ${s().resources.backfillWorkflowId}`,
+      `delete ${ahead.documentId}`,
+      `delete ${back.documentId}`,
+      "delete conn-1",
+      "delete integration",
     ]);
   });
 });
@@ -507,6 +737,8 @@ describe("a reconcile pass", () => {
         createWorkflow: () => Promise.reject(new Error("no")),
         updateWorkflow: () => Promise.resolve(),
         workflowHealth: () => Promise.resolve(null),
+        createQueue: () => Promise.reject(new Error("no")),
+        readQueue: () => Promise.resolve(null),
         dispatch: (l) => {
           out.push(...l);
           return Promise.resolve();

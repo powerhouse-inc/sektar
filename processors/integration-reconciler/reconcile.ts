@@ -9,6 +9,14 @@
  * and a check is only written when what it says changed: the processor sees
  * its own writes, and an unchanged check must not make another pass.
  */
+import type { OriginalSourceQueueAction } from "document-models/original-source-queue";
+import type { QueueState } from "../../editors/backfills/progress.js";
+import { queueProgress, queueSetup } from "./backfill-osq.js";
+import {
+  backfillWorkflowDrift,
+  backfillWorkflowSpec,
+  buildBackfillWorkflow,
+} from "./backfill-workflow.js";
 import {
   buildLiveWorkflow,
   liveWorkflowDrift,
@@ -71,6 +79,13 @@ export interface ReconcileIO {
   updateWorkflow(id: string, actions: WorkflowAction[]): Promise<void>;
   /** How the workflow runtime holds the workflow; null where no runtime runs */
   workflowHealth(id: string): Promise<RuntimeHealth | null>;
+  /** Creates a backfill queue in the Backfills drive and applies its setup; returns its id */
+  createQueue(
+    name: string,
+    actions: OriginalSourceQueueAction[],
+  ): Promise<string>;
+  /** Null when the queue document is gone */
+  readQueue(id: string): Promise<QueueState | null>;
 }
 
 /** The publisher's Google app (powerhouse.config.json workflows.oauthApps). */
@@ -123,6 +138,7 @@ export async function reconcileIntegration(
     const built = [
       s.resources.liveWorkflowId,
       s.resources.backfillWorkflowId,
+      ...s.intent.backfill.items.map((item) => item.documentId),
       s.resources.connectionId,
     ].filter((id): id is string => Boolean(id));
     for (const id of built) await io.deleteDocument(id);
@@ -193,6 +209,16 @@ export async function reconcileIntegration(
         fixes,
         since,
       );
+      if (built) {
+        built = await reconcileBackfill(
+          doc,
+          connectionId,
+          io,
+          issues,
+          fixes,
+          since,
+        );
+      }
     }
   }
 
@@ -298,6 +324,154 @@ async function reconcileLiveWorkflow(
         at,
         code: "LIVE_WORKFLOW_DRIFT",
         subject: id,
+        message: `Put back: ${difference}`,
+      });
+    }
+  }
+  return true;
+}
+
+/**
+ * Brings in the history: a queue per backfill item (made again if it was
+ * deleted), the item to walk plugged in (the pinned one unless it is done,
+ * else the first unfinished), and the backfill workflow built or put back
+ * to walk it. Moving on to the next queue and switching off once all are
+ * done are this pass's own doing, never logged as a put-back. Returns
+ * whether the backfill is what the integration asks for.
+ */
+async function reconcileBackfill(
+  doc: { id: string; name: string; state: IntegrationState },
+  connectionId: string,
+  io: ReconcileIO,
+  issues: IntegrationIssue[],
+  fixes: { at: string; code: string; subject?: string; message: string }[],
+  since: (code: string) => string,
+): Promise<boolean> {
+  const s = doc.state;
+  const reactorConnectionId = await io.findReactorConnection();
+  // The live pass has said so already
+  if (!reactorConnectionId) return false;
+  const asked = s.applied?.generation !== s.intent.generation;
+  const items = s.intent.backfill.items;
+
+  const queues = new Map<string, { id: string; state: QueueState }>();
+  for (const item of items) {
+    const existing = item.documentId
+      ? await io.readQueue(item.documentId)
+      : null;
+    if (item.documentId && existing) {
+      queues.set(item.id, { id: item.documentId, state: existing });
+      continue;
+    }
+    const setup = queueSetup(doc.name, item, io.newId());
+    // A kind this adapter does not make (an attached document that is gone)
+    if (!setup) continue;
+    const id = await io.createQueue(setup.name, setup.actions);
+    await io.dispatch([
+      actions.recordBackfillDocument({ itemId: item.id, documentId: id }),
+    ]);
+    if (item.documentId && !asked) {
+      fixes.push({
+        at: io.now(),
+        code: "BACKFILL_QUEUE_DELETED",
+        subject: id,
+        message: `Put back: the backfill "${item.label}" was deleted; it starts again`,
+      });
+    }
+    const made = await io.readQueue(id);
+    if (made) queues.set(item.id, { id, state: made });
+  }
+
+  const unfinished = (item: (typeof items)[number]) => {
+    const q = queues.get(item.id);
+    return !!q && !queueProgress(q.state).finished;
+  };
+  const pinned = items.find(
+    (i) => i.id === s.intent.backfill.pinnedId && unfinished(i),
+  );
+  const plug = pinned ?? items.find(unfinished) ?? null;
+  if (plug && plug.id !== s.resources.pluggedItemId) {
+    await io.dispatch([actions.recordResources({ pluggedItemId: plug.id })]);
+  }
+  const plugged = plug ? queues.get(plug.id)! : null;
+
+  const workflowId = s.resources.backfillWorkflowId;
+  const facts = workflowId ? await io.readWorkflow(workflowId) : null;
+  if (!workflowId || !facts) {
+    // Nothing left to bring in: no workflow needed
+    if (!plugged) return true;
+    const spec = backfillWorkflowSpec(
+      doc.name,
+      s.intent.backfill.enabled,
+      plugged.id,
+      connectionId,
+      reactorConnectionId,
+    );
+    const created = await io.createWorkflow(
+      spec.name,
+      buildBackfillWorkflow(
+        spec,
+        {
+          trigger: io.newId(),
+          get: io.newId(),
+          map: io.newId(),
+          upsert: io.newId(),
+          e1: io.newId(),
+          e2: io.newId(),
+          e3: io.newId(),
+        },
+        io.now(),
+        doc.name,
+      ),
+    );
+    await io.dispatch([
+      actions.recordResources({ backfillWorkflowId: created }),
+    ]);
+    return true;
+  }
+
+  // All done, it keeps pointing at the queue it walked last, switched off
+  const walking =
+    typeof facts.triggerConfig?.documentId === "string"
+      ? facts.triggerConfig.documentId
+      : null;
+  const queueId = plugged?.id ?? walking;
+  if (!queueId) return true;
+  const spec = backfillWorkflowSpec(
+    doc.name,
+    s.intent.backfill.enabled && plugged !== null,
+    queueId,
+    connectionId,
+    reactorConnectionId,
+  );
+  const drift = backfillWorkflowDrift(spec, facts, io.now());
+  if (drift.actions.length === 0) {
+    if (spec.enabled) {
+      const problem = runtimeIssue(
+        await io.workflowHealth(workflowId),
+        "backfill",
+      );
+      if (problem) {
+        issues.push({
+          ...problem,
+          subject: workflowId,
+          fixable: false,
+          since: since(problem.code),
+        });
+      }
+    }
+    return true;
+  }
+  await io.updateWorkflow(workflowId, drift.actions);
+  const ours =
+    walking !== queueId || (plugged === null && facts.status === "ENABLED");
+  if (!asked && !ours) {
+    const at = io.now();
+    for (const difference of drift.differences) {
+      fixes.push({
+        at,
+        code: "BACKFILL_WORKFLOW_DRIFT",
+        subject: workflowId,
         message: `Put back: ${difference}`,
       });
     }

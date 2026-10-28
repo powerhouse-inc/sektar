@@ -240,21 +240,24 @@ function describeConfig(
  */
 export function runtimeIssue(
   health: RuntimeHealth | null,
+  which: "live" | "backfill" = "live",
 ): { code: string; severity: "BLOCKING" | "WARNING"; message: string } | null {
   if (!health) return null;
+  const prefix = which === "live" ? "LIVE" : "BACKFILL";
+  const what = which === "live" ? "Live updates" : "Bringing in history";
   if (health.park) {
     return {
-      code: "LIVE_WORKFLOW_PARKED",
+      code: `${prefix}_WORKFLOW_PARKED`,
       severity: "BLOCKING",
-      message: `Live updates stopped after a failed run: ${health.park.reason}`,
+      message: `${what} stopped after a failed run: ${health.park.reason}`,
     };
   }
   const t = health.trigger;
   if (t && t.status === "ERROR" && t.lastError) {
     return {
-      code: "LIVE_WORKFLOW_FAILING",
+      code: `${prefix}_WORKFLOW_FAILING`,
       severity: "WARNING",
-      message: `Live updates are failing: ${t.lastError}`,
+      message: `${what} ${which === "live" ? "are" : "is"} failing: ${t.lastError}`,
     };
   }
   return null;

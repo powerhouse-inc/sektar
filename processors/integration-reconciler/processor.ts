@@ -18,6 +18,8 @@ import {
 } from "@powerhousedao/workflow/document-models/connection";
 import { utils as workflowUtils } from "@powerhousedao/workflow/document-models/workflow";
 import { generateId } from "document-model";
+import { utils as queueUtils } from "document-models/original-source-queue";
+import type { QueueState } from "../../editors/backfills/progress.js";
 import type { IntegrationState } from "document-models/integration";
 import { hostname } from "node:os";
 import type { RuntimeHealth, WorkflowFacts } from "./live-workflow.js";
@@ -30,6 +32,8 @@ import {
 export const INTEGRATION_TYPE = "sektar/integration";
 /** The switchboard's own reactor connection: steps that write documents use it. */
 const REACTOR_CONNECTOR = "@powerhousedao/reactor#reactor";
+/** Where backfill queues live (hosts/*: slug "backfills", drive app backfills) */
+const BACKFILLS_DRIVE = "backfills";
 const SWEEP_MS = 60_000;
 const STARTUP_MS = 5_000;
 
@@ -269,6 +273,26 @@ export class IntegrationReconciler implements IProcessor {
       },
       updateWorkflow: async (id, list) => {
         await dispatch.execute(id, "main", list);
+      },
+      createQueue: async (name, list) => {
+        const backfills = await read.get(BACKFILLS_DRIVE);
+        const document = queueUtils.createDocument();
+        document.header.name = name;
+        const created = await dispatch.createInDrive(
+          backfills.header.id,
+          document,
+        );
+        const id = created.documentId || document.header.id;
+        await dispatch.execute(id, "main", list);
+        return id;
+      },
+      readQueue: async (id) => {
+        try {
+          const doc = await read.get(id);
+          return (doc.state as unknown as { global: QueueState }).global;
+        } catch {
+          return null;
+        }
       },
       workflowHealth: async (id) => {
         let reader: WorkflowHealthReader;
