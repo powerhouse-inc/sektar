@@ -7,6 +7,7 @@
  */
 import {
   actions,
+  type IntegrationAccess,
   type IntegrationAction,
   type IntegrationKind,
   type IntegrationState,
@@ -120,6 +121,56 @@ export function providerInfo(
   return PROVIDERS.find((p) => p.id === id);
 }
 
+/**
+ * What each access level lets Sektar do with the account, in the user's
+ * words, and the provider permission it maps to (the scope override asks for
+ * exactly this, so the provider's own consent screen says the same).
+ */
+export type AccessOption = {
+  access: IntegrationAccess;
+  label: string;
+  recommended: boolean;
+  can: string[];
+  cannot: string[];
+  /** The provider's permission, shown small for those who check */
+  permission: string;
+};
+
+const ACCESS: Record<string, AccessOption[]> = {
+  "google-calendar": [
+    {
+      access: "READ",
+      label: "Read only",
+      recommended: true,
+      can: [
+        "See your calendars and their events",
+        "See guests, places, descriptions and attachments",
+      ],
+      cannot: ["Create, change or delete anything"],
+      permission: "Google: See your calendars (calendar.readonly)",
+    },
+    {
+      access: "READ_WRITE",
+      label: "Read and write",
+      recommended: false,
+      can: [
+        "Everything in Read only",
+        "Add events, such as trips you plan in Sektar",
+        "Change events Sektar added",
+      ],
+      cannot: ["Delete events: Sektar never deletes"],
+      permission:
+        "Google: See and edit events on your calendars (calendar.events)",
+    },
+  ],
+};
+
+export function accessOptions(
+  provider: string | null | undefined,
+): AccessOption[] {
+  return (provider && ACCESS[provider]) || [];
+}
+
 export type History =
   | { kind: "none" }
   | { kind: "since"; date: string }
@@ -130,6 +181,7 @@ export type CreateChoices = {
   kind: IntegrationKind;
   provider: string;
   name: string;
+  access: IntegrationAccess;
   live: boolean;
   every: { value: number; unit: IntervalUnit };
   history: History;
@@ -167,6 +219,7 @@ export function defaultChoices(
     kind,
     provider,
     name: defaultName(kind, provider),
+    access: "READ",
     live: true,
     every: { value: 5, unit: "MINUTES" },
     history: { kind: "since", date: defaultSince(now) },
@@ -245,7 +298,11 @@ export function setupSummary(choices: CreateChoices, now: Date): string {
       : choices.history.kind === "everything"
         ? `brings in all your events, up to ${MONTHS_AHEAD} months ahead`
         : `brings in your events from ${MONTH.format(new Date(importRange(choices.history, now).from))} to ${MONTHS_AHEAD} months ahead`;
-  return `Sektar ${live}, and ${history}. You sign in with ${provider} on the computer that runs Sektar to start.`;
+  const access =
+    choices.access === "READ_WRITE"
+      ? "It may add events, and never deletes any."
+      : "It only reads.";
+  return `Sektar ${live}, and ${history}. ${access}`;
 }
 
 /**
@@ -261,6 +318,7 @@ export function createActions(
   const range = importRange(choices.history, now);
   return [
     actions.initialize({ kind: choices.kind, provider: choices.provider }),
+    actions.setAccess({ access: choices.access }),
     actions.setCalendarSource({ calendars: [], allOwned: true }),
     actions.setLiveEnabled({ enabled: choices.live }),
     actions.setLiveInterval({
@@ -284,7 +342,9 @@ export type CardState =
   | "applying"
   | "live"
   | "paused"
-  | "attention";
+  | "attention"
+  | "removing"
+  | "incomplete";
 
 export type CardView = {
   state: CardState;
@@ -302,6 +362,20 @@ export function cardView(state: IntegrationState): CardView {
   const where = state.runner?.label
     ? state.runner.label
     : "the computer that runs Sektar";
+  if (!state.kind) {
+    return {
+      state: "incomplete",
+      badge: { label: "Incomplete", tone: "warning" },
+      line: "Its setup did not finish. Remove it and add it again.",
+    };
+  }
+  if (state.intent.archived) {
+    return {
+      state: "removing",
+      badge: { label: "Removing", tone: "outline" },
+      line: "Taking down what Sektar set up for it",
+    };
+  }
   const blocking = state.check?.issues.find(
     (i) => i.severity === "BLOCKING" && i.code !== "NEEDS_SIGN_IN",
   );
@@ -340,5 +414,56 @@ export function cardView(state: IntegrationState): CardView {
     state: "live",
     badge: { label: "Live", tone: "success", dot: true },
     line: `Checks for changes ${intervalLabel(state.intent.live.every)}`,
+  };
+}
+
+/** Whether anything was built for an integration: a connection, a workflow or a backfill document. */
+export function hasBuiltAnything(state: IntegrationState): boolean {
+  const r = state.resources;
+  return Boolean(
+    r.connectionId ||
+    r.liveWorkflowId ||
+    r.backfillWorkflowId ||
+    state.intent.backfill.items.some((b) => b.documentId),
+  );
+}
+
+export type RemovalPlan = {
+  /** Nothing was built: the document goes now. Otherwise the runner takes things down first. */
+  immediate: boolean;
+  /** What removing does, in order, in the user's words */
+  steps: string[];
+  /** What stays */
+  keeps: string;
+};
+
+/**
+ * What removing an integration does. Built things are taken down by the
+ * reconciler on the runner (it holds the token and the workflows), so the app
+ * only records the wish (ARCHIVE) and the card says Removing until it is done.
+ */
+export function removalPlan(state: IntegrationState): RemovalPlan {
+  const kind = kindInfo(state.kind)?.label.toLowerCase() ?? "integration";
+  const known = providerInfo(state.provider)?.label;
+  const provider = known ?? "the account";
+  const keeps = `Everything already brought in stays in Sektar. ${known ? `Your ${known} account` : "The account"} itself is not changed.`;
+  if (!hasBuiltAnything(state)) {
+    return {
+      immediate: true,
+      steps: [
+        "Nothing has been set up for it yet, so it is removed right away.",
+      ],
+      keeps,
+    };
+  }
+  return {
+    immediate: false,
+    steps: [
+      "Live updates and the history import stop.",
+      `The workflows Sektar made for this ${kind} are archived.`,
+      `Sektar signs out of ${provider} and forgets the sign-in on the computer that runs it.`,
+      "Then the integration disappears from this page.",
+    ],
+    keeps,
   };
 }

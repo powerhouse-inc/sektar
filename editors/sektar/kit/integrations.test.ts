@@ -5,7 +5,10 @@ import {
 } from "document-models/integration/v1";
 import { describe, expect, it } from "vitest";
 import {
+  accessOptions,
   cardView,
+  hasBuiltAnything,
+  removalPlan,
   createActions,
   DATE_RANGE_BACKFILL_TYPE,
   defaultChoices,
@@ -98,7 +101,7 @@ describe("how much", () => {
 
   it("summarises what Sektar will set up", () => {
     expect(setupSummary(calendar(), NOW)).toBe(
-      "Sektar checks your Google calendars for changes every 5 minutes, and brings in your events from 1 Jan 2025 to 12 months ahead. You sign in with Google on the computer that runs Sektar to start.",
+      "Sektar checks your Google calendars for changes every 5 minutes, and brings in your events from 1 Jan 2025 to 12 months ahead. It only reads.",
     );
     expect(
       setupSummary(calendar({ live: false, history: { kind: "none" } }), NOW),
@@ -108,6 +111,71 @@ describe("how much", () => {
     expect(
       setupSummary(calendar({ history: { kind: "everything" } }), NOW),
     ).toContain("brings in all your events, up to 12 months ahead");
+    expect(setupSummary(calendar({ access: "READ_WRITE" }), NOW)).toContain(
+      "It may add events, and never deletes any.",
+    );
+  });
+});
+
+describe("access", () => {
+  it("offers read only first and recommended, with the provider permission it asks for", () => {
+    const [read, write] = accessOptions("google-calendar");
+    expect(read).toMatchObject({ access: "READ", recommended: true });
+    expect(read.permission).toContain("calendar.readonly");
+    expect(write).toMatchObject({ access: "READ_WRITE", recommended: false });
+    expect(write.cannot.join(" ")).toContain("never deletes");
+    expect(accessOptions("caldav")).toEqual([]);
+    expect(accessOptions(null)).toEqual([]);
+  });
+
+  it("defaults to read only and writes the choice", () => {
+    expect(calendar().access).toBe("READ");
+    expect(
+      created(calendar({ access: "READ_WRITE" })).state.global.intent.access,
+    ).toBe("READ_WRITE");
+  });
+});
+
+describe("removal", () => {
+  it("removes right away what never built anything", () => {
+    const plan = removalPlan(created().state.global);
+    expect(plan.immediate).toBe(true);
+    expect(plan.keeps).toContain("stays in Sektar");
+    expect(hasBuiltAnything(created().state.global)).toBe(false);
+  });
+
+  it("hands built things to the runner to take down first", () => {
+    const s = structuredClone(created().state.global);
+    s.resources.liveWorkflowId = "wf";
+    const plan = removalPlan(s);
+    expect(plan.immediate).toBe(false);
+    expect(plan.steps.join(" ")).toContain("signs out of Google");
+    const backfillOnly = structuredClone(created().state.global);
+    backfillOnly.intent.backfill.items[0]!.documentId = "osq";
+    expect(hasBuiltAnything(backfillOnly)).toBe(true);
+  });
+
+  it("names the kind and account generically when they are unknown", () => {
+    const plan = removalPlan(utils.createDocument().state.global);
+    expect(plan.keeps).toBe(
+      "Everything already brought in stays in Sektar. The account itself is not changed.",
+    );
+    expect(removalPlan(created().state.global).keeps).toContain(
+      "Your Google account itself",
+    );
+  });
+
+  it("calls a document whose setup never finished incomplete", () => {
+    expect(cardView(utils.createDocument().state.global)).toMatchObject({
+      state: "incomplete",
+      line: "Its setup did not finish. Remove it and add it again.",
+    });
+  });
+
+  it("shows Removing once archived", () => {
+    const s = structuredClone(created().state.global);
+    s.intent.archived = true;
+    expect(cardView(s).state).toBe("removing");
   });
 });
 

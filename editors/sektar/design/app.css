@@ -2512,3 +2512,19 @@ html { touch-action: manipulation; }
 .sk-app .sk-intg-since .sk-input { width: auto; margin-left: var(--sk-space-2); }
 .sk-app .sk-intg-summary { padding: var(--sk-space-4); border-radius: var(--sk-radius-lg); background: var(--sk-bg-subtle); color: var(--sk-text-secondary); }
 .sk-app .sk-intg-summary b { color: var(--sk-text); font-weight: var(--sk-weight-medium); }
+
+/* Integrations: what Sektar may do (Connect step), the sign-in, removal */
+.sk-app .sk-intg-access { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sk-space-3); }
+.sk-app .sk-intg-access__option { display: grid; gap: var(--sk-space-3); align-content: start; padding: var(--sk-space-4); border: 1px solid var(--sk-border-subtle); border-radius: var(--sk-radius-lg); background: var(--sk-surface); cursor: pointer; }
+.sk-app .sk-intg-access__option.is-selected { border-color: var(--sk-primary); box-shadow: 0 0 0 1px var(--sk-primary); }
+.sk-app .sk-intg-access__head { display: flex; align-items: center; gap: var(--sk-space-2); flex-wrap: wrap; }
+.sk-app .sk-intg-access__head input { accent-color: var(--sk-primary); margin: 0; }
+.sk-app .sk-intg-access__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sk-space-1); font-size: var(--sk-text-sm); }
+.sk-app .sk-intg-access__list li { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: var(--sk-space-2); align-items: start; }
+.sk-app .sk-intg-access__list .sk-icon { margin-top: 2px; }
+.sk-app .sk-intg-yes { --sk-icon-1: var(--sk-success); --sk-icon-2: var(--sk-success); --sk-icon-3: var(--sk-success); }
+.sk-app .sk-intg-no { --sk-icon-1: var(--sk-text-muted); --sk-icon-2: var(--sk-text-muted); --sk-icon-3: var(--sk-text-muted); }
+.sk-app .sk-intg-signin { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sk-space-2) var(--sk-space-4); align-items: center; padding: var(--sk-space-4); border-radius: var(--sk-radius-lg); background: var(--sk-bg-subtle); }
+.sk-app .sk-intg-signin--handoff { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+.sk-app .sk-integration__head--menu { grid-template-columns: auto minmax(0, 1fr) auto; }
+.sk-app .sk-intg-remove-steps { margin: 0; padding-left: var(--sk-space-5); display: grid; gap: var(--sk-space-1); }

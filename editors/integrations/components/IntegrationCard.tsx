@@ -1,16 +1,25 @@
-import type { IntegrationDocument } from "document-models/integration";
+import {
+  deleteNode,
+  dispatchActions,
+  useSelectedDrive,
+} from "@powerhousedao/reactor-browser";
+import { actions, type IntegrationDocument } from "document-models/integration";
+import { useState } from "react";
 import {
   cardView,
   kindInfo,
   providerInfo,
+  removalPlan,
 } from "../../sektar/kit/integrations.js";
-import { Badge, Icon } from "../../sektar/kit/ui.js";
+import { Menu } from "../../sektar/kit/menu.js";
+import { Alert, Badge, Button, Icon, Modal } from "../../sektar/kit/ui.js";
 
 /**
  * One integration on the page (design system: Patterns · Integrations ·
  * card). While it waits for the sign-in on the runner there is nothing to
  * switch yet, so the card shows the state and what to do; the Live updates
- * and Backfill rows come with the workflows (pilot steps 4 and 5).
+ * and Backfill rows come with the workflows (pilot steps 4 and 5). Its menu
+ * removes it, through a confirmation that says what removing does.
  */
 export function IntegrationCard({ doc }: { doc: IntegrationDocument }) {
   const s = doc.state.global;
@@ -19,6 +28,8 @@ export function IntegrationCard({ doc }: { doc: IntegrationDocument }) {
   const provider = providerInfo(s.provider);
   const account =
     [provider?.lead, kind?.label].filter(Boolean)[0] ?? "Not set up";
+  const [removing, setRemoving] = useState(false);
+  const name = doc.header.name || kind?.label || "Integration";
   return (
     <article
       className={
@@ -27,28 +38,133 @@ export function IntegrationCard({ doc }: { doc: IntegrationDocument }) {
           : "sk-card sk-integration"
       }
     >
-      <header className="sk-integration__head">
+      <header className="sk-integration__head sk-integration__head--menu">
         <span className="sk-icon-tile">
           <Icon name={kind?.icon ?? "sync"} />
         </span>
         <div style={{ minWidth: 0 }}>
-          <div className="sk-integration__name">
-            {doc.header.name || kind?.label}
-          </div>
+          <div className="sk-integration__name">{name}</div>
           <div className="sk-integration__account">{account}</div>
         </div>
-        <Badge tone={view.badge.tone} dot={view.badge.dot}>
-          {view.badge.label}
-        </Badge>
+        <Menu
+          label={`${name}: more`}
+          items={[
+            {
+              label: "Remove…",
+              icon: "close",
+              danger: true,
+              disabled: view.state === "removing",
+              onSelect: () => setRemoving(true),
+            },
+          ]}
+          trigger={(open, toggle) => (
+            <button
+              type="button"
+              className="sk-more"
+              aria-label={`${name}: more`}
+              aria-expanded={open}
+              onClick={toggle}
+            />
+          )}
+        />
       </header>
       <div className="sk-integration__row">
         <div>
           <div className="sk-integration__label">
-            {view.state === "waiting-for-sign-in" ? "Next" : "Status"}
+            {view.state === "waiting-for-sign-in" || view.state === "incomplete"
+              ? "Next"
+              : "Status"}
           </div>
           <div className="sk-integration__meta">{view.line}</div>
         </div>
+        <Badge tone={view.badge.tone} dot={view.badge.dot}>
+          {view.badge.label}
+        </Badge>
       </div>
+      {removing && (
+        <RemoveDialog
+          doc={doc}
+          name={name}
+          onClose={() => setRemoving(false)}
+        />
+      )}
     </article>
+  );
+}
+
+/**
+ * Confirms a removal and says what it does. Something built (a sign-in,
+ * workflows, backfills) is taken down by the reconciler on the runner first,
+ * so the app records the wish (ARCHIVE) and the card shows Removing; an
+ * integration that never built anything is deleted right away.
+ */
+function RemoveDialog({
+  doc,
+  name,
+  onClose,
+}: {
+  doc: IntegrationDocument;
+  name: string;
+  onClose: () => void;
+}) {
+  const [drive] = useSelectedDrive();
+  const plan = removalPlan(doc.state.global);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const remove = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      if (plan.immediate) {
+        if (!drive) throw new Error("The Integrations drive is not open");
+        await deleteNode(drive.header.id, doc.header.id);
+      } else {
+        await dispatchActions([actions.archive({})], doc.header.id);
+      }
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal
+      title={`Remove ${name}?`}
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => void remove()}
+            disabled={busy}
+          >
+            {busy ? "Removing…" : "Remove"}
+          </Button>
+        </>
+      }
+    >
+      <div className="sk-stack sk-stack--3">
+        {plan.steps.length === 1 ? (
+          <p>{plan.steps[0]}</p>
+        ) : (
+          <ol className="sk-intg-remove-steps">
+            {plan.steps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        )}
+        <p className="sk-small sk-text-muted">{plan.keeps}</p>
+        {error && (
+          <Alert tone="danger" title="Could not remove it">
+            {error}
+          </Alert>
+        )}
+      </div>
+    </Modal>
   );
 }
