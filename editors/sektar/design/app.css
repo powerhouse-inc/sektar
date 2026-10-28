@@ -2586,3 +2586,9 @@ html { touch-action: manipulation; }
 }
 /* An integration card with nothing to report: its badge in the head, before the menu */
 .sk-app .sk-integration__head--badge { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+
+/* Integration cards: 420–630px wide (Wouter, 2026-10-28). As many columns as
+   fit at 420; a card stretches with its column but never past 630, so a
+   lone card on a wide screen keeps its proportions. Phones: one, full width. */
+.sk-app .sk-integration-grid { grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr)); }
+.sk-app .sk-integration-grid > .sk-integration { max-width: 630px; }
