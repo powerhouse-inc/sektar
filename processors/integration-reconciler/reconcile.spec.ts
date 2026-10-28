@@ -133,13 +133,13 @@ function world(access: "READ" | "READ_WRITE" = "READ") {
       return Promise.resolve(id);
     },
     setConnectionConfig: (id, config) => {
+      // As the runtime: new values are asked for; the sign-in and what it
+      // was granted stay as they were
       const c = connections.get(id)!;
       connections.set(id, {
         ...c,
-        config,
+        config: { ...c.config, ...config },
         scopes: config.oauth_scopes as string[],
-        signedIn: false,
-        status: "UNCONFIGURED",
       });
       writes.push(`config ${id}`);
       return Promise.resolve();
@@ -211,9 +211,15 @@ function world(access: "READ" | "READ_WRITE" = "READ") {
     connections,
     workflows,
     writes,
+    /** A sign-in: granted what the connection asks for */
     signIn: (id = "conn-1") => {
       const c = connections.get(id)!;
-      connections.set(id, { ...c, status: "OK", signedIn: true });
+      connections.set(id, {
+        ...c,
+        status: "OK",
+        signedIn: true,
+        granted: [...c.scopes],
+      });
     },
     noReactorConnection: () => {
       reactorConnection = null;
@@ -677,6 +683,32 @@ describe("a reconcile pass", () => {
     expect(w.doc.state.global.check?.issues.map((i) => i.code)).toEqual([
       "NEEDS_SIGN_IN",
     ]);
+  });
+
+  it("asks to sign in again when the sign-in does not reach what is asked, keeping the workflows", async () => {
+    const w = world();
+    await w.pass();
+    w.signIn();
+    await w.pass();
+    const live = w.doc.state.global.resources.liveWorkflowId!;
+    // Signed in before grants were recorded, the config already asking for more
+    const c = w.connections.get("conn-1")!;
+    w.connections.set("conn-1", { ...c, granted: null });
+    w.writes.length = 0;
+    await w.pass();
+    expect(w.doc.state.global.check?.issues).toEqual([
+      expect.objectContaining({
+        code: "NEEDS_SIGN_IN",
+        message: "Sign in to Google again on pc: it needs more access",
+      }),
+    ]);
+    // Nothing taken down: the old token keeps them running meanwhile
+    expect(w.workflows.get(live)?.status).toBe("ENABLED");
+    expect(w.writes).toEqual(["RECORD_CHECK"]);
+    // Signed in for the new scopes: settled again
+    w.signIn();
+    await w.pass();
+    expect(w.doc.state.global.check?.issues).toEqual([]);
   });
 
   it("makes a new connection when its connection was deleted", async () => {

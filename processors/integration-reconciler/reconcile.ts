@@ -44,6 +44,8 @@ export type ConnectionFacts = {
   signedIn: boolean;
   /** The scopes it asks for (config oauth_scopes) */
   scopes: string[];
+  /** The scopes its sign-in was granted (config oauth_granted_scopes); null: not recorded */
+  granted?: string[] | null;
 };
 
 export type { ConnectionSpec } from "./providers/index.js";
@@ -56,7 +58,7 @@ export interface ReconcileIO {
   readConnection(id: string): Promise<ConnectionFacts | null>;
   /** Creates the connection document; returns its id */
   createConnection(spec: ConnectionSpec): Promise<string>;
-  /** Replaces the connection's config (new scopes after an access change) */
+  /** Sets these config values on the connection, leaving the others (new scopes after an access change) */
   setConnectionConfig(
     id: string,
     config: Record<string, unknown>,
@@ -165,20 +167,32 @@ export async function reconcileIntegration(
     if (!connectionId || !facts) {
       connectionId = await io.createConnection(spec);
       await io.dispatch([actions.recordResources({ connectionId })]);
-      facts = { status: "UNCONFIGURED", signedIn: false, scopes: [] };
+      facts = {
+        status: "UNCONFIGURED",
+        signedIn: false,
+        scopes: spec.config.oauth_scopes as string[],
+      };
     }
     const wanted = spec.config.oauth_scopes as string[];
-    // The access changed: ask for the new scopes, which takes a new sign-in.
-    if (facts.scopes.length > 0 && !sameScopes(facts.scopes, wanted)) {
+    // The access changed: ask for the new scopes. The token in hand stays
+    // in use until the person signs in again; it just does not reach them.
+    if (!sameScopes(facts.scopes, wanted)) {
       await io.setConnectionConfig(connectionId, spec.config);
-      facts = { ...facts, signedIn: false };
     }
-    if (!facts.signedIn || facts.status !== "OK") {
+    // Signed in for what the integration asks: a sign-in recorded before
+    // grants were (granted null) is taken as not reaching the new scopes.
+    const covered =
+      !!facts.granted &&
+      wanted.every((scope) => facts.granted!.includes(scope));
+    if (!facts.signedIn || facts.status !== "OK" || !covered) {
       issues.push({
         code: "NEEDS_SIGN_IN",
         severity: "BLOCKING",
         subject: connectionId,
-        message: `Sign in to Google on ${io.me.label} to finish`,
+        message:
+          facts.signedIn && facts.status === "OK"
+            ? `Sign in to ${provider.label} again on ${io.me.label}: it needs more access`
+            : `Sign in to ${provider.label} on ${io.me.label} to finish`,
         fixable: false,
         since: since("NEEDS_SIGN_IN"),
       });

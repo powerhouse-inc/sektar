@@ -150,13 +150,15 @@ export class IntegrationReconciler implements IProcessor {
             };
           }
         ).global;
-        const raw = g.config?.oauth_scopes;
+        const strings = (v: unknown) =>
+          Array.isArray(v)
+            ? v.filter((x): x is string => typeof x === "string")
+            : null;
         const facts: ConnectionFacts = {
           status: g.status,
           signedIn: g.secretRefs.some((r) => r.name === "token"),
-          scopes: Array.isArray(raw)
-            ? raw.filter((x): x is string => typeof x === "string")
-            : [],
+          scopes: strings(g.config?.oauth_scopes) ?? [],
+          granted: strings(g.config?.oauth_granted_scopes),
         };
         return facts;
       },
@@ -180,9 +182,14 @@ export class IntegrationReconciler implements IProcessor {
         return id;
       },
       setConnectionConfig: async (id, config) => {
-        await dispatch.execute(id, "main", [
-          connectionActions.setConfig({ config }),
-        ]);
+        // Value by value: the runtime's own keys (oauth_granted_scopes) stay
+        await dispatch.execute(
+          id,
+          "main",
+          Object.entries(config).map(([name, value]) =>
+            connectionActions.setConfigValue({ name, value }),
+          ),
+        );
       },
       dispatch: async (list) => {
         await dispatch.execute(integrationId, "main", list);
