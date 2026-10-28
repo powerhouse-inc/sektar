@@ -162,6 +162,7 @@ export function SignIn({ doc }: { doc: IntegrationDocument }) {
         <Button
           variant={runner ? "primary" : "secondary"}
           size="sm"
+          className={phase === "stopped" ? "sk-intg-retry" : undefined}
           onClick={() => void begin()}
         >
           {label}

@@ -2567,4 +2567,5 @@ html { touch-action: manipulation; }
 .sk-app .sk-intg-waiting__actions { display: flex; align-items: center; gap: var(--sk-space-2); margin-top: var(--sk-space-2); font-size: var(--sk-text-xs); color: var(--sk-text-muted); }
 .sk-app .sk-intg-waiting__actions button { padding: 0; border: 0; background: none; font: inherit; color: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .sk-app .sk-intg-waiting__actions button:hover { color: var(--sk-text); }
-.sk-app .sk-intg-signin-next > .sk-btn { align-self: flex-start; }
+/* The sign-in itself spans the card; a retry after a failed one is its own size */
+.sk-app .sk-intg-signin-next > .sk-btn.sk-intg-retry { align-self: flex-start; }
