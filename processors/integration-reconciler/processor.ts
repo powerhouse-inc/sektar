@@ -147,6 +147,7 @@ export class IntegrationReconciler implements IProcessor {
               status: string;
               secretRefs: { name: string }[];
               config: Record<string, unknown> | null;
+              accountLabel?: string | null;
             };
           }
         ).global;
@@ -159,6 +160,7 @@ export class IntegrationReconciler implements IProcessor {
           signedIn: g.secretRefs.some((r) => r.name === "token"),
           scopes: strings(g.config?.oauth_scopes) ?? [],
           granted: strings(g.config?.oauth_granted_scopes),
+          accountLabel: g.accountLabel ?? null,
         };
         return facts;
       },

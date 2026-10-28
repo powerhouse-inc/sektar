@@ -36,14 +36,21 @@ const EVENTS = "https://www.googleapis.com/auth/calendar.events";
 const IDENTITY = ["openid", "https://www.googleapis.com/auth/userinfo.email"];
 
 /** An integration as the create flow writes it, with the reconciler's IO faked. */
-function world(access: "READ" | "READ_WRITE" = "READ") {
-  let doc: IntegrationDocument = createActions(
-    { ...defaultChoices("CALENDAR", "google-calendar", NOW), access },
-    NOW,
-    (() => {
-      let n = 0;
-      return () => `bf-${++n}`;
-    })(),
+function world(
+  access: "READ" | "READ_WRITE" = "READ",
+  /** Another integration to start from; default: a calendar as the create flow writes it */
+  start?: IntegrationAction[],
+) {
+  let doc: IntegrationDocument = (
+    start ??
+    createActions(
+      { ...defaultChoices("CALENDAR", "google-calendar", NOW), access },
+      NOW,
+      (() => {
+        let n = 0;
+        return () => `bf-${++n}`;
+      })(),
+    )
   ).reduce((d, a) => reducer(d, a), utils.createDocument());
   const connections = new Map<
     string,
@@ -630,6 +637,76 @@ describe("the history", () => {
       "delete conn-1",
       "delete integration",
     ]);
+  });
+});
+
+describe("an integration on a connection it is given (Distyra)", () => {
+  async function bank() {
+    const { actions } = await import("document-models/integration/v1");
+    const w = world("READ", [
+      actions.initialize({ kind: "TRANSACTIONS", provider: "distyra" }),
+      actions.setTransactionsSource({
+        bankConnectionId: "kbc",
+        accounts: [
+          { accountId: "a1", accountKey: "ak1", bankAccountId: "bank-1" },
+        ],
+      }),
+      actions.setLiveInterval({ value: 6, unit: "HOURS" }),
+    ]);
+    return { w, actions };
+  }
+
+  it("waits for a connection to be picked, then builds on it without a sign-in or a backfill", async () => {
+    const { w, actions } = await bank();
+    await w.pass();
+    expect(w.doc.state.global.check?.issues).toEqual([
+      expect.objectContaining({ code: "NO_CONNECTION", severity: "BLOCKING" }),
+    ]);
+    expect(w.writes.some((x) => x.startsWith("create conn"))).toBe(false);
+
+    // The shared key, as adoption records it
+    w.connections.set("distyra-key", {
+      status: "OK",
+      signedIn: true,
+      scopes: [],
+      config: {},
+    });
+    w.act(actions.recordResources({ connectionId: "distyra-key" }));
+    await w.pass();
+    const s = w.doc.state.global;
+    expect(s.check?.issues).toEqual([]);
+    expect(s.applied?.generation).toBe(s.intent.generation);
+    const live = w.workflows.get(s.resources.liveWorkflowId!)!;
+    expect(live).toMatchObject({
+      status: "ENABLED",
+      triggerName: "schedule",
+      triggerConfig: { mode: "interval", unit: "hours", every: 6 },
+    });
+    expect(live.steps?.map((x) => [x.key, x.connectionId])).toEqual([
+      ["pull", "distyra-key"],
+      ["import_1", null],
+    ]);
+    expect(s.resources.backfillWorkflowId).toBeNull();
+  });
+
+  it("says so when the connection stops working, and leaves the shared key when removed", async () => {
+    const { w, actions } = await bank();
+    w.connections.set("distyra-key", {
+      status: "ERROR",
+      signedIn: true,
+      scopes: [],
+      config: {},
+    });
+    w.act(actions.recordResources({ connectionId: "distyra-key" }));
+    await w.pass();
+    expect(w.doc.state.global.check?.issues.map((i) => i.code)).toEqual([
+      "CONNECTION_NOT_WORKING",
+    ]);
+    w.act(actions.archive({}));
+    w.writes.length = 0;
+    await w.pass();
+    expect(w.writes).toEqual(["delete integration"]);
+    expect(w.connections.has("distyra-key")).toBe(true);
   });
 });
 
