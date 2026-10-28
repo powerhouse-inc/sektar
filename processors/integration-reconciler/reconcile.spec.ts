@@ -33,6 +33,7 @@ const NOW = new Date(2026, 9, 28, 9, 30);
 const PC = { reactorId: "switchboard@pc", label: "pc" };
 const READ = "https://www.googleapis.com/auth/calendar.readonly";
 const EVENTS = "https://www.googleapis.com/auth/calendar.events";
+const IDENTITY = ["openid", "https://www.googleapis.com/auth/userinfo.email"];
 
 /** An integration as the create flow writes it, with the reconciler's IO faked. */
 function world(access: "READ" | "READ_WRITE" = "READ") {
@@ -606,7 +607,7 @@ describe("a reconcile pass", () => {
     expect(s.resources.connectionId).toBe("conn-1");
     expect(w.connections.get("conn-1")?.config).toEqual({
       oauth_app: GOOGLE_APP,
-      oauth_scopes: [READ],
+      oauth_scopes: [...IDENTITY, READ],
     });
     expect(s.check?.issues).toEqual([
       expect.objectContaining({
@@ -671,7 +672,7 @@ describe("a reconcile pass", () => {
     w.act(actions.setAccess({ access: "READ_WRITE" }));
     await w.pass();
     expect(w.connections.get("conn-1")?.scopes.sort()).toEqual(
-      [EVENTS, READ].sort(),
+      [...IDENTITY, EVENTS, READ].sort(),
     );
     expect(w.doc.state.global.check?.issues.map((i) => i.code)).toEqual([
       "NEEDS_SIGN_IN",

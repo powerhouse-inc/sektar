@@ -4,7 +4,7 @@ import {
   useSelectedDrive,
 } from "@powerhousedao/reactor-browser";
 import { actions, type IntegrationDocument } from "document-models/integration";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import {
   cardView,
   kindInfo,
@@ -13,7 +13,7 @@ import {
 } from "../../sektar/kit/integrations.js";
 import { Menu } from "../../sektar/kit/menu.js";
 import { Alert, Badge, Button, Icon, Modal } from "../../sektar/kit/ui.js";
-import { CardRows } from "./CardRows.js";
+import { AccountLabel, CardRows } from "./CardRows.js";
 import { SignIn } from "./SignIn.js";
 
 /**
@@ -46,7 +46,18 @@ export function IntegrationCard({ doc }: { doc: IntegrationDocument }) {
         </span>
         <div style={{ minWidth: 0 }}>
           <div className="sk-integration__name">{name}</div>
-          <div className="sk-integration__account">{account}</div>
+          <div className="sk-integration__account">
+            {s.resources.connectionId ? (
+              <Suspense fallback={account}>
+                <AccountLabel
+                  connectionId={s.resources.connectionId}
+                  fallback={account}
+                />
+              </Suspense>
+            ) : (
+              account
+            )}
+          </div>
         </div>
         <Menu
           label={`${name}: more`}

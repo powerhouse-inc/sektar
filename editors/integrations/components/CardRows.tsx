@@ -121,6 +121,41 @@ function BackfillRow({
   );
 }
 
+/**
+ * The account the integration signed in as ("wouter@powerhouse.inc · Google
+ * Calendar"), from its connection's label; the fallback until there is one.
+ */
+export function AccountLabel({
+  connectionId,
+  fallback,
+}: {
+  connectionId: string;
+  fallback: string;
+}) {
+  return (
+    <LoadBoundary fallback={fallback}>
+      <ConnectionLabel connectionId={connectionId} fallback={fallback} />
+    </LoadBoundary>
+  );
+}
+
+function ConnectionLabel({
+  connectionId,
+  fallback,
+}: {
+  connectionId: string;
+  fallback: string;
+}) {
+  const ids = useMemo(() => [connectionId], [connectionId]);
+  const [connection] = useDocumentsByIds(ids);
+  const label = (
+    connection?.state as
+      | { global?: { accountLabel?: string | null } }
+      | undefined
+  )?.global?.accountLabel;
+  return <>{label ? `${label} · ${fallback}` : fallback}</>;
+}
+
 /** A queue that cannot be read (just deleted, not synced yet) shows the row without numbers. */
 class LoadBoundary extends Component<
   { fallback: ReactNode; children: ReactNode },

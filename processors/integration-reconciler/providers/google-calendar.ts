@@ -23,6 +23,12 @@ export const CALENDAR_EVENT_TYPE = "sektar/calendar-event";
 export const GET_EVENTS_STEP = "get_events";
 
 const CALENDAR_READ = "https://www.googleapis.com/auth/calendar.readonly";
+/**
+ * Who signed in: Google answers with an ID token naming the account, which
+ * the runtime keeps as the connection's label (the Calendar piece has no
+ * label of its own). Non-sensitive scopes.
+ */
+const IDENTITY = ["openid", "https://www.googleapis.com/auth/userinfo.email"];
 const CALENDAR_EVENTS = "https://www.googleapis.com/auth/calendar.events";
 
 const SECONDS = { MINUTES: 60, HOURS: 3600, DAYS: 86400 } as const;
@@ -72,10 +78,12 @@ export const googleCalendar: ProviderAdapter = {
   label: "Google",
 
   connection(name: string, state: IntegrationState) {
-    const scopes =
-      state.intent.access === "READ_WRITE"
+    const scopes = [
+      ...IDENTITY,
+      ...(state.intent.access === "READ_WRITE"
         ? [CALENDAR_READ, CALENDAR_EVENTS]
-        : [CALENDAR_READ];
+        : [CALENDAR_READ]),
+    ];
     return {
       name: `${name} · Google`,
       connectorId: "@activepieces/piece-google-calendar#google-calendar",
