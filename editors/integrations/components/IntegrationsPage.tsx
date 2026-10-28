@@ -5,7 +5,8 @@ import growthLight from "../../sektar/design/shapes/sektar-growth-four-column-co
 /**
  * The Integrations page (design system: Patterns · Integrations). Grouped
  * cards per kind once there are integrations; until then, what an
- * integration is and the way to add one.
+ * integration is and the way to add one. While the page is empty, the empty
+ * state carries the only Add button; the header gets it once cards exist.
  */
 export function IntegrationsPage() {
   const add = (
@@ -19,7 +20,6 @@ export function IntegrationsPage() {
         title="Integrations"
         lead="Your mail, bank accounts and calendars, kept up to date in Sektar."
         art={{ light: growthLight, dark: growthDark }}
-        actions={add}
       />
       <EmptyState icon="sync" title="Nothing connected yet" action={add}>
         Pick an account and how far back to go. Sektar brings in what is

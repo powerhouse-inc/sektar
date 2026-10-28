@@ -286,11 +286,13 @@
    design system's page padding itself (24px, 16px under 640px of content
    width), so everything that is not a page — drive apps, Workflow Studio,
    Connect's settings — fills the area edge to edge with no rule of its own. */
-.sk-app .sk-shell__content--flush > .sk-page {
+.sk-app .sk-shell__content--flush > .sk-page,
+.sk-app .sk-shell__content--flush .sk-integrations-app > .sk-page {
   padding: var(--sk-space-6);
 }
 @container dash (max-width: 640px) {
-  .sk-app .sk-shell__content--flush > .sk-page {
+  .sk-app .sk-shell__content--flush > .sk-page,
+  .sk-app .sk-shell__content--flush .sk-integrations-app > .sk-page {
     padding: var(--sk-space-4);
   }
 }
