@@ -129,7 +129,6 @@ export function providerInfo(
 export type AccessOption = {
   access: IntegrationAccess;
   label: string;
-  recommended: boolean;
   can: string[];
   cannot: string[];
   /** The provider's permission, shown small for those who check */
@@ -141,7 +140,6 @@ const ACCESS: Record<string, AccessOption[]> = {
     {
       access: "READ",
       label: "Read only",
-      recommended: true,
       can: [
         "See your calendars and their events",
         "See guests, places, descriptions and attachments",
@@ -152,7 +150,6 @@ const ACCESS: Record<string, AccessOption[]> = {
     {
       access: "READ_WRITE",
       label: "Read and write",
-      recommended: false,
       can: [
         "Everything in Read only",
         "Add events, such as trips you plan in Sektar",

@@ -118,11 +118,11 @@ describe("how much", () => {
 });
 
 describe("access", () => {
-  it("offers read only first and recommended, with the provider permission it asks for", () => {
+  it("offers read only first, then read and write, with the provider permission each asks for", () => {
     const [read, write] = accessOptions("google-calendar");
-    expect(read).toMatchObject({ access: "READ", recommended: true });
+    expect(read).toMatchObject({ access: "READ" });
     expect(read.permission).toContain("calendar.readonly");
-    expect(write).toMatchObject({ access: "READ_WRITE", recommended: false });
+    expect(write).toMatchObject({ access: "READ_WRITE" });
     expect(write.cannot.join(" ")).toContain("never deletes");
     expect(accessOptions("caldav")).toEqual([]);
     expect(accessOptions(null)).toEqual([]);

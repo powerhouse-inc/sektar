@@ -396,7 +396,6 @@ function AccessChoice({
                 onChange={() => onChange(o.access)}
               />
               <span className="sk-weight-medium">{o.label}</span>
-              {o.recommended && <Badge tone="success">Recommended</Badge>}
             </span>
             <ul className="sk-intg-access__list">
               {o.can.map((c) => (
