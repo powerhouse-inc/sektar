@@ -5,6 +5,7 @@
 import type { Action } from "document-model";
 import type {
   AddDateRangeBackfillInput,
+  RemoveBackfillInput,
   SetBackfillEnabledInput,
 } from "../types.js";
 
@@ -16,7 +17,12 @@ export type AddDateRangeBackfillAction = Action & {
   type: "ADD_DATE_RANGE_BACKFILL";
   input: AddDateRangeBackfillInput;
 };
+export type RemoveBackfillAction = Action & {
+  type: "REMOVE_BACKFILL";
+  input: RemoveBackfillInput;
+};
 
 export type IntegrationBackfillAction =
   | SetBackfillEnabledAction
-  | AddDateRangeBackfillAction;
+  | AddDateRangeBackfillAction
+  | RemoveBackfillAction;

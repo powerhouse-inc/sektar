@@ -10,6 +10,7 @@ import {
   initialize,
   isIntegrationDocument,
   reducer,
+  removeBackfill,
   setBackfillEnabled,
   setCalendarSource,
   setLiveEnabled,
@@ -249,6 +250,26 @@ describe("integration document", () => {
       }),
       /Set up/,
     );
+  });
+
+  it("removes a backfill, unpinning it, as a new generation; an unknown one is refused", () => {
+    const doc = created();
+    const before = doc.state.global.intent.generation;
+    // Pinned (no operation pins yet: the state as a later one would leave it)
+    const pinned = structuredClone(doc);
+    pinned.state.global.intent.backfill.pinnedId = "bf-1";
+    const removed = apply(pinned, removeBackfill({ id: "bf-1" }));
+    expect(removed.state.global.intent.backfill.items).toEqual([]);
+    expect(removed.state.global.intent.backfill.pinnedId).toBeNull();
+    expect(removed.state.global.intent.generation).toBe(before + 1);
+    // Another one pinned stays pinned
+    const other = structuredClone(doc);
+    other.state.global.intent.backfill.pinnedId = "bf-other";
+    expect(
+      apply(other, removeBackfill({ id: "bf-1" })).state.global.intent.backfill
+        .pinnedId,
+    ).toBe("bf-other");
+    rejects(doc, removeBackfill({ id: "bf-9" }), /No backfill bf-9/);
   });
 
   it("archives once: asking again changes nothing", () => {

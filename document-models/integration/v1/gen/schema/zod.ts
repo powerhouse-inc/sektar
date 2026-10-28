@@ -36,6 +36,7 @@ import type {
   RecordCheckInput,
   RecordResourcesInput,
   RecordRunnerInput,
+  RemoveBackfillInput,
   RequestCheckInput,
   SetAccessInput,
   SetBackfillEnabledInput,
@@ -393,6 +394,14 @@ export function RecordRunnerInputSchema(): z.ZodObject<
   return z.object({
     label: z.string().nullish(),
     reactorId: z.string(),
+  });
+}
+
+export function RemoveBackfillInputSchema(): z.ZodObject<
+  Properties<RemoveBackfillInput>
+> {
+  return z.object({
+    id: z.string(),
   });
 }
 

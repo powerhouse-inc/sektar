@@ -1,7 +1,8 @@
 export type ErrorCode =
   | "NotInitializedError"
   | "DuplicateBackfillIdError"
-  | "InvalidRangeError";
+  | "InvalidRangeError"
+  | "UnknownBackfillError";
 
 export interface ReducerError {
   errorCode: ErrorCode;
@@ -28,6 +29,13 @@ export class InvalidRangeError extends Error implements ReducerError {
   }
 }
 
+export class UnknownBackfillError extends Error implements ReducerError {
+  errorCode = "UnknownBackfillError" as ErrorCode;
+  constructor(message = "UnknownBackfillError") {
+    super(message);
+  }
+}
+
 export const errors = {
   SetBackfillEnabled: { NotInitializedError },
 
@@ -36,4 +44,6 @@ export const errors = {
     DuplicateBackfillIdError,
     InvalidRangeError,
   },
+
+  RemoveBackfill: { UnknownBackfillError },
 };

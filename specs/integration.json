@@ -25,12 +25,12 @@
       },
       "modules": [
         {
-          "id": "d7e9c940-0b06-4186-a348-59554919dd5f",
+          "id": "588cce51-0868-476d-a510-1c16c1a26de1",
           "name": "setup",
           "description": "What the integration is: its kind, provider, access and source",
           "operations": [
             {
-              "id": "4e5d0b40-d99e-4312-908a-dd292a688700",
+              "id": "6d7ac510-8b37-4f19-bff0-c2b51f09dcbe",
               "name": "INITIALIZE",
               "description": "",
               "schema": "input InitializeInput {\n  kind: IntegrationKind!\n  provider: String!\n}",
@@ -38,7 +38,7 @@
               "reducer": "if (state.kind) throw new AlreadyInitializedError(\"The integration is set up already\");\nstate.kind = action.input.kind;\nstate.provider = action.input.provider;",
               "errors": [
                 {
-                  "id": "30793e01-768d-4c48-876e-8c73a2da534e",
+                  "id": "44f9f671-eb8b-46f7-b4ef-50b92b9a3c33",
                   "code": "ALREADY_INITIALIZED",
                   "name": "AlreadyInitializedError",
                   "description": "The integration's kind and provider are set once",
@@ -49,7 +49,7 @@
               "scope": "global"
             },
             {
-              "id": "ca02518a-a502-4650-b4e0-0cc0d4d842e1",
+              "id": "d6023484-5a1e-498d-b73f-aaaff25a28f9",
               "name": "SET_ACCESS",
               "description": "",
               "schema": "input SetAccessInput {\n  access: IntegrationAccess!\n}",
@@ -57,7 +57,7 @@
               "reducer": "if (!state.kind) throw new NotInitializedError(\"Set up the integration first\");\nstate.intent.access = action.input.access;\nstate.intent.generation += 1;",
               "errors": [
                 {
-                  "id": "2cc57446-5751-463b-a4f2-79896f9048c5",
+                  "id": "92a6e0b7-34cc-451e-8b9d-5a5cce5a1f2b",
                   "code": "NOT_INITIALIZED",
                   "name": "NotInitializedError",
                   "description": "The integration's kind is set first (INITIALIZE)",
@@ -68,7 +68,7 @@
               "scope": "global"
             },
             {
-              "id": "556069a7-8e75-4493-be3e-69c8aea417a1",
+              "id": "42a775f6-2886-4b33-bb9b-77cc366d3ef9",
               "name": "SET_CALENDAR_SOURCE",
               "description": "",
               "schema": "input CalendarRefInput {\n  id: String!\n  name: String\n}\n\ninput SetCalendarSourceInput {\n  calendars: [CalendarRefInput!]!\n  allOwned: Boolean!\n}",
@@ -76,7 +76,7 @@
               "reducer": "if (state.kind !== \"CALENDAR\") throw new WrongKindError(\"Only a calendar integration has calendars\");\nstate.intent.source = {\n  calendars: action.input.allOwned\n    ? []\n    : action.input.calendars.map((c) => ({ id: c.id, name: c.name ?? null })),\n  allOwned: action.input.allOwned,\n};\nstate.intent.generation += 1;",
               "errors": [
                 {
-                  "id": "ecb0895d-f141-49ed-a656-5af07011dade",
+                  "id": "3a1b1fbc-d794-4647-99ad-c0682c2c7bac",
                   "code": "WRONG_KIND",
                   "name": "WrongKindError",
                   "description": "This source belongs to another kind of integration",
@@ -89,12 +89,12 @@
           ]
         },
         {
-          "id": "36889ff5-37df-4e2e-b653-2b5d3ba59aea",
+          "id": "ce3f91a2-9f25-459e-bea7-bf7a4afa656b",
           "name": "live",
           "description": "Live updates: on or off, and how often",
           "operations": [
             {
-              "id": "6eea5d91-23dc-4a58-911f-29566576d34b",
+              "id": "a28de65b-a8cb-4089-bd96-d931e6f47bf2",
               "name": "SET_LIVE_ENABLED",
               "description": "",
               "schema": "input SetLiveEnabledInput {\n  enabled: Boolean!\n}",
@@ -102,7 +102,7 @@
               "reducer": "if (!state.kind) throw new NotInitializedError(\"Set up the integration first\");\nstate.intent.live.enabled = action.input.enabled;\nstate.intent.generation += 1;",
               "errors": [
                 {
-                  "id": "4affc5a7-cc20-42fb-b2e8-c22cf19be38a",
+                  "id": "e5bede70-1ca6-42e4-a82b-92321fed36b2",
                   "code": "NOT_INITIALIZED",
                   "name": "NotInitializedError",
                   "description": "The integration's kind is set first (INITIALIZE)",
@@ -113,7 +113,7 @@
               "scope": "global"
             },
             {
-              "id": "0f80afef-7838-4e3c-9f23-1d9dd7d6afbe",
+              "id": "7ed3002f-2c41-4573-a540-f6b890714ad0",
               "name": "SET_LIVE_INTERVAL",
               "description": "",
               "schema": "input SetLiveIntervalInput {\n  value: Int!\n  unit: IntervalUnit!\n}",
@@ -121,14 +121,14 @@
               "reducer": "if (!state.kind) throw new NotInitializedError(\"Set up the integration first\");\nif (!Number.isInteger(action.input.value) || action.input.value < 1) throw new InvalidIntervalError(`${action.input.value} is not a whole number of at least 1`);\nstate.intent.live.every = { value: action.input.value, unit: action.input.unit };\nstate.intent.generation += 1;",
               "errors": [
                 {
-                  "id": "5a85e652-70e4-4775-ba16-f48bfe12f0f6",
+                  "id": "0d2fa41f-93bb-46fd-bae5-8d775ea9a3ff",
                   "code": "NOT_INITIALIZED",
                   "name": "NotInitializedError",
                   "description": "The integration's kind is set first (INITIALIZE)",
                   "template": ""
                 },
                 {
-                  "id": "fbe11a46-c171-412c-bca1-68fb0ad3ab6e",
+                  "id": "2a254e5c-dc8f-4f19-a58a-2d643f3a814b",
                   "code": "INVALID_INTERVAL",
                   "name": "InvalidIntervalError",
                   "description": "An interval is at least one unit",
@@ -141,12 +141,12 @@
           ]
         },
         {
-          "id": "43400711-bba3-4d72-b1a2-b43e49b4f489",
+          "id": "c8f13a7f-1549-4e63-9c62-0168a35533dd",
           "name": "backfill",
           "description": "Backfills: the switch and the history to bring in",
           "operations": [
             {
-              "id": "1e405b57-9f14-494c-8002-9eb3b3de1273",
+              "id": "7740577b-1c07-4271-985a-7bfbed8c94f1",
               "name": "SET_BACKFILL_ENABLED",
               "description": "",
               "schema": "input SetBackfillEnabledInput {\n  enabled: Boolean!\n}",
@@ -154,7 +154,7 @@
               "reducer": "if (!state.kind) throw new NotInitializedError(\"Set up the integration first\");\nstate.intent.backfill.enabled = action.input.enabled;\nstate.intent.generation += 1;",
               "errors": [
                 {
-                  "id": "82323945-c772-4c21-a7b7-3304662b3ea7",
+                  "id": "32fe7227-e4e1-4f51-bc8d-dc86f8ddc50e",
                   "code": "NOT_INITIALIZED",
                   "name": "NotInitializedError",
                   "description": "The integration's kind is set first (INITIALIZE)",
@@ -165,7 +165,7 @@
               "scope": "global"
             },
             {
-              "id": "5f90c506-1857-4849-bd2c-82a3f8d78c21",
+              "id": "a758c1e4-0b87-45e1-bbdd-d3543b0bce6b",
               "name": "ADD_DATE_RANGE_BACKFILL",
               "description": "",
               "schema": "input AddDateRangeBackfillInput {\n  id: OID!\n  label: String!\n  documentType: String!\n  from: DateTime!\n  to: DateTime!\n  stepSeconds: Int!\n  \"Null: BACKWARD\"\n  direction: BackfillDirection\n}",
@@ -173,24 +173,43 @@
               "reducer": "if (!state.kind) throw new NotInitializedError(\"Set up the integration first\");\nconst i = action.input;\nif (state.intent.backfill.items.some((b) => b.id === i.id)) throw new DuplicateBackfillIdError(`A backfill ${i.id} exists`);\nif (!(Date.parse(i.from) < Date.parse(i.to)) || !Number.isInteger(i.stepSeconds) || i.stepSeconds < 60) throw new InvalidRangeError(`${i.from} to ${i.to} in ${i.stepSeconds} s slices`);\nstate.intent.backfill.items.push({\n  id: i.id,\n  label: i.label,\n  documentType: i.documentType,\n  documentId: null,\n  request: { from: i.from, to: i.to, stepSeconds: i.stepSeconds, direction: i.direction ?? null },\n});\nstate.intent.generation += 1;",
               "errors": [
                 {
-                  "id": "03f920a1-11f3-45fc-84a5-3f85d17013aa",
+                  "id": "64dc52dd-a72d-4262-917a-94511b806408",
                   "code": "NOT_INITIALIZED",
                   "name": "NotInitializedError",
                   "description": "The integration's kind is set first (INITIALIZE)",
                   "template": ""
                 },
                 {
-                  "id": "ec6bce10-0ccc-4efc-9642-db2f821ac643",
+                  "id": "7214724b-6f4b-4b8a-a888-50143d231666",
                   "code": "DUPLICATE_BACKFILL_ID",
                   "name": "DuplicateBackfillIdError",
                   "description": "A backfill with this id exists",
                   "template": ""
                 },
                 {
-                  "id": "adf57bc9-60e1-4272-905d-e393d7536023",
+                  "id": "9b71c08d-fa14-4a06-9957-336f7619d7e6",
                   "code": "INVALID_RANGE",
                   "name": "InvalidRangeError",
                   "description": "A date range starts before it ends, in slices of at least a minute",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "99791b81-97a1-451b-857b-03744f7b4a24",
+              "name": "REMOVE_BACKFILL",
+              "description": "",
+              "schema": "input RemoveBackfillInput {\n  \"The backfill item; its document is the app's to delete\"\n  id: OID!\n}",
+              "template": "",
+              "reducer": "const items = state.intent.backfill.items;\nconst index = items.findIndex((b) => b.id === action.input.id);\nif (index < 0) throw new UnknownBackfillError(`No backfill ${action.input.id}`);\nitems.splice(index, 1);\nif (state.intent.backfill.pinnedId === action.input.id) state.intent.backfill.pinnedId = null;\nstate.intent.generation += 1;",
+              "errors": [
+                {
+                  "id": "754e07a7-910f-4f3a-bf34-c0b4a5569e65",
+                  "code": "UNKNOWN_BACKFILL",
+                  "name": "UnknownBackfillError",
+                  "description": "The integration has no backfill item with this id",
                   "template": ""
                 }
               ],
@@ -200,12 +219,12 @@
           ]
         },
         {
-          "id": "120ce0a5-096b-4c36-a1b3-cf3f911ba6e8",
+          "id": "42414357-401d-4ee7-a750-c88ce3721c65",
           "name": "reconciler",
           "description": "What the reconciler on the runner writes back: who runs it, what it built, what it found; and the app asking it to look again",
           "operations": [
             {
-              "id": "ab041095-818f-4772-91a5-405908893ecf",
+              "id": "a33c4864-a6bf-4f9d-adf5-f660455c3638",
               "name": "REQUEST_CHECK",
               "description": "",
               "schema": "input RequestCheckInput {\n  id: OID!\n  requestedAt: DateTime!\n  requestedBy: String\n}",
@@ -216,7 +235,7 @@
               "scope": "global"
             },
             {
-              "id": "f38ef3d3-0bf3-4dd8-bb4e-85cdd6e1aec7",
+              "id": "3828307c-1142-41aa-ac0a-bad6b79041b2",
               "name": "RECORD_RUNNER",
               "description": "",
               "schema": "input RecordRunnerInput {\n  reactorId: String!\n  label: String\n}",
@@ -224,7 +243,7 @@
               "reducer": "if (state.runner && state.runner.reactorId !== action.input.reactorId) throw new RunnerTakenError(`${state.runner.reactorId} runs this integration`);\nstate.runner = { reactorId: action.input.reactorId, label: action.input.label ?? null };",
               "errors": [
                 {
-                  "id": "d1998a25-2916-432f-9203-e96af2265431",
+                  "id": "b000681e-ab9a-4de7-8d3a-5ee050805046",
                   "code": "RUNNER_TAKEN",
                   "name": "RunnerTakenError",
                   "description": "Another switchboard runs this integration",
@@ -235,7 +254,7 @@
               "scope": "global"
             },
             {
-              "id": "0839f065-efeb-4230-84ec-cb60f610820b",
+              "id": "7cb3d369-a113-4a0c-8d6d-abfac03406e4",
               "name": "RECORD_RESOURCES",
               "description": "",
               "schema": "input RecordResourcesInput {\n  connectionId: PHID\n  liveWorkflowId: PHID\n  backfillWorkflowId: PHID\n  pluggedItemId: OID\n}",
@@ -246,7 +265,7 @@
               "scope": "global"
             },
             {
-              "id": "9d108406-23a5-41c6-9fdb-c529f143dbe6",
+              "id": "54216850-0069-4e93-a534-b6939ae09b9d",
               "name": "RECORD_BACKFILL_DOCUMENT",
               "description": "",
               "schema": "input RecordBackfillDocumentInput {\n  \"The backfill item\"\n  itemId: OID!\n  \"The backfill document the reconciler created for it\"\n  documentId: PHID!\n}",
@@ -254,7 +273,7 @@
               "reducer": "const item = state.intent.backfill.items.find((b) => b.id === action.input.itemId);\nif (!item) throw new BackfillNotFoundError(`No backfill ${action.input.itemId}`);\nitem.documentId = action.input.documentId;",
               "errors": [
                 {
-                  "id": "d3e5d336-7c52-4697-8c31-1d45759c0194",
+                  "id": "ecb8be95-3270-48ef-a2f1-cf92b436e71a",
                   "code": "BACKFILL_NOT_FOUND",
                   "name": "BackfillNotFoundError",
                   "description": "The integration has no backfill item with this id",
@@ -265,7 +284,7 @@
               "scope": "global"
             },
             {
-              "id": "eee39c08-37b8-4276-bf47-6f61eb92cf80",
+              "id": "46d73114-5339-4a2c-ba79-6dcf9ba17a99",
               "name": "RECORD_CHECK",
               "description": "",
               "schema": "input IntegrationIssueInput {\n  code: String!\n  severity: IssueSeverity!\n  subject: PHID\n  message: String!\n  fixable: Boolean!\n  since: DateTime!\n}\n\ninput IntegrationFixInput {\n  at: DateTime!\n  code: String!\n  subject: PHID\n  message: String!\n}\n\ninput RecordCheckInput {\n  at: DateTime!\n  host: String\n  \"The intent generation this pass evaluated\"\n  generation: Int!\n  \"The check request it answered, if any\"\n  request: OID\n  issues: [IntegrationIssueInput!]!\n  fixes: [IntegrationFixInput!]!\n  \"Everything the reconciler can do for this generation is done\"\n  committed: Boolean!\n}",
@@ -278,12 +297,12 @@
           ]
         },
         {
-          "id": "74e7af61-0f35-4d2d-9daf-5f2824f619b2",
+          "id": "bc784409-6dbb-4f27-a0de-ac39cc273495",
           "name": "lifecycle",
           "description": "Removing an integration: the user asks, the reconciler takes down what it built",
           "operations": [
             {
-              "id": "3e59bffc-cfe9-4a51-8cc6-78ffb488bbf1",
+              "id": "9f3f2af4-cc23-45f4-8dd6-84f4794794fb",
               "name": "ARCHIVE",
               "description": "",
               "schema": "input ArchiveInput {\n  \"The empty-input workaround: ARCHIVE takes nothing\"\n  _: Boolean\n}",

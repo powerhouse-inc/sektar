@@ -331,6 +331,11 @@ export type RecordRunnerInput = {
   reactorId: Scalars["String"]["input"];
 };
 
+export type RemoveBackfillInput = {
+  /** The backfill item; its document is the app's to delete */
+  id: Scalars["OID"]["input"];
+};
+
 export type RequestCheckInput = {
   id: Scalars["OID"]["input"];
   requestedAt: Scalars["DateTime"]["input"];

@@ -18,6 +18,7 @@ import {
   RecordCheckInputSchema,
   RecordResourcesInputSchema,
   RecordRunnerInputSchema,
+  RemoveBackfillInputSchema,
   RequestCheckInputSchema,
   SetAccessInputSchema,
   SetBackfillEnabledInputSchema,
@@ -122,6 +123,18 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(AddDateRangeBackfillInputSchema).parse(action.input);
 
       integrationBackfillOperations.addDateRangeBackfillOperation(
+        (state as any)[action.scope],
+        action as any,
+        dispatch,
+      );
+
+      break;
+    }
+
+    case "REMOVE_BACKFILL": {
+      memoizedSchema(RemoveBackfillInputSchema).parse(action.input);
+
+      integrationBackfillOperations.removeBackfillOperation(
         (state as any)[action.scope],
         action as any,
         dispatch,

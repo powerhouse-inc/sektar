@@ -540,6 +540,29 @@ describe("the history", () => {
     });
   });
 
+  it("moves on when the backfill it walks is removed, quietly", async () => {
+    const { w, s, ahead, back, history } = await ready();
+    const { actions } = await import("document-models/integration/v1");
+    // The app deletes the queue and removes the item
+    w.queues.delete(ahead.documentId!);
+    w.act(actions.removeBackfill({ id: ahead.id }));
+    await w.pass();
+    expect(s().resources.pluggedItemId).toBe(back.id);
+    expect(history()).toMatchObject({
+      status: "ENABLED",
+      triggerConfig: { documentId: back.documentId },
+    });
+    expect(s().fixes).toEqual([]);
+    expect(s().applied?.generation).toBe(s().intent.generation);
+
+    // The last one too: switched off, pointing at what it walked
+    w.queues.delete(back.documentId!);
+    w.act(actions.removeBackfill({ id: back.id }));
+    await w.pass();
+    expect(history().status).toBe("DISABLED");
+    expect(s().fixes).toEqual([]);
+  });
+
   it("says so when the history workflow is parked", async () => {
     const { w, s } = await ready();
     w.health.set(s().resources.backfillWorkflowId!, {

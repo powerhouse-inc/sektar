@@ -3,6 +3,7 @@ import {
   DuplicateBackfillIdError,
   InvalidRangeError,
   NotInitializedError,
+  UnknownBackfillError,
 } from "../../gen/backfill/error.js";
 
 export const integrationBackfillOperations: IntegrationBackfillOperations = {
@@ -38,6 +39,16 @@ export const integrationBackfillOperations: IntegrationBackfillOperations = {
         direction: i.direction ?? null,
       },
     });
+    state.intent.generation += 1;
+  },
+  removeBackfillOperation(state, action) {
+    const items = state.intent.backfill.items;
+    const index = items.findIndex((b) => b.id === action.input.id);
+    if (index < 0)
+      throw new UnknownBackfillError(`No backfill ${action.input.id}`);
+    items.splice(index, 1);
+    if (state.intent.backfill.pinnedId === action.input.id)
+      state.intent.backfill.pinnedId = null;
     state.intent.generation += 1;
   },
 };

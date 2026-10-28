@@ -274,6 +274,11 @@ input AddDateRangeBackfillInput {
   direction: BackfillDirection
 }
 
+input RemoveBackfillInput {
+  "The backfill item; its document is the app's to delete"
+  id: OID!
+}
+
 # reconciler
 
 input RequestCheckInput {
