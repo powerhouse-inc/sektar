@@ -130,7 +130,7 @@ export function CreateFlow({
       const name =
         choices.name.trim() || defaultName(choices.kind, choices.provider);
       const node = await addDocument(drive.header.id, name, INTEGRATION_TYPE);
-      await dispatchActions(createActions(choices, now, generateId()), node.id);
+      await dispatchActions(createActions(choices, now, generateId), node.id);
       if (runner) onDone();
       else {
         setFinished(name);

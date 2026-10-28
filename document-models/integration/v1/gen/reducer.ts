@@ -14,6 +14,7 @@ import {
   AddDateRangeBackfillInputSchema,
   ArchiveInputSchema,
   InitializeInputSchema,
+  RecordBackfillDocumentInputSchema,
   RecordCheckInputSchema,
   RecordResourcesInputSchema,
   RecordRunnerInputSchema,
@@ -157,6 +158,18 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(RecordResourcesInputSchema).parse(action.input);
 
       integrationReconcilerOperations.recordResourcesOperation(
+        (state as any)[action.scope],
+        action as any,
+        dispatch,
+      );
+
+      break;
+    }
+
+    case "RECORD_BACKFILL_DOCUMENT": {
+      memoizedSchema(RecordBackfillDocumentInputSchema).parse(action.input);
+
+      integrationReconcilerOperations.recordBackfillDocumentOperation(
         (state as any)[action.scope],
         action as any,
         dispatch,

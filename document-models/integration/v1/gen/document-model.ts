@@ -17,7 +17,7 @@ export const documentModel: DocumentModelGlobalState = {
       state: {
         global: {
           schema:
-            'type IntegrationState {\n  "What comes in; fixed by INITIALIZE. Null until then"\n  kind: IntegrationKind\n  "How it comes in: a provider adapter id (google-calendar, gmail, imap). Null until INITIALIZE"\n  provider: String\n  "Settings only this provider has, checked by its adapter"\n  providerOptions: Unknown\n  "What the user asked for; written from the app"\n  intent: IntegrationIntent!\n  "What the reconciler built for the intent"\n  resources: IntegrationResources!\n  "The last intent generation the reconciler committed"\n  applied: IntegrationApplied\n  "The reconciler\'s last pass: what it found"\n  check: IntegrationCheck\n  "A check asked for from the app (Check now)"\n  checkRequest: IntegrationCheckRequest\n  "What the reconciler put back, latest first, at most 20"\n  fixes: [IntegrationFix!]!\n  "The reactor that fetches and holds the token; null: the switchboard that owns this drive, until it claims it"\n  runner: IntegrationRunner\n}\n\nenum IntegrationKind {\n  EMAIL\n  TRANSACTIONS\n  CALENDAR\n  TIME_TRACKING\n}\n\ntype IntegrationIntent {\n  "Raised by every change to the intent; the reconciler commits a generation"\n  generation: Int!\n  "An existing connection the user picked; null: the reconciler makes one (resources.connectionId)"\n  connectionId: PHID\n  "The drive the imported documents land in; null: the kind\'s default drive"\n  targetDriveId: PHID\n  "What Sektar may do with the account: only read, or read and write. Null: not chosen (read only)"\n  access: IntegrationAccess\n  "What to bring in, per kind and provider-neutral"\n  source: IntegrationSource\n  live: LiveIntent!\n  backfill: BackfillIntent!\n  "An archived integration\'s workflows are archived; its data stays"\n  archived: Boolean!\n}\n\nenum IntegrationAccess {\n  "See, never change: the provider\'s read-only permissions"\n  READ\n  "Also add and change; never delete"\n  READ_WRITE\n}\n\nunion IntegrationSource = CalendarSource | EmailSource\n\ntype CalendarSource {\n  "The calendars picked; empty while allOwned"\n  calendars: [CalendarRef!]!\n  "Every calendar the account owns, including ones added later"\n  allOwned: Boolean!\n}\n\ntype CalendarRef {\n  "The provider\'s calendar id"\n  id: String!\n  name: String\n}\n\ntype EmailSource {\n  mailbox: String!\n  folders: [String!]!\n}\n\ntype LiveIntent {\n  "The Live updates switch"\n  enabled: Boolean!\n  "How often to check for what is new"\n  every: Interval!\n}\n\ntype Interval {\n  value: Int!\n  unit: IntervalUnit!\n}\n\nenum IntervalUnit {\n  MINUTES\n  HOURS\n  DAYS\n}\n\ntype BackfillIntent {\n  "The Backfill switch: the backfill workflow on or off"\n  enabled: Boolean!\n  "How much per run, and how often; null: the provider\'s default"\n  batch: BackfillBatch\n  "In the order they run"\n  items: [BackfillItem!]!\n  "Make active; null: the first unfinished item"\n  pinnedId: OID\n}\n\ntype BackfillBatch {\n  size: Int!\n  every: Interval!\n}\n\ntype BackfillItem {\n  id: OID!\n  "e.g. 2023 to today"\n  label: String!\n  "Any backfill document type with an adapter"\n  documentType: String!\n  "Null until the reconciler has created it from the request"\n  documentId: PHID\n  "How to create it; null when an existing document was attached"\n  request: BackfillRequest\n}\n\nunion BackfillRequest = DateRangeBackfill | FolderListBackfill\n\ntype DateRangeBackfill {\n  from: DateTime!\n  to: DateTime!\n  "The size of one slice"\n  stepSeconds: Int!\n}\n\ntype FolderListBackfill {\n  folders: [String!]!\n}\n\ntype IntegrationResources {\n  "The connection the reconciler made, when the intent names none"\n  connectionId: PHID\n  liveWorkflowId: PHID\n  backfillWorkflowId: PHID\n  "The backfill item the backfill workflow points at now"\n  pluggedItemId: OID\n}\n\ntype IntegrationApplied {\n  generation: Int!\n  at: DateTime!\n  host: String\n}\n\ntype IntegrationCheck {\n  at: DateTime!\n  host: String\n  "The intent generation this pass evaluated"\n  generation: Int!\n  "The check request it answered, if any"\n  request: OID\n  issues: [IntegrationIssue!]!\n}\n\ntype IntegrationIssue {\n  "Plugin-defined, e.g. NEEDS_SIGN_IN, LIVE_WORKFLOW_MISSING, COVERAGE_GAP"\n  code: String!\n  severity: IssueSeverity!\n  "The workflow, backfill or connection it is about"\n  subject: PHID\n  "In the user\'s words"\n  message: String!\n  "False: only the user can fix it (Reconnect)"\n  fixable: Boolean!\n  since: DateTime!\n}\n\nenum IssueSeverity {\n  INFO\n  WARNING\n  BLOCKING\n}\n\ntype IntegrationCheckRequest {\n  id: OID!\n  requestedAt: DateTime!\n  requestedBy: String\n}\n\ntype IntegrationFix {\n  at: DateTime!\n  code: String!\n  subject: PHID\n  "Put back: ..."\n  message: String!\n}\n\ntype IntegrationRunner {\n  reactorId: String!\n  "The machine\'s name, e.g. Wouter\'s PC"\n  label: String\n}',
+            'type IntegrationState {\n  "What comes in; fixed by INITIALIZE. Null until then"\n  kind: IntegrationKind\n  "How it comes in: a provider adapter id (google-calendar, gmail, imap). Null until INITIALIZE"\n  provider: String\n  "Settings only this provider has, checked by its adapter"\n  providerOptions: Unknown\n  "What the user asked for; written from the app"\n  intent: IntegrationIntent!\n  "What the reconciler built for the intent"\n  resources: IntegrationResources!\n  "The last intent generation the reconciler committed"\n  applied: IntegrationApplied\n  "The reconciler\'s last pass: what it found"\n  check: IntegrationCheck\n  "A check asked for from the app (Check now)"\n  checkRequest: IntegrationCheckRequest\n  "What the reconciler put back, latest first, at most 20"\n  fixes: [IntegrationFix!]!\n  "The reactor that fetches and holds the token; null: the switchboard that owns this drive, until it claims it"\n  runner: IntegrationRunner\n}\n\nenum IntegrationKind {\n  EMAIL\n  TRANSACTIONS\n  CALENDAR\n  TIME_TRACKING\n}\n\ntype IntegrationIntent {\n  "Raised by every change to the intent; the reconciler commits a generation"\n  generation: Int!\n  "An existing connection the user picked; null: the reconciler makes one (resources.connectionId)"\n  connectionId: PHID\n  "The drive the imported documents land in; null: the kind\'s default drive"\n  targetDriveId: PHID\n  "What Sektar may do with the account: only read, or read and write. Null: not chosen (read only)"\n  access: IntegrationAccess\n  "What to bring in, per kind and provider-neutral"\n  source: IntegrationSource\n  live: LiveIntent!\n  backfill: BackfillIntent!\n  "An archived integration\'s workflows are archived; its data stays"\n  archived: Boolean!\n}\n\nenum IntegrationAccess {\n  "See, never change: the provider\'s read-only permissions"\n  READ\n  "Also add and change; never delete"\n  READ_WRITE\n}\n\nunion IntegrationSource = CalendarSource | EmailSource\n\ntype CalendarSource {\n  "The calendars picked; empty while allOwned"\n  calendars: [CalendarRef!]!\n  "Every calendar the account owns, including ones added later"\n  allOwned: Boolean!\n}\n\ntype CalendarRef {\n  "The provider\'s calendar id"\n  id: String!\n  name: String\n}\n\ntype EmailSource {\n  mailbox: String!\n  folders: [String!]!\n}\n\ntype LiveIntent {\n  "The Live updates switch"\n  enabled: Boolean!\n  "How often to check for what is new"\n  every: Interval!\n}\n\ntype Interval {\n  value: Int!\n  unit: IntervalUnit!\n}\n\nenum IntervalUnit {\n  MINUTES\n  HOURS\n  DAYS\n}\n\ntype BackfillIntent {\n  "The Backfill switch: the backfill workflow on or off"\n  enabled: Boolean!\n  "How much per run, and how often; null: the provider\'s default"\n  batch: BackfillBatch\n  "In the order they run"\n  items: [BackfillItem!]!\n  "Make active; null: the first unfinished item"\n  pinnedId: OID\n}\n\ntype BackfillBatch {\n  size: Int!\n  every: Interval!\n}\n\ntype BackfillItem {\n  id: OID!\n  "e.g. 2023 to today"\n  label: String!\n  "Any backfill document type with an adapter"\n  documentType: String!\n  "Null until the reconciler has created it from the request"\n  documentId: PHID\n  "How to create it; null when an existing document was attached"\n  request: BackfillRequest\n}\n\nunion BackfillRequest = DateRangeBackfill | FolderListBackfill\n\ntype DateRangeBackfill {\n  from: DateTime!\n  to: DateTime!\n  "The size of one slice"\n  stepSeconds: Int!\n  "Which end it starts from; null: BACKWARD, newest first (the queue\'s own default)"\n  direction: BackfillDirection\n}\n\nenum BackfillDirection {\n  "From the range\'s start towards its end: oldest first"\n  FORWARD\n  "From the range\'s end back towards its start: newest first"\n  BACKWARD\n}\n\ntype FolderListBackfill {\n  folders: [String!]!\n}\n\ntype IntegrationResources {\n  "The connection the reconciler made, when the intent names none"\n  connectionId: PHID\n  liveWorkflowId: PHID\n  backfillWorkflowId: PHID\n  "The backfill item the backfill workflow points at now"\n  pluggedItemId: OID\n}\n\ntype IntegrationApplied {\n  generation: Int!\n  at: DateTime!\n  host: String\n}\n\ntype IntegrationCheck {\n  at: DateTime!\n  host: String\n  "The intent generation this pass evaluated"\n  generation: Int!\n  "The check request it answered, if any"\n  request: OID\n  issues: [IntegrationIssue!]!\n}\n\ntype IntegrationIssue {\n  "Plugin-defined, e.g. NEEDS_SIGN_IN, LIVE_WORKFLOW_MISSING, COVERAGE_GAP"\n  code: String!\n  severity: IssueSeverity!\n  "The workflow, backfill or connection it is about"\n  subject: PHID\n  "In the user\'s words"\n  message: String!\n  "False: only the user can fix it (Reconnect)"\n  fixable: Boolean!\n  since: DateTime!\n}\n\nenum IssueSeverity {\n  INFO\n  WARNING\n  BLOCKING\n}\n\ntype IntegrationCheckRequest {\n  id: OID!\n  requestedAt: DateTime!\n  requestedBy: String\n}\n\ntype IntegrationFix {\n  at: DateTime!\n  code: String!\n  subject: PHID\n  "Put back: ..."\n  message: String!\n}\n\ntype IntegrationRunner {\n  reactorId: String!\n  "The machine\'s name, e.g. Wouter\'s PC"\n  label: String\n}',
           initialValue:
             '{\n  "kind": null,\n  "provider": null,\n  "providerOptions": null,\n  "intent": {\n    "generation": 0,\n    "connectionId": null,\n    "targetDriveId": null,\n    "access": null,\n    "source": null,\n    "live": {\n      "enabled": true,\n      "every": {\n        "value": 5,\n        "unit": "MINUTES"\n      }\n    },\n    "backfill": {\n      "enabled": true,\n      "batch": null,\n      "items": [],\n      "pinnedId": null\n    },\n    "archived": false\n  },\n  "resources": {\n    "connectionId": null,\n    "liveWorkflowId": null,\n    "backfillWorkflowId": null,\n    "pluggedItemId": null\n  },\n  "applied": null,\n  "check": null,\n  "checkRequest": null,\n  "fixes": [],\n  "runner": null\n}',
           examples: [],
@@ -30,13 +30,13 @@ export const documentModel: DocumentModelGlobalState = {
       },
       modules: [
         {
-          id: "c4d2cb06-08d6-4bed-b13b-928131964eab",
+          id: "d7e9c940-0b06-4186-a348-59554919dd5f",
           name: "setup",
           description:
             "What the integration is: its kind, provider, access and source",
           operations: [
             {
-              id: "e68ab675-f84e-4b32-a2d4-750865a388a5",
+              id: "4e5d0b40-d99e-4312-908a-dd292a688700",
               name: "INITIALIZE",
               description: "",
               schema:
@@ -46,7 +46,7 @@ export const documentModel: DocumentModelGlobalState = {
                 'if (state.kind) throw new AlreadyInitializedError("The integration is set up already");\nstate.kind = action.input.kind;\nstate.provider = action.input.provider;',
               errors: [
                 {
-                  id: "957c84ad-9c63-4b64-8b9f-613e01fbf0bd",
+                  id: "30793e01-768d-4c48-876e-8c73a2da534e",
                   code: "ALREADY_INITIALIZED",
                   name: "AlreadyInitializedError",
                   description:
@@ -58,7 +58,7 @@ export const documentModel: DocumentModelGlobalState = {
               scope: "global",
             },
             {
-              id: "57f55906-6a7c-46dd-bc4a-d71cb1021280",
+              id: "ca02518a-a502-4650-b4e0-0cc0d4d842e1",
               name: "SET_ACCESS",
               description: "",
               schema: "input SetAccessInput {\n  access: IntegrationAccess!\n}",
@@ -67,7 +67,7 @@ export const documentModel: DocumentModelGlobalState = {
                 'if (!state.kind) throw new NotInitializedError("Set up the integration first");\nstate.intent.access = action.input.access;\nstate.intent.generation += 1;',
               errors: [
                 {
-                  id: "be76c15e-f232-4a0e-82a4-f41bc161c79d",
+                  id: "2cc57446-5751-463b-a4f2-79896f9048c5",
                   code: "NOT_INITIALIZED",
                   name: "NotInitializedError",
                   description:
@@ -79,7 +79,7 @@ export const documentModel: DocumentModelGlobalState = {
               scope: "global",
             },
             {
-              id: "e810e865-fd14-4c2b-adea-fe605aabee5f",
+              id: "556069a7-8e75-4493-be3e-69c8aea417a1",
               name: "SET_CALENDAR_SOURCE",
               description: "",
               schema:
@@ -89,7 +89,7 @@ export const documentModel: DocumentModelGlobalState = {
                 'if (state.kind !== "CALENDAR") throw new WrongKindError("Only a calendar integration has calendars");\nstate.intent.source = {\n  calendars: action.input.allOwned\n    ? []\n    : action.input.calendars.map((c) => ({ id: c.id, name: c.name ?? null })),\n  allOwned: action.input.allOwned,\n};\nstate.intent.generation += 1;',
               errors: [
                 {
-                  id: "4a0835d0-44fd-483f-a241-9f7780174b8d",
+                  id: "ecb0895d-f141-49ed-a656-5af07011dade",
                   code: "WRONG_KIND",
                   name: "WrongKindError",
                   description:
@@ -103,12 +103,12 @@ export const documentModel: DocumentModelGlobalState = {
           ],
         },
         {
-          id: "c5550198-341d-461f-b8f5-227185375b8a",
+          id: "36889ff5-37df-4e2e-b653-2b5d3ba59aea",
           name: "live",
           description: "Live updates: on or off, and how often",
           operations: [
             {
-              id: "7c4ea9fa-196f-495d-946c-7d3fafd60081",
+              id: "6eea5d91-23dc-4a58-911f-29566576d34b",
               name: "SET_LIVE_ENABLED",
               description: "",
               schema: "input SetLiveEnabledInput {\n  enabled: Boolean!\n}",
@@ -117,7 +117,7 @@ export const documentModel: DocumentModelGlobalState = {
                 'if (!state.kind) throw new NotInitializedError("Set up the integration first");\nstate.intent.live.enabled = action.input.enabled;\nstate.intent.generation += 1;',
               errors: [
                 {
-                  id: "5f0fe709-534c-467c-9630-10ba34745ad7",
+                  id: "4affc5a7-cc20-42fb-b2e8-c22cf19be38a",
                   code: "NOT_INITIALIZED",
                   name: "NotInitializedError",
                   description:
@@ -129,7 +129,7 @@ export const documentModel: DocumentModelGlobalState = {
               scope: "global",
             },
             {
-              id: "b8199d17-89e8-4010-a74e-7995c0256d85",
+              id: "0f80afef-7838-4e3c-9f23-1d9dd7d6afbe",
               name: "SET_LIVE_INTERVAL",
               description: "",
               schema:
@@ -139,7 +139,7 @@ export const documentModel: DocumentModelGlobalState = {
                 'if (!state.kind) throw new NotInitializedError("Set up the integration first");\nif (!Number.isInteger(action.input.value) || action.input.value < 1) throw new InvalidIntervalError(`${action.input.value} is not a whole number of at least 1`);\nstate.intent.live.every = { value: action.input.value, unit: action.input.unit };\nstate.intent.generation += 1;',
               errors: [
                 {
-                  id: "d579509a-8f84-486f-9a91-38ac98eb20f6",
+                  id: "5a85e652-70e4-4775-ba16-f48bfe12f0f6",
                   code: "NOT_INITIALIZED",
                   name: "NotInitializedError",
                   description:
@@ -147,7 +147,7 @@ export const documentModel: DocumentModelGlobalState = {
                   template: "",
                 },
                 {
-                  id: "ea930349-1789-4a9f-8e08-29117202f439",
+                  id: "fbe11a46-c171-412c-bca1-68fb0ad3ab6e",
                   code: "INVALID_INTERVAL",
                   name: "InvalidIntervalError",
                   description: "An interval is at least one unit",
@@ -160,12 +160,12 @@ export const documentModel: DocumentModelGlobalState = {
           ],
         },
         {
-          id: "0239dc36-d43f-4abc-9936-5d31f3eddab1",
+          id: "43400711-bba3-4d72-b1a2-b43e49b4f489",
           name: "backfill",
           description: "Backfills: the switch and the history to bring in",
           operations: [
             {
-              id: "6cf09deb-29d2-4ef0-9a8d-f3877dbaa991",
+              id: "1e405b57-9f14-494c-8002-9eb3b3de1273",
               name: "SET_BACKFILL_ENABLED",
               description: "",
               schema: "input SetBackfillEnabledInput {\n  enabled: Boolean!\n}",
@@ -174,7 +174,7 @@ export const documentModel: DocumentModelGlobalState = {
                 'if (!state.kind) throw new NotInitializedError("Set up the integration first");\nstate.intent.backfill.enabled = action.input.enabled;\nstate.intent.generation += 1;',
               errors: [
                 {
-                  id: "7cc227ce-7da8-4922-b58d-3262aeeafa90",
+                  id: "82323945-c772-4c21-a7b7-3304662b3ea7",
                   code: "NOT_INITIALIZED",
                   name: "NotInitializedError",
                   description:
@@ -186,17 +186,17 @@ export const documentModel: DocumentModelGlobalState = {
               scope: "global",
             },
             {
-              id: "cd5c8452-4c13-45da-9b2d-e28bc42f04ff",
+              id: "5f90c506-1857-4849-bd2c-82a3f8d78c21",
               name: "ADD_DATE_RANGE_BACKFILL",
               description: "",
               schema:
-                "input AddDateRangeBackfillInput {\n  id: OID!\n  label: String!\n  documentType: String!\n  from: DateTime!\n  to: DateTime!\n  stepSeconds: Int!\n}",
+                'input AddDateRangeBackfillInput {\n  id: OID!\n  label: String!\n  documentType: String!\n  from: DateTime!\n  to: DateTime!\n  stepSeconds: Int!\n  "Null: BACKWARD"\n  direction: BackfillDirection\n}',
               template: "",
               reducer:
-                'if (!state.kind) throw new NotInitializedError("Set up the integration first");\nconst i = action.input;\nif (state.intent.backfill.items.some((b) => b.id === i.id)) throw new DuplicateBackfillIdError(`A backfill ${i.id} exists`);\nif (!(Date.parse(i.from) < Date.parse(i.to)) || !Number.isInteger(i.stepSeconds) || i.stepSeconds < 60) throw new InvalidRangeError(`${i.from} to ${i.to} in ${i.stepSeconds} s slices`);\nstate.intent.backfill.items.push({\n  id: i.id,\n  label: i.label,\n  documentType: i.documentType,\n  documentId: null,\n  request: { from: i.from, to: i.to, stepSeconds: i.stepSeconds },\n});\nstate.intent.generation += 1;',
+                'if (!state.kind) throw new NotInitializedError("Set up the integration first");\nconst i = action.input;\nif (state.intent.backfill.items.some((b) => b.id === i.id)) throw new DuplicateBackfillIdError(`A backfill ${i.id} exists`);\nif (!(Date.parse(i.from) < Date.parse(i.to)) || !Number.isInteger(i.stepSeconds) || i.stepSeconds < 60) throw new InvalidRangeError(`${i.from} to ${i.to} in ${i.stepSeconds} s slices`);\nstate.intent.backfill.items.push({\n  id: i.id,\n  label: i.label,\n  documentType: i.documentType,\n  documentId: null,\n  request: { from: i.from, to: i.to, stepSeconds: i.stepSeconds, direction: i.direction ?? null },\n});\nstate.intent.generation += 1;',
               errors: [
                 {
-                  id: "3d153f04-c8bf-481b-9f73-a054a70da7d5",
+                  id: "03f920a1-11f3-45fc-84a5-3f85d17013aa",
                   code: "NOT_INITIALIZED",
                   name: "NotInitializedError",
                   description:
@@ -204,14 +204,14 @@ export const documentModel: DocumentModelGlobalState = {
                   template: "",
                 },
                 {
-                  id: "5b177017-6949-4c46-8a5d-b960c21a2d2f",
+                  id: "ec6bce10-0ccc-4efc-9642-db2f821ac643",
                   code: "DUPLICATE_BACKFILL_ID",
                   name: "DuplicateBackfillIdError",
                   description: "A backfill with this id exists",
                   template: "",
                 },
                 {
-                  id: "6e83e017-f957-4f09-8d76-3d58e442e230",
+                  id: "adf57bc9-60e1-4272-905d-e393d7536023",
                   code: "INVALID_RANGE",
                   name: "InvalidRangeError",
                   description:
@@ -225,13 +225,13 @@ export const documentModel: DocumentModelGlobalState = {
           ],
         },
         {
-          id: "d4c80a84-9e44-43db-a902-d3fa50a3938f",
+          id: "120ce0a5-096b-4c36-a1b3-cf3f911ba6e8",
           name: "reconciler",
           description:
             "What the reconciler on the runner writes back: who runs it, what it built, what it found; and the app asking it to look again",
           operations: [
             {
-              id: "1f1197cd-5fbb-4cd7-a42e-189d5fbeda10",
+              id: "ab041095-818f-4772-91a5-405908893ecf",
               name: "REQUEST_CHECK",
               description: "",
               schema:
@@ -244,7 +244,7 @@ export const documentModel: DocumentModelGlobalState = {
               scope: "global",
             },
             {
-              id: "82934363-76f9-4ae8-82a6-912fcc32bd9c",
+              id: "f38ef3d3-0bf3-4dd8-bb4e-85cdd6e1aec7",
               name: "RECORD_RUNNER",
               description: "",
               schema:
@@ -254,7 +254,7 @@ export const documentModel: DocumentModelGlobalState = {
                 "if (state.runner && state.runner.reactorId !== action.input.reactorId) throw new RunnerTakenError(`${state.runner.reactorId} runs this integration`);\nstate.runner = { reactorId: action.input.reactorId, label: action.input.label ?? null };",
               errors: [
                 {
-                  id: "0c8ea060-bde7-4cdc-a025-833d35cae34d",
+                  id: "d1998a25-2916-432f-9203-e96af2265431",
                   code: "RUNNER_TAKEN",
                   name: "RunnerTakenError",
                   description: "Another switchboard runs this integration",
@@ -265,7 +265,7 @@ export const documentModel: DocumentModelGlobalState = {
               scope: "global",
             },
             {
-              id: "da90c302-fb9b-4705-9004-204094d0c28e",
+              id: "0839f065-efeb-4230-84ec-cb60f610820b",
               name: "RECORD_RESOURCES",
               description: "",
               schema:
@@ -278,7 +278,29 @@ export const documentModel: DocumentModelGlobalState = {
               scope: "global",
             },
             {
-              id: "dfced0df-3103-40df-ae73-3f3eaf20a80f",
+              id: "9d108406-23a5-41c6-9fdb-c529f143dbe6",
+              name: "RECORD_BACKFILL_DOCUMENT",
+              description: "",
+              schema:
+                'input RecordBackfillDocumentInput {\n  "The backfill item"\n  itemId: OID!\n  "The backfill document the reconciler created for it"\n  documentId: PHID!\n}',
+              template: "",
+              reducer:
+                "const item = state.intent.backfill.items.find((b) => b.id === action.input.itemId);\nif (!item) throw new BackfillNotFoundError(`No backfill ${action.input.itemId}`);\nitem.documentId = action.input.documentId;",
+              errors: [
+                {
+                  id: "d3e5d336-7c52-4697-8c31-1d45759c0194",
+                  code: "BACKFILL_NOT_FOUND",
+                  name: "BackfillNotFoundError",
+                  description:
+                    "The integration has no backfill item with this id",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+            {
+              id: "eee39c08-37b8-4276-bf47-6f61eb92cf80",
               name: "RECORD_CHECK",
               description: "",
               schema:
@@ -293,13 +315,13 @@ export const documentModel: DocumentModelGlobalState = {
           ],
         },
         {
-          id: "84eb013a-55fd-4868-a092-900d29971683",
+          id: "74e7af61-0f35-4d2d-9daf-5f2824f619b2",
           name: "lifecycle",
           description:
             "Removing an integration: the user asks, the reconciler takes down what it built",
           operations: [
             {
-              id: "deca1301-2ff6-42f3-9282-2da04f49d896",
+              id: "3e59bffc-cfe9-4a51-8cc6-78ffb488bbf1",
               name: "ARCHIVE",
               description: "",
               schema:

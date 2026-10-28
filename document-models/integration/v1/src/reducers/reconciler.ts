@@ -1,5 +1,8 @@
 import type { IntegrationReconcilerOperations } from "document-models/integration/v1";
-import { RunnerTakenError } from "../../gen/reconciler/error.js";
+import {
+  BackfillNotFoundError,
+  RunnerTakenError,
+} from "../../gen/reconciler/error.js";
 
 export const integrationReconcilerOperations: IntegrationReconcilerOperations =
   {
@@ -63,5 +66,13 @@ export const integrationReconcilerOperations: IntegrationReconcilerOperations =
           host: i.host ?? null,
         };
       }
+    },
+    recordBackfillDocumentOperation(state, action) {
+      const item = state.intent.backfill.items.find(
+        (b) => b.id === action.input.itemId,
+      );
+      if (!item)
+        throw new BackfillNotFoundError(`No backfill ${action.input.itemId}`);
+      item.documentId = action.input.documentId;
     },
   };

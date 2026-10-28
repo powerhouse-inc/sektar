@@ -31,7 +31,12 @@ export const integrationBackfillOperations: IntegrationBackfillOperations = {
       label: i.label,
       documentType: i.documentType,
       documentId: null,
-      request: { from: i.from, to: i.to, stepSeconds: i.stepSeconds },
+      request: {
+        from: i.from,
+        to: i.to,
+        stepSeconds: i.stepSeconds,
+        direction: i.direction ?? null,
+      },
     });
     state.intent.generation += 1;
   },

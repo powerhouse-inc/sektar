@@ -198,8 +198,11 @@ export const INTERVALS: readonly {
 export const MONTHS_AHEAD = 12;
 /** "Everything": earlier than any calendar a person still keeps. */
 const EVERYTHING_FROM = "2000-01-01";
-/** One slice of a calendar backfill: a month of events. */
-export const CALENDAR_SLICE_SECONDS = 30 * 24 * 3600;
+/**
+ * One slice of a calendar backfill: a week of events. Google's Get Events
+ * answers one page (250 events); a week stays well under it.
+ */
+export const CALENDAR_SLICE_SECONDS = 7 * 24 * 3600;
 
 /** 1 January of last year, as yyyy-mm-dd: the "Since" default. */
 export function defaultSince(now: Date): string {
@@ -269,6 +272,44 @@ export function rangeLabel(history: History, now: Date): string {
   return `${MONTH.format(new Date(from))} to ${ahead}`;
 }
 
+/**
+ * The first import as backfill items, in the order they run: from today
+ * forward (what is coming shows first), then from today back to the start
+ * of the history the person chose, newest first. No history: forward only.
+ */
+export function importItems(
+  history: History,
+  now: Date,
+): {
+  label: string;
+  from: string;
+  to: string;
+  direction: "FORWARD" | "BACKWARD";
+}[] {
+  const { from, to } = importRange(history, now);
+  const today = new Date(startOfDayUtc(now)).toISOString();
+  const items: ReturnType<typeof importItems> = [
+    {
+      label: `Next ${MONTHS_AHEAD} months`,
+      from: today,
+      to,
+      direction: "FORWARD",
+    },
+  ];
+  if (Date.parse(from) < Date.parse(today)) {
+    items.push({
+      label:
+        history.kind === "everything"
+          ? "Everything before today"
+          : `Back to ${MONTH.format(new Date(from))}`,
+      from,
+      to: today,
+      direction: "BACKWARD",
+    });
+  }
+  return items;
+}
+
 export function intervalLabel(every: {
   value: number;
   unit: IntervalUnit;
@@ -284,15 +325,15 @@ export function intervalLabel(every: {
 
 /**
  * The actions Create dispatches on the new document, in one batch: the kind,
- * the source, live updates, and the first import as a date-range backfill.
+ * the source, live updates, and the first import as date-range backfills
+ * (importItems).
  * The document's name is set when it is created (the built-in name).
  */
 export function createActions(
   choices: CreateChoices,
   now: Date,
-  backfillId: string,
+  newId: () => string,
 ): IntegrationAction[] {
-  const range = importRange(choices.history, now);
   return [
     actions.initialize({ kind: choices.kind, provider: choices.provider }),
     actions.setAccess({ access: choices.access }),
@@ -303,14 +344,17 @@ export function createActions(
       unit: choices.every.unit,
     }),
     actions.setBackfillEnabled({ enabled: true }),
-    actions.addDateRangeBackfill({
-      id: backfillId,
-      label: rangeLabel(choices.history, now),
-      documentType: DATE_RANGE_BACKFILL_TYPE,
-      from: range.from,
-      to: range.to,
-      stepSeconds: CALENDAR_SLICE_SECONDS,
-    }),
+    ...importItems(choices.history, now).map((item) =>
+      actions.addDateRangeBackfill({
+        id: newId(),
+        label: item.label,
+        documentType: DATE_RANGE_BACKFILL_TYPE,
+        from: item.from,
+        to: item.to,
+        stepSeconds: CALENDAR_SLICE_SECONDS,
+        direction: item.direction,
+      }),
+    ),
   ];
 }
 

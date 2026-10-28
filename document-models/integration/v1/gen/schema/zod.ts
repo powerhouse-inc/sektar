@@ -5,6 +5,7 @@ import type {
   AddDateRangeBackfillInput,
   ArchiveInput,
   BackfillBatch,
+  BackfillDirection,
   BackfillIntent,
   BackfillItem,
   CalendarRef,
@@ -31,6 +32,7 @@ import type {
   IntervalUnit,
   IssueSeverity,
   LiveIntent,
+  RecordBackfillDocumentInput,
   RecordCheckInput,
   RecordResourcesInput,
   RecordRunnerInput,
@@ -55,6 +57,8 @@ export const definedNonNullAnySchema = z
   .any()
   .refine((v) => isDefinedNonNullAny(v));
 
+export const BackfillDirectionSchema = z.enum(["BACKWARD", "FORWARD"]);
+
 export const IntegrationAccessSchema = z.enum(["READ", "READ_WRITE"]);
 
 export const IntegrationKindSchema = z.enum([
@@ -72,6 +76,7 @@ export function AddDateRangeBackfillInputSchema(): z.ZodObject<
   Properties<AddDateRangeBackfillInput>
 > {
   return z.object({
+    direction: BackfillDirectionSchema.nullish(),
     documentType: z.string(),
     from: z.iso.datetime(),
     id: z.string(),
@@ -154,6 +159,7 @@ export function DateRangeBackfillSchema(): z.ZodObject<
 > {
   return z.object({
     __typename: z.literal("DateRangeBackfill").optional(),
+    direction: BackfillDirectionSchema.nullish(),
     from: z.iso.datetime(),
     stepSeconds: z.number(),
     to: z.iso.datetime(),
@@ -344,6 +350,15 @@ export function LiveIntentSchema(): z.ZodObject<Properties<LiveIntent>> {
     __typename: z.literal("LiveIntent").optional(),
     enabled: z.boolean(),
     every: z.lazy(() => IntervalSchema()),
+  });
+}
+
+export function RecordBackfillDocumentInputSchema(): z.ZodObject<
+  Properties<RecordBackfillDocumentInput>
+> {
+  return z.object({
+    documentId: z.string(),
+    itemId: z.string(),
   });
 }
 

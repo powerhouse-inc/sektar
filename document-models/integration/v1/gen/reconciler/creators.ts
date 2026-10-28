@@ -4,18 +4,21 @@
  */
 import { createAction } from "document-model";
 import {
+  RecordBackfillDocumentInputSchema,
   RecordCheckInputSchema,
   RecordResourcesInputSchema,
   RecordRunnerInputSchema,
   RequestCheckInputSchema,
 } from "../schema/zod.js";
 import type {
+  RecordBackfillDocumentInput,
   RecordCheckInput,
   RecordResourcesInput,
   RecordRunnerInput,
   RequestCheckInput,
 } from "../types.js";
 import type {
+  RecordBackfillDocumentAction,
   RecordCheckAction,
   RecordResourcesAction,
   RecordRunnerAction,
@@ -46,6 +49,15 @@ export const recordResources = (input: RecordResourcesInput) =>
     { ...input },
     undefined,
     RecordResourcesInputSchema,
+    "global",
+  );
+
+export const recordBackfillDocument = (input: RecordBackfillDocumentInput) =>
+  createAction<RecordBackfillDocumentAction>(
+    "RECORD_BACKFILL_DOCUMENT",
+    { ...input },
+    undefined,
+    RecordBackfillDocumentInputSchema,
     "global",
   );
 

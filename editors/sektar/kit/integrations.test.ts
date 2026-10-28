@@ -30,8 +30,14 @@ const calendar = (patch: Partial<CreateChoices> = {}): CreateChoices => ({
   ...patch,
 });
 
+/** Ids bf-1, bf-2, … in the order the create flow asks for them */
+function ids() {
+  let n = 0;
+  return () => `bf-${++n}`;
+}
+
 function created(choices: CreateChoices = calendar()): IntegrationDocument {
-  return createActions(choices, NOW, "bf-1").reduce(
+  return createActions(choices, NOW, ids()).reduce(
     (doc, action) => reducer(doc, action),
     utils.createDocument(),
   );
@@ -173,17 +179,43 @@ describe("Create", () => {
       enabled: true,
       every: { value: 5, unit: "MINUTES" },
     });
+    // What is coming first, then the history back to the chosen start, a week at a time
     expect(s.intent.backfill.items).toEqual([
       expect.objectContaining({
         id: "bf-1",
-        label: "1 Jan 2025 to 12 months ahead",
+        label: "Next 12 months",
+        documentType: DATE_RANGE_BACKFILL_TYPE,
+        request: {
+          from: "2026-10-28T00:00:00.000Z",
+          to: "2027-10-28T00:00:00.000Z",
+          stepSeconds: 604800,
+          direction: "FORWARD",
+        },
+      }),
+      expect.objectContaining({
+        id: "bf-2",
+        label: "Back to 1 Jan 2025",
         documentType: DATE_RANGE_BACKFILL_TYPE,
         request: {
           from: "2025-01-01T00:00:00.000Z",
-          to: "2027-10-28T00:00:00.000Z",
-          stepSeconds: 2592000,
+          to: "2026-10-28T00:00:00.000Z",
+          stepSeconds: 604800,
+          direction: "BACKWARD",
         },
       }),
+    ]);
+  });
+
+  it("brings in only what is coming when no history is wanted, and names everything", () => {
+    const none = created(calendar({ history: { kind: "none" } }));
+    expect(none.state.global.intent.backfill.items.map((i) => i.label)).toEqual(
+      ["Next 12 months"],
+    );
+    const all = created(calendar({ history: { kind: "everything" } }));
+    expect(all.operations.global.every((op) => !op.error)).toBe(true);
+    expect(all.state.global.intent.backfill.items.map((i) => i.label)).toEqual([
+      "Next 12 months",
+      "Everything before today",
     ]);
   });
 });

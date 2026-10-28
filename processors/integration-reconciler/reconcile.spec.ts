@@ -32,7 +32,10 @@ function world(access: "READ" | "READ_WRITE" = "READ") {
   let doc: IntegrationDocument = createActions(
     { ...defaultChoices("CALENDAR", "google-calendar", NOW), access },
     NOW,
-    "bf-1",
+    (() => {
+      let n = 0;
+      return () => `bf-${++n}`;
+    })(),
   ).reduce((d, a) => reducer(d, a), utils.createDocument());
   const connections = new Map<
     string,

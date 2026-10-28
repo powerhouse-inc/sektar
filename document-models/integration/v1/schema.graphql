@@ -146,6 +146,15 @@ type DateRangeBackfill {
   to: DateTime!
   "The size of one slice"
   stepSeconds: Int!
+  "Which end it starts from; null: BACKWARD, newest first (the queue's own default)"
+  direction: BackfillDirection
+}
+
+enum BackfillDirection {
+  "From the range's start towards its end: oldest first"
+  FORWARD
+  "From the range's end back towards its start: newest first"
+  BACKWARD
 }
 
 type FolderListBackfill {
@@ -261,6 +270,8 @@ input AddDateRangeBackfillInput {
   from: DateTime!
   to: DateTime!
   stepSeconds: Int!
+  "Null: BACKWARD"
+  direction: BackfillDirection
 }
 
 # reconciler
@@ -281,6 +292,13 @@ input RecordResourcesInput {
   liveWorkflowId: PHID
   backfillWorkflowId: PHID
   pluggedItemId: OID
+}
+
+input RecordBackfillDocumentInput {
+  "The backfill item"
+  itemId: OID!
+  "The backfill document the reconciler created for it"
+  documentId: PHID!
 }
 
 input IntegrationIssueInput {

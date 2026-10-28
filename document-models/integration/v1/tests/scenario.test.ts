@@ -1,5 +1,6 @@
 import {
   addDateRangeBackfill,
+  recordBackfillDocument,
   recordCheck,
   recordResources,
   recordRunner,
@@ -84,6 +85,7 @@ describe("integration document", () => {
           from: "2025-01-01T00:00:00.000Z",
           to: "2027-10-28T00:00:00.000Z",
           stepSeconds: 604800,
+          direction: null,
         },
       },
     ]);
@@ -281,6 +283,36 @@ describe("integration document", () => {
         doc,
         recordRunner({ reactorId: "switchboard@cloud" }),
         /switchboard@pc runs/,
+      );
+    });
+
+    it("records the queue it made for a backfill item, and refuses an item that is not there", () => {
+      const before = created().state.global.intent.generation;
+      const doc = apply(
+        created(),
+        addDateRangeBackfill({
+          id: "bf-2",
+          label: "Next 12 months",
+          documentType: OSQ,
+          from: "2026-10-28T00:00:00.000Z",
+          to: "2027-10-28T00:00:00.000Z",
+          stepSeconds: 7 * 24 * 3600,
+          direction: "FORWARD",
+        }),
+        recordBackfillDocument({ itemId: "bf-2", documentId: "osq-2" }),
+      );
+      const [back, forward] = doc.state.global.intent.backfill.items;
+      // No direction given: null, which reads as newest first
+      expect(back.request).toMatchObject({ direction: null });
+      expect(back.documentId).toBeNull();
+      expect(forward.request).toMatchObject({ direction: "FORWARD" });
+      expect(forward.documentId).toBe("osq-2");
+      // Recording what was built is no new intent
+      expect(doc.state.global.intent.generation).toBe(before + 1);
+      rejects(
+        doc,
+        recordBackfillDocument({ itemId: "bf-9", documentId: "osq-9" }),
+        /No backfill bf-9/,
       );
     });
 

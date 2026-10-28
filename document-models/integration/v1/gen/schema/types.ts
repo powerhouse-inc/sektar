@@ -63,6 +63,8 @@ export type Scalars = {
 };
 
 export type AddDateRangeBackfillInput = {
+  /** Null: BACKWARD */
+  direction?: InputMaybe<BackfillDirection>;
   documentType: Scalars["String"]["input"];
   from: Scalars["DateTime"]["input"];
   id: Scalars["OID"]["input"];
@@ -80,6 +82,12 @@ export type BackfillBatch = {
   every: Interval;
   size: Scalars["Int"]["output"];
 };
+
+export type BackfillDirection =
+  /** From the range's end back towards its start: newest first */
+  | "BACKWARD"
+  /** From the range's start towards its end: oldest first */
+  | "FORWARD";
 
 export type BackfillIntent = {
   /** How much per run, and how often; null: the provider's default */
@@ -125,6 +133,8 @@ export type CalendarSource = {
 };
 
 export type DateRangeBackfill = {
+  /** Which end it starts from; null: BACKWARD, newest first (the queue's own default) */
+  direction: Maybe<BackfillDirection>;
   from: Scalars["DateTime"]["output"];
   /** The size of one slice */
   stepSeconds: Scalars["Int"]["output"];
@@ -287,6 +297,13 @@ export type LiveIntent = {
   enabled: Scalars["Boolean"]["output"];
   /** How often to check for what is new */
   every: Interval;
+};
+
+export type RecordBackfillDocumentInput = {
+  /** The backfill document the reconciler created for it */
+  documentId: Scalars["PHID"]["input"];
+  /** The backfill item */
+  itemId: Scalars["OID"]["input"];
 };
 
 export type RecordCheckInput = {

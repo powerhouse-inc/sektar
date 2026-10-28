@@ -5,6 +5,7 @@
 import { type SignalDispatch } from "document-model";
 import type { IntegrationGlobalState } from "../types.js";
 import type {
+  RecordBackfillDocumentAction,
   RecordCheckAction,
   RecordResourcesAction,
   RecordRunnerAction,
@@ -25,6 +26,11 @@ export interface IntegrationReconcilerOperations {
   recordResourcesOperation: (
     state: IntegrationGlobalState,
     action: RecordResourcesAction,
+    dispatch?: SignalDispatch,
+  ) => void;
+  recordBackfillDocumentOperation: (
+    state: IntegrationGlobalState,
+    action: RecordBackfillDocumentAction,
     dispatch?: SignalDispatch,
   ) => void;
   recordCheckOperation: (

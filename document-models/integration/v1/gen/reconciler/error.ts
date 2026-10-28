@@ -1,4 +1,4 @@
-export type ErrorCode = "RunnerTakenError";
+export type ErrorCode = "RunnerTakenError" | "BackfillNotFoundError";
 
 export interface ReducerError {
   errorCode: ErrorCode;
@@ -11,6 +11,15 @@ export class RunnerTakenError extends Error implements ReducerError {
   }
 }
 
+export class BackfillNotFoundError extends Error implements ReducerError {
+  errorCode = "BackfillNotFoundError" as ErrorCode;
+  constructor(message = "BackfillNotFoundError") {
+    super(message);
+  }
+}
+
 export const errors = {
   RecordRunner: { RunnerTakenError },
+
+  RecordBackfillDocument: { BackfillNotFoundError },
 };
