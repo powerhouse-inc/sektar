@@ -9,6 +9,8 @@ import {
   type OriginalSourceQueueAction,
 } from "document-models/original-source-queue";
 import type { IntegrationState } from "document-models/integration";
+import type { QueueState } from "../../editors/backfills/progress.js";
+import { slugOf } from "../../pieces/distyra/lib/osq/client.js";
 export {
   queueProgress,
   type QueueProgress,
@@ -68,6 +70,19 @@ export function queueSetup(
       }),
     ],
   };
+}
+
+/**
+ * The name the for-every trigger gives a queue's window (ranges.<range>):
+ * its first date-time cursor's lowercased name, as the trigger derives it.
+ */
+export function rangeOf(state: QueueState): string {
+  const index = state.cursors.findIndex((c) => "deltaSeconds" in c);
+  const at = index < 0 ? 0 : index;
+  const cursor = state.cursors[at];
+  return cursor
+    ? slugOf(cursor as unknown as Parameters<typeof slugOf>[0], at)
+    : SLICE_RANGE;
 }
 
 /** The for-every trigger's config for a queue. */

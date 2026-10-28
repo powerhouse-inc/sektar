@@ -7,7 +7,6 @@
  */
 import type { IntegrationState } from "document-models/integration";
 import { humanSeconds, type StepSpec } from "../workflow-spec.js";
-import { SLICE_RANGE } from "../backfill-osq.js";
 import { DISTYRA_PIECE, DISTYRA_PIECE_VERSION } from "../pieces.js";
 import type { ProviderAdapter, ProviderContext } from "./types.js";
 
@@ -70,12 +69,14 @@ export function upsertEventsStep(reactorConnectionId: string): StepSpec {
   };
 }
 
-const slice = (end: "from" | "to") =>
-  `{{trigger.payload.ranges.${SLICE_RANGE}.${end}}}`;
+const slice = (range: string, end: "from" | "to") =>
+  `{{trigger.payload.ranges.${range}.${end}}}`;
 
 export const googleCalendar: ProviderAdapter = {
   id: "google-calendar",
   label: "Google",
+  auth: "oauth",
+  backfillPollSeconds: 60,
 
   connection(name: string, state: IntegrationState) {
     const scopes = [
@@ -125,7 +126,7 @@ export const googleCalendar: ProviderAdapter = {
     };
   },
 
-  backfillSteps(ctx: ProviderContext) {
+  backfillSteps(ctx: ProviderContext, range: string) {
     return [
       {
         key: GET_EVENTS_STEP,
@@ -137,8 +138,8 @@ export const googleCalendar: ProviderAdapter = {
         config: {
           calendar_id: PRIMARY_CALENDAR,
           event_types: ["default", "focusTime", "outOfOffice"],
-          start_date: slice("from"),
-          end_date: slice("to"),
+          start_date: slice(range, "from"),
+          end_date: slice(range, "to"),
           singleEvents: false,
         },
       },

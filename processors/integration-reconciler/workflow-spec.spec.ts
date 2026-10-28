@@ -27,6 +27,7 @@ const ctx = {
   name: "Cal",
   state,
   connectionId: "conn-1",
+  accountLabel: null,
   reactorConnectionId: "reactor",
 };
 const ids = () => {
@@ -146,7 +147,7 @@ describe("the live workflow (Google Calendar)", () => {
 });
 
 describe("the history workflow (Google Calendar)", () => {
-  const spec = backfillWorkflowSpec(googleCalendar, ctx, "q-1", true);
+  const spec = backfillWorkflowSpec(googleCalendar, ctx, "q-1", true, "slice");
   const matching: WorkflowFacts = {
     status: "ENABLED",
     version: 2,
@@ -212,7 +213,13 @@ describe("the history workflow (Google Calendar)", () => {
 
   it("is left alone when it is the spec, and is pointed at the next queue", () => {
     expect(drift({})).toEqual({ differences: [], actions: [] });
-    const next = backfillWorkflowSpec(googleCalendar, ctx, "q-2", true);
+    const next = backfillWorkflowSpec(
+      googleCalendar,
+      ctx,
+      "q-2",
+      true,
+      "slice",
+    );
     const d = drift({}, next);
     expect(d.differences).toEqual([
       "the history workflow walked another backfill",
@@ -250,7 +257,13 @@ describe("the history workflow (Google Calendar)", () => {
       ["UPDATE_STEP", { id: "g", connectionId: "conn-1" }],
       ["PUBLISH_WORKFLOW", { publishedAt: AT }],
     ]);
-    const off = backfillWorkflowSpec(googleCalendar, ctx, "q-1", false);
+    const off = backfillWorkflowSpec(
+      googleCalendar,
+      ctx,
+      "q-1",
+      false,
+      "slice",
+    );
     expect(drift({}, off).actions.map((a) => a.input)).toEqual([
       { status: "DISABLED" },
     ]);

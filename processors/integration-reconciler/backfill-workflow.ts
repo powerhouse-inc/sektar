@@ -9,7 +9,7 @@ import type { ProviderAdapter, ProviderContext } from "./providers/index.js";
 import { DISTYRA_PIECE, DISTYRA_PIECE_VERSION } from "./pieces.js";
 import type { WorkflowSpec } from "./workflow-spec.js";
 
-/** One slice a minute (Wouter, 2026-10-28). */
+/** One slice a minute (Wouter, 2026-10-28), unless the provider paces itself. */
 export const BACKFILL_POLL_SECONDS = 60;
 
 export function backfillWorkflowSpec(
@@ -17,6 +17,8 @@ export function backfillWorkflowSpec(
   ctx: ProviderContext,
   queueId: string,
   enabled: boolean,
+  /** The queue's cursor slug the steps read the window from */
+  range: string,
 ): WorkflowSpec {
   return {
     name: `${ctx.name} · history`,
@@ -28,10 +30,10 @@ export function backfillWorkflowSpec(
       reactorConnectionId: ctx.reactorConnectionId,
       config: {
         ...forEveryConfig(queueId),
-        pollEverySeconds: BACKFILL_POLL_SECONDS,
+        pollEverySeconds: provider.backfillPollSeconds ?? BACKFILL_POLL_SECONDS,
       },
     },
-    steps: provider.backfillSteps(ctx),
+    steps: provider.backfillSteps(ctx, range),
     words: {
       subject: "the history workflow",
       provider: provider.label,

@@ -11,7 +11,12 @@
  */
 import type { OriginalSourceQueueAction } from "document-models/original-source-queue";
 import type { QueueState } from "../../editors/backfills/progress.js";
-import { queueProgress, queueSetup } from "./backfill-osq.js";
+import {
+  queueProgress,
+  queueSetup,
+  rangeOf,
+  SLICE_RANGE,
+} from "./backfill-osq.js";
 import { backfillWorkflowSpec, liveWorkflowSpec } from "./backfill-workflow.js";
 import {
   providerFor,
@@ -47,6 +52,8 @@ export type ConnectionFacts = {
   scopes: string[];
   /** The scopes its sign-in was granted (config oauth_granted_scopes); null: not recorded */
   granted?: string[] | null;
+  /** Who it is (accountLabel), e.g. the signed-in address */
+  accountLabel?: string | null;
 };
 
 export type { ConnectionSpec } from "./providers/index.js";
@@ -119,11 +126,13 @@ export async function reconcileIntegration(
   // it built, then the integration itself. The data it brought in stays.
   if (s.intent.archived) {
     if (s.runner && s.runner.reactorId !== io.me.reactorId) return;
+    // A connection it was given (an API key shared with others) stays.
+    const ownsConnection = providerFor(s)?.auth !== "apiKey";
     const built = [
       s.resources.liveWorkflowId,
       s.resources.backfillWorkflowId,
       ...s.intent.backfill.items.map((item) => item.documentId),
-      s.resources.connectionId,
+      ownsConnection ? s.resources.connectionId : null,
     ].filter((id): id is string => Boolean(id));
     for (const id of built) await io.deleteDocument(id);
     await io.deleteIntegration();
@@ -139,7 +148,6 @@ export async function reconcileIntegration(
   }
 
   const provider = providerFor(s);
-  const spec = provider?.connection(doc.name, s) ?? null;
   const issues: IntegrationIssue[] = [];
   const fixes: {
     at: string;
@@ -151,7 +159,7 @@ export async function reconcileIntegration(
   const since = (code: string) =>
     s.check?.issues.find((i) => i.code === code)?.since ?? io.now();
 
-  if (!provider || !spec) {
+  if (!provider) {
     issues.push({
       code: "PROVIDER_UNSUPPORTED",
       severity: "BLOCKING",
@@ -161,47 +169,13 @@ export async function reconcileIntegration(
       since: since("PROVIDER_UNSUPPORTED"),
     });
   } else {
-    let connectionId = s.resources.connectionId;
-    let facts = connectionId ? await io.readConnection(connectionId) : null;
-    // None yet, or deleted: make one and record it before anything else, so
-    // a pass that fails later never makes a second one.
-    if (!connectionId || !facts) {
-      connectionId = await io.createConnection(spec);
-      await io.dispatch([actions.recordResources({ connectionId })]);
-      facts = {
-        status: "UNCONFIGURED",
-        signedIn: false,
-        scopes: spec.config.oauth_scopes as string[],
-      };
-    }
-    const wanted = spec.config.oauth_scopes as string[];
-    // The access changed: ask for the new scopes. The token in hand stays
-    // in use until the person signs in again; it just does not reach them.
-    if (!sameScopes(facts.scopes, wanted)) {
-      await io.setConnectionConfig(connectionId, spec.config);
-    }
-    // Signed in for what the integration asks: a sign-in recorded before
-    // grants were (granted null) is taken as not reaching the new scopes.
-    const covered =
-      !!facts.granted &&
-      wanted.every((scope) => facts.granted!.includes(scope));
-    if (!facts.signedIn || facts.status !== "OK" || !covered) {
-      issues.push({
-        code: "NEEDS_SIGN_IN",
-        severity: "BLOCKING",
-        subject: connectionId,
-        message:
-          facts.signedIn && facts.status === "OK"
-            ? `Sign in to ${provider.label} again on ${io.me.label}: it needs more access`
-            : `Sign in to ${provider.label} on ${io.me.label} to finish`,
-        fixable: false,
-        since: since("NEEDS_SIGN_IN"),
-      });
-    } else {
+    const connection = await readyConnection(doc, provider, io, issues, since);
+    if (connection) {
+      const { connectionId } = connection;
       built = await reconcileLiveWorkflow(
         doc,
         provider,
-        connectionId,
+        connection,
         io,
         issues,
         fixes,
@@ -211,7 +185,7 @@ export async function reconcileIntegration(
         built = await reconcileBackfill(
           doc,
           provider,
-          connectionId,
+          connection,
           io,
           issues,
           fixes,
@@ -255,7 +229,7 @@ export async function reconcileIntegration(
 async function reconcileLiveWorkflow(
   doc: { id: string; name: string; state: IntegrationState },
   provider: ProviderAdapter,
-  connectionId: string,
+  connection: ReadyConnection,
   io: ReconcileIO,
   issues: IntegrationIssue[],
   fixes: { at: string; code: string; subject?: string; message: string }[],
@@ -278,7 +252,8 @@ async function reconcileLiveWorkflow(
   const ctx: ProviderContext = {
     name: doc.name,
     state: s,
-    connectionId,
+    connectionId: connection.connectionId,
+    accountLabel: connection.accountLabel,
     reactorConnectionId,
   };
   const spec = liveWorkflowSpec(provider, ctx);
@@ -338,7 +313,7 @@ async function reconcileLiveWorkflow(
 async function reconcileBackfill(
   doc: { id: string; name: string; state: IntegrationState },
   provider: ProviderAdapter,
-  connectionId: string,
+  connection: ReadyConnection,
   io: ReconcileIO,
   issues: IntegrationIssue[],
   fixes: { at: string; code: string; subject?: string; message: string }[],
@@ -350,10 +325,13 @@ async function reconcileBackfill(
   if (!reactorConnectionId) return false;
   const asked = s.applied?.generation !== s.intent.generation;
   const items = s.intent.backfill.items;
+  // A provider without backfills (an aggregator that keeps its own history)
+  if (provider.backfillPollSeconds === undefined) return true;
   const ctx: ProviderContext = {
     name: doc.name,
     state: s,
-    connectionId,
+    connectionId: connection.connectionId,
+    accountLabel: connection.accountLabel,
     reactorConnectionId,
   };
 
@@ -408,6 +386,7 @@ async function reconcileBackfill(
       ctx,
       plugged.id,
       s.intent.backfill.enabled,
+      rangeOf(plugged.state),
     );
     const created = await io.createWorkflow(
       spec.name,
@@ -428,11 +407,14 @@ async function reconcileBackfill(
       : null;
   const queueId = plugged?.id ?? walking;
   if (!queueId) return true;
+  const walked = [...queues.values()].find((q) => q.id === queueId);
+  const range = walked ? rangeOf(walked.state) : SLICE_RANGE;
   const spec = backfillWorkflowSpec(
     provider,
     ctx,
     queueId,
     s.intent.backfill.enabled && plugged !== null,
+    range,
   );
   const drift = workflowDrift(spec, facts, io.now());
   if (drift.actions.length === 0) {
@@ -486,4 +468,103 @@ async function markManaged(
   } catch {
     // An older workflow model: unmarked until it knows the operation
   }
+}
+
+type ReadyConnection = { connectionId: string; accountLabel: string | null };
+
+/**
+ * The connection a pass can build with, or null with the issue that says
+ * what is missing. oauth: the reconciler makes one and asks for a sign-in
+ * that covers the scopes the integration needs. apiKey: it uses the one it
+ * was given and only checks that it works.
+ */
+async function readyConnection(
+  doc: { id: string; name: string; state: IntegrationState },
+  provider: ProviderAdapter,
+  io: ReconcileIO,
+  issues: IntegrationIssue[],
+  since: (code: string) => string,
+): Promise<ReadyConnection | null> {
+  const s = doc.state;
+  if (provider.auth === "apiKey") {
+    const connectionId = s.resources.connectionId ?? s.intent.connectionId;
+    const facts = connectionId ? await io.readConnection(connectionId) : null;
+    if (!connectionId || !facts) {
+      issues.push({
+        code: "NO_CONNECTION",
+        severity: "BLOCKING",
+        subject: connectionId ?? null,
+        message: `Pick the ${provider.label} connection to use on ${io.me.label}`,
+        fixable: false,
+        since: since("NO_CONNECTION"),
+      });
+      return null;
+    }
+    if (facts.status !== "OK") {
+      issues.push({
+        code: "CONNECTION_NOT_WORKING",
+        severity: "BLOCKING",
+        subject: connectionId,
+        message: `The ${provider.label} connection on ${io.me.label} is not working; check it in Workflows`,
+        fixable: false,
+        since: since("CONNECTION_NOT_WORKING"),
+      });
+      return null;
+    }
+    if (s.resources.connectionId !== connectionId) {
+      await io.dispatch([actions.recordResources({ connectionId })]);
+    }
+    return { connectionId, accountLabel: facts.accountLabel ?? null };
+  }
+
+  const spec = provider.connection(doc.name, s);
+  if (!spec) {
+    issues.push({
+      code: "PROVIDER_UNSUPPORTED",
+      severity: "BLOCKING",
+      subject: null,
+      message: `${s.provider ?? "This provider"} is not supported on this computer yet`,
+      fixable: false,
+      since: since("PROVIDER_UNSUPPORTED"),
+    });
+    return null;
+  }
+  let connectionId = s.resources.connectionId;
+  let facts = connectionId ? await io.readConnection(connectionId) : null;
+  // None yet, or deleted: make one and record it before anything else, so
+  // a pass that fails later never makes a second one.
+  if (!connectionId || !facts) {
+    connectionId = await io.createConnection(spec);
+    await io.dispatch([actions.recordResources({ connectionId })]);
+    facts = {
+      status: "UNCONFIGURED",
+      signedIn: false,
+      scopes: spec.config.oauth_scopes as string[],
+    };
+  }
+  const wanted = spec.config.oauth_scopes as string[];
+  // The access changed: ask for the new scopes. The token in hand stays
+  // in use until the person signs in again; it just does not reach them.
+  if (!sameScopes(facts.scopes, wanted)) {
+    await io.setConnectionConfig(connectionId, spec.config);
+  }
+  // Signed in for what the integration asks: a sign-in recorded before
+  // grants were (granted null) is taken as not reaching the new scopes.
+  const granted = facts.granted;
+  const covered = !!granted && wanted.every((scope) => granted.includes(scope));
+  if (!facts.signedIn || facts.status !== "OK" || !covered) {
+    issues.push({
+      code: "NEEDS_SIGN_IN",
+      severity: "BLOCKING",
+      subject: connectionId,
+      message:
+        facts.signedIn && facts.status === "OK"
+          ? `Sign in to ${provider.label} again on ${io.me.label}: it needs more access`
+          : `Sign in to ${provider.label} on ${io.me.label} to finish`,
+      fixable: false,
+      since: since("NEEDS_SIGN_IN"),
+    });
+    return null;
+  }
+  return { connectionId, accountLabel: facts.accountLabel ?? null };
 }

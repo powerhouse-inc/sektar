@@ -19,8 +19,10 @@ export type ProviderContext = {
   /** The integration's name */
   name: string;
   state: IntegrationState;
-  /** The provider sign-in the reconciler made */
+  /** The provider connection: the sign-in the reconciler made, or the one it was given */
   connectionId: string;
+  /** Who the connection is (its label, e.g. the signed-in address); null: not known yet */
+  accountLabel: string | null;
   /** The switchboard's own connection, for steps that write documents */
   reactorConnectionId: string;
 };
@@ -30,8 +32,16 @@ export interface ProviderAdapter {
   id: string;
   /** Whose sign-in, in words: "Google" */
   label: string;
-  /** The connection to make; null when this setup cannot be served */
+  /**
+   * How it connects. oauth: the reconciler makes the connection and asks
+   * for a sign-in on the runner. apiKey: it uses a connection it is given
+   * (resources.connectionId or intent.connectionId) and never deletes it.
+   */
+  auth: "oauth" | "apiKey";
+  /** The connection to make (oauth); null when this setup cannot be served */
   connection(name: string, state: IntegrationState): ConnectionSpec | null;
+  /** Seconds between backfill slices; absent: no backfill */
+  backfillPollSeconds?: number;
   /** The live workflow: its name, trigger and steps */
   live(ctx: ProviderContext): {
     name: string;
@@ -40,6 +50,10 @@ export interface ProviderAdapter {
     /** How a changed trigger config reads, e.g. "checked every hour, not every 15 minutes" */
     config: DriftWords["config"];
   };
-  /** The steps one backfill slice runs; they read the window as {{trigger.payload.ranges.slice.from/to}} */
-  backfillSteps(ctx: ProviderContext): StepSpec[];
+  /**
+   * The steps one backfill slice runs; they read the window as
+   * {{trigger.payload.ranges.<range>.from/to}}, range being the queue's
+   * cursor (its lowercased name: slice, day).
+   */
+  backfillSteps(ctx: ProviderContext, range: string): StepSpec[];
 }
