@@ -1,0 +1,156 @@
+{
+  "id": "sektar/integration",
+  "name": "Integration",
+  "author": {
+    "name": "Sektar",
+    "website": "https://sektar.app"
+  },
+  "extension": "intg",
+  "description": "An account Sektar keeps in sync (mail, bank, calendar, hours): what the user asked for, what the reconciler on the runner built for it, the generation it committed, and what it found on its last check.",
+  "specifications": [
+    {
+      "version": 1,
+      "changeLog": [],
+      "state": {
+        "global": {
+          "schema": "type IntegrationState {\n  \"What comes in; fixed by INITIALIZE. Null until then\"\n  kind: IntegrationKind\n  \"How it comes in: a provider adapter id (google-calendar, gmail, imap). Null until INITIALIZE\"\n  provider: String\n  \"Settings only this provider has, checked by its adapter\"\n  providerOptions: Unknown\n  \"What the user asked for; written from the app\"\n  intent: IntegrationIntent!\n  \"What the reconciler built for the intent\"\n  resources: IntegrationResources!\n  \"The last intent generation the reconciler committed\"\n  applied: IntegrationApplied\n  \"The reconciler's last pass: what it found\"\n  check: IntegrationCheck\n  \"A check asked for from the app (Check now)\"\n  checkRequest: IntegrationCheckRequest\n  \"What the reconciler put back, latest first, at most 20\"\n  fixes: [IntegrationFix!]!\n  \"The reactor that fetches and holds the token; null: the switchboard that owns this drive, until it claims it\"\n  runner: IntegrationRunner\n}\n\nenum IntegrationKind {\n  EMAIL\n  TRANSACTIONS\n  CALENDAR\n  TIME_TRACKING\n}\n\ntype IntegrationIntent {\n  \"Raised by every change to the intent; the reconciler commits a generation\"\n  generation: Int!\n  \"An existing connection the user picked; null: the reconciler makes one (resources.connectionId)\"\n  connectionId: PHID\n  \"The drive the imported documents land in; null: the kind's default drive\"\n  targetDriveId: PHID\n  \"What to bring in, per kind and provider-neutral\"\n  source: IntegrationSource\n  live: LiveIntent!\n  backfill: BackfillIntent!\n  \"An archived integration's workflows are archived; its data stays\"\n  archived: Boolean!\n}\n\nunion IntegrationSource = CalendarSource | EmailSource\n\ntype CalendarSource {\n  \"The calendars picked; empty while allOwned\"\n  calendars: [CalendarRef!]!\n  \"Every calendar the account owns, including ones added later\"\n  allOwned: Boolean!\n}\n\ntype CalendarRef {\n  \"The provider's calendar id\"\n  id: String!\n  name: String\n}\n\ntype EmailSource {\n  mailbox: String!\n  folders: [String!]!\n}\n\ntype LiveIntent {\n  \"The Live updates switch\"\n  enabled: Boolean!\n  \"How often to check for what is new\"\n  every: Interval!\n}\n\ntype Interval {\n  value: Int!\n  unit: IntervalUnit!\n}\n\nenum IntervalUnit {\n  MINUTES\n  HOURS\n  DAYS\n}\n\ntype BackfillIntent {\n  \"The Backfill switch: the backfill workflow on or off\"\n  enabled: Boolean!\n  \"How much per run, and how often; null: the provider's default\"\n  batch: BackfillBatch\n  \"In the order they run\"\n  items: [BackfillItem!]!\n  \"Make active; null: the first unfinished item\"\n  pinnedId: OID\n}\n\ntype BackfillBatch {\n  size: Int!\n  every: Interval!\n}\n\ntype BackfillItem {\n  id: OID!\n  \"e.g. 2023 to today\"\n  label: String!\n  \"Any backfill document type with an adapter\"\n  documentType: String!\n  \"Null until the reconciler has created it from the request\"\n  documentId: PHID\n  \"How to create it; null when an existing document was attached\"\n  request: BackfillRequest\n}\n\nunion BackfillRequest = DateRangeBackfill | FolderListBackfill\n\ntype DateRangeBackfill {\n  from: DateTime!\n  to: DateTime!\n  \"The size of one slice\"\n  stepSeconds: Int!\n}\n\ntype FolderListBackfill {\n  folders: [String!]!\n}\n\ntype IntegrationResources {\n  \"The connection the reconciler made, when the intent names none\"\n  connectionId: PHID\n  liveWorkflowId: PHID\n  backfillWorkflowId: PHID\n  \"The backfill item the backfill workflow points at now\"\n  pluggedItemId: OID\n}\n\ntype IntegrationApplied {\n  generation: Int!\n  at: DateTime!\n  host: String\n}\n\ntype IntegrationCheck {\n  at: DateTime!\n  host: String\n  \"The intent generation this pass evaluated\"\n  generation: Int!\n  \"The check request it answered, if any\"\n  request: OID\n  issues: [IntegrationIssue!]!\n}\n\ntype IntegrationIssue {\n  \"Plugin-defined, e.g. NEEDS_SIGN_IN, LIVE_WORKFLOW_MISSING, COVERAGE_GAP\"\n  code: String!\n  severity: IssueSeverity!\n  \"The workflow, backfill or connection it is about\"\n  subject: PHID\n  \"In the user's words\"\n  message: String!\n  \"False: only the user can fix it (Reconnect)\"\n  fixable: Boolean!\n  since: DateTime!\n}\n\nenum IssueSeverity {\n  INFO\n  WARNING\n  BLOCKING\n}\n\ntype IntegrationCheckRequest {\n  id: OID!\n  requestedAt: DateTime!\n  requestedBy: String\n}\n\ntype IntegrationFix {\n  at: DateTime!\n  code: String!\n  subject: PHID\n  \"Put back: ...\"\n  message: String!\n}\n\ntype IntegrationRunner {\n  reactorId: String!\n  \"The machine's name, e.g. Wouter's PC\"\n  label: String\n}",
+          "initialValue": "{\n  \"kind\": null,\n  \"provider\": null,\n  \"providerOptions\": null,\n  \"intent\": {\n    \"generation\": 0,\n    \"connectionId\": null,\n    \"targetDriveId\": null,\n    \"source\": null,\n    \"live\": {\n      \"enabled\": true,\n      \"every\": {\n        \"value\": 5,\n        \"unit\": \"MINUTES\"\n      }\n    },\n    \"backfill\": {\n      \"enabled\": true,\n      \"batch\": null,\n      \"items\": [],\n      \"pinnedId\": null\n    },\n    \"archived\": false\n  },\n  \"resources\": {\n    \"connectionId\": null,\n    \"liveWorkflowId\": null,\n    \"backfillWorkflowId\": null,\n    \"pluggedItemId\": null\n  },\n  \"applied\": null,\n  \"check\": null,\n  \"checkRequest\": null,\n  \"fixes\": [],\n  \"runner\": null\n}",
+          "examples": []
+        },
+        "local": {
+          "schema": "",
+          "initialValue": "",
+          "examples": []
+        }
+      },
+      "modules": [
+        {
+          "id": "629f6085-8050-4672-9566-4aca1f7e315c",
+          "name": "setup",
+          "description": "What the integration is: its kind, provider and source",
+          "operations": [
+            {
+              "id": "043d5653-8a91-4d79-a1d1-375dffd5b939",
+              "name": "INITIALIZE",
+              "description": "",
+              "schema": "input InitializeInput {\n  kind: IntegrationKind!\n  provider: String!\n}",
+              "template": "",
+              "reducer": "if (state.kind) throw new AlreadyInitializedError(\"The integration is set up already\");\nstate.kind = action.input.kind;\nstate.provider = action.input.provider;",
+              "errors": [
+                {
+                  "id": "5d6d8a62-9068-4274-8e72-5e8567475438",
+                  "code": "ALREADY_INITIALIZED",
+                  "name": "AlreadyInitializedError",
+                  "description": "The integration's kind and provider are set once",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "97010580-02fd-4389-b690-def11de2ffcc",
+              "name": "SET_CALENDAR_SOURCE",
+              "description": "",
+              "schema": "input CalendarRefInput {\n  id: String!\n  name: String\n}\n\ninput SetCalendarSourceInput {\n  calendars: [CalendarRefInput!]!\n  allOwned: Boolean!\n}",
+              "template": "",
+              "reducer": "if (state.kind !== \"CALENDAR\") throw new WrongKindError(\"Only a calendar integration has calendars\");\nstate.intent.source = {\n  calendars: action.input.allOwned\n    ? []\n    : action.input.calendars.map((c) => ({ id: c.id, name: c.name ?? null })),\n  allOwned: action.input.allOwned,\n};\nstate.intent.generation += 1;",
+              "errors": [
+                {
+                  "id": "f1464ec6-498b-4c49-9dba-40f171f20fe7",
+                  "code": "WRONG_KIND",
+                  "name": "WrongKindError",
+                  "description": "This source belongs to another kind of integration",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        },
+        {
+          "id": "021d1527-1a5c-413d-94e6-63e20a56cc5a",
+          "name": "live",
+          "description": "Live updates: on or off, and how often",
+          "operations": [
+            {
+              "id": "ee105076-2e29-4653-9fa7-c84e7f1c1b50",
+              "name": "SET_LIVE_ENABLED",
+              "description": "",
+              "schema": "input SetLiveEnabledInput {\n  enabled: Boolean!\n}",
+              "template": "",
+              "reducer": "state.intent.live.enabled = action.input.enabled;\nstate.intent.generation += 1;",
+              "errors": [],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "590e122e-f7a2-46ab-b16c-03f12d51e79b",
+              "name": "SET_LIVE_INTERVAL",
+              "description": "",
+              "schema": "input SetLiveIntervalInput {\n  value: Int!\n  unit: IntervalUnit!\n}",
+              "template": "",
+              "reducer": "if (!Number.isInteger(action.input.value) || action.input.value < 1) throw new InvalidIntervalError(`${action.input.value} is not a whole number of at least 1`);\nstate.intent.live.every = { value: action.input.value, unit: action.input.unit };\nstate.intent.generation += 1;",
+              "errors": [
+                {
+                  "id": "bc230b4e-d3e6-4a13-9c44-5c53e652a703",
+                  "code": "INVALID_INTERVAL",
+                  "name": "InvalidIntervalError",
+                  "description": "An interval is at least one unit",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        },
+        {
+          "id": "c2cc50ef-3e6b-4f74-810a-40fa7f8143a7",
+          "name": "backfill",
+          "description": "Backfills: the switch and the history to bring in",
+          "operations": [
+            {
+              "id": "e5a2a53b-932f-41ba-8709-c74fb760638c",
+              "name": "SET_BACKFILL_ENABLED",
+              "description": "",
+              "schema": "input SetBackfillEnabledInput {\n  enabled: Boolean!\n}",
+              "template": "",
+              "reducer": "state.intent.backfill.enabled = action.input.enabled;\nstate.intent.generation += 1;",
+              "errors": [],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "5f5eb41c-503a-4708-9de4-5cf734d76970",
+              "name": "ADD_DATE_RANGE_BACKFILL",
+              "description": "",
+              "schema": "input AddDateRangeBackfillInput {\n  id: OID!\n  label: String!\n  documentType: String!\n  from: DateTime!\n  to: DateTime!\n  stepSeconds: Int!\n}",
+              "template": "",
+              "reducer": "const i = action.input;\nif (state.intent.backfill.items.some((b) => b.id === i.id)) throw new DuplicateBackfillIdError(`A backfill ${i.id} exists`);\nif (!(Date.parse(i.from) < Date.parse(i.to)) || !Number.isInteger(i.stepSeconds) || i.stepSeconds < 60) throw new InvalidRangeError(`${i.from} to ${i.to} in ${i.stepSeconds} s slices`);\nstate.intent.backfill.items.push({\n  id: i.id,\n  label: i.label,\n  documentType: i.documentType,\n  documentId: null,\n  request: { from: i.from, to: i.to, stepSeconds: i.stepSeconds },\n});\nstate.intent.generation += 1;",
+              "errors": [
+                {
+                  "id": "bbba9961-5682-43c7-bbaa-6c8071456854",
+                  "code": "DUPLICATE_BACKFILL_ID",
+                  "name": "DuplicateBackfillIdError",
+                  "description": "A backfill with this id exists",
+                  "template": ""
+                },
+                {
+                  "id": "ac34e150-a4de-41ce-8112-365bc0908a81",
+                  "code": "INVALID_RANGE",
+                  "name": "InvalidRangeError",
+                  "description": "A date range starts before it ends, in slices of at least a minute",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

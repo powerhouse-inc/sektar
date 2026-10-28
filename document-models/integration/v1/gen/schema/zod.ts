@@ -1,0 +1,340 @@
+/* eslint-disable @typescript-eslint/no-empty-object-type */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import * as z from "zod";
+import type {
+  AddDateRangeBackfillInput,
+  BackfillBatch,
+  BackfillIntent,
+  BackfillItem,
+  CalendarRef,
+  CalendarRefInput,
+  CalendarSource,
+  DateRangeBackfill,
+  EmailSource,
+  FolderListBackfill,
+  InitializeInput,
+  IntegrationApplied,
+  IntegrationCheck,
+  IntegrationCheckRequest,
+  IntegrationFix,
+  IntegrationIntent,
+  IntegrationIssue,
+  IntegrationKind,
+  IntegrationResources,
+  IntegrationRunner,
+  IntegrationState,
+  Interval,
+  IntervalUnit,
+  IssueSeverity,
+  LiveIntent,
+  SetBackfillEnabledInput,
+  SetCalendarSourceInput,
+  SetLiveEnabledInput,
+  SetLiveIntervalInput,
+} from "./types.js";
+
+type Properties<T> = Required<{
+  [K in keyof T]: z.ZodType<T[K]>;
+}>;
+
+type definedNonNullAny = {};
+
+export const isDefinedNonNullAny = (v: any): v is definedNonNullAny =>
+  v !== undefined && v !== null;
+
+export const definedNonNullAnySchema = z
+  .any()
+  .refine((v) => isDefinedNonNullAny(v));
+
+export const IntegrationKindSchema = z.enum([
+  "CALENDAR",
+  "EMAIL",
+  "TIME_TRACKING",
+  "TRANSACTIONS",
+]);
+
+export const IntervalUnitSchema = z.enum(["DAYS", "HOURS", "MINUTES"]);
+
+export const IssueSeveritySchema = z.enum(["BLOCKING", "INFO", "WARNING"]);
+
+export function AddDateRangeBackfillInputSchema(): z.ZodObject<
+  Properties<AddDateRangeBackfillInput>
+> {
+  return z.object({
+    documentType: z.string(),
+    from: z.iso.datetime(),
+    id: z.string(),
+    label: z.string(),
+    stepSeconds: z.number(),
+    to: z.iso.datetime(),
+  });
+}
+
+export function BackfillBatchSchema(): z.ZodObject<Properties<BackfillBatch>> {
+  return z.object({
+    __typename: z.literal("BackfillBatch").optional(),
+    every: z.lazy(() => IntervalSchema()),
+    size: z.number(),
+  });
+}
+
+export function BackfillIntentSchema(): z.ZodObject<
+  Properties<BackfillIntent>
+> {
+  return z.object({
+    __typename: z.literal("BackfillIntent").optional(),
+    batch: z.lazy(() => BackfillBatchSchema().nullish()),
+    enabled: z.boolean(),
+    items: z.array(z.lazy(() => BackfillItemSchema())),
+    pinnedId: z.string().nullish(),
+  });
+}
+
+export function BackfillItemSchema(): z.ZodObject<Properties<BackfillItem>> {
+  return z.object({
+    __typename: z.literal("BackfillItem").optional(),
+    documentId: z.string().nullish(),
+    documentType: z.string(),
+    id: z.string(),
+    label: z.string(),
+    request: z.lazy(() => BackfillRequestSchema().nullish()),
+  });
+}
+
+export function BackfillRequestSchema() {
+  return z.union([DateRangeBackfillSchema(), FolderListBackfillSchema()]);
+}
+
+export function CalendarRefSchema(): z.ZodObject<Properties<CalendarRef>> {
+  return z.object({
+    __typename: z.literal("CalendarRef").optional(),
+    id: z.string(),
+    name: z.string().nullish(),
+  });
+}
+
+export function CalendarRefInputSchema(): z.ZodObject<
+  Properties<CalendarRefInput>
+> {
+  return z.object({
+    id: z.string(),
+    name: z.string().nullish(),
+  });
+}
+
+export function CalendarSourceSchema(): z.ZodObject<
+  Properties<CalendarSource>
+> {
+  return z.object({
+    __typename: z.literal("CalendarSource").optional(),
+    allOwned: z.boolean(),
+    calendars: z.array(z.lazy(() => CalendarRefSchema())),
+  });
+}
+
+export function DateRangeBackfillSchema(): z.ZodObject<
+  Properties<DateRangeBackfill>
+> {
+  return z.object({
+    __typename: z.literal("DateRangeBackfill").optional(),
+    from: z.iso.datetime(),
+    stepSeconds: z.number(),
+    to: z.iso.datetime(),
+  });
+}
+
+export function EmailSourceSchema(): z.ZodObject<Properties<EmailSource>> {
+  return z.object({
+    __typename: z.literal("EmailSource").optional(),
+    folders: z.array(z.string()),
+    mailbox: z.string(),
+  });
+}
+
+export function FolderListBackfillSchema(): z.ZodObject<
+  Properties<FolderListBackfill>
+> {
+  return z.object({
+    __typename: z.literal("FolderListBackfill").optional(),
+    folders: z.array(z.string()),
+  });
+}
+
+export function InitializeInputSchema(): z.ZodObject<
+  Properties<InitializeInput>
+> {
+  return z.object({
+    kind: IntegrationKindSchema,
+    provider: z.string(),
+  });
+}
+
+export function IntegrationAppliedSchema(): z.ZodObject<
+  Properties<IntegrationApplied>
+> {
+  return z.object({
+    __typename: z.literal("IntegrationApplied").optional(),
+    at: z.iso.datetime(),
+    generation: z.number(),
+    host: z.string().nullish(),
+  });
+}
+
+export function IntegrationCheckSchema(): z.ZodObject<
+  Properties<IntegrationCheck>
+> {
+  return z.object({
+    __typename: z.literal("IntegrationCheck").optional(),
+    at: z.iso.datetime(),
+    generation: z.number(),
+    host: z.string().nullish(),
+    issues: z.array(z.lazy(() => IntegrationIssueSchema())),
+    request: z.string().nullish(),
+  });
+}
+
+export function IntegrationCheckRequestSchema(): z.ZodObject<
+  Properties<IntegrationCheckRequest>
+> {
+  return z.object({
+    __typename: z.literal("IntegrationCheckRequest").optional(),
+    id: z.string(),
+    requestedAt: z.iso.datetime(),
+    requestedBy: z.string().nullish(),
+  });
+}
+
+export function IntegrationFixSchema(): z.ZodObject<
+  Properties<IntegrationFix>
+> {
+  return z.object({
+    __typename: z.literal("IntegrationFix").optional(),
+    at: z.iso.datetime(),
+    code: z.string(),
+    message: z.string(),
+    subject: z.string().nullish(),
+  });
+}
+
+export function IntegrationIntentSchema(): z.ZodObject<
+  Properties<IntegrationIntent>
+> {
+  return z.object({
+    __typename: z.literal("IntegrationIntent").optional(),
+    archived: z.boolean(),
+    backfill: z.lazy(() => BackfillIntentSchema()),
+    connectionId: z.string().nullish(),
+    generation: z.number(),
+    live: z.lazy(() => LiveIntentSchema()),
+    source: z.lazy(() => IntegrationSourceSchema().nullish()),
+    targetDriveId: z.string().nullish(),
+  });
+}
+
+export function IntegrationIssueSchema(): z.ZodObject<
+  Properties<IntegrationIssue>
+> {
+  return z.object({
+    __typename: z.literal("IntegrationIssue").optional(),
+    code: z.string(),
+    fixable: z.boolean(),
+    message: z.string(),
+    severity: IssueSeveritySchema,
+    since: z.iso.datetime(),
+    subject: z.string().nullish(),
+  });
+}
+
+export function IntegrationResourcesSchema(): z.ZodObject<
+  Properties<IntegrationResources>
+> {
+  return z.object({
+    __typename: z.literal("IntegrationResources").optional(),
+    backfillWorkflowId: z.string().nullish(),
+    connectionId: z.string().nullish(),
+    liveWorkflowId: z.string().nullish(),
+    pluggedItemId: z.string().nullish(),
+  });
+}
+
+export function IntegrationRunnerSchema(): z.ZodObject<
+  Properties<IntegrationRunner>
+> {
+  return z.object({
+    __typename: z.literal("IntegrationRunner").optional(),
+    label: z.string().nullish(),
+    reactorId: z.string(),
+  });
+}
+
+export function IntegrationSourceSchema() {
+  return z.union([CalendarSourceSchema(), EmailSourceSchema()]);
+}
+
+export function IntegrationStateSchema(): z.ZodObject<
+  Properties<IntegrationState>
+> {
+  return z.object({
+    __typename: z.literal("IntegrationState").optional(),
+    applied: z.lazy(() => IntegrationAppliedSchema().nullish()),
+    check: z.lazy(() => IntegrationCheckSchema().nullish()),
+    checkRequest: z.lazy(() => IntegrationCheckRequestSchema().nullish()),
+    fixes: z.array(z.lazy(() => IntegrationFixSchema())),
+    intent: z.lazy(() => IntegrationIntentSchema()),
+    kind: IntegrationKindSchema.nullish(),
+    provider: z.string().nullish(),
+    providerOptions: z.unknown().nullish(),
+    resources: z.lazy(() => IntegrationResourcesSchema()),
+    runner: z.lazy(() => IntegrationRunnerSchema().nullish()),
+  });
+}
+
+export function IntervalSchema(): z.ZodObject<Properties<Interval>> {
+  return z.object({
+    __typename: z.literal("Interval").optional(),
+    unit: IntervalUnitSchema,
+    value: z.number(),
+  });
+}
+
+export function LiveIntentSchema(): z.ZodObject<Properties<LiveIntent>> {
+  return z.object({
+    __typename: z.literal("LiveIntent").optional(),
+    enabled: z.boolean(),
+    every: z.lazy(() => IntervalSchema()),
+  });
+}
+
+export function SetBackfillEnabledInputSchema(): z.ZodObject<
+  Properties<SetBackfillEnabledInput>
+> {
+  return z.object({
+    enabled: z.boolean(),
+  });
+}
+
+export function SetCalendarSourceInputSchema(): z.ZodObject<
+  Properties<SetCalendarSourceInput>
+> {
+  return z.object({
+    allOwned: z.boolean(),
+    calendars: z.array(z.lazy(() => CalendarRefInputSchema())),
+  });
+}
+
+export function SetLiveEnabledInputSchema(): z.ZodObject<
+  Properties<SetLiveEnabledInput>
+> {
+  return z.object({
+    enabled: z.boolean(),
+  });
+}
+
+export function SetLiveIntervalInputSchema(): z.ZodObject<
+  Properties<SetLiveIntervalInput>
+> {
+  return z.object({
+    unit: IntervalUnitSchema,
+    value: z.number(),
+  });
+}

@@ -9,6 +9,7 @@ import { emailUpgradeManifest } from "document-models/email/upgrades";
 import { expenseReportUpgradeManifest } from "document-models/expense-report/upgrades";
 import { fileUpgradeManifest } from "document-models/file/upgrades";
 import { folderSyncUpgradeManifest } from "document-models/folder-sync/upgrades";
+import { integrationUpgradeManifest } from "document-models/integration/upgrades";
 import { invoiceUpgradeManifest } from "document-models/invoice/upgrades";
 import { originalSourceCollectionUpgradeManifest } from "document-models/original-source-collection/upgrades";
 import { originalSourceQueueUpgradeManifest } from "document-models/original-source-queue/upgrades";
@@ -21,6 +22,7 @@ export const upgradeManifests: UpgradeManifest<readonly number[]>[] = [
   expenseReportUpgradeManifest,
   fileUpgradeManifest,
   folderSyncUpgradeManifest,
+  integrationUpgradeManifest,
   invoiceUpgradeManifest,
   originalSourceCollectionUpgradeManifest,
   originalSourceQueueUpgradeManifest,

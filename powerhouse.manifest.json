@@ -46,6 +46,10 @@
     {
       "id": "sektar/folder-sync",
       "name": "Folder Sync"
+    },
+    {
+      "id": "sektar/integration",
+      "name": "Integration"
     }
   ],
   "apps": [
@@ -86,8 +90,8 @@
       ]
     },
     {
-      "name": "Integrations",
       "id": "integrations",
+      "name": "Integrations",
       "documentTypes": [
         "powerhouse/document-drive"
       ]

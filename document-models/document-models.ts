@@ -4,6 +4,7 @@ import { Email as EmailV1 } from "document-models/email/v1";
 import { ExpenseReport as ExpenseReportV1 } from "document-models/expense-report/v1";
 import { File as FileV1 } from "document-models/file/v1";
 import { FolderSync as FolderSyncV1 } from "document-models/folder-sync/v1";
+import { Integration as IntegrationV1 } from "document-models/integration/v1";
 import { Invoice as InvoiceV1 } from "document-models/invoice/v1";
 import { Invoice as InvoiceV2 } from "document-models/invoice/v2";
 import { OriginalSourceCollection as OriginalSourceCollectionV1 } from "document-models/original-source-collection/v1";
@@ -22,6 +23,7 @@ export const documentModels = [
   ExpenseReportV1,
   FileV1,
   FolderSyncV1,
+  IntegrationV1,
   InvoiceV1,
   InvoiceV2,
   OriginalSourceCollectionV1,

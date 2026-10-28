@@ -1,0 +1,279 @@
+export type Maybe<T> = T | null | undefined;
+export type InputMaybe<T> = T | null | undefined;
+export type Exact<T extends { [key: string]: unknown }> = {
+  [K in keyof T]: T[K];
+};
+export type MakeOptional<T, K extends keyof T> = Omit<T, K> & {
+  [SubKey in K]?: Maybe<T[SubKey]>;
+};
+export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & {
+  [SubKey in K]: Maybe<T[SubKey]>;
+};
+export type MakeEmpty<
+  T extends { [key: string]: unknown },
+  K extends keyof T,
+> = { [_ in K]?: never };
+export type Incremental<T> =
+  | T
+  | {
+      [P in keyof T]?: P extends " $fragmentName" | "__typename" ? T[P] : never;
+    };
+/** All built-in and custom scalars, mapped to their actual values */
+export type Scalars = {
+  ID: { input: string; output: string };
+  String: { input: string; output: string };
+  Boolean: { input: boolean; output: boolean };
+  Int: { input: number; output: number };
+  Float: { input: number; output: number };
+  Address: { input: `${string}:0x${string}`; output: `${string}:0x${string}` };
+  Amount: {
+    input: { unit?: string; value?: number };
+    output: { unit?: string; value?: number };
+  };
+  Amount_Crypto: {
+    input: { unit: string; value: string };
+    output: { unit: string; value: string };
+  };
+  Amount_Currency: {
+    input: { unit: string; value: string };
+    output: { unit: string; value: string };
+  };
+  Amount_Fiat: {
+    input: { unit: string; value: number };
+    output: { unit: string; value: number };
+  };
+  Amount_Money: { input: number; output: number };
+  Amount_Percentage: { input: number; output: number };
+  Amount_Tokens: { input: number; output: number };
+  AttachmentRef: {
+    input: `attachment://v${number}:${string}`;
+    output: `attachment://v${number}:${string}`;
+  };
+  Currency: { input: string; output: string };
+  Date: { input: string; output: string };
+  DateTime: { input: string; output: string };
+  EmailAddress: { input: string; output: string };
+  EthereumAddress: { input: string; output: string };
+  OID: { input: string; output: string };
+  OLabel: { input: string; output: string };
+  PHID: { input: string; output: string };
+  URL: { input: string; output: string };
+  Unknown: { input: unknown; output: unknown };
+  Upload: { input: File; output: File };
+};
+
+export type AddDateRangeBackfillInput = {
+  documentType: Scalars["String"]["input"];
+  from: Scalars["DateTime"]["input"];
+  id: Scalars["OID"]["input"];
+  label: Scalars["String"]["input"];
+  stepSeconds: Scalars["Int"]["input"];
+  to: Scalars["DateTime"]["input"];
+};
+
+export type BackfillBatch = {
+  every: Interval;
+  size: Scalars["Int"]["output"];
+};
+
+export type BackfillIntent = {
+  /** How much per run, and how often; null: the provider's default */
+  batch: Maybe<BackfillBatch>;
+  /** The Backfill switch: the backfill workflow on or off */
+  enabled: Scalars["Boolean"]["output"];
+  /** In the order they run */
+  items: Array<BackfillItem>;
+  /** Make active; null: the first unfinished item */
+  pinnedId: Maybe<Scalars["OID"]["output"]>;
+};
+
+export type BackfillItem = {
+  /** Null until the reconciler has created it from the request */
+  documentId: Maybe<Scalars["PHID"]["output"]>;
+  /** Any backfill document type with an adapter */
+  documentType: Scalars["String"]["output"];
+  id: Scalars["OID"]["output"];
+  /** e.g. 2023 to today */
+  label: Scalars["String"]["output"];
+  /** How to create it; null when an existing document was attached */
+  request: Maybe<BackfillRequest>;
+};
+
+export type BackfillRequest = DateRangeBackfill | FolderListBackfill;
+
+export type CalendarRef = {
+  /** The provider's calendar id */
+  id: Scalars["String"]["output"];
+  name: Maybe<Scalars["String"]["output"]>;
+};
+
+export type CalendarRefInput = {
+  id: Scalars["String"]["input"];
+  name?: InputMaybe<Scalars["String"]["input"]>;
+};
+
+export type CalendarSource = {
+  /** Every calendar the account owns, including ones added later */
+  allOwned: Scalars["Boolean"]["output"];
+  /** The calendars picked; empty while allOwned */
+  calendars: Array<CalendarRef>;
+};
+
+export type DateRangeBackfill = {
+  from: Scalars["DateTime"]["output"];
+  /** The size of one slice */
+  stepSeconds: Scalars["Int"]["output"];
+  to: Scalars["DateTime"]["output"];
+};
+
+export type EmailSource = {
+  folders: Array<Scalars["String"]["output"]>;
+  mailbox: Scalars["String"]["output"];
+};
+
+export type FolderListBackfill = {
+  folders: Array<Scalars["String"]["output"]>;
+};
+
+export type InitializeInput = {
+  kind: IntegrationKind;
+  provider: Scalars["String"]["input"];
+};
+
+export type IntegrationApplied = {
+  at: Scalars["DateTime"]["output"];
+  generation: Scalars["Int"]["output"];
+  host: Maybe<Scalars["String"]["output"]>;
+};
+
+export type IntegrationCheck = {
+  at: Scalars["DateTime"]["output"];
+  /** The intent generation this pass evaluated */
+  generation: Scalars["Int"]["output"];
+  host: Maybe<Scalars["String"]["output"]>;
+  issues: Array<IntegrationIssue>;
+  /** The check request it answered, if any */
+  request: Maybe<Scalars["OID"]["output"]>;
+};
+
+export type IntegrationCheckRequest = {
+  id: Scalars["OID"]["output"];
+  requestedAt: Scalars["DateTime"]["output"];
+  requestedBy: Maybe<Scalars["String"]["output"]>;
+};
+
+export type IntegrationFix = {
+  at: Scalars["DateTime"]["output"];
+  code: Scalars["String"]["output"];
+  /** Put back: ... */
+  message: Scalars["String"]["output"];
+  subject: Maybe<Scalars["PHID"]["output"]>;
+};
+
+export type IntegrationIntent = {
+  /** An archived integration's workflows are archived; its data stays */
+  archived: Scalars["Boolean"]["output"];
+  backfill: BackfillIntent;
+  /** An existing connection the user picked; null: the reconciler makes one (resources.connectionId) */
+  connectionId: Maybe<Scalars["PHID"]["output"]>;
+  /** Raised by every change to the intent; the reconciler commits a generation */
+  generation: Scalars["Int"]["output"];
+  live: LiveIntent;
+  /** What to bring in, per kind and provider-neutral */
+  source: Maybe<IntegrationSource>;
+  /** The drive the imported documents land in; null: the kind's default drive */
+  targetDriveId: Maybe<Scalars["PHID"]["output"]>;
+};
+
+export type IntegrationIssue = {
+  /** Plugin-defined, e.g. NEEDS_SIGN_IN, LIVE_WORKFLOW_MISSING, COVERAGE_GAP */
+  code: Scalars["String"]["output"];
+  /** False: only the user can fix it (Reconnect) */
+  fixable: Scalars["Boolean"]["output"];
+  /** In the user's words */
+  message: Scalars["String"]["output"];
+  severity: IssueSeverity;
+  since: Scalars["DateTime"]["output"];
+  /** The workflow, backfill or connection it is about */
+  subject: Maybe<Scalars["PHID"]["output"]>;
+};
+
+export type IntegrationKind =
+  | "CALENDAR"
+  | "EMAIL"
+  | "TIME_TRACKING"
+  | "TRANSACTIONS";
+
+export type IntegrationResources = {
+  backfillWorkflowId: Maybe<Scalars["PHID"]["output"]>;
+  /** The connection the reconciler made, when the intent names none */
+  connectionId: Maybe<Scalars["PHID"]["output"]>;
+  liveWorkflowId: Maybe<Scalars["PHID"]["output"]>;
+  /** The backfill item the backfill workflow points at now */
+  pluggedItemId: Maybe<Scalars["OID"]["output"]>;
+};
+
+export type IntegrationRunner = {
+  /** The machine's name, e.g. Wouter's PC */
+  label: Maybe<Scalars["String"]["output"]>;
+  reactorId: Scalars["String"]["output"];
+};
+
+export type IntegrationSource = CalendarSource | EmailSource;
+
+export type IntegrationState = {
+  /** The last intent generation the reconciler committed */
+  applied: Maybe<IntegrationApplied>;
+  /** The reconciler's last pass: what it found */
+  check: Maybe<IntegrationCheck>;
+  /** A check asked for from the app (Check now) */
+  checkRequest: Maybe<IntegrationCheckRequest>;
+  /** What the reconciler put back, latest first, at most 20 */
+  fixes: Array<IntegrationFix>;
+  /** What the user asked for; written from the app */
+  intent: IntegrationIntent;
+  /** What comes in; fixed by INITIALIZE. Null until then */
+  kind: Maybe<IntegrationKind>;
+  /** How it comes in: a provider adapter id (google-calendar, gmail, imap). Null until INITIALIZE */
+  provider: Maybe<Scalars["String"]["output"]>;
+  /** Settings only this provider has, checked by its adapter */
+  providerOptions: Maybe<Scalars["Unknown"]["output"]>;
+  /** What the reconciler built for the intent */
+  resources: IntegrationResources;
+  /** The reactor that fetches and holds the token; null: the switchboard that owns this drive, until it claims it */
+  runner: Maybe<IntegrationRunner>;
+};
+
+export type Interval = {
+  unit: IntervalUnit;
+  value: Scalars["Int"]["output"];
+};
+
+export type IntervalUnit = "DAYS" | "HOURS" | "MINUTES";
+
+export type IssueSeverity = "BLOCKING" | "INFO" | "WARNING";
+
+export type LiveIntent = {
+  /** The Live updates switch */
+  enabled: Scalars["Boolean"]["output"];
+  /** How often to check for what is new */
+  every: Interval;
+};
+
+export type SetBackfillEnabledInput = {
+  enabled: Scalars["Boolean"]["input"];
+};
+
+export type SetCalendarSourceInput = {
+  allOwned: Scalars["Boolean"]["input"];
+  calendars: Array<CalendarRefInput>;
+};
+
+export type SetLiveEnabledInput = {
+  enabled: Scalars["Boolean"]["input"];
+};
+
+export type SetLiveIntervalInput = {
+  unit: IntervalUnit;
+  value: Scalars["Int"]["input"];
+};
