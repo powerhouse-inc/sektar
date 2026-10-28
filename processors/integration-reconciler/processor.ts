@@ -247,6 +247,7 @@ export class IntegrationReconciler implements IProcessor {
                   id: string;
                   key: string;
                   connectionId?: string | null;
+                  config?: Record<string, unknown> | null;
                 }[];
               } | null;
             };
@@ -266,6 +267,7 @@ export class IntegrationReconciler implements IProcessor {
             id: step.id,
             key: step.key,
             connectionId: step.connectionId ?? null,
+            config: step.config ?? null,
           })),
         };
         return facts;

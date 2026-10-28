@@ -121,11 +121,16 @@ describe("Gmail, as the existing mail workflows run", () => {
         timezone: "UTC",
       },
       triggerReactorConnectionId: null,
-      steps: [
-        { id: "s1", key: "search_email", connectionId: "zpxupzJsW7" },
-        { id: "s2", key: "map_emails", connectionId: null },
-        { id: "s3", key: "upsert_emails", connectionId: null },
-      ],
+      // As published today, settings included (read 2026-10-28)
+      steps: spec.steps.map((step, i) => ({
+        id: `s${i + 1}`,
+        key: step.key,
+        connectionId: i === 0 ? "zpxupzJsW7" : null,
+        config: JSON.parse(JSON.stringify(step.config)) as Record<
+          string,
+          unknown
+        >,
+      })),
     };
     const d = workflowDrift(spec, legacy, AT);
     expect(d.differences).toEqual(["the workflow used another Google sign-in"]);
@@ -237,5 +242,55 @@ describe("Distyra, as the existing transaction workflows run", () => {
     expect(distyra.backfillPollSeconds).toBeUndefined();
     expect(distyra.connection("KBC", kbc)).toBeNull();
     expect(distyra.backfillSteps({} as never, "day")).toEqual([]);
+  });
+});
+
+describe("a renamed mailbox", () => {
+  it("reaches the mapping step of the workflow it built", () => {
+    const before = state(
+      initialize({ kind: "EMAIL", provider: "gmail" }),
+      setEmailSource({ mailbox: "Personal Email", folders: [] }),
+    );
+    const after = state(
+      initialize({ kind: "EMAIL", provider: "gmail" }),
+      setEmailSource({
+        mailbox: "Personal",
+        address: "wkampmann@gmail.com",
+        folders: [],
+      }),
+    );
+    const ctx = (s: typeof before) => ({
+      name: "Personal Email",
+      state: s,
+      connectionId: "c",
+      accountLabel: "wkampmann@gmail.com",
+      reactorConnectionId: REACTOR,
+    });
+    const built = liveWorkflowSpec(gmail, ctx(before));
+    const facts: WorkflowFacts = {
+      status: "ENABLED",
+      version: 1,
+      publishedVersion: 1,
+      triggerName: "schedule",
+      triggerConnectionId: null,
+      triggerConfig: built.trigger.config,
+      steps: built.steps.map((step, i) => ({
+        id: `s${i + 1}`,
+        key: step.key,
+        connectionId: step.connectionId ?? null,
+        config: step.config,
+      })),
+    };
+    const d = workflowDrift(liveWorkflowSpec(gmail, ctx(after)), facts, AT);
+    expect(d.differences).toEqual([
+      `the workflow's step "Gmail Messages to Emails" was changed`,
+    ]);
+    expect(d.actions[0]?.input).toMatchObject({
+      id: "s2",
+      config: {
+        accountName: "Personal",
+        accountAddress: "wkampmann@gmail.com",
+      },
+    });
   });
 });

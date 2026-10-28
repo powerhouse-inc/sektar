@@ -76,8 +76,13 @@ export type WorkflowFacts = {
   triggerConfig: Record<string, unknown> | null;
   /** The trigger's reactor connection (a trigger that writes documents) */
   triggerReactorConnectionId?: string | null;
-  /** The published steps, as far as their connections go */
-  steps?: { id: string; key: string; connectionId: string | null }[];
+  /** The published steps: their connections and settings */
+  steps?: {
+    id: string;
+    key: string;
+    connectionId: string | null;
+    config?: Record<string, unknown> | null;
+  }[];
   /** The document that manages it (managedBy.documentId); null: nobody */
   managedBy?: string | null;
 };
@@ -156,13 +161,24 @@ export function workflowDrift(
     );
   }
   for (const step of spec.steps) {
-    if (step.connectionId === undefined) continue;
     const published = facts.steps?.find((s) => s.key === step.key);
-    if (published && published.connectionId !== step.connectionId) {
+    if (!published) continue;
+    if (
+      step.connectionId !== undefined &&
+      published.connectionId !== step.connectionId
+    ) {
       differences.push(`${subject} used another ${provider} sign-in`);
       edits.push(
         wf.updateStep({ id: published.id, connectionId: step.connectionId }),
       );
+    }
+    // Its settings: a renamed account or folder reaches the workflow
+    if (
+      published.config !== undefined &&
+      !sameJson(published.config, step.config)
+    ) {
+      differences.push(`${subject}'s step "${step.name}" was changed`);
+      edits.push(wf.updateStep({ id: published.id, config: step.config }));
     }
   }
   const unpublished =

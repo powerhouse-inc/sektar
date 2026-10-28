@@ -96,14 +96,23 @@ function world(
             id: input.id as string,
             key: input.key as string,
             connectionId: (input.connectionId as string) ?? null,
+            config: input.config as Record<string, unknown>,
           },
         ];
         w.version++;
       } else if (a.type === "UPDATE_STEP") {
         w.steps = (w.steps ?? []).map((step) =>
-          step.id === input.id && input.connectionId !== undefined
-            ? { ...step, connectionId: input.connectionId as string }
-            : step,
+          step.id !== input.id
+            ? step
+            : {
+                ...step,
+                ...(input.connectionId !== undefined
+                  ? { connectionId: input.connectionId as string }
+                  : {}),
+                ...(input.config !== undefined
+                  ? { config: input.config as Record<string, unknown> }
+                  : {}),
+              },
         );
         w.version++;
       } else if (a.type === "SET_TRIGGER_CONFIG") {
