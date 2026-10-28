@@ -14,6 +14,8 @@ import { onRunner } from "./CreateFlow.js";
 const POLL_MS = 1500;
 const GIVE_UP_MS = 10 * 60 * 1000;
 
+type Phase = "idle" | "waiting" | "done" | "stopped";
+
 /**
  * The sign-in on a card that waits for one. On the computer that runs Sektar
  * it is the button; anywhere else a small "sign in here" for someone who is
@@ -21,6 +23,11 @@ const GIVE_UP_MS = 10 * 60 * 1000;
  * back to that computer, so from any other device it cannot finish). The
  * provider's page opens in a window; when the switchboard has the token, the
  * card asks the reconciler to look again.
+ *
+ * A provider that refuses (an account the app does not allow, a cancelled
+ * consent) often never sends the browser back, so the switchboard never
+ * hears of it: the card stops waiting when the window closes, and Try again
+ * and Cancel are there all along.
  */
 export function SignIn({ doc }: { doc: IntegrationDocument }) {
   const url = useWorkflowRuntimeUrl();
@@ -28,17 +35,18 @@ export function SignIn({ doc }: { doc: IntegrationDocument }) {
   const provider = providerInfo(s.provider)?.label ?? "the provider";
   const connectionId = s.resources.connectionId;
   const runner = onRunner();
-  const [phase, setPhase] = useState<"idle" | "waiting" | "done" | "error">(
-    "idle",
-  );
-  const [error, setError] = useState<string | null>(null);
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [message, setMessage] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
+  const popup = useRef<Window | null>(null);
+  // Each attempt's number: a poll of an older attempt does nothing.
+  const attempt = useRef(0);
+
+  const stopPolling = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+  };
+  useEffect(() => stopPolling, []);
 
   if (!connectionId) {
     return (
@@ -46,25 +54,39 @@ export function SignIn({ doc }: { doc: IntegrationDocument }) {
     );
   }
 
+  const stop = (text: string | null) => {
+    attempt.current += 1;
+    stopPolling();
+    setPhase("stopped");
+    setMessage(text);
+  };
+
+  const cancel = () => {
+    popup.current?.close();
+    stop(null);
+    setPhase("idle");
+  };
+
   const begin = async () => {
-    setError(null);
-    // Opened now, inside the click, so no popup blocker stops it.
-    const popup = window.open(
-      "",
-      "sektar-sign-in",
-      "popup,width=520,height=680",
-    );
+    const mine = ++attempt.current;
+    stopPolling();
+    setMessage(null);
+    // Opened now, inside the click, so no popup blocker stops it; a retry
+    // reuses the window by name.
+    const win = window.open("", "sektar-sign-in", "popup,width=520,height=680");
+    popup.current = win;
     try {
       const started = await startSignIn(url, connectionId);
-      if (popup) popup.location.href = started.authorizationUrl;
+      if (mine !== attempt.current) return;
+      if (win) win.location.href = started.authorizationUrl;
       else window.location.assign(started.authorizationUrl);
       setPhase("waiting");
       const until = Date.now() + GIVE_UP_MS;
       const poll = async () => {
-        const attempt = await signInStatus(url, started.state).catch(
-          () => null,
-        );
-        if (attempt?.status === "OK") {
+        if (mine !== attempt.current) return;
+        const state = await signInStatus(url, started.state).catch(() => null);
+        if (mine !== attempt.current) return;
+        if (state?.status === "OK") {
           setPhase("done");
           await dispatchActions(
             [
@@ -78,50 +100,74 @@ export function SignIn({ doc }: { doc: IntegrationDocument }) {
           );
           return;
         }
-        if (attempt?.status === "ERROR" || Date.now() > until) {
-          setPhase("error");
-          setError(attempt?.error ?? "The sign-in did not finish");
+        if (state?.status === "ERROR") {
+          stop(state.error ?? `${provider} refused the sign-in`);
+          return;
+        }
+        if (win?.closed) {
+          stop("The sign-in window closed before it finished.");
+          return;
+        }
+        if (Date.now() > until) {
+          stop("The sign-in took too long.");
           return;
         }
         timer.current = setTimeout(() => void poll(), POLL_MS);
       };
       timer.current = setTimeout(() => void poll(), POLL_MS);
     } catch (e) {
-      popup?.close();
-      setPhase("error");
-      setError(e instanceof Error ? e.message : String(e));
+      if (mine !== attempt.current) return;
+      win?.close();
+      stop(e instanceof Error ? e.message : String(e));
     }
   };
 
   if (phase === "done") {
     return <span className="sk-small">Signed in. Setting up…</span>;
   }
+
+  if (phase === "waiting") {
+    return (
+      <div className="sk-intg-signin-row">
+        <span className="sk-small sk-text-muted">Waiting for {provider}…</span>
+        <span className="sk-row sk-row--2">
+          <Button variant="ghost" size="sm" onClick={cancel}>
+            Cancel
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => void begin()}>
+            Try again
+          </Button>
+        </span>
+      </div>
+    );
+  }
+
+  const label =
+    phase === "stopped"
+      ? "Try again"
+      : runner
+        ? `Sign in with ${provider}`
+        : `On ${s.runner?.label ?? "that computer"}? Sign in here`;
   return (
     <div className="sk-stack sk-stack--2">
-      {runner ? (
+      {message && <span className="sk-small sk-text-danger">{message}</span>}
+      {runner || phase === "stopped" ? (
         <Button
-          variant="primary"
+          variant={runner ? "primary" : "secondary"}
           size="sm"
           onClick={() => void begin()}
-          disabled={phase === "waiting"}
         >
-          {phase === "waiting"
-            ? "Waiting for Google…"
-            : `Sign in with ${provider}`}
+          {label}
         </Button>
       ) : (
         <button
           type="button"
           className="sk-btn sk-btn--link sk-btn--sm sk-intg-signin-here"
           onClick={() => void begin()}
-          disabled={phase === "waiting"}
         >
-          {phase === "waiting"
-            ? "Waiting for the sign-in…"
-            : `On ${s.runner?.label ?? "that computer"}? Sign in here`}
+          {label}
         </button>
       )}
-      {error && <span className="sk-small sk-text-danger">{error}</span>}
     </div>
   );
 }

@@ -2560,3 +2560,4 @@ html { touch-action: manipulation; }
 /* The mark takes the whole margin, home-indicator inset included, so it sits
    midway between the content and the bottom of the screen: equal space above
    and below. */
+.sk-app .sk-intg-signin-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sk-space-3); flex-wrap: wrap; }
