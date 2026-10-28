@@ -16,6 +16,7 @@ import {
 } from "@powerhousedao/reactor-browser";
 import { ambientRenownTokenProvider } from "@powerhousedao/reactor-browser/graphql-client";
 import { useMemo } from "react";
+import type { RunRecord } from "./integration-detail.js";
 
 const SUBGRAPH = "workflow-runtime";
 
@@ -267,7 +268,10 @@ export async function setWorkflowStatus(
 }
 
 /** Whether the runtime holds a workflow's trigger parked. */
-export async function isParked(url: string, workflowId: string): Promise<boolean> {
+export async function isParked(
+  url: string,
+  workflowId: string,
+): Promise<boolean> {
   const states = await triggerStates(url);
   return states.find((t) => t.workflowId === workflowId)?.status === "PARKED";
 }
@@ -331,7 +335,10 @@ export async function blockOptions(
  * Runs a workflow's trigger now, as its schedule or poll would ("sync now").
  * False when it has no armed trigger (live updates off, stopped, failing).
  */
-export async function pollNow(url: string, workflowId: string): Promise<boolean> {
+export async function pollNow(
+  url: string,
+  workflowId: string,
+): Promise<boolean> {
   const data = await gql<{ workflowRuntime: { pollNow: boolean } }>(
     url,
     `mutation PollNow($workflowId: String!) {
@@ -340,4 +347,61 @@ export async function pollNow(url: string, workflowId: string): Promise<boolean>
     { workflowId },
   );
   return data.workflowRuntime.pollNow;
+}
+
+/** The latest runs of a workflow with their steps' outputs, newest first (test runs left out). */
+export async function runsWithSteps(
+  url: string,
+  workflowId: string,
+  limit = 10,
+): Promise<RunRecord[]> {
+  const data = await gql<{ workflowRuntime: { runs: RunRecord[] } }>(
+    url,
+    `query RunsWithSteps($workflowId: String!, $limit: Int) {
+      workflowRuntime { runs(workflowId: $workflowId, limit: $limit, excludeTriggerKinds: ["test"]) {
+        id status error startedAt endedAt triggerKind workflowName steps { stepKey status output }
+      } }
+    }`,
+    { workflowId, limit },
+  );
+  return data.workflowRuntime.runs;
+}
+
+/**
+ * A workflow's run history without step outputs, newest first, a page at a
+ * time up to `max` runs: the plain listing stops at 100, and a backfill
+ * has thousands.
+ */
+export async function runHistory(
+  url: string,
+  workflowId: string,
+  max = 1000,
+): Promise<RunRecord[]> {
+  const runs: RunRecord[] = [];
+  let cursor: string | null = null;
+  while (runs.length < max) {
+    const data: {
+      workflowRuntime: {
+        runsPage: {
+          items: Omit<RunRecord, "steps">[];
+          hasNextPage: boolean;
+          cursor: string | null;
+        };
+      };
+    } = await gql(
+      url,
+      `query RunHistory($workflowId: String!, $cursor: String) {
+        workflowRuntime { runsPage(workflowId: $workflowId, excludeTriggerKinds: ["test"], paging: { limit: 100, cursor: $cursor }) {
+          items { id status error startedAt endedAt triggerKind triggerPayload workflowName }
+          hasNextPage cursor
+        } }
+      }`,
+      { workflowId, cursor },
+    );
+    const page = data.workflowRuntime.runsPage;
+    runs.push(...page.items.map((run) => ({ ...run, steps: [] })));
+    if (!page.hasNextPage || !page.cursor) break;
+    cursor = page.cursor;
+  }
+  return runs;
 }

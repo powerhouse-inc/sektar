@@ -12,7 +12,7 @@ import {
   removalPlan,
 } from "../../sektar/kit/integrations.js";
 import { Menu } from "../../sektar/kit/menu.js";
-import { Alert, Badge, Button, Icon, Modal } from "../../sektar/kit/ui.js";
+import { Alert, Badge, Button, cx, Icon, Modal } from "../../sektar/kit/ui.js";
 import { AccountLabel, CardRows } from "./CardRows.js";
 import type { TriggerState } from "../../sektar/kit/workflow-runtime.js";
 import { SignIn } from "./SignIn.js";
@@ -28,10 +28,13 @@ import { TryAgain } from "./TryAgain.js";
 export function IntegrationCard({
   doc,
   triggers,
+  onOpen,
 }: {
   doc: IntegrationDocument;
   /** The runtime's trigger states by workflow id (useTriggerStates) */
   triggers?: ReadonlyMap<string, TriggerState>;
+  /** Opens its detail page: a tap on the card outside its controls */
+  onOpen?: (id: string) => void;
 }) {
   const s = doc.state.global;
   const view = cardView(s);
@@ -54,11 +57,23 @@ export function IntegrationCard({
   );
   return (
     <article
-      className={
-        view.state === "attention"
-          ? "sk-card sk-integration sk-integration--attention"
-          : "sk-card sk-integration"
-      }
+      className={cx(
+        "sk-card sk-integration",
+        view.state === "attention" && "sk-integration--attention",
+        onOpen && "sk-integration--opens",
+      )}
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+        if (
+          !onOpen ||
+          target.closest(
+            "button, a, input, label, select, textarea, [role='menu'], .sk-modal, .sk-modal-backdrop",
+          )
+        ) {
+          return;
+        }
+        onOpen(doc.header.id);
+      }}
     >
       <header
         className={
@@ -71,7 +86,21 @@ export function IntegrationCard({
           <Icon name={kind?.icon ?? "sync"} />
         </span>
         <div style={{ minWidth: 0 }}>
-          <div className="sk-integration__name">{name}</div>
+          <div className="sk-integration__name">
+            {onOpen ? (
+              <a
+                href={`#i/${doc.header.id}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  onOpen(doc.header.id);
+                }}
+              >
+                {name}
+              </a>
+            ) : (
+              name
+            )}
+          </div>
           <div className="sk-integration__account">
             {s.resources.connectionId && s.kind !== "TRANSACTIONS" ? (
               <Suspense fallback={account}>
@@ -160,14 +189,17 @@ export function IntegrationCard({
  * so the app records the wish (ARCHIVE) and the card shows Removing; an
  * integration that never built anything is deleted right away.
  */
-function RemoveDialog({
+export function RemoveDialog({
   doc,
   name,
   onClose,
+  onRemoved,
 }: {
   doc: IntegrationDocument;
   name: string;
   onClose: () => void;
+  /** After a removal that deletes it right away (the detail page leaves) */
+  onRemoved?: () => void;
 }) {
   const [drive] = useSelectedDrive();
   const plan = removalPlan(doc.state.global);
@@ -181,6 +213,7 @@ function RemoveDialog({
       if (plan.immediate) {
         if (!drive) throw new Error("The Integrations drive is not open");
         await deleteNode(drive.header.id, doc.header.id);
+        onRemoved?.();
       } else {
         await dispatchActions([actions.archive({})], doc.header.id);
       }

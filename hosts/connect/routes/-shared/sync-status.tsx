@@ -76,21 +76,30 @@ export function SyncStatus() {
   const live = rows
     .map((r) => r.workflowId)
     .filter((id): id is string => Boolean(id));
-  const openIntegrations = () => {
+  const openIntegrations = (id?: string) => {
     setOpen(false);
     void navigate({
       to: "/d/$driveSlug/{-$nodeSlug}",
       params: { driveSlug: "integrations" },
+      hash: id ? `i/${id}` : undefined,
+    }).then(() => {
+      // The page follows the hash (useHashStep); a push does not announce it
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
     });
   };
 
   return (
-    <div className={cx("sk-menu-host sk-sync-chip", open && "is-open")} ref={host}>
+    <div
+      className={cx("sk-menu-host sk-sync-chip", open && "is-open")}
+      ref={host}
+    >
       <button
         type="button"
         className={cx(
           "sk-sync-status sk-sync-chip__full",
-          summary.attention && summary.dot === "error" && "sk-sync-status--error",
+          summary.attention &&
+            summary.dot === "error" &&
+            "sk-sync-status--error",
         )}
         aria-haspopup="dialog"
         aria-expanded={open}
@@ -137,13 +146,15 @@ export function SyncStatus() {
           </div>
           <ul className="sk-sync-panel__list">
             {rows.map((r) => {
-              const running = Boolean(r.workflowId && syncing.has(r.workflowId));
+              const running = Boolean(
+                r.workflowId && syncing.has(r.workflowId),
+              );
               return (
                 <li key={r.id}>
                   <button
                     type="button"
                     className="sk-sync-panel__item"
-                    onClick={openIntegrations}
+                    onClick={() => openIntegrations(r.id)}
                   >
                     {running ? (
                       <span
@@ -151,7 +162,9 @@ export function SyncStatus() {
                         style={{ width: 12, height: 12 }}
                       />
                     ) : (
-                      <span className={cx("sk-sync-dot", `sk-sync-dot--${r.dot}`)} />
+                      <span
+                        className={cx("sk-sync-dot", `sk-sync-dot--${r.dot}`)}
+                      />
                     )}
                     <div style={{ minWidth: 0 }}>
                       <div className="sk-sync-panel__name">{r.name}</div>
@@ -171,7 +184,7 @@ export function SyncStatus() {
             <button
               type="button"
               className="sk-btn sk-btn--link sk-btn--sm"
-              onClick={openIntegrations}
+              onClick={() => openIntegrations()}
             >
               Manage integrations <Icon name="chevron-right" />
             </button>

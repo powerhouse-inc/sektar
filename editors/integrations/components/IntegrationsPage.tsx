@@ -11,12 +11,17 @@ import {
   pullResult,
   usePullToRefresh,
 } from "../../sektar/kit/pull-to-refresh.js";
-import { syncRow, syncSummary, type SyncRow } from "../../sektar/kit/sync-status.js";
+import {
+  syncRow,
+  syncSummary,
+  type SyncRow,
+} from "../../sektar/kit/sync-status.js";
 import { Button, EmptyState, PageHeader } from "../../sektar/kit/ui.js";
 import { useSyncNow, useTriggerStates } from "../../sektar/kit/use-sync.js";
 import { useCallback, useState } from "react";
 import { CreateFlow, firstStep, STEPS, type CreateStep } from "./CreateFlow.js";
 import { IntegrationCard } from "./IntegrationCard.js";
+import { IntegrationDetail } from "./IntegrationDetail.js";
 import { useHashStep } from "./use-hash-step.js";
 
 /**
@@ -31,6 +36,10 @@ export function IntegrationsPage() {
   const docs = useIntegrationDocumentsInSelectedDrive() ?? [];
   const triggers = useTriggerStates();
   const step = STEPS.find((s) => s === hash);
+  // An open integration: #i/<document id>
+  const openId = hash?.startsWith("i/") ? hash.slice(2) : null;
+  const opened = openId ? docs.find((d) => d.header.id === openId) : undefined;
+  const open = useCallback((id: string) => setHash(`i/${id}`), [setHash]);
   // Sync now: every live update on the page (a pull, or Sync all now); never a backfill
   const { syncing, sync } = useSyncNow();
   const rows = docs
@@ -57,6 +66,15 @@ export function IntegrationsPage() {
   const ptr = usePullToRefresh(scroller, async () =>
     pullResult(await sync(live)),
   );
+
+  if (opened) {
+    return (
+      <div className="sk-page">
+        <IntegrationDetail doc={opened} onBack={() => setHash(null)} />
+        <EndMark margin />
+      </div>
+    );
+  }
 
   if (step) {
     return (
@@ -109,10 +127,7 @@ export function IntegrationsPage() {
   const unset = docs.filter((d: IntegrationDocument) => !d.state.global.kind);
 
   return (
-    <div
-      className="sk-page"
-      ref={pageRef}
-    >
+    <div className="sk-page" ref={pageRef}>
       <PullHeader
         {...ptr}
         words={{
@@ -159,6 +174,7 @@ export function IntegrationsPage() {
                       key={d.header.id}
                       doc={d}
                       triggers={triggers}
+                      onOpen={open}
                     />
                   ))}
                 </div>
@@ -178,6 +194,7 @@ export function IntegrationsPage() {
                       key={d.header.id}
                       doc={d}
                       triggers={triggers}
+                      onOpen={open}
                     />
                   ))}
                 </div>

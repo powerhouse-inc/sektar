@@ -2597,6 +2597,25 @@ html { touch-action: manipulation; }
 .sk-app .sk-intg-signin--handoff { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
 .sk-app .sk-integration__head--menu { grid-template-columns: auto minmax(0, 1fr) auto; }
 .sk-app .sk-intg-remove-steps { margin: 0; padding-left: var(--sk-space-5); display: grid; gap: var(--sk-space-1); }
+/* Integration detail (Patterns · Integrations · Detail): a card opens it */
+.sk-app .sk-integration--opens { cursor: pointer; }
+.sk-app .sk-integration__name a { color: inherit; text-decoration: none; }
+.sk-app .sk-integration__name a:hover { text-decoration: underline; text-underline-offset: 2px; }
+.sk-app .sk-intg-detail__grid { align-items: start; }
+.sk-app .sk-intg-detail { container-type: inline-size; }
+@container (max-width: 640px) {
+  .sk-app .sk-intg-detail .sk-detail-header { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+  .sk-app .sk-intg-detail .sk-detail-header__actions { grid-column: 1 / -1; flex-wrap: wrap; }
+  .sk-app .sk-intg-detail .sk-detail-header__name { font-size: var(--sk-text-xl); overflow-wrap: anywhere; }
+}
+.sk-app .sk-intg-detail .sk-card { min-width: 0; }
+.sk-app .sk-intg-detail .sk-kv dd { min-width: 0; overflow-wrap: anywhere; }
+.sk-app .sk-intg-detail .sk-feed__icon.sk-text-danger { --sk-icon-1: var(--sk-danger); --sk-icon-2: var(--sk-danger); --sk-icon-3: var(--sk-danger); }
+.sk-app .sk-intg-detail .sk-feed__sub { overflow-wrap: anywhere; }
+.sk-app .sk-intg-backfill { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sk-space-2) var(--sk-space-4); align-items: center; }
+.sk-app .sk-intg-backfill__kind { margin-left: var(--sk-space-1); }
+.sk-app .sk-intg-missed { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sk-space-2) var(--sk-space-4); align-items: center; padding: var(--sk-space-3) var(--sk-space-4); border-radius: var(--sk-radius-lg); background: var(--sk-warning-bg); color: var(--sk-warning-text); }
+.sk-app .sk-intg-missed .sk-text-muted { color: inherit; opacity: 0.8; }
 .sk-app .sk-intg-handoff .sk-step:last-child { padding-bottom: 0; }
 .sk-app .sk-intg-more summary { cursor: pointer; width: fit-content; font-size: var(--sk-text-sm); font-weight: var(--sk-weight-medium); color: var(--sk-text-link, var(--sk-primary)); text-decoration: underline; text-underline-offset: 2px; list-style: none; }
 .sk-app .sk-intg-more summary::-webkit-details-marker { display: none; }
