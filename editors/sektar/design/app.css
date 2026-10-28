@@ -2528,5 +2528,8 @@ html { touch-action: manipulation; }
 .sk-app .sk-intg-signin--handoff { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
 .sk-app .sk-integration__head--menu { grid-template-columns: auto minmax(0, 1fr) auto; }
 .sk-app .sk-intg-remove-steps { margin: 0; padding-left: var(--sk-space-5); display: grid; gap: var(--sk-space-1); }
-.sk-app .sk-intg-handoff { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sk-space-3); }
-.sk-app .sk-intg-handoff li { display: flex; align-items: center; gap: var(--sk-space-3); font-weight: var(--sk-weight-medium); }
+.sk-app .sk-intg-handoff .sk-step:last-child { padding-bottom: 0; }
+.sk-app .sk-intg-more summary { cursor: pointer; width: fit-content; font-size: var(--sk-text-sm); font-weight: var(--sk-weight-medium); color: var(--sk-text-link, var(--sk-primary)); text-decoration: underline; text-underline-offset: 2px; list-style: none; }
+.sk-app .sk-intg-more summary::-webkit-details-marker { display: none; }
+.sk-app .sk-intg-more[open] summary { margin-bottom: var(--sk-space-2); }
+.sk-app .sk-intg-more p { margin: 0; color: var(--sk-text-secondary); max-width: 60ch; }

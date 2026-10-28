@@ -145,20 +145,33 @@ export function CreateFlow({
         title="Sektar is local-first"
         lead="Sign-in happens on your computer."
       >
-        <ol className="sk-intg-handoff">
-          <li>
-            <span className="sk-icon-tile sk-icon-tile--sm">
-              <Icon name="settings" />
-            </span>
-            Configure on this device
-          </li>
-          <li>
-            <span className="sk-icon-tile sk-icon-tile--sm">
-              <Icon name="monitor" />
-            </span>
-            Finish on your computer
-          </li>
-        </ol>
+        <div className="sk-intg-handoff">
+          <Steps
+            current={0}
+            steps={[
+              {
+                title: "Configure on this device",
+                desc: "What to bring in, access and how much",
+              },
+              {
+                title: "Finish on your computer",
+                desc: "Sign in the next time you open Sektar there",
+              },
+            ]}
+          />
+        </div>
+        <details className="sk-intg-more">
+          <summary>Read more</summary>
+          <p className="sk-small">
+            Sektar runs on your own computer, not on our servers. That computer
+            fetches your calendar and keeps your sign-in, so your data and your
+            access stay with you. Google sends a sign-in back to the computer
+            that asked for it, which is why it happens there and never passes
+            through Sektar. Set up the rest here now; the next time you open
+            Sektar on your computer, it asks you to sign in and everything
+            starts.
+          </p>
+        </details>
         <div className="sk-row sk-row--between">
           <Button variant="ghost" onClick={onCancel}>
             Cancel
