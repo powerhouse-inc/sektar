@@ -12,20 +12,21 @@
 import type { OriginalSourceQueueAction } from "document-models/original-source-queue";
 import type { QueueState } from "../../editors/backfills/progress.js";
 import { queueProgress, queueSetup } from "./backfill-osq.js";
+import { backfillWorkflowSpec, liveWorkflowSpec } from "./backfill-workflow.js";
 import {
-  backfillWorkflowDrift,
-  backfillWorkflowSpec,
-  buildBackfillWorkflow,
-} from "./backfill-workflow.js";
+  providerFor,
+  type ConnectionSpec,
+  type ProviderAdapter,
+  type ProviderContext,
+} from "./providers/index.js";
 import {
-  buildLiveWorkflow,
-  liveWorkflowDrift,
-  liveWorkflowSpec,
+  buildWorkflow,
   runtimeIssue,
+  workflowDrift,
   type RuntimeHealth,
   type WorkflowAction,
   type WorkflowFacts,
-} from "./live-workflow.js";
+} from "./workflow-spec.js";
 import {
   actions,
   type IntegrationAction,
@@ -45,11 +46,8 @@ export type ConnectionFacts = {
   scopes: string[];
 };
 
-export type ConnectionSpec = {
-  name: string;
-  connectorId: string;
-  config: Record<string, unknown>;
-};
+export type { ConnectionSpec } from "./providers/index.js";
+export { GOOGLE_APP } from "./providers/google-calendar.js";
 
 export interface ReconcileIO {
   me: Host;
@@ -88,29 +86,12 @@ export interface ReconcileIO {
   readQueue(id: string): Promise<QueueState | null>;
 }
 
-/** The publisher's Google app (powerhouse.config.json workflows.oauthApps). */
-export const GOOGLE_APP = "sektar-google";
-
-const CALENDAR_READ = "https://www.googleapis.com/auth/calendar.readonly";
-const CALENDAR_EVENTS = "https://www.googleapis.com/auth/calendar.events";
-
-/** The connection a provider needs, for the access the user chose. */
+/** The connection an integration needs, from its provider; null when no provider here serves it. */
 export function connectionFor(
   name: string,
   state: IntegrationState,
 ): ConnectionSpec | null {
-  if (state.provider === "google-calendar") {
-    const scopes =
-      state.intent.access === "READ_WRITE"
-        ? [CALENDAR_READ, CALENDAR_EVENTS]
-        : [CALENDAR_READ];
-    return {
-      name: `${name} · Google`,
-      connectorId: "@activepieces/piece-google-calendar#google-calendar",
-      config: { oauth_app: GOOGLE_APP, oauth_scopes: scopes },
-    };
-  }
-  return null;
+  return providerFor(state)?.connection(name, state) ?? null;
 }
 
 const sameScopes = (a: readonly string[], b: readonly string[]) =>
@@ -154,7 +135,8 @@ export async function reconcileIntegration(
     await io.dispatch([actions.recordRunner(io.me)]);
   }
 
-  const spec = connectionFor(doc.name, s);
+  const provider = providerFor(s);
+  const spec = provider?.connection(doc.name, s) ?? null;
   const issues: IntegrationIssue[] = [];
   const fixes: {
     at: string;
@@ -166,7 +148,7 @@ export async function reconcileIntegration(
   const since = (code: string) =>
     s.check?.issues.find((i) => i.code === code)?.since ?? io.now();
 
-  if (!spec) {
+  if (!provider || !spec) {
     issues.push({
       code: "PROVIDER_UNSUPPORTED",
       severity: "BLOCKING",
@@ -203,6 +185,7 @@ export async function reconcileIntegration(
     } else {
       built = await reconcileLiveWorkflow(
         doc,
+        provider,
         connectionId,
         io,
         issues,
@@ -212,6 +195,7 @@ export async function reconcileIntegration(
       if (built) {
         built = await reconcileBackfill(
           doc,
+          provider,
           connectionId,
           io,
           issues,
@@ -255,6 +239,7 @@ export async function reconcileIntegration(
  */
 async function reconcileLiveWorkflow(
   doc: { id: string; name: string; state: IntegrationState },
+  provider: ProviderAdapter,
   connectionId: string,
   io: ReconcileIO,
   issues: IntegrationIssue[],
@@ -275,32 +260,26 @@ async function reconcileLiveWorkflow(
     });
     return false;
   }
-  const spec = liveWorkflowSpec(doc.name, s, connectionId, reactorConnectionId);
+  const ctx: ProviderContext = {
+    name: doc.name,
+    state: s,
+    connectionId,
+    reactorConnectionId,
+  };
+  const spec = liveWorkflowSpec(provider, ctx);
   const id = s.resources.liveWorkflowId;
   const facts = id ? await io.readWorkflow(id) : null;
   if (!id || !facts) {
-    const now = io.now();
     const workflowId = await io.createWorkflow(
       spec.name,
-      buildLiveWorkflow(
-        spec,
-        {
-          trigger: io.newId(),
-          map: io.newId(),
-          upsert: io.newId(),
-          e1: io.newId(),
-          e2: io.newId(),
-        },
-        now,
-        doc.name,
-      ),
+      buildWorkflow(spec, () => io.newId(), io.now()),
     );
     await io.dispatch([
       actions.recordResources({ liveWorkflowId: workflowId }),
     ]);
     return true;
   }
-  const drift = liveWorkflowDrift(spec, facts, io.now());
+  const drift = workflowDrift(spec, facts, io.now());
   if (drift.actions.length === 0) {
     // The workflow is what the integration asks for: is it running?
     const problem = runtimeIssue(await io.workflowHealth(id));
@@ -341,6 +320,7 @@ async function reconcileLiveWorkflow(
  */
 async function reconcileBackfill(
   doc: { id: string; name: string; state: IntegrationState },
+  provider: ProviderAdapter,
   connectionId: string,
   io: ReconcileIO,
   issues: IntegrationIssue[],
@@ -353,6 +333,12 @@ async function reconcileBackfill(
   if (!reactorConnectionId) return false;
   const asked = s.applied?.generation !== s.intent.generation;
   const items = s.intent.backfill.items;
+  const ctx: ProviderContext = {
+    name: doc.name,
+    state: s,
+    connectionId,
+    reactorConnectionId,
+  };
 
   const queues = new Map<string, { id: string; state: QueueState }>();
   for (const item of items) {
@@ -401,28 +387,14 @@ async function reconcileBackfill(
     // Nothing left to bring in: no workflow needed
     if (!plugged) return true;
     const spec = backfillWorkflowSpec(
-      doc.name,
-      s.intent.backfill.enabled,
+      provider,
+      ctx,
       plugged.id,
-      connectionId,
-      reactorConnectionId,
+      s.intent.backfill.enabled,
     );
     const created = await io.createWorkflow(
       spec.name,
-      buildBackfillWorkflow(
-        spec,
-        {
-          trigger: io.newId(),
-          get: io.newId(),
-          map: io.newId(),
-          upsert: io.newId(),
-          e1: io.newId(),
-          e2: io.newId(),
-          e3: io.newId(),
-        },
-        io.now(),
-        doc.name,
-      ),
+      buildWorkflow(spec, () => io.newId(), io.now()),
     );
     await io.dispatch([
       actions.recordResources({ backfillWorkflowId: created }),
@@ -438,13 +410,12 @@ async function reconcileBackfill(
   const queueId = plugged?.id ?? walking;
   if (!queueId) return true;
   const spec = backfillWorkflowSpec(
-    doc.name,
-    s.intent.backfill.enabled && plugged !== null,
+    provider,
+    ctx,
     queueId,
-    connectionId,
-    reactorConnectionId,
+    s.intent.backfill.enabled && plugged !== null,
   );
-  const drift = backfillWorkflowDrift(spec, facts, io.now());
+  const drift = workflowDrift(spec, facts, io.now());
   if (drift.actions.length === 0) {
     if (spec.enabled) {
       const problem = runtimeIssue(

@@ -1,0 +1,237 @@
+/**
+ * A workflow the reconciler owns, as data: a trigger, a chain of steps, on
+ * or off. One builder makes the actions that create it; one drift check says
+ * what to change so the published workflow is the spec again, in words a
+ * person reads in the fixes log. Providers (providers/*) supply the trigger
+ * and the steps; the reconciler core supplies the rest. Pure.
+ */
+import { actions as wf } from "@powerhousedao/workflow/document-models/workflow";
+
+export type WorkflowAction = ReturnType<
+  | typeof wf.setWorkflowName
+  | typeof wf.setWorkflowStatus
+  | typeof wf.setTrigger
+  | typeof wf.setTriggerConfig
+  | typeof wf.setTriggerConnection
+  | typeof wf.addStep
+  | typeof wf.addEdge
+  | typeof wf.updateStep
+  | typeof wf.publishWorkflow
+>;
+
+export type TriggerSpec = {
+  pieceName: string;
+  pieceVersion: string;
+  triggerName: string;
+  config: Record<string, unknown>;
+  /** The sign-in the trigger polls with; absent: none checked */
+  connectionId?: string;
+  /** The reactor connection a trigger that writes documents uses; absent: none checked */
+  reactorConnectionId?: string;
+};
+
+export type StepSpec = {
+  key: string;
+  name: string;
+  pieceName: string;
+  pieceVersion: string;
+  actionName: string;
+  config: Record<string, unknown>;
+  /** The sign-in the step uses; checked for drift when set */
+  connectionId?: string;
+  reactorConnectionId?: string;
+};
+
+/** How drift reads in the fixes log. */
+export type DriftWords = {
+  /** "the workflow", "the history workflow" */
+  subject: string;
+  /** Whose sign-in: "Google" */
+  provider: string;
+  /** What changed in the trigger's config, in words */
+  config(
+    actual: Record<string, unknown> | null,
+    wanted: Record<string, unknown>,
+  ): string;
+};
+
+export type WorkflowSpec = {
+  name: string;
+  enabled: boolean;
+  trigger: TriggerSpec;
+  /** Run in this order, one after the other */
+  steps: StepSpec[];
+  words: DriftWords;
+};
+
+/** What the published workflow looks like, as far as a spec goes. */
+export type WorkflowFacts = {
+  status: string;
+  /** null: never published */
+  publishedVersion: number | null;
+  version: number;
+  triggerName: string | null;
+  triggerConnectionId: string | null;
+  triggerConfig: Record<string, unknown> | null;
+  /** The trigger's reactor connection (a trigger that writes documents) */
+  triggerReactorConnectionId?: string | null;
+  /** The published steps, as far as their connections go */
+  steps?: { id: string; key: string; connectionId: string | null }[];
+};
+
+/**
+ * Everything a new workflow document needs, in the order the runtime wants:
+ * name, trigger, steps, the edges that chain them, publish, status.
+ */
+export function buildWorkflow(
+  spec: WorkflowSpec,
+  newId: () => string,
+  now: string,
+): WorkflowAction[] {
+  const triggerId = newId();
+  const stepIds = spec.steps.map(() => newId());
+  const chain = [triggerId, ...stepIds];
+  return [
+    wf.setWorkflowName({ name: spec.name }),
+    wf.setTrigger({ id: triggerId, ...spec.trigger }),
+    ...spec.steps.map((step, i) => wf.addStep({ id: stepIds[i], ...step })),
+    ...stepIds.map((to, i) =>
+      wf.addEdge({ id: newId(), from: chain[i], to, port: "next" }),
+    ),
+    wf.publishWorkflow({ publishedAt: now }),
+    wf.setWorkflowStatus({ status: spec.enabled ? "ENABLED" : "DISABLED" }),
+  ];
+}
+
+export type Drift = {
+  /** In the user's words, for the fixes log */
+  differences: string[];
+  actions: WorkflowAction[];
+};
+
+/**
+ * What to change so the published workflow is the spec again: the trigger's
+ * config and connections, the steps' sign-ins (then a re-publish), and its
+ * status. Empty when it already is.
+ */
+export function workflowDrift(
+  spec: WorkflowSpec,
+  facts: WorkflowFacts,
+  now: string,
+): Drift {
+  const { subject, provider } = spec.words;
+  const differences: string[] = [];
+  const edits: WorkflowAction[] = [];
+  const t = spec.trigger;
+  if (!sameJson(facts.triggerConfig, t.config)) {
+    differences.push(spec.words.config(facts.triggerConfig, t.config));
+    edits.push(wf.setTriggerConfig({ config: t.config }));
+  }
+  if (
+    t.connectionId !== undefined &&
+    facts.triggerConnectionId !== t.connectionId
+  ) {
+    differences.push(`${subject} used another ${provider} sign-in`);
+    edits.push(wf.setTriggerConnection({ connectionId: t.connectionId }));
+  }
+  if (
+    t.reactorConnectionId !== undefined &&
+    (facts.triggerReactorConnectionId ?? null) !== t.reactorConnectionId
+  ) {
+    differences.push(`${subject} wrote with another connection`);
+    edits.push(
+      wf.setTriggerConnection({ reactorConnectionId: t.reactorConnectionId }),
+    );
+  }
+  for (const step of spec.steps) {
+    if (step.connectionId === undefined) continue;
+    const published = facts.steps?.find((s) => s.key === step.key);
+    if (published && published.connectionId !== step.connectionId) {
+      differences.push(`${subject} used another ${provider} sign-in`);
+      edits.push(
+        wf.updateStep({ id: published.id, connectionId: step.connectionId }),
+      );
+    }
+  }
+  const unpublished =
+    facts.publishedVersion === null || facts.publishedVersion !== facts.version;
+  if (edits.length > 0 || unpublished) {
+    if (unpublished && edits.length === 0) {
+      differences.push(`${subject} had unpublished changes`);
+    }
+    edits.push(wf.publishWorkflow({ publishedAt: now }));
+  }
+  const status = spec.enabled ? "ENABLED" : "DISABLED";
+  if (facts.status !== status) {
+    differences.push(spec.enabled ? `${subject} was off` : `${subject} was on`);
+    edits.push(wf.setWorkflowStatus({ status }));
+  }
+  return { differences, actions: edits };
+}
+
+export const sameJson = (a: unknown, b: unknown) =>
+  JSON.stringify(sortKeys(a)) === JSON.stringify(sortKeys(b));
+
+function sortKeys(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortKeys);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => [k, sortKeys(v)]),
+    );
+  }
+  return value;
+}
+
+export function humanSeconds(s: number): string {
+  if (s % 86400 === 0) return s === 86400 ? "day" : `${s / 86400} days`;
+  if (s % 3600 === 0) return s === 3600 ? "hour" : `${s / 3600} hours`;
+  if (s % 60 === 0) return s === 60 ? "minute" : `${s / 60} minutes`;
+  return `${s} seconds`;
+}
+
+/**
+ * How the workflow runtime on this switchboard holds a workflow's trigger
+ * (Powerhouse: WorkflowHealth, read through the workflow-triggers read
+ * model). Live facts: never written into the integration, only turned into
+ * issues.
+ */
+export type RuntimeHealth = {
+  trigger: {
+    status: string;
+    lastError: string | null;
+    consecutiveFailures: number;
+  } | null;
+  park: { reason: string; parkedAt: string } | null;
+};
+
+/**
+ * What the runtime's view of a workflow means for the person: a park stops
+ * it until someone acts, so it blocks; a trigger that keeps failing may
+ * recover by itself, so it warns.
+ */
+export function runtimeIssue(
+  health: RuntimeHealth | null,
+  which: "live" | "backfill" = "live",
+): { code: string; severity: "BLOCKING" | "WARNING"; message: string } | null {
+  if (!health) return null;
+  const prefix = which === "live" ? "LIVE" : "BACKFILL";
+  const what = which === "live" ? "Live updates" : "Bringing in history";
+  if (health.park) {
+    return {
+      code: `${prefix}_WORKFLOW_PARKED`,
+      severity: "BLOCKING",
+      message: `${what} stopped after a failed run: ${health.park.reason}`,
+    };
+  }
+  const t = health.trigger;
+  if (t && t.status === "ERROR" && t.lastError) {
+    return {
+      code: `${prefix}_WORKFLOW_FAILING`,
+      severity: "WARNING",
+      message: `${what} ${which === "live" ? "are" : "is"} failing: ${t.lastError}`,
+    };
+  }
+  return null;
+}

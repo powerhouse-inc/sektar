@@ -27,7 +27,7 @@ import type {
   RuntimeHealth,
   WorkflowAction,
   WorkflowFacts,
-} from "./live-workflow.js";
+} from "./workflow-spec.js";
 
 const NOW = new Date(2026, 9, 28, 9, 30);
 const PC = { reactorId: "switchboard@pc", label: "pc" };

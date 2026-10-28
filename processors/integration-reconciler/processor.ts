@@ -22,7 +22,7 @@ import { utils as queueUtils } from "document-models/original-source-queue";
 import type { QueueState } from "../../editors/backfills/progress.js";
 import type { IntegrationState } from "document-models/integration";
 import { hostname } from "node:os";
-import type { RuntimeHealth, WorkflowFacts } from "./live-workflow.js";
+import type { RuntimeHealth, WorkflowFacts } from "./workflow-spec.js";
 import {
   reconcileIntegration,
   type ConnectionFacts,
