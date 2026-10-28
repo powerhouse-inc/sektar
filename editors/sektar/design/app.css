@@ -2435,6 +2435,18 @@ html { touch-action: manipulation; }
 /* A compact selector keeps its tiles to measure them; they must not widen
    the page while hidden (Transactions grew 6,800px sideways, Mail on tablet). */
 .sk-app .sk-selector.is-compact .sk-selector__tiles { overflow: hidden; }
+/* A list selector's rows are as wide as the pane: a long name (an
+   attachment's file name with a UUID in it) ellipsizes instead of widening
+   the row and scrolling the pane sideways on the phone. */
+.sk-app .sk-selector--list .sk-selector__tile > div {
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1fr);
+}
+.sk-app .sk-selector--list .sk-selector__name,
+.sk-app .sk-selector--list .sk-selector__meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 /* Long unbroken values (bank references, addresses) wrap inside their row. */
 .sk-app .sk-panel .sk-font-mono { overflow-wrap: anywhere; }

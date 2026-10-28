@@ -1,31 +1,12 @@
-import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { money, plural } from "../../../../editors/sektar/kit/format.js";
-import {
-  hitTarget,
-  KIND_LABEL,
-  useGlobalSearch,
-  type SearchHit,
-} from "../../../../editors/sektar/kit/search.js";
-import { cx, Icon, type IconName } from "../../../../editors/sektar/kit/ui.js";
+import { useEffect, useRef } from "react";
+import { Icon } from "../../../../editors/sektar/kit/ui.js";
 import { useSearch } from "./search.js";
 
 // The design system's top-bar search: a pill input group with the shortcut
-// hint, as in the "Forms" and "App shell" sections of the spec. Results open
-// as a menu under it (grouped by kind), walkable with the arrow keys; Cmd/Ctrl+K
-// (or "/") focuses it from anywhere; Enter goes to the full results page.
-
-const ICON: Record<string, IconName> = {
-  invoice: "invoice",
-  contact: "customers",
-  expense: "wallet",
-  account: "bank",
-  transaction: "transactions",
-};
-const PER_GROUP = 4;
-const LIMIT = 12;
-
-const keyOf = (h: SearchHit) => `${h.document_id}:${h.entity_id}`;
+// hint, as in the "Forms" and "App shell" sections of the spec. For now it
+// filters the page in view (Mail, Files, …, through the search context);
+// the cross-document results menu is off until advanced search works.
+// Cmd/Ctrl+K (or "/") focuses it from anywhere.
 
 function shortcutLabel() {
   if (typeof navigator === "undefined") return "Ctrl K";
@@ -42,26 +23,8 @@ export function SearchBar({
   onClose?: () => void;
 } = {}) {
   const { query, setQuery } = useSearch();
-  const navigate = useNavigate();
-  const pathname = useRouterState({ select: (st) => st.location.pathname });
-  const { grouped, hits, active, isLoading } = useGlobalSearch(query, LIMIT);
-  const [open, setOpen] = useState(false);
-  const [cursor, setCursor] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
-  const showDropdown = open && active && pathname !== "/search";
 
-  // The rows in render order; the "see all" row sits at index visible.length.
-  const visible = useMemo(
-    () => grouped.flatMap(([, list]) => list.slice(0, PER_GROUP)),
-    [grouped],
-  );
-  const indexOf = useMemo(
-    () => new Map(visible.map((h, i) => [keyOf(h), i])),
-    [visible],
-  );
-  const last = visible.length;
-
-  useEffect(() => setCursor(-1), [query]);
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus();
   }, [autoFocus]);
@@ -78,7 +41,6 @@ export function SearchBar({
         e.preventDefault();
         el.focus();
         el.select();
-        setOpen(true);
       } else if (e.key === "/" && !typing) {
         e.preventDefault();
         el.focus();
@@ -88,65 +50,20 @@ export function SearchBar({
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  const close = () => {
-    setOpen(false);
-    inputRef.current?.blur();
-  };
-  const go = (hit: SearchHit) => {
-    const t = hitTarget(hit);
-    close();
-    void navigate({ to: t.to, search: t.search } as never);
-  };
-  const goAll = () => {
-    close();
-    void navigate({ to: "/search" });
-  };
-
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    switch (e.key) {
-      case "ArrowDown":
-        if (!showDropdown) return;
-        e.preventDefault();
-        setCursor((c) => Math.min(c + 1, last));
-        break;
-      case "ArrowUp":
-        if (!showDropdown) return;
-        e.preventDefault();
-        setCursor((c) => Math.max(c - 1, -1));
-        break;
-      case "Enter":
-        if (cursor >= 0 && cursor < last) go(visible[cursor]);
-        else if (query.trim()) goAll();
-        break;
-      case "Escape":
-        if (open && query) setOpen(false);
-        else {
-          setQuery("");
-          setOpen(false);
-          onClose?.();
-        }
-        break;
-      default:
-        break;
+    if (e.key === "Enter") inputRef.current?.blur();
+    if (e.key === "Escape") {
+      if (query) setQuery("");
+      else {
+        inputRef.current?.blur();
+        onClose?.();
+      }
     }
   };
 
-  const activeId =
-    cursor >= 0 && cursor < last
-      ? `sk-hit-${keyOf(visible[cursor])}`
-      : cursor === last
-        ? "sk-hit-all"
-        : undefined;
-
   return (
     <div className="sk-topbar__search sk-relative">
-      <div
-        className={cx("sk-input-group sk-search", showDropdown && "is-open")}
-        role="combobox"
-        aria-expanded={showDropdown}
-        aria-haspopup="listbox"
-        aria-controls="sk-search-results"
-      >
+      <div className="sk-input-group sk-search">
         <Icon name="search" />
         <input
           ref={inputRef}
@@ -157,23 +74,16 @@ export function SearchBar({
           autoComplete="off"
           spellCheck={false}
           value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          onBlur={() => window.setTimeout(() => setOpen(false), 150)}
+          onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="Search transactions, invoices, customers…"
-          aria-label="Search"
-          aria-autocomplete="list"
-          aria-activedescendant={activeId}
+          placeholder="Filter this page…"
+          aria-label="Filter this page"
         />
         {query ? (
           <button
             type="button"
             className="sk-btn sk-btn--ghost sk-btn--sm sk-btn--icon"
-            aria-label="Clear search"
+            aria-label="Clear"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               setQuery("");
@@ -188,101 +98,6 @@ export function SearchBar({
           </kbd>
         )}
       </div>
-
-      {showDropdown && (
-        <ul
-          className="sk-menu sk-search-results"
-          id="sk-search-results"
-          role="listbox"
-          aria-label="Search results"
-        >
-          {hits.length === 0 ? (
-            <li className="sk-menu__item sk-text-muted" aria-disabled="true">
-              <Icon name={isLoading ? "search" : "info"} mono />
-              {isLoading ? "Searching…" : `No matches for “${query}”`}
-            </li>
-          ) : (
-            grouped.map(([kind, list]) => (
-              <li key={kind} role="group" aria-label={KIND_LABEL[kind] ?? kind}>
-                <div className="sk-eyebrow sk-search-results__group">
-                  {KIND_LABEL[kind] ?? kind}
-                </div>
-                <ul className="sk-search-results__list">
-                  {list.slice(0, PER_GROUP).map((h) => {
-                    const i = indexOf.get(keyOf(h)) ?? -1;
-                    const isActive = i === cursor;
-                    return (
-                      <li key={keyOf(h)}>
-                        <button
-                          type="button"
-                          id={`sk-hit-${keyOf(h)}`}
-                          role="option"
-                          aria-selected={isActive}
-                          className={cx(
-                            "sk-menu__item",
-                            isActive && "is-active",
-                          )}
-                          onMouseDown={(e) => e.preventDefault()}
-                          onMouseEnter={() => setCursor(i)}
-                          onClick={() => go(h)}
-                        >
-                          <Icon name={ICON[h.kind] ?? "folder"} />
-                          <span className="sk-grow sk-truncate">
-                            <span className="sk-weight-medium">{h.title}</span>
-                            {h.subtitle && (
-                              <span className="sk-text-muted">
-                                {" "}
-                                · {h.subtitle}
-                              </span>
-                            )}
-                          </span>
-                          {h.amount !== null && (
-                            <span
-                              className={cx(
-                                "sk-tabular sk-small sk-text-secondary",
-                                h.kind === "transaction" &&
-                                  h.amount > 0 &&
-                                  "sk-amount--in",
-                              )}
-                            >
-                              {money(h.amount, "EUR", {
-                                signed: h.kind === "transaction",
-                              })}
-                            </span>
-                          )}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </li>
-            ))
-          )}
-          <li className="sk-menu__sep" role="separator" />
-          <li>
-            <button
-              type="button"
-              id="sk-hit-all"
-              role="option"
-              aria-selected={cursor === last}
-              className={cx(
-                "sk-menu__item sk-text-brand",
-                cursor === last && "is-active",
-              )}
-              onMouseDown={(e) => e.preventDefault()}
-              onMouseEnter={() => setCursor(last)}
-              onClick={goAll}
-            >
-              <Icon name="arrow-right" mono />
-              <span className="sk-grow">
-                See all{" "}
-                {hits.length >= LIMIT ? "results" : plural(hits.length, "result")}
-              </span>
-              <kbd aria-hidden="true">↵</kbd>
-            </button>
-          </li>
-        </ul>
-      )}
     </div>
   );
 }
