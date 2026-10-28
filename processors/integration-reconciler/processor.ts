@@ -172,6 +172,17 @@ export class IntegrationReconciler implements IProcessor {
       dispatch: async (list) => {
         await dispatch.execute(integrationId, "main", list);
       },
+      deleteDocument: async (id) => {
+        try {
+          await dispatch.deleteDocument(id);
+        } catch (error) {
+          // Already gone is what removal wants.
+          if (!/not found/i.test(String(error))) throw error;
+        }
+      },
+      deleteIntegration: async () => {
+        await dispatch.deleteDocument(integrationId);
+      },
     };
   }
 }

@@ -2560,4 +2560,11 @@ html { touch-action: manipulation; }
 /* The mark takes the whole margin, home-indicator inset included, so it sits
    midway between the content and the bottom of the screen: equal space above
    and below. */
-.sk-app .sk-intg-signin-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sk-space-3); flex-wrap: wrap; }
+/* A sign-in in progress: the status leads, the rarely needed actions trail in small muted links */
+.sk-app .sk-intg-waiting { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--sk-space-3); align-items: start; padding: var(--sk-space-3) var(--sk-space-4); border-radius: var(--sk-radius-lg); background: var(--sk-bg-subtle); }
+.sk-app .sk-intg-waiting .sk-spinner { margin-top: 2px; }
+.sk-app .sk-intg-waiting__title { font-weight: var(--sk-weight-medium); }
+.sk-app .sk-intg-waiting__actions { display: flex; align-items: center; gap: var(--sk-space-2); margin-top: var(--sk-space-2); font-size: var(--sk-text-xs); color: var(--sk-text-muted); }
+.sk-app .sk-intg-waiting__actions button { padding: 0; border: 0; background: none; font: inherit; color: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.sk-app .sk-intg-waiting__actions button:hover { color: var(--sk-text); }
+.sk-app .sk-intg-signin-next > .sk-btn { align-self: flex-start; }

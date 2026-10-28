@@ -267,7 +267,6 @@ export function CreateFlow({
               value={choices.access}
               onChange={(access) => patch({ access })}
             />
-            <SignIn runner={runner} provider={provider.label} />
             <Footer
               back={() => go("add")}
               next={() => go("add/how-much")}
@@ -512,33 +511,6 @@ function AccessChoice({
         again.
       </span>
     </fieldset>
-  );
-}
-
-/**
- * The sign-in, on the computer that runs Sektar. Anywhere else there is
- * nothing here: the notice before the flow said it, the end of the flow
- * reminds once.
- */
-function SignIn({ runner, provider }: { runner: boolean; provider: string }) {
-  if (!runner) return null;
-  return (
-    <div className="sk-intg-signin">
-      <div>
-        <div className="sk-integration__label">Sign in</div>
-        <div className="sk-integration__meta">A {provider} window opens.</div>
-      </div>
-      <Button
-        variant="secondary"
-        disabled
-        title="Arrives in the next pilot step"
-      >
-        Sign in with {provider}
-      </Button>
-      <p className="sk-hint" style={{ gridColumn: "1 / -1", margin: 0 }}>
-        Sign-in arrives in the next pilot step. Continue for now.
-      </p>
-    </div>
   );
 }
 

@@ -128,16 +128,23 @@ export function SignIn({ doc }: { doc: IntegrationDocument }) {
 
   if (phase === "waiting") {
     return (
-      <div className="sk-intg-signin-row">
-        <span className="sk-small sk-text-muted">Waiting for {provider}…</span>
-        <span className="sk-row sk-row--2">
-          <Button variant="ghost" size="sm" onClick={cancel}>
-            Cancel
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => void begin()}>
-            Try again
-          </Button>
-        </span>
+      <div className="sk-intg-waiting" role="status">
+        <span className="sk-spinner" aria-hidden="true" />
+        <div>
+          <div className="sk-intg-waiting__title">Waiting for {provider}</div>
+          <div className="sk-small sk-text-muted">
+            Finish signing in, in the window that opened.
+          </div>
+          <div className="sk-intg-waiting__actions">
+            <button type="button" onClick={() => void begin()}>
+              Try again
+            </button>
+            <span aria-hidden="true">·</span>
+            <button type="button" onClick={cancel}>
+              Cancel
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -149,7 +156,7 @@ export function SignIn({ doc }: { doc: IntegrationDocument }) {
         ? `Sign in with ${provider}`
         : `On ${s.runner?.label ?? "that computer"}? Sign in here`;
   return (
-    <div className="sk-stack sk-stack--2">
+    <div className="sk-stack sk-stack--2 sk-intg-signin-next">
       {message && <span className="sk-small sk-text-danger">{message}</span>}
       {runner || phase === "stopped" ? (
         <Button

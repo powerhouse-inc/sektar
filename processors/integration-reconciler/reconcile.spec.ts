@@ -62,6 +62,15 @@ function world(access: "READ" | "READ_WRITE" = "READ") {
       writes.push(`config ${id}`);
       return Promise.resolve();
     },
+    deleteDocument: (id) => {
+      connections.delete(id);
+      writes.push(`delete ${id}`);
+      return Promise.resolve();
+    },
+    deleteIntegration: () => {
+      writes.push("delete integration");
+      return Promise.resolve();
+    },
     dispatch: (list: IntegrationAction[]) => {
       for (const a of list) {
         doc = reducer(doc, a);
@@ -188,7 +197,7 @@ describe("a reconcile pass", () => {
     expect(w.doc.state.global.resources.connectionId).toBe("conn-2");
   });
 
-  it("does nothing for an integration that is not set up or is being removed", async () => {
+  it("does nothing for an integration that is not set up", async () => {
     const empty = utils.createDocument();
     const writes: string[] = [];
     const io = {
@@ -203,11 +212,36 @@ describe("a reconcile pass", () => {
       { id: "x", name: "x", state: empty.state.global },
       io,
     );
-    const w = world();
-    w.act((await import("document-models/integration/v1")).actions.archive({}));
-    await w.pass();
     expect(writes).toEqual([]);
+  });
+
+  it("takes down what a removed integration built, then the integration", async () => {
+    const w = world();
+    await w.pass();
+    const { actions } = await import("document-models/integration/v1");
+    w.act(actions.archive({}));
+    w.writes.length = 0;
+    await w.pass();
+    expect(w.writes).toEqual(["delete conn-1", "delete integration"]);
+    expect(w.connections.size).toBe(0);
+  });
+
+  it("leaves a removed integration to the switchboard that runs it", async () => {
+    const w = world();
+    await w.pass({ reactorId: "switchboard@cloud", label: "cloud" });
+    const { actions } = await import("document-models/integration/v1");
+    w.act(actions.archive({}));
+    w.writes.length = 0;
+    await w.pass();
     expect(w.writes).toEqual([]);
+  });
+
+  it("removes one that never got a runner or built anything", async () => {
+    const w = world();
+    const { actions } = await import("document-models/integration/v1");
+    w.act(actions.archive({}));
+    await w.pass();
+    expect(w.writes).toEqual(["delete integration"]);
   });
 
   it("reports a provider it cannot connect", async () => {
@@ -224,6 +258,8 @@ describe("a reconcile pass", () => {
         readConnection: () => Promise.resolve(null),
         createConnection: () => Promise.reject(new Error("no")),
         setConnectionConfig: () => Promise.resolve(),
+        deleteDocument: () => Promise.resolve(),
+        deleteIntegration: () => Promise.resolve(),
         dispatch: (l) => {
           out.push(...l);
           return Promise.resolve();

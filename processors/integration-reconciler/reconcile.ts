@@ -47,6 +47,10 @@ export interface ReconcileIO {
     config: Record<string, unknown>,
   ): Promise<void>;
   dispatch(actions: IntegrationAction[]): Promise<void>;
+  /** Deletes a document this integration built (its connection, its workflows) */
+  deleteDocument(id: string): Promise<void>;
+  /** Deletes the integration document itself, once everything it built is gone */
+  deleteIntegration(): Promise<void>;
 }
 
 /** The publisher's Google app (powerhouse.config.json workflows.oauthApps). */
@@ -92,8 +96,21 @@ export async function reconcileIntegration(
   io: ReconcileIO,
 ): Promise<void> {
   const s = doc.state;
-  // Not set up yet, or on its way out (removal is a later pilot step).
-  if (!s.kind || s.intent.archived) return;
+  // The user removed it: on its runner (or with none yet), take down what
+  // it built, then the integration itself. The data it brought in stays.
+  if (s.intent.archived) {
+    if (s.runner && s.runner.reactorId !== io.me.reactorId) return;
+    const built = [
+      s.resources.liveWorkflowId,
+      s.resources.backfillWorkflowId,
+      s.resources.connectionId,
+    ].filter((id): id is string => Boolean(id));
+    for (const id of built) await io.deleteDocument(id);
+    await io.deleteIntegration();
+    return;
+  }
+  // Not set up yet.
+  if (!s.kind) return;
 
   // Ours, or nobody's yet: claim it. Another switchboard's: leave it alone.
   if (s.runner && s.runner.reactorId !== io.me.reactorId) return;
