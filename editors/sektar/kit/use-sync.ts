@@ -77,21 +77,29 @@ class TriggerStore {
    */
   async syncNow(
     workflowIds: readonly string[],
-  ): Promise<{ synced: string[]; skipped: string[]; failed: string[] }> {
+  ): Promise<{
+    synced: string[];
+    skipped: string[];
+    failed: string[];
+    /** What the switchboard said when it refused one */
+    error?: string;
+  }> {
     const started = new Date().toISOString();
     const synced: string[] = [];
     const skipped: string[] = [];
     const failed: string[] = [];
+    let error: string | undefined;
     await Promise.all(
       workflowIds.map(async (id) => {
         try {
           (await pollNow(this.url, id) ? synced : skipped).push(id);
-        } catch {
+        } catch (e) {
           failed.push(id);
+          error ??= e instanceof Error ? e.message : String(e);
         }
       }),
     );
-    if (synced.length === 0) return { synced, skipped, failed };
+    if (synced.length === 0) return { synced, skipped, failed, error };
     this.setSyncing(new Set([...this.syncing, ...synced]));
     const deadline = Date.now() + SETTLE_FOR_MS;
     try {
@@ -109,7 +117,7 @@ class TriggerStore {
       for (const id of synced) left.delete(id);
       this.setSyncing(left);
     }
-    return { synced, skipped, failed };
+    return { synced, skipped, failed, error };
   }
 }
 

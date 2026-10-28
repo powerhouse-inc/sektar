@@ -167,9 +167,12 @@ export function pullResult(result: {
   synced: readonly string[];
   skipped: readonly string[];
   failed: readonly string[];
+  error?: string;
 }): string {
   if (result.synced.length > 0) return "Up to date";
-  if (result.failed.length > 0) return "Could not sync: the switchboard did not answer";
+  if (result.failed.length > 0) {
+    return `Could not sync: ${result.error ?? "the switchboard refused it"}`;
+  }
   if (result.skipped.length > 0) return "Live updates are paused or stopped";
   return "Nothing to sync";
 }
