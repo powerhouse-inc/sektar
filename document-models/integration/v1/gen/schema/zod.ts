@@ -44,6 +44,7 @@ import type {
   SetAccessInput,
   SetBackfillEnabledInput,
   SetCalendarSourceInput,
+  SetConnectionInput,
   SetEmailSourceInput,
   SetLiveEnabledInput,
   SetLiveIntervalInput,
@@ -482,6 +483,14 @@ export function SetCalendarSourceInputSchema(): z.ZodObject<
   return z.object({
     allOwned: z.boolean(),
     calendars: z.array(z.lazy(() => CalendarRefInputSchema())),
+  });
+}
+
+export function SetConnectionInputSchema(): z.ZodObject<
+  Properties<SetConnectionInput>
+> {
+  return z.object({
+    connectionId: z.string().nullish(),
   });
 }
 

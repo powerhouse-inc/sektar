@@ -387,6 +387,11 @@ export type SetCalendarSourceInput = {
   calendars: Array<CalendarRefInput>;
 };
 
+export type SetConnectionInput = {
+  /** An existing connection to use (an API key shared with others); omit to let the reconciler make one */
+  connectionId?: InputMaybe<Scalars["PHID"]["input"]>;
+};
+
 export type SetEmailSourceInput = {
   address?: InputMaybe<Scalars["String"]["input"]>;
   folders: Array<Scalars["String"]["input"]>;

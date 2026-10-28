@@ -16,6 +16,7 @@ import {
   removeBackfill,
   setBackfillEnabled,
   setCalendarSource,
+  setConnection,
   setLiveEnabled,
   setLiveInterval,
   utils,
@@ -341,6 +342,24 @@ describe("integration document", () => {
       created(),
       setTransactionsSource({ bankConnectionId: "x", accounts: [] }),
       /transactions integration/,
+    );
+  });
+
+  it("names a connection to use, or lets the reconciler make one", () => {
+    const before = created().state.global.intent.generation;
+    const doc = apply(
+      created(),
+      setConnection({ connectionId: "distyra-key" }),
+    );
+    expect(doc.state.global.intent.connectionId).toBe("distyra-key");
+    expect(doc.state.global.intent.generation).toBe(before + 1);
+    expect(
+      apply(doc, setConnection({})).state.global.intent.connectionId,
+    ).toBeNull();
+    rejects(
+      utils.createDocument(),
+      setConnection({ connectionId: "x" }),
+      /Set up/,
     );
   });
 

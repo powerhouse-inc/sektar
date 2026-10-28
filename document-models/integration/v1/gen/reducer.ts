@@ -24,6 +24,7 @@ import {
   SetAccessInputSchema,
   SetBackfillEnabledInputSchema,
   SetCalendarSourceInputSchema,
+  SetConnectionInputSchema,
   SetEmailSourceInputSchema,
   SetLiveEnabledInputSchema,
   SetLiveIntervalInputSchema,
@@ -66,6 +67,18 @@ const stateReducer: StateReducer<IntegrationPHState> = (
       memoizedSchema(SetAccessInputSchema).parse(action.input);
 
       integrationSetupOperations.setAccessOperation(
+        (state as any)[action.scope],
+        action as any,
+        dispatch,
+      );
+
+      break;
+    }
+
+    case "SET_CONNECTION": {
+      memoizedSchema(SetConnectionInputSchema).parse(action.input);
+
+      integrationSetupOperations.setConnectionOperation(
         (state as any)[action.scope],
         action as any,
         dispatch,

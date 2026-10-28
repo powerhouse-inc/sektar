@@ -7,6 +7,7 @@ import type {
   InitializeInput,
   SetAccessInput,
   SetCalendarSourceInput,
+  SetConnectionInput,
   SetEmailSourceInput,
   SetTransactionsSourceInput,
 } from "../types.js";
@@ -18,6 +19,10 @@ export type InitializeAction = Action & {
 export type SetAccessAction = Action & {
   type: "SET_ACCESS";
   input: SetAccessInput;
+};
+export type SetConnectionAction = Action & {
+  type: "SET_CONNECTION";
+  input: SetConnectionInput;
 };
 export type SetCalendarSourceAction = Action & {
   type: "SET_CALENDAR_SOURCE";
@@ -35,6 +40,7 @@ export type SetTransactionsSourceAction = Action & {
 export type IntegrationSetupAction =
   | InitializeAction
   | SetAccessAction
+  | SetConnectionAction
   | SetCalendarSourceAction
   | SetEmailSourceAction
   | SetTransactionsSourceAction;

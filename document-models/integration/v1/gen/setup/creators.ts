@@ -7,6 +7,7 @@ import {
   InitializeInputSchema,
   SetAccessInputSchema,
   SetCalendarSourceInputSchema,
+  SetConnectionInputSchema,
   SetEmailSourceInputSchema,
   SetTransactionsSourceInputSchema,
 } from "../schema/zod.js";
@@ -14,6 +15,7 @@ import type {
   InitializeInput,
   SetAccessInput,
   SetCalendarSourceInput,
+  SetConnectionInput,
   SetEmailSourceInput,
   SetTransactionsSourceInput,
 } from "../types.js";
@@ -21,6 +23,7 @@ import type {
   InitializeAction,
   SetAccessAction,
   SetCalendarSourceAction,
+  SetConnectionAction,
   SetEmailSourceAction,
   SetTransactionsSourceAction,
 } from "./actions.js";
@@ -40,6 +43,15 @@ export const setAccess = (input: SetAccessInput) =>
     { ...input },
     undefined,
     SetAccessInputSchema,
+    "global",
+  );
+
+export const setConnection = (input: SetConnectionInput) =>
+  createAction<SetConnectionAction>(
+    "SET_CONNECTION",
+    { ...input },
+    undefined,
+    SetConnectionInputSchema,
     "global",
   );
 

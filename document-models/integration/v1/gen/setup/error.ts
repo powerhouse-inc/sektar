@@ -33,6 +33,8 @@ export const errors = {
 
   SetAccess: { NotInitializedError },
 
+  SetConnection: { NotInitializedError },
+
   SetCalendarSource: { WrongKindError },
 
   SetEmailSource: { WrongKindError },

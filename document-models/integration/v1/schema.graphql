@@ -257,6 +257,11 @@ input SetAccessInput {
   access: IntegrationAccess!
 }
 
+input SetConnectionInput {
+  "An existing connection to use (an API key shared with others); omit to let the reconciler make one"
+  connectionId: PHID
+}
+
 input CalendarRefInput {
   id: String!
   name: String

@@ -58,4 +58,10 @@ export const integrationSetupOperations: IntegrationSetupOperations = {
     };
     state.intent.generation += 1;
   },
+  setConnectionOperation(state, action) {
+    if (!state.kind)
+      throw new NotInitializedError("Set up the integration first");
+    state.intent.connectionId = action.input.connectionId ?? null;
+    state.intent.generation += 1;
+  },
 };

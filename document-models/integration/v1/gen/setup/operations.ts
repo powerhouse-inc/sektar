@@ -8,6 +8,7 @@ import type {
   InitializeAction,
   SetAccessAction,
   SetCalendarSourceAction,
+  SetConnectionAction,
   SetEmailSourceAction,
   SetTransactionsSourceAction,
 } from "./actions.js";
@@ -21,6 +22,11 @@ export interface IntegrationSetupOperations {
   setAccessOperation: (
     state: IntegrationGlobalState,
     action: SetAccessAction,
+    dispatch?: SignalDispatch,
+  ) => void;
+  setConnectionOperation: (
+    state: IntegrationGlobalState,
+    action: SetConnectionAction,
     dispatch?: SignalDispatch,
   ) => void;
   setCalendarSourceOperation: (

@@ -30,13 +30,13 @@ export const documentModel: DocumentModelGlobalState = {
       },
       modules: [
         {
-          id: "719ebffe-977d-4eb5-bdad-56d0d31d1c90",
+          id: "b305d5dc-3e75-4d5a-b192-cbd4a6e0d8af",
           name: "setup",
           description:
             "What the integration is: its kind, provider, access and source",
           operations: [
             {
-              id: "6f7e8d39-857f-4ef6-a6f4-c4b734daa2f1",
+              id: "e5532523-06c1-45fb-b1bc-e0b5d6c2bb7e",
               name: "INITIALIZE",
               description: "",
               schema:
@@ -46,7 +46,7 @@ export const documentModel: DocumentModelGlobalState = {
                 'if (state.kind) throw new AlreadyInitializedError("The integration is set up already");\nstate.kind = action.input.kind;\nstate.provider = action.input.provider;',
               errors: [
                 {
-                  id: "c8dfc36f-7f5f-4166-ad7b-a33ebdc17f49",
+                  id: "c69af2e6-180a-44c2-a651-e30c64e9b9c8",
                   code: "ALREADY_INITIALIZED",
                   name: "AlreadyInitializedError",
                   description:
@@ -58,7 +58,7 @@ export const documentModel: DocumentModelGlobalState = {
               scope: "global",
             },
             {
-              id: "0eedc7a2-8d46-44e6-9ecf-bb488d5b1581",
+              id: "48973dea-6c06-4b91-8f6f-cf71ca165a6a",
               name: "SET_ACCESS",
               description: "",
               schema: "input SetAccessInput {\n  access: IntegrationAccess!\n}",
@@ -67,7 +67,7 @@ export const documentModel: DocumentModelGlobalState = {
                 'if (!state.kind) throw new NotInitializedError("Set up the integration first");\nstate.intent.access = action.input.access;\nstate.intent.generation += 1;',
               errors: [
                 {
-                  id: "34ae38c0-8fdb-4445-98f2-315ed2162e16",
+                  id: "7483fa1e-8f7c-4de8-bcaf-97265b3d1503",
                   code: "NOT_INITIALIZED",
                   name: "NotInitializedError",
                   description:
@@ -79,7 +79,29 @@ export const documentModel: DocumentModelGlobalState = {
               scope: "global",
             },
             {
-              id: "bc6951c7-bb88-4d4c-989c-85c830966574",
+              id: "ea8dbc40-2d46-460e-8f17-cb6865720e1d",
+              name: "SET_CONNECTION",
+              description: "",
+              schema:
+                'input SetConnectionInput {\n  "An existing connection to use (an API key shared with others); omit to let the reconciler make one"\n  connectionId: PHID\n}',
+              template: "",
+              reducer:
+                'if (!state.kind) throw new NotInitializedError("Set up the integration first");\nstate.intent.connectionId = action.input.connectionId ?? null;\nstate.intent.generation += 1;',
+              errors: [
+                {
+                  id: "91dcac92-16ad-4298-b2fd-a343bd824633",
+                  code: "NOT_INITIALIZED",
+                  name: "NotInitializedError",
+                  description:
+                    "The integration's kind is set first (INITIALIZE)",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+            {
+              id: "74bf51c9-fc1e-44a3-9c89-070237d612d9",
               name: "SET_CALENDAR_SOURCE",
               description: "",
               schema:
@@ -89,7 +111,7 @@ export const documentModel: DocumentModelGlobalState = {
                 'if (state.kind !== "CALENDAR") throw new WrongKindError("Only a calendar integration has calendars");\nstate.intent.source = {\n  calendars: action.input.allOwned\n    ? []\n    : action.input.calendars.map((c) => ({ id: c.id, name: c.name ?? null })),\n  allOwned: action.input.allOwned,\n};\nstate.intent.generation += 1;',
               errors: [
                 {
-                  id: "4b52c941-e016-49a5-9f66-53d1484324f2",
+                  id: "003f3adc-4d14-436f-bc51-6637520de103",
                   code: "WRONG_KIND",
                   name: "WrongKindError",
                   description:
@@ -101,7 +123,7 @@ export const documentModel: DocumentModelGlobalState = {
               scope: "global",
             },
             {
-              id: "be4483c4-0bdc-400c-a44f-117d8d79dfd9",
+              id: "20f5e2d7-2b53-4b93-8c46-21352d973556",
               name: "SET_EMAIL_SOURCE",
               description: "",
               schema:
@@ -111,7 +133,7 @@ export const documentModel: DocumentModelGlobalState = {
                 'if (state.kind !== "EMAIL") throw new WrongKindError("Only an email integration has a mailbox");\nstate.intent.source = {\n  mailbox: action.input.mailbox,\n  address: action.input.address ?? null,\n  folders: action.input.folders,\n};\nstate.intent.generation += 1;',
               errors: [
                 {
-                  id: "593b66b3-3b19-43cf-a216-1b0f081ce76f",
+                  id: "0d6cd97e-4f88-441c-b715-738dda8db39d",
                   code: "WRONG_KIND",
                   name: "WrongKindError",
                   description:
@@ -123,7 +145,7 @@ export const documentModel: DocumentModelGlobalState = {
               scope: "global",
             },
             {
-              id: "17e7be27-4179-4e72-ad1b-b3be93344870",
+              id: "ba7166ba-ac90-4a9e-8908-336992696bdf",
               name: "SET_TRANSACTIONS_SOURCE",
               description: "",
               schema:
@@ -133,7 +155,7 @@ export const documentModel: DocumentModelGlobalState = {
                 'if (state.kind !== "TRANSACTIONS") throw new WrongKindError("Only a transactions integration has bank accounts");\nstate.intent.source = {\n  bankConnectionId: action.input.bankConnectionId,\n  accounts: action.input.accounts.map((a) => ({\n    accountId: a.accountId,\n    accountKey: a.accountKey,\n    bankAccountId: a.bankAccountId,\n    label: a.label ?? null,\n  })),\n};\nstate.intent.generation += 1;',
               errors: [
                 {
-                  id: "b315e36c-30b1-461d-8cd0-63040ac6aa89",
+                  id: "a428585c-a11c-4080-9ffb-13b8f57f02aa",
                   code: "WRONG_KIND",
                   name: "WrongKindError",
                   description:
@@ -147,12 +169,12 @@ export const documentModel: DocumentModelGlobalState = {
           ],
         },
         {
-          id: "54ddd81a-1733-449b-9299-41440d50d97d",
+          id: "cdb09d6e-cae4-4688-91c3-df817ce70adf",
           name: "live",
           description: "Live updates: on or off, and how often",
           operations: [
             {
-              id: "4a3f4f2e-a271-49e5-960e-6d8dc547d44b",
+              id: "498cbf11-3781-4b4f-bb52-84bb465dd183",
               name: "SET_LIVE_ENABLED",
               description: "",
               schema: "input SetLiveEnabledInput {\n  enabled: Boolean!\n}",
@@ -161,7 +183,7 @@ export const documentModel: DocumentModelGlobalState = {
                 'if (!state.kind) throw new NotInitializedError("Set up the integration first");\nstate.intent.live.enabled = action.input.enabled;\nstate.intent.generation += 1;',
               errors: [
                 {
-                  id: "0ff40e9a-5c48-42dd-82b6-0f3c854e90ae",
+                  id: "59486bca-fa99-473d-84a2-ac8543fb4bde",
                   code: "NOT_INITIALIZED",
                   name: "NotInitializedError",
                   description:
@@ -173,7 +195,7 @@ export const documentModel: DocumentModelGlobalState = {
               scope: "global",
             },
             {
-              id: "0d9181ac-2721-4e80-9599-9195393fdd19",
+              id: "4c56232a-2822-40dc-86b7-3b0f2c082af6",
               name: "SET_LIVE_INTERVAL",
               description: "",
               schema:
@@ -183,7 +205,7 @@ export const documentModel: DocumentModelGlobalState = {
                 'if (!state.kind) throw new NotInitializedError("Set up the integration first");\nif (!Number.isInteger(action.input.value) || action.input.value < 1) throw new InvalidIntervalError(`${action.input.value} is not a whole number of at least 1`);\nstate.intent.live.every = { value: action.input.value, unit: action.input.unit };\nstate.intent.generation += 1;',
               errors: [
                 {
-                  id: "a8a1ab84-b4fa-4515-9f5a-3583a18f2f00",
+                  id: "2ceb9f9f-f3d9-45a1-9b5e-6dcbbaa97784",
                   code: "NOT_INITIALIZED",
                   name: "NotInitializedError",
                   description:
@@ -191,7 +213,7 @@ export const documentModel: DocumentModelGlobalState = {
                   template: "",
                 },
                 {
-                  id: "ce15b287-91c0-4d14-92b2-df8e11d00866",
+                  id: "881cd012-f0c7-4bc6-ad2a-42028cd903a1",
                   code: "INVALID_INTERVAL",
                   name: "InvalidIntervalError",
                   description: "An interval is at least one unit",
@@ -204,12 +226,12 @@ export const documentModel: DocumentModelGlobalState = {
           ],
         },
         {
-          id: "6edb2be1-06d2-4592-a9b7-8c3514fdadd7",
+          id: "edfa58f3-5538-4708-89ca-3b7cb62f6494",
           name: "backfill",
           description: "Backfills: the switch and the history to bring in",
           operations: [
             {
-              id: "54e57c05-e83d-49c4-a684-441a4f13c71f",
+              id: "c075734e-b2af-4129-a1a9-81aa864000ca",
               name: "SET_BACKFILL_ENABLED",
               description: "",
               schema: "input SetBackfillEnabledInput {\n  enabled: Boolean!\n}",
@@ -218,7 +240,7 @@ export const documentModel: DocumentModelGlobalState = {
                 'if (!state.kind) throw new NotInitializedError("Set up the integration first");\nstate.intent.backfill.enabled = action.input.enabled;\nstate.intent.generation += 1;',
               errors: [
                 {
-                  id: "72580377-d02a-4e32-8baa-db801ee404ae",
+                  id: "9e278a69-936a-48ff-92eb-58e21ebaccd6",
                   code: "NOT_INITIALIZED",
                   name: "NotInitializedError",
                   description:
@@ -230,7 +252,7 @@ export const documentModel: DocumentModelGlobalState = {
               scope: "global",
             },
             {
-              id: "b405d679-8f11-4538-b9fd-3905c8621fbf",
+              id: "d82ce1f4-0a42-4e6e-ae09-5c5d690f0efc",
               name: "ADD_DATE_RANGE_BACKFILL",
               description: "",
               schema:
@@ -240,7 +262,7 @@ export const documentModel: DocumentModelGlobalState = {
                 'if (!state.kind) throw new NotInitializedError("Set up the integration first");\nconst i = action.input;\nif (state.intent.backfill.items.some((b) => b.id === i.id)) throw new DuplicateBackfillIdError(`A backfill ${i.id} exists`);\nif (!(Date.parse(i.from) < Date.parse(i.to)) || !Number.isInteger(i.stepSeconds) || i.stepSeconds < 60) throw new InvalidRangeError(`${i.from} to ${i.to} in ${i.stepSeconds} s slices`);\nstate.intent.backfill.items.push({\n  id: i.id,\n  label: i.label,\n  documentType: i.documentType,\n  documentId: null,\n  request: { from: i.from, to: i.to, stepSeconds: i.stepSeconds, direction: i.direction ?? null },\n});\nstate.intent.generation += 1;',
               errors: [
                 {
-                  id: "3fb82d1e-a593-470c-a3f0-7e550bc16f91",
+                  id: "8d24b4ef-97ac-40d9-887a-9e3106c4eabf",
                   code: "NOT_INITIALIZED",
                   name: "NotInitializedError",
                   description:
@@ -248,14 +270,14 @@ export const documentModel: DocumentModelGlobalState = {
                   template: "",
                 },
                 {
-                  id: "b57895a4-16fb-4d04-a613-16573b6eb20a",
+                  id: "a956add7-9fd7-4725-a534-7bd9b7a867c6",
                   code: "DUPLICATE_BACKFILL_ID",
                   name: "DuplicateBackfillIdError",
                   description: "A backfill with this id exists",
                   template: "",
                 },
                 {
-                  id: "c8181a91-90a6-4594-a91c-6530d503789f",
+                  id: "84069953-6d48-4e82-bead-0bb676b8da77",
                   code: "INVALID_RANGE",
                   name: "InvalidRangeError",
                   description:
@@ -267,7 +289,7 @@ export const documentModel: DocumentModelGlobalState = {
               scope: "global",
             },
             {
-              id: "66a1c76c-51df-4bf9-8fce-d9fc315cb63c",
+              id: "924dabc0-c7c1-4bb0-8bf4-4bb0b8f7e84c",
               name: "ATTACH_BACKFILL",
               description: "",
               schema:
@@ -277,7 +299,7 @@ export const documentModel: DocumentModelGlobalState = {
                 'if (!state.kind) throw new NotInitializedError("Set up the integration first");\nconst i = action.input;\nif (state.intent.backfill.items.some((b) => b.id === i.id)) throw new DuplicateBackfillIdError(`A backfill ${i.id} exists`);\nstate.intent.backfill.items.push({\n  id: i.id,\n  label: i.label,\n  documentType: i.documentType,\n  documentId: i.documentId,\n  request: null,\n});\nstate.intent.generation += 1;',
               errors: [
                 {
-                  id: "9cd79be6-44f6-47f6-9557-a3e1ace6c87c",
+                  id: "c79b2ef3-6c13-4ac4-a0f2-b94e10a80c18",
                   code: "NOT_INITIALIZED",
                   name: "NotInitializedError",
                   description:
@@ -285,7 +307,7 @@ export const documentModel: DocumentModelGlobalState = {
                   template: "",
                 },
                 {
-                  id: "3ef40354-e561-49ba-b8cb-1c9dcb94214a",
+                  id: "686ce352-b5d4-4c13-bb2f-b703b1f20d81",
                   code: "DUPLICATE_BACKFILL_ID",
                   name: "DuplicateBackfillIdError",
                   description: "A backfill with this id exists",
@@ -296,7 +318,7 @@ export const documentModel: DocumentModelGlobalState = {
               scope: "global",
             },
             {
-              id: "410dc42f-b607-4e15-bfe8-7239e63211ba",
+              id: "99c692b6-9781-41cf-a0b6-cff5e841b16a",
               name: "REMOVE_BACKFILL",
               description: "",
               schema:
@@ -306,7 +328,7 @@ export const documentModel: DocumentModelGlobalState = {
                 "const items = state.intent.backfill.items;\nconst index = items.findIndex((b) => b.id === action.input.id);\nif (index < 0) throw new UnknownBackfillError(`No backfill ${action.input.id}`);\nitems.splice(index, 1);\nif (state.intent.backfill.pinnedId === action.input.id) state.intent.backfill.pinnedId = null;\nstate.intent.generation += 1;",
               errors: [
                 {
-                  id: "275a0e9d-488f-4db2-8aa0-d7e83083b75e",
+                  id: "7c749784-3791-4865-ab27-a4e0003813cc",
                   code: "UNKNOWN_BACKFILL",
                   name: "UnknownBackfillError",
                   description:
@@ -320,13 +342,13 @@ export const documentModel: DocumentModelGlobalState = {
           ],
         },
         {
-          id: "c4fc7bca-69f9-419e-af9b-e6a3443cbff0",
+          id: "eff99f10-4d88-4de5-b0a3-fa3e5f93297b",
           name: "reconciler",
           description:
             "What the reconciler on the runner writes back: who runs it, what it built, what it found; and the app asking it to look again",
           operations: [
             {
-              id: "8361c9e2-e592-45b6-9bb8-a526ad1a0eb4",
+              id: "768646ca-f3d7-4ebf-a811-32ecbe52722b",
               name: "REQUEST_CHECK",
               description: "",
               schema:
@@ -339,7 +361,7 @@ export const documentModel: DocumentModelGlobalState = {
               scope: "global",
             },
             {
-              id: "77d5ddab-1059-4eac-b709-6a7825990840",
+              id: "e5ac9883-3b4c-40fc-8ce5-b711fd6c3b8a",
               name: "RECORD_RUNNER",
               description: "",
               schema:
@@ -349,7 +371,7 @@ export const documentModel: DocumentModelGlobalState = {
                 "if (state.runner && state.runner.reactorId !== action.input.reactorId) throw new RunnerTakenError(`${state.runner.reactorId} runs this integration`);\nstate.runner = { reactorId: action.input.reactorId, label: action.input.label ?? null };",
               errors: [
                 {
-                  id: "0cf7bdff-0d3a-439a-8dd4-8e3fba882141",
+                  id: "42c4a3b2-20d1-45cc-bd4e-fb647b6a7770",
                   code: "RUNNER_TAKEN",
                   name: "RunnerTakenError",
                   description: "Another switchboard runs this integration",
@@ -360,7 +382,7 @@ export const documentModel: DocumentModelGlobalState = {
               scope: "global",
             },
             {
-              id: "75f06e5f-21a4-4524-91ed-69818e178e57",
+              id: "f04635bc-2949-417a-b19d-e3f236dfecd3",
               name: "RECORD_RESOURCES",
               description: "",
               schema:
@@ -373,7 +395,7 @@ export const documentModel: DocumentModelGlobalState = {
               scope: "global",
             },
             {
-              id: "34f915b5-2484-40ae-901f-34da6b8d36a4",
+              id: "bac19d2e-def9-4af8-8f93-5b317398cb18",
               name: "RECORD_BACKFILL_DOCUMENT",
               description: "",
               schema:
@@ -383,7 +405,7 @@ export const documentModel: DocumentModelGlobalState = {
                 "const item = state.intent.backfill.items.find((b) => b.id === action.input.itemId);\nif (!item) throw new BackfillNotFoundError(`No backfill ${action.input.itemId}`);\nitem.documentId = action.input.documentId;",
               errors: [
                 {
-                  id: "46d3788f-4c39-433a-9bb5-0241ce39449c",
+                  id: "c650f6bc-cb0c-419f-ac30-73bbf09fdad0",
                   code: "BACKFILL_NOT_FOUND",
                   name: "BackfillNotFoundError",
                   description:
@@ -395,7 +417,7 @@ export const documentModel: DocumentModelGlobalState = {
               scope: "global",
             },
             {
-              id: "c7697bd1-226c-4858-92e9-cd1c0066826b",
+              id: "de9acea1-fa7e-477e-af7d-f08670a83c50",
               name: "RECORD_CHECK",
               description: "",
               schema:
@@ -410,13 +432,13 @@ export const documentModel: DocumentModelGlobalState = {
           ],
         },
         {
-          id: "d3344e82-2070-4bee-ae90-2dbcc17e7edc",
+          id: "2186f0c9-7ac8-4a60-b2bf-abc7e52c0b8c",
           name: "lifecycle",
           description:
             "Removing an integration: the user asks, the reconciler takes down what it built",
           operations: [
             {
-              id: "6b54780d-45a8-47a6-a204-e19ff4d3c62f",
+              id: "cd27336a-c6c1-428c-9aed-56316e3585ef",
               name: "ARCHIVE",
               description: "",
               schema:
