@@ -25,6 +25,29 @@ const text = (v: unknown): string | null =>
 const list = (v: unknown): unknown[] =>
   Array.isArray(v) ? v : v === undefined || v === null ? [] : [v];
 
+/**
+ * The events in what a step hands over: the live trigger's one event, a
+ * list of events, or a Get Events answer (`{ items, nextPageToken }`, also
+ * wrapped as `{ body: … }`). An answer with a next page is refused: this
+ * step sees one page, and dropping the rest without a word would leave
+ * holes in the calendar.
+ */
+export function eventsFrom(v: unknown): unknown[] {
+  const outer = record(v);
+  const page =
+    outer && !Array.isArray(outer.items) ? record(outer.body) : outer;
+  if (page && Array.isArray(page.items)) {
+    if (text(page.nextPageToken)) {
+      throw new Error(
+        `Google has more than one page of events for this window (${page.items.length} on the first). ` +
+          "Nothing was imported from it: use smaller slices for this backfill.",
+      );
+    }
+    return page.items;
+  }
+  return list(v);
+}
+
 export interface CalendarEventAction {
   type: string;
   input: unknown;
@@ -145,7 +168,7 @@ export function mapGoogleEvents(
 ): GoogleEventMapResult {
   const items: CalendarEventItem[] = [];
   const skipped: { index: number; reason: string }[] = [];
-  list(events).forEach((entry, index) => {
+  eventsFrom(events).forEach((entry, index) => {
     const event = record(entry);
     const sourceId = event ? text(event.id) : null;
     if (!event || !sourceId) {
@@ -246,7 +269,7 @@ export const distyraGoogleEventToCalendarEventAction = createAction({
     events: Property.Json({
       displayName: "Events",
       description:
-        "The trigger's event, e.g. {{trigger}}, or a list of events.",
+        "The trigger's event, e.g. {{trigger.payload}}, a list of events, or a Get Events step's answer, e.g. {{steps.get_events.output.body}}.",
       required: true,
     }),
     calendarId: Property.ShortText({

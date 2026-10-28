@@ -6,6 +6,7 @@ import {
 import { describe, expect, it } from "vitest";
 import {
   eventName,
+  eventsFrom,
   mapGoogleEvents,
   selfAddress,
 } from "./google-event-to-calendar-event.js";
@@ -173,6 +174,31 @@ describe("Google events to calendar events", () => {
     ).items[0];
     expect(item.key).toBe("cal:primary:x@google.com");
     expect(item.start).toBeNull();
+  });
+
+  it("takes a Get Events answer, bare or as the step's whole output", () => {
+    const answer = { kind: "calendar#events", items: [meeting, holiday] };
+    expect(mapGoogleEvents(answer, options).count).toBe(2);
+    expect(
+      mapGoogleEvents({ status: 200, body: answer }, options).items.map(
+        (i) => i.key,
+      ),
+    ).toEqual([
+      "cal:wouter@powerhouse.inc:abc123@google.com",
+      "cal:wouter@powerhouse.inc:hol1@google.com",
+    ]);
+    expect(eventsFrom({ kind: "calendar#events", items: [] })).toEqual([]);
+  });
+
+  it("refuses a window with more than one page, rather than leave a hole", () => {
+    expect(() =>
+      mapGoogleEvents(
+        { body: { items: [meeting], nextPageToken: "p2" } },
+        options,
+      ),
+    ).toThrow(
+      /more than one page of events for this window \(1 on the first\)/,
+    );
   });
 
   it("skips what is not an event", () => {
