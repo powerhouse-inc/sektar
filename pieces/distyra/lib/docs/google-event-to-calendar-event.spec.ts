@@ -106,11 +106,11 @@ describe("Google events to calendar events", () => {
     const { items, skipped, count } = mapGoogleEvents(meeting, options);
     expect(count).toBe(1);
     expect(skipped).toEqual([]);
-    const item = items[0]!;
+    const item = items[0];
     expect(item.key).toBe("cal:wouter@powerhouse.inc:abc123@google.com");
     expect(item.name).toBe("Pilot review with the team");
     expect(item.folder).toBe("Wouter");
-    const input = item.actions[0]!.input as Record<string, unknown>;
+    const input = item.actions[0].input as Record<string, unknown>;
     expect(input).toMatchObject({
       externalId: item.key,
       source: "google",
@@ -133,10 +133,10 @@ describe("Google events to calendar events", () => {
 
   it("maps a whole-day, free event; the account comes from the attendee marked self", () => {
     const item = mapGoogleEvents([holiday], { ...options, calendarName: null })
-      .items[0]!;
+      .items[0];
     expect(item.key).toBe("cal:wouter@powerhouse.inc:hol1@google.com");
     expect(item.folder).toBe("wouter@powerhouse.inc");
-    expect(item.actions[0]!.input).toMatchObject({
+    expect(item.actions[0].input).toMatchObject({
       start: { date: "2026-12-24" },
       end: { date: "2026-12-27" },
       allDay: true,
@@ -153,7 +153,7 @@ describe("Google events to calendar events", () => {
       "cal:wouter@powerhouse.inc:weekly@google.com",
       "cal:wouter@powerhouse.inc:weekly@google.com:2026-10-12T09:00:00.000Z",
     ]);
-    expect(items[0]!.actions[0]!.input).toMatchObject({
+    expect(items[0].actions[0].input).toMatchObject({
       recurrence: [
         "RRULE:FREQ=WEEKLY;BYDAY=MO",
         "EXDATE;TZID=Europe/Brussels:20261019T110000",
@@ -161,7 +161,7 @@ describe("Google events to calendar events", () => {
       meetingUrl: "https://zoom.us/j/1",
     });
     expect(items[1]).toMatchObject({ status: "CANCELLED", name: "(no title)" });
-    expect(items[1]!.actions[0]!.input).toMatchObject({
+    expect(items[1].actions[0].input).toMatchObject({
       recurrenceId: "2026-10-12T09:00:00.000Z",
     });
   });
@@ -170,7 +170,7 @@ describe("Google events to calendar events", () => {
     const item = mapGoogleEvents(
       { id: "x", iCalUID: "x@google.com", start: { dateTime: "bad" } },
       options,
-    ).items[0]!;
+    ).items[0];
     expect(item.key).toBe("cal:primary:x@google.com");
     expect(item.start).toBeNull();
   });
@@ -198,7 +198,7 @@ describe("Google events to calendar events", () => {
     for (const event of [meeting, holiday, series, cancelledOccurrence]) {
       const [item] = mapGoogleEvents(event, options).items;
       let doc = utils.createDocument();
-      for (const action of item!.actions) {
+      for (const action of item.actions) {
         doc = reducer(doc, {
           ...action,
           id: crypto.randomUUID(),
@@ -207,10 +207,10 @@ describe("Google events to calendar events", () => {
         } as unknown as ModelAction);
         expect(doc.operations.global.at(-1)?.error).toBeFalsy();
       }
-      expect(doc.state.global.externalId).toBe(item!.key);
+      expect(doc.state.global.externalId).toBe(item.key);
       // The same event again: one document, updated
       doc = reducer(doc, {
-        ...item!.updateActions[0]!,
+        ...item.updateActions[0],
         id: crypto.randomUUID(),
         timestampUtcMs: AT,
         scope: "global",
@@ -220,7 +220,7 @@ describe("Google events to calendar events", () => {
     const [meetingItem] = mapGoogleEvents(meeting, options).items;
     let doc = utils.createDocument();
     doc = reducer(doc, {
-      ...meetingItem!.actions[0]!,
+      ...meetingItem.actions[0],
       id: "1",
       timestampUtcMs: AT,
       scope: "global",

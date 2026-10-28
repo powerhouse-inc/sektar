@@ -16,6 +16,7 @@ import {
   type ConnectionFacts,
   type ReconcileIO,
 } from "./reconcile.js";
+import type { WorkflowAction, WorkflowFacts } from "./live-workflow.js";
 
 const NOW = new Date(2026, 9, 28, 9, 30);
 const PC = { reactorId: "switchboard@pc", label: "pc" };
@@ -34,7 +35,36 @@ function world(access: "READ" | "READ_WRITE" = "READ") {
     ConnectionFacts & { config: Record<string, unknown> }
   >();
   const writes: string[] = [];
+  const workflows = new Map<
+    string,
+    WorkflowFacts & { actions: WorkflowAction[] }
+  >();
+  let reactorConnection: string | null = "reactor-conn";
   let n = 0;
+  /** Applies workflow actions the way the workflow model would, as far as the facts go */
+  const applyWorkflow = (id: string, list: WorkflowAction[]) => {
+    const w = workflows.get(id)!;
+    for (const a of list) {
+      w.actions.push(a);
+      const input = a.input as Record<string, unknown>;
+      if (a.type === "SET_TRIGGER") {
+        w.triggerName = input.triggerName as string;
+        w.triggerConnectionId = input.connectionId as string;
+        w.triggerConfig = input.config as Record<string, unknown>;
+        w.version++;
+      } else if (a.type === "SET_TRIGGER_CONFIG") {
+        w.triggerConfig = input.config as Record<string, unknown>;
+        w.version++;
+      } else if (a.type === "SET_TRIGGER_CONNECTION") {
+        w.triggerConnectionId = input.connectionId as string;
+        w.version++;
+      } else if (a.type === "PUBLISH_WORKFLOW") {
+        w.publishedVersion = w.version;
+      } else if (a.type === "SET_WORKFLOW_STATUS") {
+        w.status = input.status as string;
+      }
+    }
+  };
   const io = (me = PC): ReconcileIO => ({
     me,
     now: () => "2026-10-28T10:00:00.000Z",
@@ -71,6 +101,32 @@ function world(access: "READ" | "READ_WRITE" = "READ") {
       writes.push("delete integration");
       return Promise.resolve();
     },
+    newId: () => `id-${++n}`,
+    findReactorConnection: () => Promise.resolve(reactorConnection),
+    readWorkflow: (id) => {
+      const w = workflows.get(id);
+      return Promise.resolve(w ? { ...w } : null);
+    },
+    createWorkflow: (name, list) => {
+      const id = `wf-${++n}`;
+      workflows.set(id, {
+        status: "DISABLED",
+        version: 0,
+        publishedVersion: null,
+        triggerName: null,
+        triggerConnectionId: null,
+        triggerConfig: null,
+        actions: [],
+      });
+      applyWorkflow(id, list);
+      writes.push(`create workflow ${id} ${name}`);
+      return Promise.resolve(id);
+    },
+    updateWorkflow: (id, list) => {
+      applyWorkflow(id, list);
+      writes.push(`update ${id} ${list.map((a) => a.type).join(",")}`);
+      return Promise.resolve();
+    },
     dispatch: (list: IntegrationAction[]) => {
       for (const a of list) {
         doc = reducer(doc, a);
@@ -92,7 +148,15 @@ function world(access: "READ" | "READ_WRITE" = "READ") {
   return {
     pass,
     connections,
+    workflows,
     writes,
+    signIn: (id = "conn-1") => {
+      const c = connections.get(id)!;
+      connections.set(id, { ...c, status: "OK", signedIn: true });
+    },
+    noReactorConnection: () => {
+      reactorConnection = null;
+    },
     get doc() {
       return doc;
     },
@@ -101,6 +165,127 @@ function world(access: "READ" | "READ_WRITE" = "READ") {
     },
   };
 }
+
+describe("the live workflow", () => {
+  it("is built once signed in: trigger on the connection, mapping, upsert into the Calendar drive; then the integration commits", async () => {
+    const w = world();
+    await w.pass();
+    expect(w.workflows.size).toBe(0);
+    w.signIn();
+    w.writes.length = 0;
+    await w.pass();
+    const s = w.doc.state.global;
+    const id = s.resources.liveWorkflowId!;
+    expect(w.writes).toEqual([
+      `create workflow ${id} Personal Google Calendar · new events`,
+      "RECORD_RESOURCES",
+      "RECORD_CHECK",
+    ]);
+    const wf = w.workflows.get(id)!;
+    expect(wf.actions.map((a) => a.type)).toEqual([
+      "SET_WORKFLOW_NAME",
+      "SET_TRIGGER",
+      "ADD_STEP",
+      "ADD_STEP",
+      "ADD_EDGE",
+      "ADD_EDGE",
+      "PUBLISH_WORKFLOW",
+      "SET_WORKFLOW_STATUS",
+    ]);
+    expect(wf).toMatchObject({
+      status: "ENABLED",
+      triggerName: "new_or_updated_event",
+      triggerConnectionId: "conn-1",
+      triggerConfig: { calendar_id: "primary", expandRecurringEvent: false },
+    });
+    const upsert = wf.actions.find(
+      (a) =>
+        a.type === "ADD_STEP" &&
+        (a.input as { actionName: string }).actionName === "upsert-documents",
+    )!;
+    expect(upsert.input).toMatchObject({
+      reactorConnectionId: "reactor-conn",
+      config: { documentType: "sektar/calendar-event", driveId: "calendar" },
+    });
+    expect(s.applied?.generation).toBe(s.intent.generation);
+    expect(s.check?.issues).toEqual([]);
+
+    // Settled: the next passes write nothing
+    const before = w.writes.length;
+    await w.pass();
+    await w.pass();
+    expect(w.writes.length).toBe(before);
+  });
+
+  it("applies the user's own change quietly, and puts back one nobody asked for", async () => {
+    const w = world();
+    await w.pass();
+    w.signIn();
+    await w.pass();
+    const id = w.doc.state.global.resources.liveWorkflowId!;
+    const { actions } = await import("document-models/integration/v1");
+
+    // The user turns live updates off: applied, no fix logged
+    w.act(actions.setLiveEnabled({ enabled: false }));
+    await w.pass();
+    expect(w.workflows.get(id)?.status).toBe("DISABLED");
+    expect(w.doc.state.global.fixes).toEqual([]);
+    expect(w.doc.state.global.applied?.generation).toBe(
+      w.doc.state.global.intent.generation,
+    );
+
+    // Someone turns the workflow on in Studio: put back, and logged
+    w.workflows.get(id)!.status = "ENABLED";
+    w.writes.length = 0;
+    await w.pass();
+    expect(w.writes).toEqual([
+      `update ${id} SET_WORKFLOW_STATUS`,
+      "RECORD_CHECK",
+    ]);
+    expect(w.workflows.get(id)?.status).toBe("DISABLED");
+    expect(w.doc.state.global.fixes).toEqual([
+      expect.objectContaining({
+        code: "LIVE_WORKFLOW_DRIFT",
+        subject: id,
+        message: "Put back: the workflow was on",
+      }),
+    ]);
+  });
+
+  it("is built again when its workflow was deleted", async () => {
+    const w = world();
+    await w.pass();
+    w.signIn();
+    await w.pass();
+    const first = w.doc.state.global.resources.liveWorkflowId!;
+    w.workflows.delete(first);
+    const { actions } = await import("document-models/integration/v1");
+    w.act(
+      actions.requestCheck({
+        id: "r1",
+        requestedAt: "2026-10-28T10:01:00.000Z",
+      }),
+    );
+    await w.pass();
+    const second = w.doc.state.global.resources.liveWorkflowId!;
+    expect(second).not.toBe(first);
+    expect(w.workflows.has(second)).toBe(true);
+  });
+
+  it("waits, blocked, when the switchboard has no connection to write documents with", async () => {
+    const w = world();
+    w.noReactorConnection();
+    await w.pass();
+    w.signIn();
+    await w.pass();
+    const s = w.doc.state.global;
+    expect(w.workflows.size).toBe(0);
+    expect(s.applied).toBeNull();
+    expect(s.check?.issues.map((i) => [i.code, i.severity])).toEqual([
+      ["NO_REACTOR_CONNECTION", "BLOCKING"],
+    ]);
+  });
+});
 
 describe("a reconcile pass", () => {
   it("claims a new integration, makes its connection read-only, and asks for the sign-in", async () => {
@@ -153,8 +338,7 @@ describe("a reconcile pass", () => {
     await w.pass();
     expect(w.doc.state.global.check?.issues[0]?.since).toBe(since);
     expect(w.doc.state.global.checkRequest).toBeNull();
-    const c = w.connections.get("conn-1")!;
-    w.connections.set("conn-1", { ...c, status: "OK", signedIn: true });
+    w.signIn();
     await w.pass();
     expect(w.doc.state.global.check?.issues).toEqual([]);
   });
@@ -260,6 +444,11 @@ describe("a reconcile pass", () => {
         setConnectionConfig: () => Promise.resolve(),
         deleteDocument: () => Promise.resolve(),
         deleteIntegration: () => Promise.resolve(),
+        newId: () => "x",
+        findReactorConnection: () => Promise.resolve(null),
+        readWorkflow: () => Promise.resolve(null),
+        createWorkflow: () => Promise.reject(new Error("no")),
+        updateWorkflow: () => Promise.resolve(),
         dispatch: (l) => {
           out.push(...l);
           return Promise.resolve();

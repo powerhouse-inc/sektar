@@ -16,8 +16,11 @@ import {
   actions as connectionActions,
   utils as connectionUtils,
 } from "@powerhousedao/workflow/document-models/connection";
+import { utils as workflowUtils } from "@powerhousedao/workflow/document-models/workflow";
+import { generateId } from "document-model";
 import type { IntegrationState } from "document-models/integration";
 import { hostname } from "node:os";
+import type { WorkflowFacts } from "./live-workflow.js";
 import {
   reconcileIntegration,
   type ConnectionFacts,
@@ -25,6 +28,8 @@ import {
 } from "./reconcile.js";
 
 export const INTEGRATION_TYPE = "sektar/integration";
+/** The switchboard's own reactor connection: steps that write documents use it. */
+const REACTOR_CONNECTOR = "@powerhousedao/reactor#reactor";
 const SWEEP_MS = 60_000;
 const STARTUP_MS = 5_000;
 
@@ -182,6 +187,70 @@ export class IntegrationReconciler implements IProcessor {
       },
       deleteIntegration: async () => {
         await dispatch.deleteDocument(integrationId);
+      },
+      newId: () => generateId(),
+      findReactorConnection: async () => {
+        const page = await read.find({ type: "powerhouse/connection" });
+        const found = page.results.find((doc) => {
+          const g = (
+            doc.state as unknown as {
+              global: { connectorId?: string; authType?: string };
+            }
+          ).global;
+          return (
+            g.connectorId === REACTOR_CONNECTOR && g.authType === "REACTOR"
+          );
+        });
+        return found?.header.id ?? null;
+      },
+      readWorkflow: async (id) => {
+        let doc;
+        try {
+          doc = await read.get(id);
+        } catch {
+          return null;
+        }
+        const g = (
+          doc.state as unknown as {
+            global: {
+              status: string;
+              version: number;
+              published: {
+                version: number;
+                trigger: {
+                  triggerName: string;
+                  connectionId: string | null;
+                  config: Record<string, unknown>;
+                } | null;
+              } | null;
+            };
+          }
+        ).global;
+        const trigger = g.published?.trigger ?? null;
+        const facts: WorkflowFacts = {
+          status: g.status,
+          version: g.version,
+          publishedVersion: g.published?.version ?? null,
+          triggerName: trigger?.triggerName ?? null,
+          triggerConnectionId: trigger?.connectionId ?? null,
+          triggerConfig: trigger?.config ?? null,
+        };
+        return facts;
+      },
+      createWorkflow: async (name, list) => {
+        const workflows = await read.get("workflows");
+        const document = workflowUtils.createDocument();
+        document.header.name = name;
+        const created = await dispatch.createInDrive(
+          workflows.header.id,
+          document,
+        );
+        const id = created.documentId || document.header.id;
+        await dispatch.execute(id, "main", list);
+        return id;
+      },
+      updateWorkflow: async (id, list) => {
+        await dispatch.execute(id, "main", list);
       },
     };
   }

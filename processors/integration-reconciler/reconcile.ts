@@ -10,6 +10,13 @@
  * its own writes, and an unchanged check must not make another pass.
  */
 import {
+  buildLiveWorkflow,
+  liveWorkflowDrift,
+  liveWorkflowSpec,
+  type WorkflowAction,
+  type WorkflowFacts,
+} from "./live-workflow.js";
+import {
   actions,
   type IntegrationAction,
   type IntegrationIssue,
@@ -51,6 +58,15 @@ export interface ReconcileIO {
   deleteDocument(id: string): Promise<void>;
   /** Deletes the integration document itself, once everything it built is gone */
   deleteIntegration(): Promise<void>;
+  /** A new object id */
+  newId(): string;
+  /** The switchboard's own reactor connection, for steps that write documents */
+  findReactorConnection(): Promise<string | null>;
+  /** Null when the workflow document is gone */
+  readWorkflow(id: string): Promise<WorkflowFacts | null>;
+  /** Creates a workflow document in the Workflows drive and applies the actions; returns its id */
+  createWorkflow(name: string, actions: WorkflowAction[]): Promise<string>;
+  updateWorkflow(id: string, actions: WorkflowAction[]): Promise<void>;
 }
 
 /** The publisher's Google app (powerhouse.config.json workflows.oauthApps). */
@@ -120,6 +136,13 @@ export async function reconcileIntegration(
 
   const spec = connectionFor(doc.name, s);
   const issues: IntegrationIssue[] = [];
+  const fixes: {
+    at: string;
+    code: string;
+    subject?: string;
+    message: string;
+  }[] = [];
+  let built = false;
   const since = (code: string) =>
     s.check?.issues.find((i) => i.code === code)?.since ?? io.now();
 
@@ -157,16 +180,29 @@ export async function reconcileIntegration(
         fixable: false,
         since: since("NEEDS_SIGN_IN"),
       });
+    } else {
+      built = await reconcileLiveWorkflow(
+        doc,
+        connectionId,
+        io,
+        issues,
+        fixes,
+        since,
+      );
     }
   }
 
   const pending = s.checkRequest?.id ?? null;
   const last = s.check;
+  // Everything this pass can do for the generation is done: commit it.
+  const committed = built && issues.every((i) => i.severity !== "BLOCKING");
   const unchanged =
     !!last &&
     last.generation === s.intent.generation &&
     sameIssues(last.issues, issues) &&
-    pending === null;
+    pending === null &&
+    fixes.length === 0 &&
+    (s.applied?.generation === s.intent.generation) === committed;
   if (unchanged) return;
   await io.dispatch([
     actions.recordCheck({
@@ -175,9 +211,80 @@ export async function reconcileIntegration(
       generation: s.intent.generation,
       request: pending,
       issues: issues.map((i) => ({ ...i, subject: i.subject ?? undefined })),
-      fixes: [],
-      // The workflows come in pilot step 4: until then nothing is committed.
-      committed: false,
+      fixes,
+      committed,
     }),
   ]);
+}
+
+/**
+ * Builds the live workflow, or puts it back to what the integration asks
+ * for. A difference the user's own change explains (a generation not yet
+ * committed) is applied quietly; one nobody asked for is put back and
+ * logged. Returns whether the workflow now is what the spec says.
+ */
+async function reconcileLiveWorkflow(
+  doc: { id: string; name: string; state: IntegrationState },
+  connectionId: string,
+  io: ReconcileIO,
+  issues: IntegrationIssue[],
+  fixes: { at: string; code: string; subject?: string; message: string }[],
+  since: (code: string) => string,
+): Promise<boolean> {
+  const s = doc.state;
+  const reactorConnectionId = await io.findReactorConnection();
+  if (!reactorConnectionId) {
+    issues.push({
+      code: "NO_REACTOR_CONNECTION",
+      severity: "BLOCKING",
+      subject: null,
+      message:
+        "This computer has no connection for workflows to write documents with",
+      fixable: false,
+      since: since("NO_REACTOR_CONNECTION"),
+    });
+    return false;
+  }
+  const spec = liveWorkflowSpec(doc.name, s, connectionId, reactorConnectionId);
+  const id = s.resources.liveWorkflowId;
+  const facts = id ? await io.readWorkflow(id) : null;
+  if (!id || !facts) {
+    const now = io.now();
+    const workflowId = await io.createWorkflow(
+      spec.name,
+      buildLiveWorkflow(
+        spec,
+        {
+          trigger: io.newId(),
+          map: io.newId(),
+          upsert: io.newId(),
+          e1: io.newId(),
+          e2: io.newId(),
+        },
+        now,
+        doc.name,
+      ),
+    );
+    await io.dispatch([
+      actions.recordResources({ liveWorkflowId: workflowId }),
+    ]);
+    return true;
+  }
+  const drift = liveWorkflowDrift(spec, facts, io.now());
+  if (drift.actions.length === 0) return true;
+  await io.updateWorkflow(id, drift.actions);
+  // Asked for: the user changed the integration and this applies it.
+  const asked = s.applied?.generation !== s.intent.generation;
+  if (!asked) {
+    const at = io.now();
+    for (const difference of drift.differences) {
+      fixes.push({
+        at,
+        code: "LIVE_WORKFLOW_DRIFT",
+        subject: id,
+        message: `Put back: ${difference}`,
+      });
+    }
+  }
+  return true;
 }
