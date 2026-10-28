@@ -251,17 +251,34 @@
    that container; a grid item only sticks when it is not stretched, hence
    align-self: start.
    -------------------------------------------------------------------------- */
+/* One scroller, the size of what is visible. Connect's root is h-screen
+   (100vh): on iPhone Safari that is the height with the browser bars hidden,
+   taller than what shows, so the document behind it scrolled and bounced too
+   (sometimes the whole layout moved, sometimes the content) and the bottom
+   sat under the toolbar. The root takes the visible height (100dvh), the
+   document is locked and does not rubber-band, and a scroll that reaches the
+   content's end stays there instead of chaining to the page. */
+html:has(.sk-app.sk-shell),
+html:has(.sk-app.sk-shell) body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+.h-screen.overflow-auto:has(> .sk-app.sk-shell) {
+  height: 100dvh;
+  overscroll-behavior-y: contain;
+}
 /* `.sk-app` and `.sk-shell` sit on the same element */
 .sk-app.sk-shell {
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 .sk-app.sk-shell > .sk-sidebar {
   position: sticky;
   top: 0;
   align-self: start;
-  height: 100vh;
+  height: 100dvh;
   min-height: 0;
-  max-height: 100vh;
+  max-height: 100dvh;
   overflow-y: auto;
   overflow-x: hidden; /* a floating menu must never scroll the sidebar sideways */
   overscroll-behavior: contain;
@@ -294,6 +311,9 @@
   .sk-app .sk-shell__content--flush > .sk-page,
   .sk-app .sk-shell__content--flush .sk-integrations-app > .sk-page {
     padding: var(--sk-space-4);
+    /* Room under the last button: past the home indicator, and enough that
+       the bounce at the end never leaves a button half hidden. */
+    padding-bottom: calc(var(--sk-space-12) + env(safe-area-inset-bottom));
   }
 }
 /* The menu button: drawer on phones, sidebar rail on larger screens (the
