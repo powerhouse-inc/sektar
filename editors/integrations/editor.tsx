@@ -14,7 +14,10 @@ import { editorConfig } from "./config.js";
 export default function Editor(_props: EditorProps) {
   useSetPHAppConfig(editorConfig);
   return (
-    <div className="sk-app sk-integrations-app" style={{ background: "transparent" }}>
+    <div
+      className="sk-app sk-integrations-app"
+      style={{ background: "transparent" }}
+    >
       <Sprite />
       <IntegrationsPage />
     </div>

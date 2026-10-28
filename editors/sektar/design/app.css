@@ -2475,3 +2475,40 @@ html { touch-action: manipulation; }
 /* A long selector menu scrolls inside itself (kit/ui.tsx caps its height to
    the screen below it); the page behind it does not scroll along. */
 .sk-app .sk-selector__menu { overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
+
+/* -----------------------------------------------------------------------------
+   Integrations: the create flow (design system: Patterns · Integrations · Create)
+   Wide: the steps on the left, the panel on the right. Narrow (phone, or a
+   squeezed pane): "Step n of 4" above the panel and a Back link at its top.
+   ----------------------------------------------------------------------------- */
+.sk-app .sk-integrations-app { container-type: inline-size; container-name: intg; }
+.sk-app .sk-intg-create { display: grid; grid-template-columns: 240px minmax(0, 640px); gap: var(--sk-space-8); align-items: start; }
+.sk-app .sk-intg-create__phone-step { display: none; }
+.sk-app .sk-intg-create__back { display: none; align-self: flex-start; margin: calc(-1 * var(--sk-space-2)) 0 calc(-1 * var(--sk-space-3)) calc(-1 * var(--sk-space-2)); }
+.sk-app .sk-intg-flip { transform: rotate(180deg); }
+.sk-app .sk-intg-create__panel { grid-column: 2; }
+@container intg (max-width: 720px) {
+  .sk-app .sk-intg-create { grid-template-columns: minmax(0, 1fr); gap: var(--sk-space-3); }
+  .sk-app .sk-intg-create__steps { display: none; }
+  .sk-app .sk-intg-create__phone-step { display: block; }
+  .sk-app .sk-intg-create__back { display: inline-flex; }
+  .sk-app .sk-intg-create__panel { grid-column: 1; }
+  /* Tiles become rows: mark, then name and line, then the badge */
+  .sk-app .sk-intg-tiles { grid-template-columns: minmax(0, 1fr); gap: var(--sk-space-2); }
+  .sk-app .sk-intg-tile { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: var(--sk-space-3); row-gap: 0; align-items: center; text-align: left; padding: var(--sk-space-3); }
+  .sk-app .sk-intg-tile > .sk-avatar { grid-row: 1 / span 2; width: 40px; height: 40px; }
+  .sk-app .sk-intg-tile > :nth-child(2) { grid-column: 2; align-self: end; }
+  .sk-app .sk-intg-tile > .sk-intg-tile__lead { grid-column: 2; align-self: start; }
+  .sk-app .sk-intg-tile > .sk-badge { grid-column: 3; grid-row: 1 / span 2; }
+}
+.sk-app .sk-intg-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sk-space-3); }
+.sk-app .sk-intg-tile { justify-content: flex-start; font: inherit; cursor: pointer; }
+.sk-app .sk-intg-tile:disabled { cursor: default; opacity: 0.6; transform: none; box-shadow: none; }
+.sk-app .sk-intg-tile.is-selected { border-color: var(--sk-primary); box-shadow: 0 0 0 1px var(--sk-primary); }
+.sk-app .sk-intg-tile__lead { font-weight: var(--sk-weight-regular); }
+.sk-app .sk-intg-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--sk-space-4); }
+.sk-app .sk-intg-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.sk-app .sk-intg-since { flex-wrap: wrap; align-items: center; }
+.sk-app .sk-intg-since .sk-input { width: auto; margin-left: var(--sk-space-2); }
+.sk-app .sk-intg-summary { padding: var(--sk-space-4); border-radius: var(--sk-radius-lg); background: var(--sk-bg-subtle); color: var(--sk-text-secondary); }
+.sk-app .sk-intg-summary b { color: var(--sk-text); font-weight: var(--sk-weight-medium); }
