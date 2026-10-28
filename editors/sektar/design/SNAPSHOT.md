@@ -1,7 +1,7 @@
 # Vendored design system
 
 Source: `../sektar-design-elements/design-system`
-Synced: 2026-10-28T08:09:21.070Z by `scripts/sync-design-system.mjs`
+Synced: 2026-10-28T10:21:57.303Z by `scripts/sync-design-system.mjs`
 
 Not vendored on purpose: `css/fonts.css` and `assets/fonts/` (Fraunces stays on Google Fonts), `css/docs.css`, `js/`, photos, stucco shape variants.
 `base.css` is vendored for reference only; `app.css` carries its typography scoped to `.sk-page` / `.sk-app`.
@@ -34,6 +34,6 @@ Not vendored on purpose: `css/fonts.css` and `assets/fonts/` (Fraunces stays on 
 | assets/shapes/sektar-pattern-repeat-dark.svg | 2026-10-17T13:42:09.039Z | 665366309842 |
 | assets/shapes/sektar-pattern-repeat-light.svg | 2026-10-17T13:42:09.044Z | 4047ea229312 |
 | css/base.css | 2026-10-18T15:32:34.788Z | 83c54b31ce2d |
-| css/components.css | 2026-10-28T07:37:00.222Z | 94d5ba081bfc |
+| css/components.css | 2026-10-28T10:20:55.318Z | 407e50ce3eea |
 | css/tokens.css | 2026-10-18T12:35:43.419Z | 42dcad27f324 |
 | css/utilities.css | 2026-10-17T13:49:03.104Z | fdf2aa06bd05 |

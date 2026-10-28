@@ -10,6 +10,7 @@ import type {
 } from "document-models/integration";
 import { generateId } from "document-model";
 import { useMemo, useState, type ReactNode } from "react";
+import { EndMark } from "../../sektar/kit/endmark.js";
 import {
   accessOptions,
   createActions,
@@ -452,6 +453,9 @@ export function CreateFlow({
         </div>
       )}
       {body}
+      <div className="sk-intg-create__end">
+        <EndMark />
+      </div>
     </div>
   );
 }

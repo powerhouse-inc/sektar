@@ -2551,3 +2551,6 @@ html { touch-action: manipulation; }
 .sk-app .sk-intg-more summary::-webkit-details-marker { display: none; }
 .sk-app .sk-intg-more[open] summary { margin-bottom: var(--sk-space-2); }
 .sk-app .sk-intg-more p { margin: 0; color: var(--sk-text-secondary); max-width: 60ch; }
+/* The end mark sits under the panel, in the panel's column */
+.sk-app .sk-intg-create__end { grid-column: 2; }
+@container intg (max-width: 720px) { .sk-app .sk-intg-create__end { grid-column: 1; } }
