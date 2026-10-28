@@ -1,5 +1,6 @@
 export { BackfillsWorkspace } from "./backfills/module.js";
 export { BankAccountEditor } from "./bank-account-editor/module.js";
+export { CalendarApp } from "./calendar/module.js";
 export { ContactEditor } from "./contact-editor/module.js";
 export { EmailEditor } from "./email-editor/module.js";
 export { EmailWorkspace } from "./email-workspace/module.js";

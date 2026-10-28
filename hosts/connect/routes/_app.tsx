@@ -1,4 +1,8 @@
-import { initTheme, useDrives } from "@powerhousedao/reactor-browser";
+import {
+  initTheme,
+  setPreferredEditorOnNode,
+  useDrives,
+} from "@powerhousedao/reactor-browser";
 import {
   createFileRoute,
   Link,
@@ -6,7 +10,14 @@ import {
   redirect,
   useRouterState,
 } from "@tanstack/react-router";
-import { Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import bannerDark from "../../../editors/sektar/design/shapes/sektar-growth-four-column-combined-dark.svg";
 import bannerLight from "../../../editors/sektar/design/shapes/sektar-growth-four-column-combined-light.svg";
 import {
@@ -21,6 +32,7 @@ import { ProductSwitch } from "./-shared/product-switch.js";
 import {
   driveFor,
   navMatches,
+  PRODUCTS,
   productFor,
   rememberProduct,
   rememberedProduct,
@@ -49,14 +61,44 @@ export const Route = createFileRoute("/_app")({
   component: Shell,
 });
 
+/**
+ * Drives seeded before their drive app existed (the host leaves an existing
+ * drive as it is) open in Connect's default view. Each nav item that names
+ * an app binds its drive once, and only a drive with no app yet: a choice
+ * someone made in Connect stays.
+ */
+function useBindDriveApps() {
+  const drives = useDrives();
+  const tried = useRef(new Set<string>());
+  useEffect(() => {
+    for (const item of PRODUCTS.flatMap((p) => [
+      ...p.nav,
+      ...(p.beforeDrive ?? []),
+      ...(p.afterDrive ?? []),
+    ])) {
+      if (!item.app || !item.to.startsWith("/d/")) continue;
+      const slug = item.to.slice(3);
+      const drive = drives?.find(
+        (d) => d.header.slug === slug || d.header.id === slug,
+      );
+      if (!drive || drive.header.meta?.preferredEditor) continue;
+      if (tried.current.has(drive.header.id)) continue;
+      tried.current.add(drive.header.id);
+      setPreferredEditorOnNode(drive.header.id, item.app).catch(
+        (e: unknown) => {
+          console.warn(`[sektar] could not bind the ${slug} drive app`, e);
+        },
+      );
+    }
+  }, [drives]);
+}
+
 function pageTitle(pathname: string, product: Product) {
   const nav = [
     ...product.nav,
     ...(product.beforeDrive ?? []),
     ...(product.afterDrive ?? []),
-  ].find((n) =>
-    navMatches(pathname, n.to),
-  );
+  ].find((n) => navMatches(pathname, n.to));
   if (nav) return nav.label;
   if (pathname.startsWith("/d/")) return product.drive.label;
   if (pathname.startsWith("/settings")) return "Settings";
@@ -82,6 +124,7 @@ function Shell() {
     rememberProduct(product.id);
   }, [product.id, lastProduct]);
   const [drawer, setDrawer] = useState(false);
+  useBindDriveApps();
   // Desktop: the menu button collapses the sidebar to the design system's
   // 72px icon rail (and back); the choice is remembered per browser.
   const [rail, setRail] = useState(() => {

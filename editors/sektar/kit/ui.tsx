@@ -41,6 +41,7 @@ export type IconName =
   | "folder"
   | "mail"
   | "calendar"
+  | "pin"
   | "bell"
   | "upload"
   | "download"

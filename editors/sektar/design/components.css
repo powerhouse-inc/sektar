@@ -1330,14 +1330,14 @@ a.sk-list-item:hover .sk-list-item__title { color: var(--sk-text-brand); }
 .sk-pane__section.is-collapsed .sk-pane__section-body { display: none; }
 
 @container dash (max-width: 1040px) {
-  .sk-workspace--panes:not(.sk-workspace--two):not(.sk-workspace--stack) { flex-direction: column; }
-  .sk-workspace--panes:not(.sk-workspace--two):not(.sk-workspace--stack) > .sk-pane { border-left: 0; border-top: 1px solid var(--sk-border-subtle); }
-  .sk-workspace--panes:not(.sk-workspace--two):not(.sk-workspace--stack) > .sk-pane:first-child { border-top: 0; }
-  .sk-workspace--panes:not(.sk-workspace--two):not(.sk-workspace--stack) > .sk-pane.is-collapsed { flex-basis: auto; }
-  .sk-workspace--panes:not(.sk-workspace--two):not(.sk-workspace--stack) > .sk-pane.is-collapsed .sk-pane__header { flex-direction: row; justify-content: flex-start; padding: 0 var(--sk-space-3) 0 var(--sk-space-4); min-height: 44px; }
-  .sk-workspace--panes:not(.sk-workspace--two):not(.sk-workspace--stack) > .sk-pane.is-collapsed .sk-pane__title { writing-mode: horizontal-tb; transform: none; }
-  .sk-workspace--panes:not(.sk-workspace--two):not(.sk-workspace--stack) > .sk-pane--start .sk-pane__toggle .sk-icon, .sk-workspace--panes:not(.sk-workspace--two):not(.sk-workspace--stack) > .sk-pane--end .sk-pane__toggle .sk-icon { transform: rotate(90deg); }
-  .sk-workspace--panes:not(.sk-workspace--two):not(.sk-workspace--stack) > .sk-pane--start.is-collapsed .sk-pane__toggle .sk-icon, .sk-workspace--panes:not(.sk-workspace--two):not(.sk-workspace--stack) > .sk-pane--end.is-collapsed .sk-pane__toggle .sk-icon { transform: none; }
+  .sk-workspace--panes:not(.sk-workspace--two):not(.sk-workspace--stack):not(.sk-cal-app) { flex-direction: column; }
+  .sk-workspace--panes:not(.sk-workspace--two):not(.sk-workspace--stack):not(.sk-cal-app) > .sk-pane { border-left: 0; border-top: 1px solid var(--sk-border-subtle); }
+  .sk-workspace--panes:not(.sk-workspace--two):not(.sk-workspace--stack):not(.sk-cal-app) > .sk-pane:first-child { border-top: 0; }
+  .sk-workspace--panes:not(.sk-workspace--two):not(.sk-workspace--stack):not(.sk-cal-app) > .sk-pane.is-collapsed { flex-basis: auto; }
+  .sk-workspace--panes:not(.sk-workspace--two):not(.sk-workspace--stack):not(.sk-cal-app) > .sk-pane.is-collapsed .sk-pane__header { flex-direction: row; justify-content: flex-start; padding: 0 var(--sk-space-3) 0 var(--sk-space-4); min-height: 44px; }
+  .sk-workspace--panes:not(.sk-workspace--two):not(.sk-workspace--stack):not(.sk-cal-app) > .sk-pane.is-collapsed .sk-pane__title { writing-mode: horizontal-tb; transform: none; }
+  .sk-workspace--panes:not(.sk-workspace--two):not(.sk-workspace--stack):not(.sk-cal-app) > .sk-pane--start .sk-pane__toggle .sk-icon, .sk-workspace--panes:not(.sk-workspace--two):not(.sk-workspace--stack):not(.sk-cal-app) > .sk-pane--end .sk-pane__toggle .sk-icon { transform: rotate(90deg); }
+  .sk-workspace--panes:not(.sk-workspace--two):not(.sk-workspace--stack):not(.sk-cal-app) > .sk-pane--start.is-collapsed .sk-pane__toggle .sk-icon, .sk-workspace--panes:not(.sk-workspace--two):not(.sk-workspace--stack):not(.sk-cal-app) > .sk-pane--end.is-collapsed .sk-pane__toggle .sk-icon { transform: none; }
 }
 @container dash (max-width: 720px) {
   .sk-workspace--two { flex-direction: column; }
@@ -1679,3 +1679,187 @@ a.sk-list-item:hover .sk-list-item__title { color: var(--sk-text-brand); }
   .sk-endmark--rise::after,
   .sk-endmark--rise img { animation: none !important; transform: none !important; clip-path: none !important; }
 }
+
+/* -----------------------------------------------------------------------------
+   Calendar — a time grid (day, three days, week), a mini month, a week strip
+   and a month grid for phones, an agenda list and the event block.
+   Calendar colours are six ordered slots, .sk-cal-c1…c6, that set --sk-cal-c
+   on anything inside them (events, swatches, dots, checkboxes). They come from
+   the chart and status tokens, so they flip with the theme.
+   Events are placed with custom properties, not pixel offsets:
+     --s  start, in hours (9.5 = 9:30)   --d  duration, in hours
+     --col / --cols  side-by-side slot for overlapping events (0-based / count)
+   ----------------------------------------------------------------------------- */
+.sk-cal-c1 { --sk-cal-c: var(--sk-chart-1); }
+.sk-cal-c2 { --sk-cal-c: var(--sk-chart-2); }
+.sk-cal-c3 { --sk-cal-c: var(--sk-chart-3); }
+.sk-cal-c4 { --sk-cal-c: var(--sk-warning); }
+.sk-cal-c5 { --sk-cal-c: var(--sk-danger); }
+.sk-cal-c6 { --sk-cal-c: var(--sk-chart-6); }
+.sk-cal-swatch { width: 10px; height: 10px; border-radius: 3px; background: var(--sk-cal-c, var(--sk-chart-1)); flex: none; display: inline-block; }
+.sk-cal-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--sk-cal-c, var(--sk-chart-1)); display: inline-block; }
+
+/* toolbar: today · prev/next · range title · view switch · new */
+.sk-cal-toolbar { display: flex; align-items: center; gap: var(--sk-space-2); min-height: 60px; padding: var(--sk-space-2) var(--sk-space-4); border-bottom: 1px solid var(--sk-border-subtle); background: var(--sk-bg); min-width: 0; }
+.sk-cal-toolbar__nav { display: inline-flex; gap: 2px; }
+.sk-cal-toolbar__title { font-family: var(--sk-font-display); font-size: var(--sk-text-2xl); font-weight: var(--sk-weight-regular); letter-spacing: -0.01em; font-variation-settings: "opsz" 36, "SOFT" 20, "WONK" 0; margin: 0 0 0 var(--sk-space-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.sk-cal-toolbar__year { color: var(--sk-text-muted); }
+.sk-cal-toolbar__short { display: none; }
+.sk-cal-toolbar__spacer { flex: 1; }
+
+/* time grid */
+.sk-cal { --sk-cal-hour: 48px; --sk-cal-from: 8; --sk-cal-to: 19; --sk-cal-days: 7; --sk-cal-gutter: 56px; display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; background: var(--sk-surface); }
+.sk-cal__scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.sk-cal__head, .sk-cal__allday, .sk-cal__grid { display: grid; grid-template-columns: var(--sk-cal-gutter) repeat(var(--sk-cal-days), minmax(0, 1fr)); }
+.sk-cal__top { position: sticky; top: 0; z-index: 3; background: var(--sk-surface); border-bottom: 1px solid var(--sk-border); }
+.sk-cal__day { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--sk-space-2) 0; border-left: 1px solid var(--sk-border-subtle); }
+.sk-cal__weekday { font-size: var(--sk-text-2xs); font-weight: var(--sk-weight-medium); letter-spacing: 0.14em; text-transform: uppercase; color: var(--sk-text-muted); }
+.sk-cal__date { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-family: var(--sk-font-display); font-size: var(--sk-text-xl); font-variation-settings: "opsz" 24, "SOFT" 20, "WONK" 0; line-height: 1; color: var(--sk-text); }
+.sk-cal__day.is-today .sk-cal__weekday { color: var(--sk-text-brand); }
+.sk-cal__day.is-today .sk-cal__date { background: var(--sk-primary); color: var(--sk-on-primary); }
+.sk-cal__allday { grid-auto-rows: minmax(24px, auto); row-gap: 2px; padding-bottom: 4px; }
+.sk-cal__allday-label { grid-column: 1; grid-row: 1; align-self: start; padding: 5px var(--sk-space-2) 0 0; text-align: right; font-size: var(--sk-text-2xs); color: var(--sk-text-muted); }
+.sk-cal__allday > .sk-event { position: static; height: auto; width: auto; margin: 0 2px; padding-block: 3px; }
+.sk-cal__grid { position: relative; margin-top: 10px; clip-path: inset(-10px 0 0 0); height: calc((var(--sk-cal-to) - var(--sk-cal-from)) * var(--sk-cal-hour)); }
+.sk-cal__hours { position: relative; }
+.sk-cal__hour { position: absolute; right: var(--sk-space-2); top: calc((var(--h) - var(--sk-cal-from)) * var(--sk-cal-hour)); transform: translateY(-50%); font-size: var(--sk-text-2xs); color: var(--sk-text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sk-cal__col { position: relative; border-left: 1px solid var(--sk-border-subtle); background-image: repeating-linear-gradient(to bottom, transparent 0 calc(var(--sk-cal-hour) - 1px), var(--sk-border-subtle) calc(var(--sk-cal-hour) - 1px) var(--sk-cal-hour)); }
+.sk-cal__col--off { background-color: var(--sk-bg-subtle); }   /* weekend */
+.sk-cal__now { position: absolute; left: -1px; right: 0; top: calc((var(--now) - var(--sk-cal-from)) * var(--sk-cal-hour)); height: 2px; margin-top: -1px; background: var(--sk-text-brand); z-index: 2; pointer-events: none; }
+.sk-cal__now::before { content: ""; position: absolute; left: -5px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--sk-text-brand); }
+
+/* event — a tint of its calendar colour, the colour itself as a 3px edge */
+.sk-event { position: absolute; z-index: 1; top: calc((var(--s) - var(--sk-cal-from)) * var(--sk-cal-hour) + 1px); height: calc(var(--d) * var(--sk-cal-hour) - 3px); left: calc(var(--col, 0) / var(--cols, 1) * 100% + 2px); width: calc(100% / var(--cols, 1) - 5px); display: flex; flex-direction: column; gap: 1px; padding: 4px 6px 4px 9px; border: 0; border-radius: var(--sk-radius-xs); background: color-mix(in srgb, var(--sk-cal-c, var(--sk-chart-1)) var(--sk-cal-tint), var(--sk-surface)); box-shadow: inset 3px 0 0 var(--sk-cal-c, var(--sk-chart-1)); color: var(--sk-text); font: inherit; font-size: var(--sk-text-xs); line-height: 1.3; overflow: hidden; text-align: left; cursor: pointer; transition: background-color var(--sk-duration-fast), box-shadow var(--sk-duration-fast); }
+.sk-event:hover { background: color-mix(in srgb, var(--sk-cal-c, var(--sk-chart-1)) var(--sk-cal-tint-hover), var(--sk-surface)); }
+.sk-event:focus-visible { outline: 2px solid var(--sk-primary); outline-offset: 1px; }
+.sk-event__title { font-weight: var(--sk-weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-event__meta { color: var(--sk-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.sk-event--short { flex-direction: row; align-items: center; gap: 6px; padding-block: 0; }   /* 30 minutes and less: one line */
+.sk-event--short .sk-event__meta { flex: none; order: -1; }
+.sk-event--tentative { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--sk-cal-c, var(--sk-chart-1)) var(--sk-cal-tint), var(--sk-surface)) 0 6px, var(--sk-surface) 6px 10px); }
+.sk-event.is-selected { z-index: 2; background: color-mix(in srgb, var(--sk-cal-c, var(--sk-chart-1)) var(--sk-cal-tint-selected), var(--sk-surface)); box-shadow: inset 3px 0 0 var(--sk-cal-c, var(--sk-chart-1)), 0 0 0 1.5px var(--sk-cal-c, var(--sk-chart-1)), var(--sk-shadow-md); }
+.sk-event.is-past { opacity: 0.6; }
+
+/* mini month — the date picker in the side pane */
+.sk-minical__head { display: flex; align-items: center; gap: var(--sk-space-1); margin-bottom: var(--sk-space-1); }
+.sk-minical__title { flex: 1; font-size: var(--sk-text-md); font-weight: var(--sk-weight-medium); }
+.sk-minical__grid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 2px; text-align: center; }
+.sk-minical__wd { font-size: var(--sk-text-2xs); color: var(--sk-text-muted); font-weight: var(--sk-weight-medium); height: 24px; line-height: 24px; }
+.sk-minical__day { height: 30px; border: 0; background: transparent; padding: 0; font: inherit; font-size: var(--sk-text-sm); color: var(--sk-text); cursor: pointer; font-variant-numeric: tabular-nums; }
+.sk-minical__day span { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; transition: background-color var(--sk-duration-fast); }
+.sk-minical__day:hover span { background: var(--sk-bg-subtle); }
+.sk-minical__day.is-out { color: var(--sk-text-disabled); }
+.sk-minical__day.is-range { background: var(--sk-accent-subtle); }
+.sk-minical__day.is-range-start { border-radius: var(--sk-radius-full) 0 0 var(--sk-radius-full); }
+.sk-minical__day.is-range-end { border-radius: 0 var(--sk-radius-full) var(--sk-radius-full) 0; }
+.sk-minical__day.is-today span { background: var(--sk-primary); color: var(--sk-on-primary); font-weight: var(--sk-weight-medium); }
+
+/* calendar list — which calendars show; the checkbox takes the calendar's colour */
+.sk-cal-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.sk-cal-list li { display: flex; align-items: center; gap: var(--sk-space-2); min-height: 30px; }
+.sk-cal-list .sk-check { flex: 1; min-width: 0; align-items: center; font-size: var(--sk-text-sm); }
+.sk-cal-list .sk-check input { margin-top: 0; border-color: var(--sk-cal-c); }
+.sk-cal-list .sk-check input:checked { background: var(--sk-cal-c); border-color: var(--sk-cal-c); }
+.sk-cal-list .sk-check input[type="checkbox"]:checked::after { border-color: var(--sk-surface); }
+.sk-cal-list__meta { font-size: var(--sk-text-xs); color: var(--sk-text-muted); font-variant-numeric: tabular-nums; }
+
+/* agenda — events as a list, grouped by day (phone month view, desktop agenda) */
+.sk-agenda { list-style: none; margin: 0; padding: 0; }
+.sk-agenda__day { position: sticky; top: 0; z-index: 1; display: flex; align-items: baseline; gap: var(--sk-space-2); padding: var(--sk-space-3) var(--sk-space-4) var(--sk-space-2); background: var(--sk-surface); font-size: var(--sk-text-2xs); font-weight: var(--sk-weight-medium); letter-spacing: 0.14em; text-transform: uppercase; color: var(--sk-text-muted); }
+.sk-agenda__day.is-today { color: var(--sk-text-brand); }
+.sk-agenda__item { display: grid; grid-template-columns: 48px 3px minmax(0, 1fr) auto; column-gap: var(--sk-space-3); align-items: start; padding: var(--sk-space-2) var(--sk-space-4); color: inherit; text-decoration: none; }
+.sk-agenda__item:hover { background: var(--sk-bg-subtle); }
+.sk-agenda__time { font-size: var(--sk-text-sm); font-weight: var(--sk-weight-medium); font-variant-numeric: tabular-nums; line-height: 1.4; }
+.sk-agenda__time small { display: block; font-size: var(--sk-text-xs); font-weight: var(--sk-weight-regular); color: var(--sk-text-muted); }
+.sk-agenda__bar { align-self: stretch; border-radius: 2px; background: var(--sk-cal-c); }
+.sk-agenda__title { font-size: var(--sk-text-md); font-weight: var(--sk-weight-medium); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-agenda__meta { font-size: var(--sk-text-xs); color: var(--sk-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-agenda__item > .sk-avatar-stack { align-self: center; }
+.sk-agenda__item .sk-avatar-stack .sk-avatar { width: 24px; height: 24px; font-size: 10px; }
+.sk-agenda__item .sk-avatar-stack .sk-avatar + .sk-avatar { margin-left: -4px; }
+.sk-cal-body .sk-agenda { padding-bottom: 88px; }   /* clear of the floating button */
+
+/* week strip — the phone's date row: seven days, dots for what is on */
+.sk-weekstrip { background: var(--sk-bg); border-bottom: 1px solid var(--sk-border-subtle); padding: var(--sk-space-1) var(--sk-space-2) var(--sk-space-2); }
+.sk-weekstrip__head { display: flex; align-items: center; gap: var(--sk-space-2); padding: 0 var(--sk-space-2) var(--sk-space-1); }
+.sk-weekstrip__month { display: inline-flex; align-items: center; gap: 4px; border: 0; background: transparent; padding: 4px 0; font: inherit; font-size: var(--sk-text-md); font-weight: var(--sk-weight-medium); color: var(--sk-text); cursor: pointer; }
+.sk-weekstrip__month .sk-icon { width: 16px; height: 16px; --sk-icon-1: currentColor; --sk-icon-2: currentColor; --sk-icon-3: currentColor; }
+.sk-weekstrip__days { display: grid; grid-template-columns: repeat(7, 1fr); }
+.sk-weekstrip__day { display: flex; flex-direction: column; align-items: center; gap: 3px; border: 0; background: transparent; padding: 2px 0; font: inherit; color: var(--sk-text); cursor: pointer; }
+.sk-weekstrip__wd { font-size: var(--sk-text-2xs); font-weight: var(--sk-weight-medium); color: var(--sk-text-muted); }
+.sk-weekstrip__date { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: var(--sk-text-md); font-weight: var(--sk-weight-medium); font-variant-numeric: tabular-nums; }
+.sk-weekstrip__dots { display: flex; gap: 3px; height: 5px; }
+.sk-weekstrip__day.is-today .sk-weekstrip__date { color: var(--sk-text-brand); box-shadow: inset 0 0 0 1.5px var(--sk-text-brand); }
+.sk-weekstrip__day.is-selected .sk-weekstrip__date { background: var(--sk-primary); color: var(--sk-on-primary); box-shadow: none; }
+.sk-weekstrip__day.is-off .sk-weekstrip__wd { color: var(--sk-text-disabled); }
+
+/* month grid — dots on phones */
+.sk-monthgrid { display: grid; grid-template-columns: repeat(7, 1fr); background: var(--sk-bg); border-bottom: 1px solid var(--sk-border-subtle); padding: 0 var(--sk-space-2) var(--sk-space-1); }
+.sk-monthgrid__wd { padding: var(--sk-space-2) 0 var(--sk-space-1); text-align: center; font-size: var(--sk-text-2xs); font-weight: var(--sk-weight-medium); color: var(--sk-text-muted); }
+.sk-monthgrid__day { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 44px; padding: 2px 0; border: 0; background: transparent; font: inherit; color: var(--sk-text); cursor: pointer; }
+.sk-monthgrid__num { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: var(--sk-text-sm); font-variant-numeric: tabular-nums; }
+.sk-monthgrid__dots { display: flex; gap: 3px; height: 5px; }
+.sk-monthgrid__day.is-out { color: var(--sk-text-disabled); }
+.sk-monthgrid__day.is-out .sk-cal-dot { opacity: 0.4; }
+.sk-monthgrid__day.is-today .sk-monthgrid__num { color: var(--sk-text-brand); box-shadow: inset 0 0 0 1.5px var(--sk-text-brand); font-weight: var(--sk-weight-medium); }
+.sk-monthgrid__day.is-selected .sk-monthgrid__num { background: var(--sk-primary); color: var(--sk-on-primary); box-shadow: none; font-weight: var(--sk-weight-medium); }
+
+/* new-event button on phones — the one floating action */
+.sk-cal-fab { position: absolute; right: var(--sk-space-4); bottom: var(--sk-space-4); z-index: 4; width: 56px; height: 56px; border-radius: var(--sk-radius-lg); border: 0; display: grid; place-items: center; background: var(--sk-primary); color: var(--sk-on-primary); box-shadow: var(--sk-shadow-lg); cursor: pointer; --sk-icon-1: currentColor; --sk-icon-2: currentColor; --sk-icon-3: currentColor; }
+.sk-cal-fab:focus-visible { outline: 2px solid var(--sk-primary); outline-offset: 3px; }
+
+/* calendar shell: side pane and detail pane keep their width; the grid takes the rest */
+.sk-cal-body { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.sk-pane.sk-cal-side:not(.is-collapsed) { flex: 0 0 304px; }
+/* the calendar never stacks its panes: the grid needs the height, the sidebar stays on the right */
+.sk-workspace--panes.sk-cal-app { flex-direction: row; }
+.sk-workspace--panes.sk-cal-app > .sk-pane { border-top: 0; border-left: 1px solid var(--sk-border-subtle); }
+.sk-workspace--panes.sk-cal-app > .sk-pane:first-child { border-left: 0; }
+@container dash (max-width: 960px) {
+  .sk-pane.sk-cal-side:not(.is-collapsed) { flex-basis: 264px; }
+  .sk-cal-toolbar__long { display: none; }
+  .sk-cal-toolbar__short { display: inline; }
+}
+/* narrow: the sidebar floats over the grid, a 44px strip until it opens (an event opens it) */
+@container dash (max-width: 820px) {
+  .sk-workspace--panes.sk-cal-app { position: relative; }
+  .sk-cal-app > .sk-cal-main { margin-right: 44px; }
+  .sk-cal-toolbar__label { display: none; }
+  .sk-pane.sk-cal-side, .sk-pane.sk-cal-side:not(.is-collapsed) { position: absolute; top: 0; right: 0; bottom: 0; width: 304px; z-index: 6; box-shadow: var(--sk-shadow-lg); }
+  .sk-pane.sk-cal-side.is-collapsed { width: 44px; box-shadow: none; }
+}
+.sk-pane.sk-cal-main { flex: 1 1 0; }
+.sk-cal-side .sk-pane__body { display: grid; gap: var(--sk-space-6); align-content: start; padding: var(--sk-space-4) var(--sk-space-5) var(--sk-space-6); }
+.sk-cal-side .sk-pane__body[hidden] { display: none; }
+.sk-cal-side__label { font-size: var(--sk-text-2xs); font-weight: var(--sk-weight-medium); letter-spacing: 0.14em; text-transform: uppercase; color: var(--sk-text-muted); margin: 0 0 var(--sk-space-2); }
+
+/* sidebar settings — a label and its control on one row */
+.sk-cal-settings { display: grid; }
+.sk-cal-setting { display: flex; align-items: center; justify-content: space-between; gap: var(--sk-space-3); min-height: 40px; font-size: var(--sk-text-sm); border-bottom: 1px solid var(--sk-border-subtle); }
+.sk-cal-setting:last-child { border-bottom: 0; }
+.sk-cal-setting > span { min-width: 0; }
+.sk-cal-setting small { display: block; font-size: var(--sk-text-xs); color: var(--sk-text-muted); }
+.sk-cal-setting .sk-select { width: 150px; min-height: 32px; padding-block: 4px; font-size: var(--sk-text-sm); }
+.sk-cal-setting .sk-segmented__item { padding: 4px 10px; font-size: var(--sk-text-xs); }
+.sk-cal-setting .sk-switch input { width: 34px; height: 20px; }
+.sk-cal-setting .sk-switch input::after { width: 14px; height: 14px; }
+.sk-cal-setting .sk-switch input:checked::after { transform: translateX(14px); }
+
+/* event in the sidebar */
+.sk-cal-event__cal { display: flex; align-items: center; gap: var(--sk-space-2); margin: 0 0 6px; font-size: var(--sk-text-2xs); font-weight: var(--sk-weight-medium); letter-spacing: 0.14em; text-transform: uppercase; color: var(--sk-text-muted); }
+.sk-cal-event__title { font-family: var(--sk-font-display); font-size: var(--sk-text-2xl); font-weight: var(--sk-weight-regular); line-height: 1.15; letter-spacing: -0.01em; font-variation-settings: "opsz" 36, "SOFT" 20, "WONK" 0; margin: 0; }
+.sk-cal-event__when { font-size: var(--sk-text-sm); color: var(--sk-text-secondary); margin: 6px 0 0; }
+.sk-cal-event__rows { display: grid; gap: var(--sk-space-3); }
+.sk-cal-event__row { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: var(--sk-space-3); align-items: start; font-size: var(--sk-text-sm); color: var(--sk-text-secondary); }
+.sk-cal-event__row[hidden] { display: none; }
+.sk-cal-event__row > .sk-icon { width: 18px; height: 18px; margin-top: 1px; }
+.sk-cal-event__row b { display: block; font-weight: var(--sk-weight-medium); color: var(--sk-text); }
+
+/* view options, as classes on [data-sk-cal] (Sektar.calendar sets them) */
+.is-hide-c1 .sk-event.sk-cal-c1, .is-hide-c2 .sk-event.sk-cal-c2, .is-hide-c3 .sk-event.sk-cal-c3,
+.is-hide-c4 .sk-event.sk-cal-c4, .is-hide-c5 .sk-event.sk-cal-c5, .is-hide-c6 .sk-event.sk-cal-c6 { display: none; }
+.is-hide-weekends .sk-cal { --sk-cal-days: 5; }
+.is-hide-weekends :is(.sk-cal__day--off, .sk-cal__col--off, .sk-event--off) { display: none; }
+.is-workhours .sk-cal { --sk-cal-from: 9; --sk-cal-to: 18; }
+.is-workhours .sk-cal__hour.is-outside { display: none; }
+[data-sk-cal]:not(.is-fade-past) .sk-event.is-past { opacity: 1; }

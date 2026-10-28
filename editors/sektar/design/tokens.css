@@ -259,6 +259,8 @@
   --sk-chart-grid: var(--sk-border-subtle);
   --sk-chart-line: var(--sk-forest-700);
   --sk-chart-area: linear-gradient(180deg, rgb(107 143 115 / 0.35), rgb(107 143 115 / 0));
+  /* Calendar events: how much of the calendar colour goes into an event tint (rest, hover, selected) */
+  --sk-cal-tint: 16%; --sk-cal-tint-hover: 26%; --sk-cal-tint-selected: 32%;
 
   /* Components */
   --sk-nav-active-bg:  var(--sk-neutral-200);
@@ -358,6 +360,8 @@
   --sk-chart-grid: #22302A;
   --sk-chart-line: var(--sk-mint-200);
   --sk-chart-area: linear-gradient(180deg, rgb(191 215 189 / 0.28), rgb(191 215 189 / 0));
+  /* Calendar events: how much of the calendar colour goes into an event tint (rest, hover, selected) */
+  --sk-cal-tint: 28%; --sk-cal-tint-hover: 38%; --sk-cal-tint-selected: 46%;
 
   --sk-shadow-color: 0 0 0;
   --sk-nav-active-bg:  #1F2D25;
@@ -452,6 +456,8 @@
     --sk-chart-grid: #22302A;
     --sk-chart-line: var(--sk-mint-200);
     --sk-chart-area: linear-gradient(180deg, rgb(191 215 189 / 0.28), rgb(191 215 189 / 0));
+    /* Calendar events: how much of the calendar colour goes into an event tint (rest, hover, selected) */
+    --sk-cal-tint: 28%; --sk-cal-tint-hover: 38%; --sk-cal-tint-selected: 46%;
 
     --sk-shadow-color: 0 0 0;
     --sk-nav-active-bg:  #1F2D25;
@@ -534,6 +540,8 @@
   --sk-chart-grid: var(--sk-border-subtle);
   --sk-chart-line: var(--sk-forest-700);
   --sk-chart-area: linear-gradient(180deg, rgb(107 143 115 / 0.35), rgb(107 143 115 / 0));
+  /* Calendar events: how much of the calendar colour goes into an event tint (rest, hover, selected) */
+  --sk-cal-tint: 16%; --sk-cal-tint-hover: 26%; --sk-cal-tint-selected: 32%;
   --sk-shadow-color: 26 36 33;
   --sk-nav-active-bg: var(--sk-neutral-200);
   --sk-nav-active-text: var(--sk-forest);

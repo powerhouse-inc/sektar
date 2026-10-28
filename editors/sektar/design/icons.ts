@@ -123,6 +123,12 @@ export const sprite = `<svg xmlns="http://www.w3.org/2000/svg" style="display:no
     <circle cx="12" cy="17.6" r="1.15" style="fill:var(--sk-icon-3)"/>
   </symbol>
 
+  <symbol id="i-pin" viewBox="0 0 24 24">
+    <ellipse cx="12" cy="20.2" rx="6" ry="1.8" style="fill:var(--sk-icon-3)"/>
+    <path d="M12 2.5a7 7 0 0 0-7 7c0 4.6 4.6 8.7 6.3 10.1a1.1 1.1 0 0 0 1.4 0C14.4 18.2 19 14.1 19 9.5a7 7 0 0 0-7-7z" style="fill:var(--sk-icon-1)"/>
+    <circle cx="12" cy="9.5" r="2.8" style="fill:var(--sk-icon-3)"/>
+  </symbol>
+
   <symbol id="i-bell" viewBox="0 0 24 24">
     <path d="M12 2.5a6 6 0 0 0-6 6v3.2c0 .8-.3 1.6-.8 2.2L4 16a1 1 0 0 0 .8 1.6h14.4A1 1 0 0 0 20 16l-1.2-2.1a3.5 3.5 0 0 1-.8-2.2V8.5a6 6 0 0 0-6-6z" style="fill:var(--sk-icon-1)"/>
     <path d="M9.3 19.2a2.7 2.7 0 0 0 5.4 0z" style="fill:var(--sk-icon-2)"/>

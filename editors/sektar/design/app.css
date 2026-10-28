@@ -859,7 +859,7 @@ html:has(.sk-app.sk-shell) body {
    filling the content area (Mail, Files, Trips, Invoices). The height is
    measured by the app; the panes scroll inside it.
    --------------------------------------------------------------------------- */
-.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices) {
+.sk-app :is(.sk-mail, .sk-backfills, .sk-files, .sk-file-view, .sk-trips, .sk-invoices, .sk-calendar) {
   display: flex;
   flex-direction: column;
   /* Explicit, not left to flex stretch: a size container that is only
@@ -2569,3 +2569,18 @@ html { touch-action: manipulation; }
 .sk-app .sk-intg-waiting__actions button:hover { color: var(--sk-text); }
 /* The sign-in itself spans the card; a retry after a failed one is its own size */
 .sk-app .sk-intg-signin-next > .sk-btn.sk-intg-retry { align-self: flex-start; }
+
+/* ---------------------------------------------------------------------------
+   Calendar (editors/calendar): the design system's calendar pattern filling
+   the content area. The toolbar on top, the panes take the rest; the time
+   grid scrolls inside its pane.
+   --------------------------------------------------------------------------- */
+.sk-app .sk-calendar > .sk-cal-app {
+  flex: 1;
+  min-height: 0;
+}
+.sk-app .sk-calendar .sk-cal-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}

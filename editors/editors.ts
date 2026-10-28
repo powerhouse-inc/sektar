@@ -5,6 +5,7 @@
 import type { EditorModule } from "document-model";
 import { BackfillsWorkspace } from "./backfills/module.js";
 import { BankAccountEditor } from "./bank-account-editor/module.js";
+import { CalendarApp } from "./calendar/module.js";
 import { ContactEditor } from "./contact-editor/module.js";
 import { EmailEditor } from "./email-editor/module.js";
 import { EmailWorkspace } from "./email-workspace/module.js";
@@ -23,6 +24,7 @@ import { Trips } from "./trips/module.js";
 export const editors: EditorModule[] = [
   BackfillsWorkspace,
   BankAccountEditor,
+  CalendarApp,
   ContactEditor,
   EmailEditor,
   EmailWorkspace,

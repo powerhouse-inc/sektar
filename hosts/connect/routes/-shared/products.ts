@@ -11,7 +11,16 @@ import type { IconName } from "../../../../editors/sektar/kit/ui.js";
 // product line, the navigation, the drive link and the page follow.
 export type ProductId = "productivity" | "finance" | "travel";
 
-export type NavItem = { to: string; label: string; icon: IconName };
+export type NavItem = {
+  to: string;
+  label: string;
+  icon: IconName;
+  /**
+   * For a drive the item opens by slug: the drive app it is bound to. A drive
+   * created before its app existed has none; the shell binds it (bindDriveApps).
+   */
+  app?: string;
+};
 
 export type Product = {
   id: ProductId;
@@ -50,6 +59,13 @@ export const PRODUCTS: readonly Product[] = [
         to: "/d/HRsIHuMMTdmjgCdy9QGWyx96zOFByPo787oBQcEt9f4",
         label: "Mail",
         icon: "mail",
+      },
+      // The Calendar drive (hosts/switchboard: slug "calendar", drive app calendar)
+      {
+        to: "/d/calendar",
+        label: "Calendar",
+        icon: "calendar",
+        app: "calendar",
       },
       // The Files drive (hosts/*: slug "files", drive app files)
       { to: "/d/files", label: "Files", icon: "folder" },
@@ -146,7 +162,9 @@ export function driveFor<D extends DriveLike>(
     candidates.find((d) => d.header.meta?.preferredEditor === editor) ??
     candidates[0];
   const param =
-    candidates.length > 1 ? drive.header.id : drive.header.slug || drive.header.id;
+    candidates.length > 1
+      ? drive.header.id
+      : drive.header.slug || drive.header.id;
   return { drive, param };
 }
 
