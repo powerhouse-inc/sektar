@@ -20,7 +20,7 @@ import { utils as workflowUtils } from "@powerhousedao/workflow/document-models/
 import { generateId } from "document-model";
 import type { IntegrationState } from "document-models/integration";
 import { hostname } from "node:os";
-import type { WorkflowFacts } from "./live-workflow.js";
+import type { RuntimeHealth, WorkflowFacts } from "./live-workflow.js";
 import {
   reconcileIntegration,
   type ConnectionFacts,
@@ -33,7 +33,13 @@ const REACTOR_CONNECTOR = "@powerhousedao/reactor#reactor";
 const SWEEP_MS = 60_000;
 const STARTUP_MS = 5_000;
 
-type Module = Pick<IProcessorHostModule, "read" | "dispatch">;
+type Module = Pick<IProcessorHostModule, "read" | "dispatch" | "getReadModel">;
+
+/** The workflow runtime's read model (Powerhouse reactor-workflow): present where the runtime runs. */
+const WORKFLOW_TRIGGERS_READ_MODEL = "workflow-triggers";
+type WorkflowHealthReader = {
+  health(workflowId: string): Promise<RuntimeHealth>;
+};
 
 export class IntegrationReconciler implements IProcessor {
   private queue: Promise<void> = Promise.resolve();
@@ -251,6 +257,19 @@ export class IntegrationReconciler implements IProcessor {
       },
       updateWorkflow: async (id, list) => {
         await dispatch.execute(id, "main", list);
+      },
+      workflowHealth: async (id) => {
+        let reader: WorkflowHealthReader;
+        try {
+          reader = this.module.getReadModel<WorkflowHealthReader>(
+            WORKFLOW_TRIGGERS_READ_MODEL,
+          );
+        } catch {
+          return null; // no runtime on this host
+        }
+        // An older runtime without health(): nothing to say
+        if (typeof reader.health !== "function") return null;
+        return reader.health(id);
       },
     };
   }

@@ -16,7 +16,11 @@ import {
   type ConnectionFacts,
   type ReconcileIO,
 } from "./reconcile.js";
-import type { WorkflowAction, WorkflowFacts } from "./live-workflow.js";
+import type {
+  RuntimeHealth,
+  WorkflowAction,
+  WorkflowFacts,
+} from "./live-workflow.js";
 
 const NOW = new Date(2026, 9, 28, 9, 30);
 const PC = { reactorId: "switchboard@pc", label: "pc" };
@@ -40,6 +44,7 @@ function world(access: "READ" | "READ_WRITE" = "READ") {
     WorkflowFacts & { actions: WorkflowAction[] }
   >();
   let reactorConnection: string | null = "reactor-conn";
+  const health = new Map<string, RuntimeHealth>();
   let n = 0;
   /** Applies workflow actions the way the workflow model would, as far as the facts go */
   const applyWorkflow = (id: string, list: WorkflowAction[]) => {
@@ -122,6 +127,7 @@ function world(access: "READ" | "READ_WRITE" = "READ") {
       writes.push(`create workflow ${id} ${name}`);
       return Promise.resolve(id);
     },
+    workflowHealth: (id) => Promise.resolve(health.get(id) ?? null),
     updateWorkflow: (id, list) => {
       applyWorkflow(id, list);
       writes.push(`update ${id} ${list.map((a) => a.type).join(",")}`);
@@ -157,6 +163,7 @@ function world(access: "READ" | "READ_WRITE" = "READ") {
     noReactorConnection: () => {
       reactorConnection = null;
     },
+    health,
     get doc() {
       return doc;
     },
@@ -250,6 +257,53 @@ describe("the live workflow", () => {
         message: "Put back: the workflow was on",
       }),
     ]);
+  });
+
+  it("says so when the runtime parked it after a failed run, and stops saying so once it runs again", async () => {
+    const w = world();
+    await w.pass();
+    w.signIn();
+    await w.pass();
+    const id = w.doc.state.global.resources.liveWorkflowId!;
+    w.health.set(id, {
+      trigger: { status: "DISABLED", lastError: null, consecutiveFailures: 0 },
+      park: { reason: 'Step "map_events" failed: no action', parkedAt: "t" },
+    });
+    await w.pass();
+    expect(w.doc.state.global.check?.issues).toEqual([
+      expect.objectContaining({
+        code: "LIVE_WORKFLOW_PARKED",
+        severity: "BLOCKING",
+        subject: id,
+        message:
+          'Live updates stopped after a failed run: Step "map_events" failed: no action',
+      }),
+    ]);
+    // Committed before the park: it stays applied, the issue is what shows
+    expect(w.doc.state.global.applied?.generation).toBe(
+      w.doc.state.global.intent.generation,
+    );
+
+    // A failing poll that has not parked warns
+    w.health.set(id, {
+      trigger: {
+        status: "ERROR",
+        lastError: "registry timeout",
+        consecutiveFailures: 2,
+      },
+      park: null,
+    });
+    await w.pass();
+    expect(
+      w.doc.state.global.check?.issues.map((i) => [i.code, i.severity]),
+    ).toEqual([["LIVE_WORKFLOW_FAILING", "WARNING"]]);
+
+    w.health.set(id, {
+      trigger: { status: "ENABLED", lastError: null, consecutiveFailures: 0 },
+      park: null,
+    });
+    await w.pass();
+    expect(w.doc.state.global.check?.issues).toEqual([]);
   });
 
   it("is built again when its workflow was deleted", async () => {
@@ -449,6 +503,7 @@ describe("a reconcile pass", () => {
         readWorkflow: () => Promise.resolve(null),
         createWorkflow: () => Promise.reject(new Error("no")),
         updateWorkflow: () => Promise.resolve(),
+        workflowHealth: () => Promise.resolve(null),
         dispatch: (l) => {
           out.push(...l);
           return Promise.resolve();

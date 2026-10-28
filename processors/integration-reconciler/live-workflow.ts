@@ -47,6 +47,21 @@ export type WorkflowFacts = {
   triggerConfig: Record<string, unknown> | null;
 };
 
+/**
+ * How the workflow runtime on this switchboard holds a workflow's trigger
+ * (Powerhouse: WorkflowHealth, read through the workflow-triggers read
+ * model). Live facts: never written into the integration, only turned into
+ * issues.
+ */
+export type RuntimeHealth = {
+  trigger: {
+    status: string;
+    lastError: string | null;
+    consecutiveFailures: number;
+  } | null;
+  park: { reason: string; parkedAt: string } | null;
+};
+
 const SECONDS = { MINUTES: 60, HOURS: 3600, DAYS: 86400 } as const;
 
 export function liveWorkflowSpec(
@@ -201,6 +216,33 @@ function describeConfig(
     return `the workflow watched calendar ${typeof id === "string" ? id : "none"}`;
   }
   return "the workflow's trigger settings were changed";
+}
+
+/**
+ * What the runtime's view of the live workflow means for the person: a park
+ * stops live updates until someone acts, so it blocks; a trigger that keeps
+ * failing may recover by itself, so it warns.
+ */
+export function runtimeIssue(
+  health: RuntimeHealth | null,
+): { code: string; severity: "BLOCKING" | "WARNING"; message: string } | null {
+  if (!health) return null;
+  if (health.park) {
+    return {
+      code: "LIVE_WORKFLOW_PARKED",
+      severity: "BLOCKING",
+      message: `Live updates stopped after a failed run: ${health.park.reason}`,
+    };
+  }
+  const t = health.trigger;
+  if (t && t.status === "ERROR" && t.lastError) {
+    return {
+      code: "LIVE_WORKFLOW_FAILING",
+      severity: "WARNING",
+      message: `Live updates are failing: ${t.lastError}`,
+    };
+  }
+  return null;
 }
 
 export function humanSeconds(s: number): string {

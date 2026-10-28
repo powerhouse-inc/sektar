@@ -13,6 +13,8 @@ import {
   buildLiveWorkflow,
   liveWorkflowDrift,
   liveWorkflowSpec,
+  runtimeIssue,
+  type RuntimeHealth,
   type WorkflowAction,
   type WorkflowFacts,
 } from "./live-workflow.js";
@@ -67,6 +69,8 @@ export interface ReconcileIO {
   /** Creates a workflow document in the Workflows drive and applies the actions; returns its id */
   createWorkflow(name: string, actions: WorkflowAction[]): Promise<string>;
   updateWorkflow(id: string, actions: WorkflowAction[]): Promise<void>;
+  /** How the workflow runtime holds the workflow; null where no runtime runs */
+  workflowHealth(id: string): Promise<RuntimeHealth | null>;
 }
 
 /** The publisher's Google app (powerhouse.config.json workflows.oauthApps). */
@@ -271,7 +275,19 @@ async function reconcileLiveWorkflow(
     return true;
   }
   const drift = liveWorkflowDrift(spec, facts, io.now());
-  if (drift.actions.length === 0) return true;
+  if (drift.actions.length === 0) {
+    // The workflow is what the integration asks for: is it running?
+    const problem = runtimeIssue(await io.workflowHealth(id));
+    if (problem) {
+      issues.push({
+        ...problem,
+        subject: id,
+        fixable: false,
+        since: since(problem.code),
+      });
+    }
+    return true;
+  }
   await io.updateWorkflow(id, drift.actions);
   // Asked for: the user changed the integration and this applies it.
   const asked = s.applied?.generation !== s.intent.generation;

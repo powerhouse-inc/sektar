@@ -29,6 +29,7 @@ export const integrationReconcilerFactoryBuilder: ProcessorFactoryBuilder =
     const processor = new IntegrationReconciler(driveHeader.id, {
       read: module.read,
       dispatch: module.dispatch,
+      getReadModel: <T>(name: string) => module.getReadModel<T>(name),
     });
     processor.start();
     // Re-reads each integration; a replay needs no state.
