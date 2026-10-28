@@ -46,9 +46,10 @@ function created(choices: CreateChoices = calendar()): IntegrationDocument {
 }
 
 describe("what the create flow offers", () => {
-  it("offers Calendar with Google; the rest is coming", () => {
+  it("offers Calendar and Email with Google; bank transactions come by adoption for now", () => {
     expect(kindInfo("CALENDAR")?.available).toBe(true);
-    expect(kindInfo("EMAIL")?.available).toBe(false);
+    expect(kindInfo("EMAIL")?.available).toBe(true);
+    expect(kindInfo("TRANSACTIONS")?.available).toBe(false);
     expect(providersFor("CALENDAR").map((p) => [p.id, p.available])).toEqual([
       ["google-calendar", true],
       ["microsoft-calendar", false],
@@ -437,5 +438,45 @@ describe("liveLine", () => {
       line: "Off",
       dot: "paused",
     });
+  });
+});
+
+describe("an email integration from the create flow", () => {
+  it("brings in its mail back from today, a day at a time, into a folder named after it", () => {
+    const choices = {
+      ...defaultChoices("EMAIL", "gmail", NOW),
+      name: "Work mail",
+    };
+    expect(choices.every).toEqual({ value: 15, unit: "MINUTES" });
+    const doc = created(choices);
+    expect(doc.operations.global.every((op) => !op.error)).toBe(true);
+    const s = doc.state.global;
+    expect(s.intent.source).toEqual({
+      mailbox: "Work mail",
+      address: null,
+      folders: [],
+    });
+    // No months ahead for mail: only the way back
+    expect(s.intent.backfill.items).toEqual([
+      expect.objectContaining({
+        label: "Back to 1 Jan 2025",
+        request: {
+          from: "2025-01-01T00:00:00.000Z",
+          to: "2026-10-28T00:00:00.000Z",
+          stepSeconds: 86400,
+          direction: "BACKWARD",
+        },
+      }),
+    ]);
+    expect(
+      created({ ...choices, history: { kind: "none" } }).state.global.intent
+        .backfill.items,
+    ).toEqual([]);
+    expect(accessOptions("gmail").map((o) => [o.access, o.permission])).toEqual(
+      [["READ", "Google: gmail.readonly"]],
+    );
+    expect(providersFor("EMAIL").map((p) => [p.id, p.available])).toEqual([
+      ["gmail", true],
+    ]);
   });
 });

@@ -11,6 +11,7 @@ import type {
 import { generateId } from "document-model";
 import { useMemo, useState, type ReactNode } from "react";
 import {
+  KIND_COPY,
   accessOptions,
   createActions,
   defaultChoices,
@@ -190,11 +191,11 @@ export function CreateFlow({
           <summary>Read more</summary>
           <p className="sk-small">
             Sektar runs on your own computer, not on our servers. That computer
-            fetches your calendar and keeps your sign-in, so your data and your
-            access stay with you. Google sends a sign-in back to the computer
-            that asked for it, which is why it happens there and never passes
-            through Sektar. Set up the rest here now; the next time you open
-            Sektar on your computer, it asks you to sign in and everything
+            fetches what you connect and keeps your sign-in, so your data and
+            your access stay with you. Google sends a sign-in back to the
+            computer that asked for it, which is why it happens there and never
+            passes through Sektar. Set up the rest here now; the next time you
+            open Sektar on your computer, it asks you to sign in and everything
             starts.
           </p>
         </details>
@@ -279,6 +280,7 @@ export function CreateFlow({
   } else if (conf === 2 && choices) {
     const history = choices.history;
     const interval = `${choices.every.value}-${choices.every.unit}`;
+    const copy = KIND_COPY[choices.kind] ?? KIND_COPY.CALENDAR!;
     body = (
       <Panel
         title="How much?"
@@ -287,18 +289,14 @@ export function CreateFlow({
       >
         <div className="sk-intg-row">
           <div>
-            <div className="sk-integration__label">Calendars</div>
-            <div className="sk-integration__meta">
-              All you own. Pick specific ones after signing in.
-            </div>
+            <div className="sk-integration__label">{copy.sourceLabel}</div>
+            <div className="sk-integration__meta">{copy.sourceMeta}</div>
           </div>
         </div>
         <div className="sk-intg-row">
           <div>
             <div className="sk-integration__label">Changes as they happen</div>
-            <div className="sk-integration__meta">
-              New, moved and cancelled events
-            </div>
+            <div className="sk-integration__meta">{copy.liveMeta}</div>
           </div>
           <Switch
             checked={choices.live}
@@ -336,7 +334,7 @@ export function CreateFlow({
           </Field>
         )}
         <fieldset className="sk-stack sk-stack--3 sk-intg-fieldset">
-          <legend className="sk-label">Older events</legend>
+          <legend className="sk-label">{copy.historyLegend}</legend>
           <label className="sk-check">
             <input
               type="radio"

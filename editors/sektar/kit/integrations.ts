@@ -47,7 +47,7 @@ export const KINDS: readonly KindInfo[] = [
     label: "Email",
     lead: "Messages and attachments",
     icon: "mail",
-    available: false,
+    available: true,
   },
   {
     kind: "TRANSACTIONS",
@@ -95,6 +95,24 @@ export const PROVIDERS: readonly ProviderInfo[] = [
     available: true,
   },
   {
+    id: "gmail",
+    kind: "EMAIL",
+    label: "Google",
+    lead: "Gmail and Workspace",
+    badge: "Every 15 min",
+    mark: "G",
+    available: true,
+  },
+  {
+    id: "distyra",
+    kind: "TRANSACTIONS",
+    label: "Distyra",
+    lead: "Open banking",
+    badge: "Every 6 hours",
+    mark: "D",
+    available: false,
+  },
+  {
     id: "microsoft-calendar",
     kind: "CALENDAR",
     label: "Microsoft 365",
@@ -139,6 +157,15 @@ export type AccessOption = {
 };
 
 const ACCESS: Record<string, AccessOption[]> = {
+  gmail: [
+    {
+      access: "READ",
+      label: "Read only",
+      can: ["Read your messages", "Keep their attachments"],
+      cannot: ["Send, change or delete mail"],
+      permission: "Google: gmail.readonly",
+    },
+  ],
   "google-calendar": [
     {
       access: "READ",
@@ -223,10 +250,52 @@ export function defaultChoices(
     name: defaultName(kind, provider),
     access: "READ",
     live: true,
-    every: { value: 5, unit: "MINUTES" },
+    every: KIND_COPY[kind]?.every ?? { value: 5, unit: "MINUTES" },
     history: { kind: "since", date: defaultSince(now) },
   };
 }
+
+/** What the create flow says about a kind, and how it brings its history in. */
+export type KindCopy = {
+  /** The "How much?" row naming what comes in */
+  sourceLabel: string;
+  sourceMeta: string;
+  /** What live updates bring */
+  liveMeta: string;
+  /** The history legend */
+  historyLegend: string;
+  /** "fetches your calendar" */
+  thing: string;
+  every: { value: number; unit: IntervalUnit };
+  /** One backfill slice */
+  sliceSeconds: number;
+  /** Also bring in what is ahead (a calendar's coming months) */
+  ahead: boolean;
+};
+
+export const KIND_COPY: Partial<Record<IntegrationKind, KindCopy>> = {
+  CALENDAR: {
+    sourceLabel: "Calendars",
+    sourceMeta: "All you own. Pick specific ones after signing in.",
+    liveMeta: "New, moved and cancelled events",
+    historyLegend: "Older events",
+    thing: "your calendar",
+    every: { value: 5, unit: "MINUTES" },
+    sliceSeconds: 7 * 24 * 3600,
+    ahead: true,
+  },
+  EMAIL: {
+    sourceLabel: "Mail",
+    sourceMeta: "All mail except spam and trash, with attachments",
+    liveMeta: "New messages",
+    historyLegend: "Older mail",
+    thing: "your mail",
+    every: { value: 15, unit: "MINUTES" },
+    // A day of mail per slice, as the existing mail backfills walk
+    sliceSeconds: 24 * 3600,
+    ahead: false,
+  },
+};
 
 export function defaultName(kind: IntegrationKind, provider: string): string {
   const p = providerInfo(provider);
@@ -340,24 +409,34 @@ export function createActions(
   return [
     actions.initialize({ kind: choices.kind, provider: choices.provider }),
     actions.setAccess({ access: choices.access }),
-    actions.setCalendarSource({ calendars: [], allOwned: true }),
+    choices.kind === "EMAIL"
+      ? // The account's name is its folder in the Mail drive
+        actions.setEmailSource({ mailbox: choices.name, folders: [] })
+      : actions.setCalendarSource({ calendars: [], allOwned: true }),
     actions.setLiveEnabled({ enabled: choices.live }),
     actions.setLiveInterval({
       value: choices.every.value,
       unit: choices.every.unit,
     }),
     actions.setBackfillEnabled({ enabled: true }),
-    ...importItems(choices.history, now).map((item) =>
-      actions.addDateRangeBackfill({
-        id: newId(),
-        label: item.label,
-        documentType: DATE_RANGE_BACKFILL_TYPE,
-        from: item.from,
-        to: item.to,
-        stepSeconds: CALENDAR_SLICE_SECONDS,
-        direction: item.direction,
-      }),
-    ),
+    ...importItems(choices.history, now)
+      .filter(
+        (item) =>
+          KIND_COPY[choices.kind]?.ahead !== false ||
+          item.direction === "BACKWARD",
+      )
+      .map((item) =>
+        actions.addDateRangeBackfill({
+          id: newId(),
+          label: item.label,
+          documentType: DATE_RANGE_BACKFILL_TYPE,
+          from: item.from,
+          to: item.to,
+          stepSeconds:
+            KIND_COPY[choices.kind]?.sliceSeconds ?? CALENDAR_SLICE_SECONDS,
+          direction: item.direction,
+        }),
+      ),
   ];
 }
 
@@ -503,6 +582,7 @@ export type HistoryView = {
 /** A slice size in words, for counting: "weeks", "days", or plain "slices". */
 export function sliceUnit(stepSeconds: number): string {
   if (stepSeconds === 7 * 86400) return "weeks";
+
   if (stepSeconds === 86400) return "days";
   return "slices";
 }
