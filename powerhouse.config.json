@@ -80,5 +80,16 @@
   },
   "assistant": {
     "port": 4910
+  },
+  "workflows": {
+    "oauthApps": [
+      {
+        "id": "sektar-google",
+        "clients": {
+          "desktop": "../client_secret_sektar_desktop-app.json",
+          "web": "../client_secret_sektar-web-app.json"
+        }
+      }
+    ]
   }
 }
