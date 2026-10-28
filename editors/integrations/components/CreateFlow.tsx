@@ -141,19 +141,24 @@ export function CreateFlow({
   let body: ReactNode;
   if (before) {
     body = (
-      <Panel title="You sign in on your computer">
-        <div className="sk-intg-signin sk-intg-signin--handoff">
-          <Icon name="monitor" />
-          <div className="sk-stack sk-stack--2">
-            <p className="sk-small" style={{ margin: 0 }}>
-              Set it up here. Sign in on the computer that runs Sektar; it asks
-              you the next time you open it there.
-            </p>
-            <p className="sk-small sk-text-muted" style={{ margin: 0 }}>
-              Your sign-in never passes through Sektar.
-            </p>
-          </div>
-        </div>
+      <Panel
+        title="Sektar is local-first"
+        lead="Sign-in happens on your computer."
+      >
+        <ol className="sk-intg-handoff">
+          <li>
+            <span className="sk-icon-tile sk-icon-tile--sm">
+              <Icon name="settings" />
+            </span>
+            Configure on this device
+          </li>
+          <li>
+            <span className="sk-icon-tile sk-icon-tile--sm">
+              <Icon name="monitor" />
+            </span>
+            Finish on your computer
+          </li>
+        </ol>
         <div className="sk-row sk-row--between">
           <Button variant="ghost" onClick={onCancel}>
             Cancel

@@ -2528,3 +2528,5 @@ html { touch-action: manipulation; }
 .sk-app .sk-intg-signin--handoff { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
 .sk-app .sk-integration__head--menu { grid-template-columns: auto minmax(0, 1fr) auto; }
 .sk-app .sk-intg-remove-steps { margin: 0; padding-left: var(--sk-space-5); display: grid; gap: var(--sk-space-1); }
+.sk-app .sk-intg-handoff { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sk-space-3); }
+.sk-app .sk-intg-handoff li { display: flex; align-items: center; gap: var(--sk-space-3); font-weight: var(--sk-weight-medium); }
