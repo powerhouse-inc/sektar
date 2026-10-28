@@ -16,6 +16,7 @@ import { Alert, Badge, Button, Icon, Modal } from "../../sektar/kit/ui.js";
 import { AccountLabel, CardRows } from "./CardRows.js";
 import type { TriggerState } from "../../sektar/kit/workflow-runtime.js";
 import { SignIn } from "./SignIn.js";
+import { TryAgain } from "./TryAgain.js";
 
 /**
  * One integration on the page (design system: Patterns · Integrations ·
@@ -43,6 +44,10 @@ export function IntegrationCard({
   // All well (Live, Paused): the rows below say it, and the badge sits in
   // the head as in the design system; otherwise a Status row says what is up.
   const quiet = view.state === "live" || view.state === "paused";
+  // A workflow the runtime parked: the card offers to try again
+  const parked = s.check?.issues.find((i) =>
+    i.code.endsWith("_WORKFLOW_PARKED"),
+  );
   return (
     <article
       className={
@@ -120,6 +125,7 @@ export function IntegrationCard({
         </div>
       )}
       {view.state === "waiting-for-sign-in" && <SignIn doc={doc} />}
+      {parked?.subject && <TryAgain doc={doc} workflowId={parked.subject} />}
       {(view.state === "live" ||
         view.state === "paused" ||
         view.state === "applying" ||

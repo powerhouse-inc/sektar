@@ -146,3 +146,38 @@ export async function triggerStates(url: string): Promise<TriggerState[]> {
   );
   return data.workflowRuntime.triggerStates;
 }
+
+export type RerunResult = {
+  runId: string | null;
+  status: string;
+  error: string | null;
+};
+
+/**
+ * Runs a workflow's latest failed run again, with the payload it failed on
+ * (for a backfill: its slice). Null when there is no failed run to retry.
+ */
+export async function rerunLastFailed(
+  url: string,
+  workflowId: string,
+): Promise<RerunResult | null> {
+  const runs = await gql<{
+    workflowRuntime: { runs: { id: string; status: string }[] };
+  }>(
+    url,
+    `query Runs($workflowId: String!) {
+      workflowRuntime { runs(workflowId: $workflowId, limit: 10, excludeTriggerKinds: ["test"]) { id status } }
+    }`,
+    { workflowId },
+  );
+  const failed = runs.workflowRuntime.runs.find((r) => r.status === "FAILED");
+  if (!failed) return null;
+  const data = await gql<{ workflowRuntime: { rerun: RerunResult } }>(
+    url,
+    `mutation Rerun($runId: String!) {
+      workflowRuntime { rerun(runId: $runId) { runId status error } }
+    }`,
+    { runId: failed.id },
+  );
+  return data.workflowRuntime.rerun;
+}
