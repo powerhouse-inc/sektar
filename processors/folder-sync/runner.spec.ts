@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { decide, fileNameFor, keepBothName, MANIFEST_NAME, refHash, renditionName, safeName, type Manifest } from "./plan.js";
-import { readAllowedRoots } from "./processor.js";
+import { listAllNodes, readAllowedRoots } from "./processor.js";
 import { isAllowed, runSync, type RunnerDeps } from "./runner.js";
 
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -24,6 +24,8 @@ class World {
   mapping: FolderSyncDocument = utils.createDocument();
   dispatched: string[] = [];
   revision = 41;
+  /** A legacy drive keeps its nodes in its state; a reactor-drive does not, and counts its folder changes in scope "document". */
+  driveType = "powerhouse/document-drive";
   clock = Date.parse("2026-10-21T12:00:00.000Z");
   ids = 0;
 
@@ -52,11 +54,18 @@ class World {
   deps(platform = "linux"): RunnerDeps {
     return {
       getDocument: (id) => {
-        if (id === "drive") return Promise.resolve({ header: { revision: { global: this.revision } }, state: { global: { nodes: this.nodes } } });
+        if (id === "drive") {
+          const drive: Awaited<ReturnType<RunnerDeps["getDocument"]>> =
+            this.driveType === "powerhouse/reactor-drive"
+              ? { header: { documentType: this.driveType, revision: { global: 2, document: this.revision } }, state: { global: { name: "Files", icon: null } } }
+              : { header: { documentType: this.driveType, revision: { global: this.revision } }, state: { global: { nodes: this.nodes } } };
+          return Promise.resolve(drive);
+        }
         const doc = this.docs.get(id);
         if (!doc) return Promise.reject(new Error(`no document ${id}`));
         return Promise.resolve(doc as Awaited<ReturnType<RunnerDeps["getDocument"]>>);
       },
+      listNodes: (driveId) => (driveId === "drive" ? Promise.resolve(this.nodes.map((n) => ({ ...n }))) : Promise.reject(new Error(`no drive ${driveId}`))),
       download: (_documentId, r) => {
         const content = this.blobs.get(r);
         if (content === undefined) return Promise.reject(new Error(`no blob ${r}`));
@@ -298,6 +307,15 @@ describe("a folder sync run", () => {
     expect(await read("scan.preview.pdf")).toBe("preview");
     expect(existsSync(join(root, "accounts-payable"))).toBe(false);
     expect(await w.run()).toMatchObject({ unchanged: 4, written: 0 });
+  });
+
+  it("reads a reactor-drive's nodes through the drive read API, and records its document-scope revision", async () => {
+    w.driveType = "powerhouse/reactor-drive";
+    w.revision = 7;
+    const out = await w.run();
+    expect(out).toMatchObject({ status: "OK", written: 2 });
+    expect(await read("accounts-payable/aws/EUINBE26-200560.pdf")).toBe("aws july");
+    expect(w.s.runs[0]).toMatchObject({ status: "OK", driveRevision: 7 });
   });
 
   it("fails the whole run when the drive cannot be read, and records it", async () => {
@@ -579,6 +597,38 @@ describe("where a Switchboard may write", () => {
     expect(await readAllowedRoots(file)).toBeNull();
     await writeFile(file, "# where syncs may write\r\nD:\\Dropbox\\KSDC\n\n  /data/ksdc  \n");
     expect(await readAllowedRoots(file)).toEqual(["D:\\Dropbox\\KSDC", "/data/ksdc"]);
+  });
+});
+
+describe("a drive's nodes, whatever its type", () => {
+  it("pages through the drive read API until the last page", async () => {
+    const all = Array.from({ length: 1203 }, (_, i) =>
+      i % 3 === 0
+        ? { id: `f${i}`, kind: "folder", name: `folder ${i}`, parentFolder: null }
+        : { id: `d${i}`, kind: "file", name: `doc ${i}`, parentFolder: `f${i - (i % 3)}`, documentType: "sektar/file" },
+    );
+    const asked: string[] = [];
+    const read = {
+      drives: {
+        getNode: () => Promise.reject(new Error("not used")),
+        listNodes: (_drive: string, _parent?: string | null, paging?: { cursor: string; limit: number }) => {
+          const from = Number(paging?.cursor || 0);
+          const limit = paging?.limit ?? all.length;
+          asked.push(paging?.cursor ?? "");
+          const end = from + limit;
+          return Promise.resolve({
+            results: all.slice(from, end),
+            options: { cursor: paging?.cursor ?? "", limit },
+            ...(end < all.length ? { nextCursor: String(end) } : {}),
+          });
+        },
+      },
+    };
+    const nodes = await listAllNodes(read, "drive");
+    expect(nodes).toHaveLength(1203);
+    expect(asked).toEqual(["", "500", "1000"]);
+    expect(nodes[1]).toEqual({ id: "d1", kind: "file", name: "doc 1", parentFolder: "f0", documentType: "sektar/file" });
+    expect(nodes[0]).toEqual({ id: "f0", kind: "folder", name: "folder 0", parentFolder: null });
   });
 });
 

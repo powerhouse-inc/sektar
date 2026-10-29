@@ -5,7 +5,7 @@
 // importing the package lets tsc refer to "kysely", not to a path into .pnpm.
 import type {} from "kysely";
 import type { IRelationalDb } from "@powerhousedao/reactor-browser";
-import type { DB, FileDocRow, FileNodeRow } from "./schema.js";
+import type { DB, FileDocRow, FileNodeRow, SyncMappingRow } from "./schema.js";
 
 export type FilesQueryBuilder = Pick<IRelationalDb<DB>, "selectFrom">;
 
@@ -156,6 +156,169 @@ export function listingCountQuery(db: FilesQueryBuilder, f: FilesFilter) {
 /** Every folder with its parent: enough to find a folder's descendants. */
 export function foldersQuery(db: FilesQueryBuilder) {
   return db.selectFrom("file_nodes").select(["id", "parent_id"]).where("kind", "=", "folder");
+}
+
+/* ---------------------------------------------------------------- tree */
+
+/** Every folder with its name and parent: the tree. */
+export function folderTreeQuery(db: FilesQueryBuilder) {
+  return db
+    .selectFrom("file_nodes as n")
+    .select(["n.id", "n.name", "n.parent_id"])
+    .where("n.kind", "=", "folder");
+}
+
+/**
+ * What each folder (and the root, `parent_id` null) holds directly: every
+ * entry, and the folders among them. The folder syncs' documents are left
+ * out, as the listing leaves them out.
+ */
+export function childCountsQuery(db: FilesQueryBuilder) {
+  return db
+    .selectFrom("file_nodes as n")
+    .select((eb) => [
+      "n.parent_id",
+      eb.fn.countAll<number>().as("items"),
+      eb.fn.sum<number>(eb.case().when("n.kind", "=", "folder").then(1).else(0).end()).as("folders"),
+    ])
+    .where((eb) => eb.or([eb("n.document_type", "is", null), eb("n.document_type", "!=", SYNC_TYPE)]))
+    .groupBy("n.parent_id");
+}
+
+/** A folder of the tree, with what it holds directly. */
+export interface FolderRow {
+  id: string;
+  name: string;
+  parentId: string | null;
+  /** Every entry directly in it */
+  items: number;
+  /** The folders among them */
+  folders: number;
+  /** The documents among them */
+  files: number;
+}
+
+export interface FolderTree {
+  /** Every folder but the folder syncs' own, by name within a parent */
+  folders: FolderRow[];
+  /** What the drive's root holds directly */
+  rootItems: number;
+  rootFolders: number;
+  /** The root folder the mappings are kept in, when there is one */
+  syncFolderId: string | null;
+}
+
+/** The tree out of the folder rows and the counts, without the `.sync` folder and what is below it. */
+export function foldFolderTree(
+  folders: readonly { id: string; name: string; parent_id: string | null }[],
+  counts: readonly { parent_id: string | null; items: number | string | null; folders: number | string | null }[],
+): FolderTree {
+  const sync = folders.find((f) => f.parent_id === null && f.name === SYNC_FOLDER);
+  const hidden = new Set<string>(sync ? [sync.id, ...descendantsOf(folders, sync.id)] : []);
+  const byParent = new Map(counts.map((c) => [c.parent_id, { items: Number(c.items ?? 0), folders: Number(c.folders ?? 0) }]));
+  const root = byParent.get(null) ?? { items: 0, folders: 0 };
+  // The `.sync` folder is an entry of the root that no one sees.
+  const rootItems = Math.max(0, root.items - (sync ? 1 : 0));
+  const rootFolders = Math.max(0, root.folders - (sync ? 1 : 0));
+  return {
+    folders: folders
+      .filter((f) => !hidden.has(f.id))
+      .map((f) => {
+        const c = byParent.get(f.id) ?? { items: 0, folders: 0 };
+        return { id: f.id, name: f.name, parentId: f.parent_id, items: c.items, folders: c.folders, files: c.items - c.folders };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }) || a.id.localeCompare(b.id)),
+    rootItems,
+    rootFolders,
+    syncFolderId: sync?.id ?? null,
+  };
+}
+
+/** Each folder's path from the drive's root, e.g. kwartaalaangiftes/2026-Q3. */
+export function folderPaths(folders: readonly { id: string; name: string; parentId: string | null }[]): Map<string, string> {
+  const byId = new Map(folders.map((f) => [f.id, f]));
+  const out = new Map<string, string>();
+  const pathOf = (id: string, seen: Set<string>): string => {
+    const known = out.get(id);
+    if (known !== undefined) return known;
+    const f = byId.get(id);
+    if (!f) return "";
+    seen.add(id);
+    const parent = f.parentId && !seen.has(f.parentId) ? pathOf(f.parentId, seen) : "";
+    const path = parent ? `${parent}/${f.name}` : f.name;
+    out.set(id, path);
+    return path;
+  };
+  for (const f of folders) pathOf(f.id, new Set());
+  return out;
+}
+
+/* ------------------------------------------------------- folder syncs */
+
+/** The folder syncs filed in this drive (their documents are nodes of it). */
+export function syncMappingsQuery(db: FilesQueryBuilder) {
+  return db
+    .selectFrom("sync_mappings as m")
+    .innerJoin("file_nodes as n", "n.id", "m.document_id")
+    .selectAll("m")
+    .orderBy("m.folder_path")
+    .orderBy("m.document_id");
+}
+
+/** A folder sync as the Files app shows it: enough for its badge and its line. */
+export interface SyncMappingSummary {
+  id: string;
+  name: string;
+  driveId: string | null;
+  folderId: string | null;
+  folderPath: string | null;
+  localPath: string | null;
+  enabled: boolean;
+  /** MANUAL | ON_CHANGE */
+  trigger: string;
+  includeSubfolders: boolean;
+  /** NEVER | REQUESTED | RUNNING | OK | PARTIAL | ERROR */
+  status: string;
+  requestedAt: string | null;
+  lastRun: {
+    startedAt: string | null;
+    finishedAt: string | null;
+    status: string | null;
+    placeholders: number;
+    error: string | null;
+  } | null;
+  issueCount: number;
+  pullCount: number;
+  hostName: string | null;
+}
+
+export function toSyncMapping(r: SyncMappingRow): SyncMappingSummary {
+  const ran = r.last_run_started_at !== null || r.last_run_status !== null;
+  return {
+    id: r.document_id,
+    name: r.name,
+    driveId: r.drive_id,
+    folderId: r.folder_id,
+    folderPath: r.folder_path,
+    localPath: r.local_path,
+    enabled: Boolean(r.enabled),
+    trigger: r.trigger,
+    includeSubfolders: Boolean(r.include_subfolders),
+    status: r.status,
+    requestedAt: r.requested_at,
+    lastRun: ran
+      ? {
+          startedAt: r.last_run_started_at,
+          finishedAt: r.last_run_finished_at,
+          status: r.last_run_status,
+          placeholders: Number(r.last_run_placeholders ?? 0),
+          error: r.last_run_error,
+        }
+      : null,
+    issueCount: Number(r.issue_count ?? 0),
+    pullCount: Number(r.pull_count ?? 0),
+    hostName: r.host_name,
+  };
 }
 
 /** Every folder below `id` (below the root when null). */

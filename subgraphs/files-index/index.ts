@@ -8,7 +8,9 @@ import { schema } from "./schema.js";
  * node id is the File document's id), filtered on `n.id` for the caller
  * once the drive passed. A folder row is drive structure, not a document:
  * it is listed whenever the drive is (`passWhen`), so the tree stays
- * navigable, and what it holds is filtered file by file.
+ * navigable, and what it holds is filtered file by file. The tree's counts
+ * are derived from the same rows, filtered the same way before they are
+ * counted. A folder sync row is its mapping document.
  */
 export const FilesIndexSubgraph = defineIndexSubgraph({
   name: "files-index",
@@ -22,6 +24,12 @@ export const FilesIndexSubgraph = defineIndexSubgraph({
         column: "n.id",
         passWhen: { column: "n.kind", equals: "folder" },
       },
+      "FilesIndexQueries.folders": {
+        rows: "derived",
+        column: "n.id",
+        passWhen: { column: "n.kind", equals: "folder" },
+      },
+      "FilesIndexQueries.syncMappings": { rows: "document", column: "m.document_id" },
     },
   },
   resolvers,

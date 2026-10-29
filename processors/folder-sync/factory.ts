@@ -5,7 +5,7 @@ import type {
   ProcessorFilter,
 } from "@powerhousedao/reactor-browser";
 import type { PHDocumentHeader } from "document-model";
-import { DRIVE_TYPE, FILE_TYPE, FolderSync, SYNC_TYPE } from "./processor.js";
+import { DRIVE_TYPES, FILE_TYPE, FolderSync, SYNC_TYPE } from "./processor.js";
 
 /** The drive app whose drives have folder syncs: the menu that makes them is the Files app's. */
 const FILES_APP = "files";
@@ -24,13 +24,17 @@ export const folderSyncFactoryBuilder: ProcessorFactoryBuilder =
     // The mappings (every drive's; the processor keeps to its own), and what
     // an ON_CHANGE mapping watches: this drive's nodes and the Files' content.
     const mappingFilter: ProcessorFilter = { branch: ["main"], documentId: ["*"], documentType: [SYNC_TYPE], scope: ["global"] };
-    const driveFilter: ProcessorFilter = { branch: ["main"], documentId: [driveHeader.id], documentType: [DRIVE_TYPE], scope: ["global"] };
+    // A legacy drive's node actions are global; a reactor-drive's folders and links are document-scope.
+    const driveFilter: ProcessorFilter = { branch: ["main"], documentId: [driveHeader.id], documentType: DRIVE_TYPES, scope: ["global", "document"] };
     const fileFilter: ProcessorFilter = { branch: ["main"], documentId: ["*"], documentType: [FILE_TYPE], scope: ["global"] };
 
     const processor = new FolderSync(namespace, mappingFilter, store, driveHeader.id).withRuntime(driveHeader.id, {
       read: module.read,
       attachments: module.attachments,
       dispatch: module.dispatch,
+      // The host module has no drive write half of its own: the client's is
+      // the one `dispatch.createInDrive` writes through too.
+      drives: module.client.write.drives,
     });
     await processor.initAndUpgrade();
 

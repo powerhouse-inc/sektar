@@ -17,28 +17,35 @@ export interface ScopeMapping {
 /** Operations this much older than the processor are a replay of history, not a change. */
 export const REPLAY_MARGIN_MS = 60_000;
 
+/** The inputs that name a node, in a drive's legacy node actions and a reactor-drive's own. */
+const NODE_KEYS = ["id", "srcFolder", "targetParentFolder", "parentFolder", "folderId", "parentFolderId", "targetId"];
+
 /**
  * The nodes a batch of operations changed in a drive: the Files that changed
  * themselves, and the nodes (and folders) the drive's own operations name.
- * Operations from before `since` (a replay after a restart) change nothing.
+ * A legacy drive's node actions are global; a reactor-drive's folders and
+ * links are document-scope operations, and a link names its folder in its
+ * metadata. Operations from before `since` (a replay after a restart)
+ * change nothing.
  */
 export function changedNodes(
   operations: readonly OperationWithContext[],
   driveId: string,
-  types: { file: string; drive: string },
+  types: { file: string; drive: string; reactorDrive?: string },
   since: number,
 ): Set<string> {
   const ids = new Set<string>();
   for (const { operation, context } of operations) {
-    if (context.scope !== "global") continue;
+    const reactor = types.reactorDrive !== undefined && context.documentType === types.reactorDrive;
+    if (context.scope !== "global" && !(reactor && context.scope === "document")) continue;
     const at = Date.parse(operation.timestampUtcMs);
     if (Number.isFinite(at) && at < since - REPLAY_MARGIN_MS) continue;
     if (context.documentType === types.file) {
       ids.add(context.documentId);
-    } else if (context.documentType === types.drive && context.documentId === driveId) {
+    } else if ((reactor || context.documentType === types.drive) && context.documentId === driveId) {
       const input = (operation.action.input ?? {}) as Record<string, unknown>;
-      for (const key of ["id", "srcFolder", "targetParentFolder", "parentFolder"]) {
-        const v = input[key];
+      const metadata = (input.metadata ?? {}) as Record<string, unknown>;
+      for (const v of [...NODE_KEYS.map((key) => input[key]), metadata.parentFolderId]) {
         if (typeof v === "string" && v) ids.add(v);
       }
     }

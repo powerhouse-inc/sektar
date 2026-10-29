@@ -4,20 +4,29 @@
  *
  * Access is declared in index.ts and applied by the subgraph wrapper: the
  * listing and its count go through `restrict`, which passes folder rows
- * and narrows file rows to the caller's readable documents.
+ * and narrows file rows to the caller's readable documents; the tree's
+ * counts likewise, before they are counted; the folder syncs to the
+ * mappings the caller may read.
  */
 import type { IndexQuery } from "@powerhousedao/reactor-api";
 import {
+  childCountsQuery,
   FILES_PAGE,
   FILES_PAGE_MAX,
   type FilesIndex,
+  folderTreeQuery,
+  foldFolderTree,
   foldersQuery,
   listingCountQuery,
   listingQuery,
   scopeFor,
   searchWords,
+  syncMappingsQuery,
   toListRow,
+  toSyncMapping,
   type FileListPage,
+  type FolderTree,
+  type SyncMappingSummary,
 } from "processors/files-index";
 
 type Db = FilesIndex["query"];
@@ -63,10 +72,25 @@ async function listing({
   return { items: rows.map(toListRow), total: Number(count?.n ?? 0) };
 }
 
+/** The tree: every folder, and what each holds directly (counted over what the caller may read). */
+async function folderTree({ db, restrict }: IndexQuery<Db, { driveId: string }>): Promise<FolderTree> {
+  const [rows, counts] = await Promise.all([
+    restrict(folderTreeQuery(db)).execute(),
+    restrict(childCountsQuery(db)).execute(),
+  ]);
+  return foldFolderTree(rows, counts);
+}
+
+async function syncMappings({ db, restrict }: IndexQuery<Db, { driveId: string }>): Promise<SyncMappingSummary[]> {
+  return (await restrict(syncMappingsQuery(db)).execute()).map(toSyncMapping);
+}
+
 export const resolvers = {
   Query: { filesIndex: () => ({}) },
 };
 
 export const queries = {
   "FilesIndexQueries.listing": listing,
+  "FilesIndexQueries.folders": folderTree,
+  "FilesIndexQueries.syncMappings": syncMappings,
 };

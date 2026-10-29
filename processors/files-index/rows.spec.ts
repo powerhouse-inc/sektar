@@ -31,6 +31,7 @@ describe("node rows from the drive's state", () => {
       name_sort: "invoice (1).pdf",
       parent_id: "f2",
       document_type: "sektar/file",
+      requested_name: null,
     });
     expect(rows.get("f1")?.document_type).toBeNull();
     expect(rows.get("f1")?.parent_id).toBeNull();

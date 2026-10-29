@@ -7,10 +7,11 @@
 // The contents come from the Files index (kit/files-index.ts), sized to the
 // whole folder and paged where the reader is, with only a screenful in the
 // DOM; a File document is loaded for the preview alone. That is what lets a
-// drive hold tens of thousands of files.
+// drive hold tens of thousands of files. The folder tree, its counts and
+// paths, and the folder syncs come from the same index: the drive's node
+// list is never read, so a legacy drive and a reactor-drive look the same.
 import {
   addFolder,
-  isFileNodeKind,
   renameDriveNode,
   setSelectedNode,
   showCreateDocumentModal,
@@ -23,7 +24,6 @@ import {
   useSelectedDrive,
   useSelectedFolder,
 } from "@powerhousedao/reactor-browser";
-import type { FolderNode, Node } from "@powerhousedao/shared/document-drive";
 import { isFileDocument, type FileDocument } from "document-models/file";
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFillHeight, useNarrow } from "../../backfills/components/measure.js";
@@ -40,8 +40,8 @@ import {
   useTypeName,
   type PreviewItem,
 } from "../../sektar/components/FilePreview.js";
-import { useFilesList, type FileListRow } from "../../sektar/kit/files-index.js";
-import { createMapping, folderPath, hiddenSyncIds, isPlaceholderKind, requestPull, SYNC_TYPE } from "../../sektar/kit/folder-sync.js";
+import { useFilesList, useFolderTree, useSyncMappings, type FileListRow, type FolderRow } from "../../sektar/kit/files-index.js";
+import { createMapping, isPlaceholderKind, requestPull, SYNC_TYPE } from "../../sektar/kit/folder-sync.js";
 import { bytes, createEmptyFile, createFileFromUpload, FILE_TYPE, fileKind } from "../../sektar/kit/files.js";
 import { Menu } from "../../sektar/kit/menu.js";
 import { useSearch } from "../../sektar/kit/search-context.js";
@@ -49,7 +49,7 @@ import { Button, cx, EmptyState, Icon, Modal, Selector, Skeleton } from "../../s
 import { useRowWindow } from "../../sektar/kit/virtual.js";
 import { Pane, Workspace } from "../../sektar/kit/workspace.js";
 import { SyncGlyph } from "../../sektar/kit/sync-glyphs.js";
-import { MappedFolders, SyncMenu } from "./SyncMenu.js";
+import { mappedFolders, SyncMenu } from "./SyncMenu.js";
 
 type ViewMode = "list" | "grid";
 const VIEW_KEY = "sk:files-view";
@@ -70,7 +70,7 @@ function stored(key: string, fallback: string): string {
   }
 }
 
-const byName = (a: Node, b: Node) =>
+const byName = (a: FolderRow, b: FolderRow) =>
   a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
 
 export function FilesWorkspace({ children }: { children?: ReactNode }) {
@@ -78,12 +78,6 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
   const folder = useSelectedFolder();
   const client = useAttachments();
   const { query } = useSearch();
-  const allNodes = drive.state.global.nodes;
-  // The folder syncs' own `.sync` folder stays out of sight (as it does in the index).
-  const nodes = useMemo(() => {
-    const hidden = hiddenSyncIds(allNodes);
-    return hidden.size ? allNodes.filter((n) => !hidden.has(n.id)) : allNodes;
-  }, [allNodes]);
   const currentId = folder?.id ?? null;
 
   const [picked, setPicked] = useState<FileListRow | null>(null);
@@ -96,8 +90,6 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
   const [treeCollapsed, setTreeCollapsed] = useState(false);
   const [previewPref, setPreviewPref] = useState<boolean | null>(null);
   const [status, setStatus] = useState<string | null>(null);
-  /** The folders a folder sync maps to disk ("" is the drive's root), with where they go. */
-  const [mapped, setMapped] = useState<Map<string, string>>(() => new Map());
   const [naming, setNaming] = useState<{ kind: "folder" } | { kind: "rename"; row: FileListRow } | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -137,29 +129,33 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
     invalidate();
   }, [driveRevision, invalidate]);
 
-  /* -- the drive's folders: the tree, counts, paths (small next to the files) -- */
+  /* -- the drive's folders: the tree, counts, paths (from the index, small next to the files) -- */
+  const tree = useFolderTree(drive, driveRevision);
   const folderInfo = useMemo(() => {
-    const byId = new Map<string, FolderNode>();
-    const counts = new Map<string | null, number>();
-    for (const n of nodes) {
-      if (n.kind === "folder") byId.set(n.id, n as FolderNode);
-      const p = n.parentFolder ?? null;
-      counts.set(p, (counts.get(p) ?? 0) + 1);
+    const byId = new Map<string, FolderRow>();
+    const counts = new Map<string | null, number>([[null, tree?.rootItems ?? 0]]);
+    for (const f of tree?.folders ?? []) {
+      byId.set(f.id, f);
+      counts.set(f.id, f.items);
     }
-    return { byId, counts };
-  }, [nodes]);
-  const pathTo = (id: string | null): FolderNode[] => {
-    const out: FolderNode[] = [];
+    return { byId, counts, folders: tree?.folders ?? [] };
+  }, [tree]);
+  const pathTo = (id: string | null): FolderRow[] => {
+    const out: FolderRow[] = [];
     const seen = new Set<string>();
     for (let cur = id; cur && !seen.has(cur); ) {
       seen.add(cur);
       const f = folderInfo.byId.get(cur);
       if (!f) break;
       out.unshift(f);
-      cur = f.parentFolder ?? null;
+      cur = f.parentId;
     }
     return out;
   };
+  /* -- the folder syncs: one index row each; a mapping is loaded when opened -- */
+  const mappings = useSyncMappings(drive, driveRevision);
+  /** The folders a folder sync maps to disk ("" is the drive's root), with where they go. */
+  const mapped = useMemo(() => mappedFolders(drive.header.id, mappings), [drive.header.id, mappings]);
   /** Where a document lives below the open folder, in a view that includes subfolders. */
   const whereOf = (row: FileListRow): string | null => {
     if (!deep || row.parentId === currentId) return null;
@@ -222,8 +218,8 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
     try {
       const folder = await addFolder(drive.header.id, name, parent ?? undefined);
       if (!configure) return;
-      const base = folderPath(allNodes, parent);
-      const mapping = await createMapping(drive.header.id, allNodes, folder.id, driveName, base ? `${base}/${name}` : name);
+      const base = pathTo(parent).map((f) => f.name).join("/");
+      const mapping = await createMapping(drive.header.id, folder.id, base ? `${base}/${name}` : name, driveName, tree?.syncFolderId ?? null);
       setSelectedNode(mapping);
     } catch (e) {
       setStatus(`Could not create the folder${configure ? " and its mapping" : ""}: ${e instanceof Error ? e.message : String(e)}`);
@@ -283,7 +279,6 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
   const path = pathTo(currentId);
   const driveName = drive.header.name || drive.state.global.name || "Files";
   const words = query.trim();
-  const pickedNode = picked ? nodes.find((n) => n.id === picked.id) : undefined;
 
   return (
     <div ref={root} className="sk-files" style={{ height: height ? `${height}px` : undefined }}>
@@ -309,8 +304,10 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
             <SyncMenu
               driveId={drive.header.id}
               driveName={drive.header.name || drive.state.global.name || "Files"}
-              nodes={allNodes}
+              mappings={mappings}
               currentId={currentId}
+              currentPath={path.map((f) => f.name).join("/")}
+              syncFolderId={tree?.syncFolderId ?? null}
               onStatus={(message) => {
                 setStatus(message);
                 setTimeout(() => setStatus(null), 4000);
@@ -318,8 +315,7 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
             />
           }
         >
-          <MappedFolders driveId={drive.header.id} nodes={allNodes} onChange={setMapped} />
-          <FolderTree nodes={nodes} counts={folderInfo.counts} driveName={driveName} currentId={currentId} mapped={mapped} onGo={goFolder} />
+          <FolderTree folders={folderInfo.folders} counts={folderInfo.counts} driveName={driveName} currentId={currentId} mapped={mapped} onGo={goFolder} />
         </Pane>
 
         <Pane
@@ -504,10 +500,7 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
                     {
                       label: "Delete…",
                       danger: true,
-                      disabled: !pickedNode,
-                      onSelect: () => {
-                        if (pickedNode) showDeleteNodeModal(pickedNode);
-                      },
+                      onSelect: () => showDeleteNodeModal(picked.id),
                     },
                   ]}
                   trigger={(open, toggle) => (
@@ -521,7 +514,14 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
           }
         >
           {picked ? (
-            <ItemPreview key={picked.id} row={picked} childCount={folderInfo.counts.get(picked.id) ?? 0} nodes={nodes} onOpen={() => activate(picked)} onChanged={invalidate} />
+            <ItemPreview
+              key={picked.id}
+              row={picked}
+              childCount={folderInfo.counts.get(picked.id) ?? 0}
+              subfolders={folderInfo.byId.get(picked.id)?.folders ?? 0}
+              onOpen={() => activate(picked)}
+              onChanged={invalidate}
+            />
           ) : (
             <EmptyState icon="reports" title="Pick something">
               A file's source and its extracted content preview here. Double-click to open it.
@@ -555,14 +555,14 @@ export function FilesWorkspace({ children }: { children?: ReactNode }) {
 /* ---------------------------------------------------------------- tree */
 
 function FolderTree({
-  nodes,
+  folders,
   counts,
   driveName,
   currentId,
   mapped,
   onGo,
 }: {
-  nodes: readonly Node[];
+  folders: readonly FolderRow[];
   counts: Map<string | null, number>;
   driveName: string;
   currentId: string | null;
@@ -574,26 +574,24 @@ function FolderTree({
     mapped.has(key) ? <SyncGlyph name="folder-sync" size={16} /> : <Icon name="folder" size={16} />;
   const syncedTo = (key: string) => (mapped.has(key) ? `Synced to ${mapped.get(key)}` : undefined);
   const children = useMemo(() => {
-    const map = new Map<string | null, FolderNode[]>();
-    for (const n of nodes) {
-      if (n.kind !== "folder") continue;
-      const k = n.parentFolder ?? null;
-      const list = map.get(k);
-      if (list) list.push(n as FolderNode);
-      else map.set(k, [n as FolderNode]);
+    const map = new Map<string | null, FolderRow[]>();
+    for (const f of folders) {
+      const list = map.get(f.parentId);
+      if (list) list.push(f);
+      else map.set(f.parentId, [f]);
     }
     for (const list of map.values()) list.sort(byName);
     return map;
-  }, [nodes]);
+  }, [folders]);
   const parentOf = useMemo(() => {
     const m = new Map<string, string | null>();
-    for (const n of nodes) if (n.kind === "folder") m.set(n.id, n.parentFolder ?? null);
+    for (const f of folders) m.set(f.id, f.parentId);
     return m;
-  }, [nodes]);
+  }, [folders]);
   // Opening a folder opens the path to it, once; after that the tree is as
   // the reader leaves it. Re-opening the path whenever the drive changed
-  // (any node added anywhere hands out a new node list) undid a collapse a
-  // moment after it was made.
+  // (any change hands out a new folder list) undid a collapse a moment
+  // after it was made.
   const [open, setOpen] = useState<Set<string>>(() => new Set());
   const expandedFor = useRef<string | null>(null);
   useEffect(() => {
@@ -861,18 +859,19 @@ function sameItem(a: ItemProps, b: ItemProps): boolean {
 function ItemPreview({
   row,
   childCount,
-  nodes,
+  subfolders,
   onOpen,
   onChanged,
 }: {
   row: FileListRow;
   childCount: number;
-  nodes: readonly Node[];
+  /** The folders directly in a folder row */
+  subfolders: number;
   onOpen: () => void;
   onChanged: () => void;
 }) {
   if (row.kind === "folder") {
-    const sub = nodes.filter((n) => n.kind === "folder" && n.parentFolder === row.id).length;
+    const sub = subfolders;
     return (
       <div className="sk-files-preview">
         <div className="sk-file-linked">
@@ -897,18 +896,16 @@ function ItemPreview({
   if (row.documentType !== FILE_TYPE) {
     return <LinkedDocumentPreview documentId={row.id} documentType={row.documentType} documentName={row.name} />;
   }
-  return <FilePreviewPanel row={row} nodes={nodes} onOpen={onOpen} onChanged={onChanged} />;
+  return <FilePreviewPanel row={row} onOpen={onOpen} onChanged={onChanged} />;
 }
 
 /** A File in the preview pane: the one document this view loads. */
 function FilePreviewPanel({
   row,
-  nodes,
   onOpen,
   onChanged,
 }: {
   row: FileListRow;
-  nodes: readonly Node[];
   onOpen: () => void;
   onChanged: () => void;
 }) {
@@ -932,12 +929,11 @@ function FilePreviewPanel({
     const later = setTimeout(onChanged, 2500);
     return () => clearTimeout(later);
   }, [modified, onChanged]);
-  const known = nodes.some((n) => n.id === row.id && isFileNodeKind(n));
   if (!doc) {
     return (
       <div className="sk-files-preview">
         <h3 className="sk-files-preview__title">{row.title ?? row.name}</h3>
-        {q.error && known ? (
+        {q.error ? (
           <p className="sk-small sk-text-danger">The file could not be read.</p>
         ) : (
           <div className="sk-stack sk-stack--3">

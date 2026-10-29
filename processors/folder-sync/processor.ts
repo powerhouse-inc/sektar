@@ -3,11 +3,10 @@
 // whenever the folder changes, runs after the drive or one of its Files
 // changed. It acts on a mapping's current state, never on a single
 // operation, so a replay of old operations cannot start a run twice.
-import type { IReactorReadClient } from "@powerhousedao/reactor";
+import type { IDriveWriteClient, IReactorReadClient } from "@powerhousedao/reactor";
 import { RelationalDbProcessor, type IProcessorHostModule } from "@powerhousedao/reactor-browser";
 import type { IProcessorDispatch } from "@powerhousedao/shared/processors";
 import type { Action, OperationWithContext } from "document-model";
-import { addFolder, deleteNode } from "@powerhousedao/shared/document-drive";
 import { utils as fileUtils } from "document-models/file";
 import { actions, type FolderSyncState } from "document-models/folder-sync";
 import { randomUUID } from "node:crypto";
@@ -17,12 +16,16 @@ import { hostname } from "node:os";
 import { join } from "node:path";
 import { up } from "./migrations.js";
 import { Debouncer } from "./debounce.js";
+import type { PlanNode } from "./plan.js";
 import { runSync, type RunnerDeps } from "./runner.js";
 import { changedNodes, inScope, type ScopeNode } from "./scope.js";
 import type { DB } from "./schema.js";
 
 export const SYNC_TYPE = "sektar/folder-sync";
 export const DRIVE_TYPE = "powerhouse/document-drive";
+export const REACTOR_DRIVE_TYPE = "powerhouse/reactor-drive";
+/** The Files drive is either. */
+export const DRIVE_TYPES = [DRIVE_TYPE, REACTOR_DRIVE_TYPE];
 export const FILE_TYPE = "sektar/file";
 
 /** An automatic mapping runs once changes (in the drive or on disk) have stopped this long... */
@@ -55,25 +58,39 @@ export async function readAllowedRoots(file = join(process.cwd(), ".ph", "folder
     .filter((l) => l && !l.startsWith("#"));
 }
 
+/** Nodes per page when a drive's nodes are read. */
+const NODE_PAGE = 500;
+
+/** Every node of a drive, paged through the drive read API: either drive type. */
+export async function listAllNodes(read: Pick<IReactorReadClient, "drives">, driveId: string): Promise<PlanNode[]> {
+  const out: PlanNode[] = [];
+  let cursor = "";
+  for (;;) {
+    const page = await read.drives.listNodes(driveId, undefined, { cursor, limit: NODE_PAGE });
+    for (const n of page.results) {
+      out.push({ id: n.id, name: n.name, kind: n.kind, parentFolder: n.parentFolder ?? null, ...("documentType" in n ? { documentType: n.documentType } : {}) });
+    }
+    if (!page.nextCursor || page.nextCursor === cursor || page.results.length === 0) return out;
+    cursor = page.nextCursor;
+  }
+}
+
 /** Runs by itself: after changes in the drive or on disk (Sync: Automatic). */
 export function isAutomatic(s: FolderSyncState): boolean {
   return s.enabled && s.options.trigger === "ON_CHANGE" && Boolean(s.localPath);
 }
 
-interface DriveNode extends ScopeNode {
-  kind: string;
-  documentType?: string;
-}
-
-function mappingIds(nodes: readonly DriveNode[]): string[] {
+function mappingIds(nodes: readonly PlanNode[]): string[] {
   return nodes.filter((n) => n.kind === "file" && n.documentType === SYNC_TYPE).map((n) => n.id);
 }
 
 export interface FolderSyncRuntime {
-  /** Reads only; every write goes through `dispatch`. */
+  /** Reads only; every write goes through `dispatch` or `drives`. */
   read: IReactorReadClient;
   attachments: IProcessorHostModule["attachments"];
   dispatch: IProcessorDispatch;
+  /** The drive's own writes (folders, removals), for either drive type. */
+  drives: Pick<IDriveWriteClient, "addFolder" | "removeNode">;
 }
 
 export class FolderSync extends RelationalDbProcessor<DB> {
@@ -111,7 +128,7 @@ export class FolderSync extends RelationalDbProcessor<DB> {
     for (const { context } of operations) {
       if (context.scope === "global" && context.documentType === SYNC_TYPE) mappings.add(context.documentId);
     }
-    const changed = changedNodes(operations, this.driveId, { file: FILE_TYPE, drive: DRIVE_TYPE }, this.startedAt);
+    const changed = changedNodes(operations, this.driveId, { file: FILE_TYPE, drive: DRIVE_TYPE, reactorDrive: REACTOR_DRIVE_TYPE }, this.startedAt);
     return this.enqueue(async () => {
       for (const id of mappings) await this.consider(id);
       if (changed.size > 0) await this.scheduleOnChange(changed);
@@ -144,11 +161,10 @@ export class FolderSync extends RelationalDbProcessor<DB> {
     return this.queue;
   }
 
-  private async driveNodes(): Promise<DriveNode[]> {
+  private async driveNodes(): Promise<PlanNode[]> {
     const read = this.runtime?.read;
     if (!read) return [];
-    const drive = (await read.get(this.driveId)) as unknown as { state: { global: { nodes: DriveNode[] } } };
-    return drive.state.global.nodes;
+    return listAllNodes(read, this.driveId);
   }
 
   private async mappingsInDrive(): Promise<string[]> {
@@ -262,6 +278,7 @@ export class FolderSync extends RelationalDbProcessor<DB> {
     const runtime = this.runtime as FolderSyncRuntime;
     return {
       getDocument: (id) => runtime.read.get(id) as unknown as ReturnType<RunnerDeps["getDocument"]>,
+      listNodes: (driveId) => listAllNodes(runtime.read, driveId),
       download: async (documentId, ref) => {
         const { blob } = await runtime.attachments.downloadBlob({ documentId, ref: ref as `attachment://v${number}:${string}` });
         return new Uint8Array(await blob.arrayBuffer());
@@ -273,18 +290,15 @@ export class FolderSync extends RelationalDbProcessor<DB> {
         const created = await runtime.dispatch.createInDrive(driveId, doc, parentFolder ?? undefined);
         return created.documentId ?? doc.header.id;
       },
+      // Through the drive write API, which writes each drive type its own
+      // way (a legacy node action, or a reactor-drive folder or unlink).
       createFolder: async (driveId, parentFolder, name) => {
-        const id = randomUUID();
-        await this.dispatch(driveId, [addFolder({ id, name, parentFolder: parentFolder ?? undefined })]);
-        return id;
+        const handle = await runtime.drives.addFolder(driveId, name, parentFolder ?? undefined);
+        return handle.nodeId;
       },
+      // A File's node and its document go together.
       deleteNode: async (driveId, nodeId) => {
-        await this.dispatch(driveId, [deleteNode({ id: nodeId })]);
-        try {
-          await runtime.dispatch.deleteDocument(nodeId);
-        } catch {
-          // already gone with its node
-        }
+        await runtime.drives.removeNode(driveId, nodeId);
       },
       stage: async (bytes, fileName, mimeType) => {
         const pre = await runtime.attachments.preprocess(new Blob([new Uint8Array(bytes)]), { fileName, mimeType: mimeType ?? undefined });

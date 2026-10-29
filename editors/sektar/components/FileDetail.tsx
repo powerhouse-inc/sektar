@@ -2,12 +2,12 @@
 // truth (a stored file or another document), and the content extracted from
 // or rendered for it, beside a preview of whichever of those is picked.
 import {
-  isFileNodeKind,
   renameDriveNode,
   useAttachments,
   useDocumentModelModules,
   useDrives,
   useEditorFileDrop,
+  useReactorClient,
 } from "@powerhousedao/reactor-browser";
 import { generateId } from "document-model";
 import {
@@ -17,7 +17,7 @@ import {
   type FileRendition,
   type FileTag,
 } from "document-models/file";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFillHeight, useNarrow } from "../../backfills/components/measure.js";
 import {
   addFileRendition,
@@ -216,7 +216,7 @@ function FileDetails({
   onShow: (item: PreviewItem) => void;
 }) {
   const s = doc.state.global;
-  const location = useDocumentLocation(doc.header.id);
+  const location = useDocumentLocation(doc.header.id, "files");
   return (
     <div className="sk-file-details">
       <TitleField
@@ -763,7 +763,68 @@ function typeRank(documentType: string): number {
   return documentType === "sektar/email" ? 100 : 50;
 }
 
-/** Every document in the open drives, File documents aside, to link as a source. */
+/** Nodes per read, and how many a drive shows before "Show more". */
+const PICKER_PAGE = 500;
+const PICKER_BATCH = 2_000;
+
+/** A drive's documents for the picker: read page by page through the drive read API, a batch at a time. */
+function usePickerNodes(driveId: string | null, driveName: string) {
+  const client = useReactorClient();
+  const [state, setState] = useState<{
+    driveId: string | null;
+    nodes: PickableNode[];
+    cursor: string | null;
+    loading: boolean;
+    error: string | null;
+  }>({ driveId: null, nodes: [], cursor: null, loading: false, error: null });
+  const nameRef = useRef(driveName);
+  nameRef.current = driveName;
+
+  const load = useCallback(
+    async (id: string, from: string, before: PickableNode[]) => {
+      const read = client?.read;
+      if (!read) return;
+      setState({ driveId: id, nodes: before, cursor: null, loading: true, error: null });
+      const out = [...before];
+      let cursor: string | null = from;
+      try {
+        for (let asked = 0; cursor !== null && asked < PICKER_BATCH; asked += PICKER_PAGE) {
+          const page = await read.drives.listNodes(id, undefined, { cursor, limit: PICKER_PAGE });
+          for (const n of page.results) {
+            if (n.kind !== "file" || !("documentType" in n)) continue;
+            // File documents are what is being linked from; drive types are no business records.
+            if (n.documentType === FILE_TYPE || n.documentType.startsWith("powerhouse/")) continue;
+            out.push({ id: n.id, name: n.name, documentType: n.documentType, driveName: nameRef.current });
+          }
+          cursor = page.nextCursor && page.results.length > 0 ? page.nextCursor : null;
+        }
+        setState((prev) => (prev.driveId === id ? { driveId: id, nodes: out, cursor, loading: false, error: null } : prev));
+      } catch (e) {
+        setState((prev) =>
+          prev.driveId === id ? { ...prev, loading: false, error: e instanceof Error ? e.message : String(e) } : prev,
+        );
+      }
+    },
+    [client],
+  );
+
+  useEffect(() => {
+    if (driveId) void load(driveId, "", []);
+  }, [driveId, load]);
+
+  const current = state.driveId === driveId ? state : { driveId, nodes: [], cursor: null, loading: Boolean(driveId), error: null };
+  return {
+    ...current,
+    more: current.cursor !== null && !current.loading ? () => void load(current.driveId ?? "", current.cursor ?? "", current.nodes) : null,
+  };
+}
+
+/**
+ * A document from one drive at a time, File documents aside, to link as a
+ * source. The drive's nodes are read through the drive read API in
+ * batches, never every drive's node list at once (Mail alone is a hundred
+ * thousand); the search and the type pills work on what is loaded.
+ */
 function DocumentPicker({
   onClose,
   onPick,
@@ -771,31 +832,26 @@ function DocumentPicker({
   onClose: () => void;
   onPick: (node: PickableNode) => void;
 }) {
-  const drives = useDrives();
+  const allDrives = useDrives();
   const modules = useDocumentModelModules();
   const [query, setQuery] = useState("");
   const [type, setType] = useState<string>("all");
   const typeName = (t: string) =>
     modules?.find((m) => m.documentModel.global.id === t)?.documentModel.global.name ?? t;
 
-  const nodes = useMemo(() => {
-    const out: PickableNode[] = [];
-    for (const d of drives ?? []) {
-      // The studio's own drives hold models and editors, not business documents.
-      if (/^(vetra|preview)/.test(d.header.slug)) continue;
-      for (const n of d.state.global.nodes) {
-        if (!isFileNodeKind(n) || n.documentType === FILE_TYPE) continue;
-        if (n.documentType.startsWith("powerhouse/")) continue;
-        out.push({
-          id: n.id,
-          name: n.name,
-          documentType: n.documentType,
-          driveName: d.header.name || d.state.global.name,
-        });
-      }
-    }
-    return out;
-  }, [drives]);
+  // The studio's own drives hold models and editors, not business documents.
+  const drives = useMemo(
+    () =>
+      (allDrives ?? [])
+        .filter((d) => !/^(vetra|preview)/.test(d.header.slug))
+        .map((d) => ({ id: d.header.id, slug: d.header.slug, name: d.header.name || d.state.global.name || d.header.slug })),
+    [allDrives],
+  );
+  const [chosen, setChosen] = useState<string | null>(null);
+  // The business records first: the sektar drive, when there is one.
+  const driveId = chosen ?? drives.find((d) => d.slug === "sektar")?.id ?? drives.at(0)?.id ?? null;
+  const drive = drives.find((d) => d.id === driveId);
+  const { nodes, loading, error, more } = usePickerNodes(driveId, drive?.name ?? "");
 
   const types = useMemo(() => {
     const counts = new Map<string, number>();
@@ -810,18 +866,33 @@ function DocumentPicker({
   const shown = nodes
     .filter((n) => type === "all" || n.documentType === type)
     .sort((a, b) => typeRank(a.documentType) - typeRank(b.documentType))
-    .filter((n) => words.every((w) => `${n.name} ${n.driveName}`.toLowerCase().includes(w)))
+    .filter((n) => words.every((w) => n.name.toLowerCase().includes(w)))
     .slice(0, 200);
 
   return (
     <Modal title="Link a document" onClose={onClose}>
       <div className="sk-stack sk-stack--4 sk-file-picker">
+        <div className="sk-pills" role="tablist" aria-label="Drive">
+          {drives.map((d) => (
+            <button
+              key={d.id}
+              type="button"
+              className={cx("sk-pill", d.id === driveId && "is-active")}
+              onClick={() => {
+                setChosen(d.id);
+                setType("all");
+              }}
+            >
+              {d.name}
+            </button>
+          ))}
+        </div>
         <label className="sk-input-group sk-search">
           <Icon name="search" />
           <input
             className="sk-input"
             autoFocus
-            placeholder="Search documents"
+            placeholder={drive ? `Search ${drive.name}` : "Search documents"}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             aria-label="Search documents"
@@ -859,9 +930,19 @@ function DocumentPicker({
             </li>
           ))}
         </ul>
-        {shown.length === 0 && (
+        {loading && <p className="sk-caption">Reading {drive?.name ?? "the drive"}…</p>}
+        {error && <p className="sk-small sk-text-danger">{error}</p>}
+        {more && (
+          <p className="sk-caption">
+            The first {nodes.length.toLocaleString()} documents of {drive?.name ?? "this drive"}.{" "}
+            <Button size="sm" variant="ghost" onClick={more}>
+              Show more
+            </Button>
+          </p>
+        )}
+        {!loading && shown.length === 0 && (
           <EmptyState icon="search" title="No documents">
-            Nothing matches that search.
+            {nodes.length === 0 ? "This drive has no documents to link." : "Nothing matches that search."}
           </EmptyState>
         )}
       </div>

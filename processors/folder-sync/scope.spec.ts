@@ -2,7 +2,7 @@ import type { OperationWithContext } from "document-model";
 import { describe, expect, it } from "vitest";
 import { changedNodes, inScope, REPLAY_MARGIN_MS, type ScopeNode } from "./scope.js";
 
-const TYPES = { file: "sektar/file", drive: "powerhouse/document-drive" };
+const TYPES = { file: "sektar/file", drive: "powerhouse/document-drive", reactorDrive: "powerhouse/reactor-drive" };
 const NOW = Date.parse("2026-10-21T18:00:00Z");
 
 function op(documentType: string, documentId: string, input: unknown = {}, at = NOW, scope = "global"): OperationWithContext {
@@ -32,6 +32,29 @@ describe("the nodes a batch changed", () => {
         op(TYPES.drive, "drive", { srcFolder: "aws", targetParentFolder: "q4" }),
         op(TYPES.drive, "drive", { id: "new", parentFolder: "ap" }),
         op(TYPES.drive, "drive", null),
+      ],
+      "drive",
+      TYPES,
+      NOW,
+    );
+    expect([...ids].sort()).toEqual(["ap", "aws", "invoice", "new", "q4"]);
+  });
+
+  it("names the folders and files a reactor-drive's own operations touch", () => {
+    const ids = changedNodes(
+      [
+        op(TYPES.reactorDrive, "drive", { folderId: "new", parentFolderId: "ap", name: "x" }, NOW, "document"),
+        op(
+          TYPES.reactorDrive,
+          "drive",
+          { sourceId: "drive", targetId: "invoice", relationshipType: "drive/child", metadata: { kind: "file", parentFolderId: "q4", documentType: "sektar/file" } },
+          NOW,
+          "document",
+        ),
+        op(TYPES.reactorDrive, "drive", { folderId: "aws" }, NOW, "document"),
+        // A legacy drive's document scope holds no node actions.
+        op(TYPES.drive, "drive", { id: "nope" }, NOW, "document"),
+        op(TYPES.reactorDrive, "elsewhere", { folderId: "other" }, NOW, "document"),
       ],
       "drive",
       TYPES,

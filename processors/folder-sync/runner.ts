@@ -42,8 +42,13 @@ export interface RunnerHost {
 
 /** What the runner needs from the reactor, the attachment store and the clock. */
 export interface RunnerDeps extends ReverseDeps {
-  /** A document's current state (the drive, a File) */
-  getDocument(id: string): Promise<{ header: { revision?: Record<string, number> }; state: { global: unknown } }>;
+  /** A document's current state (a File; the drive, for its header) */
+  getDocument(id: string): Promise<{ header: { documentType?: string; revision?: Record<string, number> }; state: { global: unknown } }>;
+  /**
+   * Every node of a drive, whatever its type: a reactor-drive's state holds
+   * no node list, so the nodes are read through the drive read API.
+   */
+  listNodes(driveId: string): Promise<PlanNode[]>;
   /** An attachment's bytes, read through the document that holds it */
   download(documentId: string, ref: string): Promise<Uint8Array>;
   /** Dispatches actions on the mapping */
@@ -98,12 +103,17 @@ export async function runSync(
 ): Promise<RunOutcome> {
   const runId = deps.newId();
   let driveRevision: number | null = null;
-  let drive: Awaited<ReturnType<RunnerDeps["getDocument"]>> | undefined;
+  let nodes: PlanNode[] | undefined;
+  let readError: string | null = null;
   try {
-    drive = s.driveId ? await deps.getDocument(s.driveId) : undefined;
-    driveRevision = drive?.header.revision?.global ?? null;
-  } catch {
+    if (s.driveId) {
+      const drive = await deps.getDocument(s.driveId);
+      driveRevision = revisionOf(drive.header);
+      nodes = await deps.listNodes(s.driveId);
+    }
+  } catch (e) {
     // reported below, once the run is on record
+    readError = e instanceof Error ? e.message : String(e);
   }
   const started = actions.startRun({
     id: runId,
@@ -123,8 +133,8 @@ export async function runSync(
     if (!isAllowed(s.localPath, options.allowedRoots ?? null, deps.host.platform)) {
       throw new Error(`${s.localPath} is outside the folders this Switchboard may write to (.ph/folder-sync-roots.txt)`);
     }
-    if (!drive) throw new Error(`The drive ${s.driveId} could not be read`);
-    outcome = await copyFolder(mappingId, s, drive.state.global as { nodes: PlanNode[] }, s.localPath, deps, options.full);
+    if (!nodes) throw new Error(`The drive ${s.driveId} could not be read${readError ? `: ${readError}` : ""}`);
+    outcome = await copyFolder(mappingId, s, nodes, s.localPath, deps, options.full);
   } catch (e) {
     outcome = { ...emptyOutcome(), status: "ERROR", error: e instanceof Error ? e.message : String(e) };
   }
@@ -154,6 +164,15 @@ export async function runSync(
     }),
   ]);
   return outcome;
+}
+
+/**
+ * The drive's revision a run copies: a legacy drive's nodes are its global
+ * operations; a reactor-drive's folders and links are its document-scope ones.
+ */
+export function revisionOf(header: { documentType?: string; revision?: Record<string, number> }): number | null {
+  const scope = header.documentType === "powerhouse/reactor-drive" ? "document" : "global";
+  return header.revision?.[scope] ?? null;
 }
 
 /**
@@ -187,7 +206,7 @@ function emptyOutcome(): RunOutcome {
 async function copyFolder(
   mappingId: string,
   s: FolderSyncState,
-  drive: { nodes: PlanNode[] },
+  driveNodes: readonly PlanNode[],
   root: string,
   deps: RunnerDeps,
   full: boolean,
@@ -198,7 +217,7 @@ async function copyFolder(
 
   await mkdir(root, { recursive: true });
   const manifest = await readManifest(root, mappingId);
-  const nodes = [...drive.nodes];
+  const nodes = [...driveNodes];
   const changes = new DiskChanges(s.options.fromDisk ?? "OFF", s.pulls ?? [], s.driveId ?? "", mappingId, s.folderId ?? null, nodes, deps);
   /** Placeholder Files (nothing pulled yet), by the path they stand for */
   const placeholderFiles = new Map<string, { id: string; pending: PendingPlaceholder | null | undefined }>();

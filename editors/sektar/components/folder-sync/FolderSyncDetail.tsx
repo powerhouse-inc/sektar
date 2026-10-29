@@ -2,7 +2,6 @@
 // and how the Switchboard's runs went. The mapping and the options are edited
 // here; the runs and the issues are what the Switchboard reported.
 import { useSelectedDrive } from "@powerhousedao/reactor-browser";
-import type { Node } from "@powerhousedao/shared/document-drive";
 import {
   actions,
   type FolderSyncAction,
@@ -15,7 +14,8 @@ import {
 } from "document-models/folder-sync";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { bytes } from "../../kit/files.js";
-import { ago, folderPath, hiddenSyncIds, isRunnable, requestPull, requestSync, statusInfo } from "../../kit/folder-sync.js";
+import { folderPaths, useFolderTree, type FolderRow } from "../../kit/files-index.js";
+import { ago, isRunnable, mappingStatus, requestPull, requestSync, statusInfo } from "../../kit/folder-sync.js";
 import { Menu } from "../../kit/menu.js";
 import { SyncGlyph } from "../../kit/sync-glyphs.js";
 import { Badge, Button, Card, cx, EmptyState, Field, Icon, Input, MetaStrip, Select, Table, type IconName } from "../../kit/ui.js";
@@ -49,7 +49,7 @@ export function FolderSyncDetail({ doc, dispatch }: { doc: FolderSyncDocument; d
     const t = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(t);
   }, []);
-  const info = statusInfo(s, now);
+  const info = statusInfo(mappingStatus(s), now);
   const runnable = isRunnable(s);
   const running = s.status === "RUNNING";
   const last = s.runs.at(0);
@@ -74,13 +74,13 @@ export function FolderSyncDetail({ doc, dispatch }: { doc: FolderSyncDocument; d
           </div>
         </div>
         <div className="sk-detail-header__actions">
-          <Button variant="primary" disabled={!runnable || running} onClick={() => void requestSync(doc)}>
+          <Button variant="primary" disabled={!runnable || running} onClick={() => void requestSync(doc.header.id)}>
             {running ? "Syncing…" : "Synchronize now"}
           </Button>
           <Menu
             label="More"
             items={[
-              { label: "Full resync", icon: "copy", disabled: !runnable || running, onSelect: () => void requestSync(doc, true) },
+              { label: "Full resync", icon: "copy", disabled: !runnable || running, onSelect: () => void requestSync(doc.header.id, true) },
               {
                 label: "Pull all placeholders",
                 icon: "download",
@@ -186,7 +186,10 @@ function StatusAlert({ doc, now }: { doc: FolderSyncDocument; now: number }) {
 function MappingForm({ doc, dispatch }: { doc: FolderSyncDocument; dispatch: Dispatch }) {
   const s = doc.state.global;
   const [drive] = useSelectedDrive();
-  const folders = useMemo(() => folderOptions(drive.state.global.nodes), [drive.state.global.nodes]);
+  // The drive's folders and their paths, from the Files index (not the drive's node list).
+  const tree = useFolderTree(drive, drive.header.lastModifiedAtUtcIso);
+  const folders = useMemo(() => folderOptions(tree?.folders ?? []), [tree]);
+  const pathOf = useMemo(() => new Map(folders.map((f) => [f.id, f.path])), [folders]);
   const [path, setPath] = useState(s.localPath ?? "");
   useEffect(() => setPath(s.localPath ?? ""), [s.localPath]);
   const trimmed = path.trim();
@@ -207,10 +210,12 @@ function MappingForm({ doc, dispatch }: { doc: FolderSyncDocument; dispatch: Dis
             disabled={!sameDrive}
             onChange={(e) => {
               const id = e.target.value || null;
-              dispatch(actions.setTarget({ driveId: drive.header.id, folderId: id, folderPath: folderPath(drive.state.global.nodes, id) || null }));
+              dispatch(actions.setTarget({ driveId: drive.header.id, folderId: id, folderPath: (id && pathOf.get(id)) || null }));
             }}
           >
             <option value="">{drive.header.name || "Drive root"} (the whole drive)</option>
+            {/* The mapped folder, while the tree is on its way */}
+            {s.folderId && !pathOf.has(s.folderId) && <option value={s.folderId}>{s.folderPath ?? s.folderId}</option>}
             {folders.map((f) => (
               <option key={f.id} value={f.id}>
                 {f.path}
@@ -295,12 +300,11 @@ function Check({ checked, label, hint, disabled, onChange }: { checked: boolean;
   );
 }
 
-/** The drive's folders (not the `.sync` folder), each with its full path, in path order. */
-function folderOptions(nodes: readonly Node[]) {
-  const hidden = hiddenSyncIds(nodes);
-  return nodes
-    .filter((n) => n.kind === "folder" && !hidden.has(n.id))
-    .map((n) => ({ id: n.id, path: folderPath(nodes, n.id) }))
+/** The drive's folders (the index leaves out the `.sync` folder), each with its full path, in path order. */
+function folderOptions(folders: readonly FolderRow[]) {
+  const paths = folderPaths(folders);
+  return folders
+    .map((f) => ({ id: f.id, path: paths.get(f.id) ?? f.name }))
     .sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: "base" }));
 }
 

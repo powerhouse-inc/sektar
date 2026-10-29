@@ -3,8 +3,10 @@
 // describe, in a hidden `.sync` folder at its root that the tree and the
 // listing leave out. The app writes the mapping and asks for runs; the
 // Switchboard writes the files and reports back on the same document.
-import { addDocument, addFolder, dispatchActions, isFileNodeKind } from "@powerhousedao/reactor-browser";
-import type { Node } from "@powerhousedao/shared/document-drive";
+// What the Files app lists of them (the tree's synced folders, the menu)
+// comes from the Files index, one row per mapping (kit/files-index.ts); a
+// mapping document is loaded only when it is opened.
+import { addDocument, addFolder, dispatchActions } from "@powerhousedao/reactor-browser";
 import { generateId } from "document-model";
 import { actions, type FolderSyncDocument, type FolderSyncState } from "document-models/folder-sync";
 import type { BadgeTone } from "./format.js";
@@ -13,55 +15,21 @@ export const SYNC_TYPE = "sektar/folder-sync";
 /** The root folder the mappings are kept in. */
 export const SYNC_FOLDER = ".sync";
 
-/** The `.sync` folder and everything in it: what the Files app does not show. */
-export function hiddenSyncIds(nodes: readonly Node[]): Set<string> {
-  const hidden = new Set<string>();
-  for (const n of nodes) if (n.kind === "folder" && !n.parentFolder && n.name === SYNC_FOLDER) hidden.add(n.id);
-  // Nodes can come in any order: repeat until nothing more is added below a hidden folder.
-  for (let grew = hidden.size > 0; grew; ) {
-    grew = false;
-    for (const n of nodes) {
-      if (!hidden.has(n.id) && n.parentFolder && hidden.has(n.parentFolder)) {
-        hidden.add(n.id);
-        grew = true;
-      }
-    }
-  }
-  return hidden;
-}
-
-/** The ids of the drive's mapping documents. */
-export function mappingIds(nodes: readonly Node[]): string[] {
-  return nodes.filter((n) => isFileNodeKind(n) && n.documentType === SYNC_TYPE).map((n) => n.id);
-}
-
-/** A folder's path from the drive's root, e.g. kwartaalaangiftes/2026-Q3; "" for the root. */
-export function folderPath(nodes: readonly Node[], folderId: string | null): string {
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-  const parts: string[] = [];
-  const seen = new Set<string>();
-  for (let cur = folderId; cur && !seen.has(cur); ) {
-    seen.add(cur);
-    const n = byId.get(cur);
-    if (!n) break;
-    parts.unshift(n.name);
-    cur = n.parentFolder ?? null;
-  }
-  return parts.join("/");
-}
-
-/** Creates a mapping for a drive folder (null: the drive's root) and returns its id. */
+/**
+ * Creates a mapping for a drive folder (null: the drive's root) and returns
+ * its id. The mapping is filed in the `.sync` folder, made when the drive
+ * has none yet.
+ */
 export async function createMapping(
   driveId: string,
-  nodes: readonly Node[],
   folderId: string | null,
+  /** The folder's path from the drive's root, e.g. kwartaalaangiftes/2026-Q3; "" for the root */
+  path: string,
   driveName: string,
-  /** The folder's path, for a folder too new to be in `nodes` */
-  knownPath?: string,
+  /** The drive's `.sync` folder, as the Files index knows it */
+  syncFolderId: string | null,
 ): Promise<string> {
-  let home = nodes.find((n) => n.kind === "folder" && !n.parentFolder && n.name === SYNC_FOLDER)?.id;
-  if (!home) home = (await addFolder(driveId, SYNC_FOLDER)).id;
-  const path = knownPath ?? folderPath(nodes, folderId);
+  const home = syncFolderId ?? (await addFolder(driveId, SYNC_FOLDER)).id;
   const node = await addDocument(driveId, path.split("/").at(-1) || driveName, SYNC_TYPE, home);
   await dispatchActions(actions.setTarget({ driveId, folderId, folderPath: path || null }), node.id);
   return node.id;
@@ -76,15 +44,16 @@ export function isMapping(doc: { header: { documentType: string } }): doc is Fol
   return doc.header.documentType === SYNC_TYPE;
 }
 
-export function isRunnable(s: FolderSyncState): boolean {
+/** Whether a mapping can run: from its document's state or its index row. */
+export function isRunnable(s: { enabled: boolean; driveId?: string | null; localPath?: string | null }): boolean {
   return s.enabled && Boolean(s.driveId && s.localPath);
 }
 
 /** Asks the Switchboard for a run of one mapping. */
-export function requestSync(doc: FolderSyncDocument, full = false) {
+export function requestSync(mappingId: string, full = false) {
   return dispatchActions(
     actions.requestSync({ id: generateId(), requestedAt: new Date().toISOString(), requestedBy: "app", full }),
-    doc.header.id,
+    mappingId,
   );
 }
 
@@ -102,9 +71,9 @@ export function requestPull(mappingId: string, nodeIds: string[] = []) {
 }
 
 /** Asks for a run of every mapping that can run; returns how many were asked. */
-export async function requestSyncAll(docs: readonly FolderSyncDocument[]): Promise<number> {
-  const runnable = docs.filter((d) => isRunnable(d.state.global));
-  await Promise.all(runnable.map((d) => requestSync(d)));
+export async function requestSyncAll(mappings: readonly (MappingStatus & { id: string })[]): Promise<number> {
+  const runnable = mappings.filter((m) => isRunnable(m));
+  await Promise.all(runnable.map((m) => requestSync(m.id)));
   return runnable.length;
 }
 
@@ -128,16 +97,47 @@ export interface SyncStatusInfo {
   attention: boolean;
 }
 
-/** What a mapping's state comes down to, for a badge and a line under it. */
-export function statusInfo(s: FolderSyncState, now = Date.now()): SyncStatusInfo {
+/**
+ * What a badge needs of a mapping: the Files index's row for it
+ * (SyncMappingSummary) has these fields, and `mappingStatus` makes them out
+ * of an open mapping document.
+ */
+export interface MappingStatus {
+  driveId: string | null;
+  localPath: string | null;
+  enabled: boolean;
+  status: string;
+  requestedAt: string | null;
+  lastRun: { startedAt: string | null; finishedAt: string | null; placeholders: number; error: string | null } | null;
+  issueCount: number;
+}
+
+/** A mapping document's state, as its badge reads it. */
+export function mappingStatus(s: FolderSyncState): MappingStatus {
   const last = s.runs.at(0);
+  return {
+    driveId: s.driveId ?? null,
+    localPath: s.localPath ?? null,
+    enabled: s.enabled,
+    status: s.status,
+    requestedAt: s.request?.requestedAt ?? null,
+    lastRun: last
+      ? { startedAt: last.startedAt, finishedAt: last.finishedAt ?? null, placeholders: last.placeholders ?? 0, error: last.error ?? null }
+      : null,
+    issueCount: s.issues.length,
+  };
+}
+
+/** What a mapping's state comes down to, for a badge and a line under it. */
+export function statusInfo(s: MappingStatus, now = Date.now()): SyncStatusInfo {
+  const last = s.lastRun;
   if (!s.driveId || !s.localPath) return { tone: "warning", label: "Not set up", detail: "Choose the folder on disk", attention: true };
   if (!s.enabled) return { tone: "outline", label: "Paused", detail: last?.finishedAt ? `Last synced ${ago(last.finishedAt, now)}` : "Never synced", attention: false };
   switch (s.status) {
     case "NEVER":
       return { tone: "outline", label: "Never synced", detail: "Synchronize to write the files", attention: false };
     case "REQUESTED":
-      return { tone: "info", label: "Waiting", detail: `Asked ${ago(s.request?.requestedAt, now)} · the Switchboard picks it up`, attention: false };
+      return { tone: "info", label: "Waiting", detail: `Asked ${ago(s.requestedAt, now)} · the Switchboard picks it up`, attention: false };
     case "RUNNING":
       return { tone: "info", label: "Syncing…", detail: last ? `Started ${ago(last.startedAt, now)}` : "", attention: false };
     case "OK": {
@@ -146,11 +146,13 @@ export function statusInfo(s: FolderSyncState, now = Date.now()): SyncStatusInfo
       return { tone: "success", label: "Synced", detail: ago(last?.finishedAt, now), attention: false };
     }
     case "PARTIAL": {
-      const n = s.issues.length;
+      const n = s.issueCount;
       return { tone: "warning", label: n === 1 ? "1 issue" : `${n} issues`, detail: `Synced ${ago(last?.finishedAt, now)}`, attention: true };
     }
     case "ERROR":
       return { tone: "danger", label: "Failed", detail: last?.error ?? `Failed ${ago(last?.finishedAt, now)}`, attention: true };
+    default:
+      return { tone: "outline", label: s.status, detail: "", attention: false };
   }
 }
 
