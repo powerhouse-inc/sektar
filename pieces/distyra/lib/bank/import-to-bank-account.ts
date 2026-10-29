@@ -6,6 +6,11 @@
  * backfill window that overlaps an earlier one, or a rerun, adds nothing
  * twice. Nothing to add is a success with nothing sent: the model refuses an
  * empty import, and an empty window is an ordinary answer from the bank.
+ *
+ * Pending entries are kept in step with the bank: the ones it reports now and
+ * the account lacks are added as PENDING, and the account's pending rows it
+ * no longer reports (booked since, or cancelled) are removed. Only a change is
+ * written, so a quiet pull sends nothing.
  */
 import { createAction, Property } from "@powerhousedao/pieces-framework";
 import { toGlobalAction } from "../osc/client.js";
@@ -25,7 +30,7 @@ export const distyraImportToBankAccountAction = createAction({
   requireReactor: "write",
   displayName: "Import into Bank Account",
   description:
-    "File one account's pulled transactions onto a Sektar bank account. Booked entries only; each gets a stable reference, and rows the account already holds are skipped, so overlapping windows and reruns never import twice.",
+    "File one account's pulled transactions onto a Sektar bank account. Booked entries are posted once each (a stable reference skips rows the account already holds, so overlapping windows and reruns never import twice); pending entries are shown as pending until the bank books them.",
   props: {
     transactions: Property.Json({
       displayName: "Transactions",
@@ -59,34 +64,49 @@ export const distyraImportToBankAccountAction = createAction({
         `Document ${bankAccountId} is a ${doc.header.documentType}, not a ${BANK_ACCOUNT_TYPE}.`,
       );
     }
-    const state = (doc.state as { global?: { transactions?: { reference: string | null }[] } }).global;
+    const state = (
+      doc.state as {
+        global?: { transactions?: { id: string; reference: string | null; status?: string }[] };
+      }
+    ).global;
+    const held = state?.transactions ?? [];
     const knownReferences = new Set(
-      (state?.transactions ?? [])
+      held
+        .filter((t) => t.status !== "PENDING")
         .map((t) => t.reference)
         .filter((r): r is string => typeof r === "string"),
     );
+    const heldPending = held.filter((t) => t.status === "PENDING");
     const plan = planImport(p.transactions, {
       accountId: p.accountId.trim(),
       accountKey: text(p.accountKey),
       knownReferences,
       newId: () => crypto.randomUUID(),
     });
-    if (plan.rows.length > 0) {
+    // Pending rows: drop the ones the bank stopped reporting, add the new ones
+    const reported = new Set(plan.pending.map((r) => r.reference));
+    const stale = heldPending.filter((t) => !t.reference || !reported.has(t.reference)).map((t) => t.id);
+    const heldPendingRefs = new Set(heldPending.map((t) => t.reference));
+    const freshPending = plan.pending.filter((r) => !heldPendingRefs.has(r.reference));
+    const actions = [];
+    if (stale.length > 0) {
+      actions.push(toGlobalAction({ type: "REMOVE_PENDING_TRANSACTIONS", input: { ids: stale } }));
+    }
+    const incoming = [...plan.rows, ...freshPending.map((r) => ({ ...r, pending: true }))];
+    if (incoming.length > 0) {
       const importedAt = new Date().toISOString();
-      await context.reactor.execute(bankAccountId, "main", [
+      actions.push(
         toGlobalAction({
           type: "IMPORT_TRANSACTIONS",
-          input: {
-            batchId: `distyra-${importedAt}`,
-            importedAt,
-            transactions: plan.rows,
-          },
+          input: { batchId: `distyra-${importedAt}`, importedAt, transactions: incoming },
         }),
-      ]);
+      );
     }
+    if (actions.length > 0) await context.reactor.execute(bankAccountId, "main", actions);
     return {
       bankAccountId,
       imported: plan.rows.length,
+      pending: { reported: plan.pending.length, added: freshPending.length, removed: stale.length },
       counts: plan.counts,
       span: plan.span,
       held: knownReferences.size + plan.rows.length,

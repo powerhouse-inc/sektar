@@ -59,11 +59,43 @@ describe("planning an import", () => {
 
   it("keeps other accounts, unbooked and undated rows out, and says so", () => {
     const plan = planImport(
-      [tx({ account_id: "acc-2" }), tx({ id: "ER-2", status: "PDNG" }), tx({ id: "ER-3", date: null }), tx({ id: "ER-4" })],
+      [
+        tx({ account_id: "acc-2" }),
+        tx({ id: "ER-2", status: "PDNG", pending: true, transaction_id: "TX-2" }),
+        tx({ id: "ER-5", status: "CNCL" }),
+        tx({ id: "ER-3", date: null }),
+        tx({ id: "ER-4" }),
+      ],
       base,
     );
     expect(plan.rows.map((r) => r.reference)).toEqual(["distyra:acc-1:ER-4"]);
-    expect(plan.counts).toEqual({ received: 4, otherAccount: 1, notBooked: 1, undated: 1, known: 0, toImport: 1 });
+    expect(plan.counts).toEqual({ received: 5, otherAccount: 1, pending: 1, notBooked: 1, undated: 1, known: 0, toImport: 1 });
+  });
+
+  it("plans pending rows apart, under references of their own", () => {
+    const pending = (over: Partial<DistyraTransaction>) =>
+      tx({ status: "PDNG", pending: true, id_source: "transaction_id", entry_reference: null, ...over });
+    const plan = planImport(
+      [
+        pending({ id: "TX-1", transaction_id: "TX-1" }),
+        // reported twice in one pull: once
+        pending({ id: "TX-1", transaction_id: "TX-1" }),
+        pending({ id: null, transaction_id: null }),
+        pending({ id: null, transaction_id: null }),
+        pending({ transaction_id: null, date: null }),
+      ],
+      { ...base, accountKey: "key-A", knownReferences: new Set(["distyra:key-A:p:TX-1"]) },
+    );
+    // the plan lists every pending entry the bank reports now; the action adds the new ones
+    expect(plan.rows).toEqual([]);
+    const refs = plan.pending.map((r) => r.reference);
+    expect(refs[0]).toBe("distyra:key-A:p:TX-1");
+    expect(refs[1]).toMatch(/^distyra:key-A:p:h:[0-9a-f]{16}$/);
+    // identical twins without an id stay apart
+    expect(refs[2]).toMatch(/^distyra:key-A:p:h:[0-9a-f]{16}$/);
+    expect(refs[1]).not.toBe(refs[2]);
+    expect(plan.counts).toMatchObject({ pending: 3, undated: 1, toImport: 0 });
+    expect(plan.pending[0]).toMatchObject({ amount: -12.5, counterparty: "ACME BV", bookedAt: "2026-09-14T00:00:00.000Z" });
   });
 
   it("skips what the account already holds and repeats within the batch", () => {
