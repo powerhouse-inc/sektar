@@ -119,8 +119,22 @@ environment's Postgres as `PH_SWITCHBOARD_DATABASE_URL`, a kept `/data`
 volume, `PUBLIC_URL`, port 6540 and a heap that follows the size, and the
 platform switchboard and Connect are not run beside it. Set
 `PH_WORKFLOWS_SECRETS_MASTER_KEY` as a secret, `ADMINS` and the access
-settings above as plain env. Previews get no secrets, so a preview refuses to
-start without the master key.
+settings above as plain env.
+
+The image takes care of the rest itself:
+
+- **Secrets it keeps.** Without `PH_WORKFLOWS_SECRETS_MASTER_KEY` or
+  `PH_ATTACHMENT_URL_SIGNING_SECRET`, the entrypoint generates each once and
+  keeps it on the volume (`/data/workflows-master-key`,
+  `/data/attachment-url-signing-secret`, mode 600). An explicit value wins.
+  Moving the instance means moving `/data` with its database.
+- **Access.** `AUTH_ENABLED`, `REQUIRE_AUTHENTICATED_CALLER` and
+  `RESOLVE_CALLER_IDENTITY` default to `true`; set `ADMINS`.
+- **Restarts.** Stale `ph run` records on the volume are cleared at start.
+
+Releases (`v*` tags) build this image as the App's `host` artifact on the
+LATEST channel; a Sektar cloud licence on Vetra runs the latest release with the
+holder as `ADMINS`. Main pushes do not build it.
 
 ## Known issues (2026-10-29, monorepo 6.2.3-dev.81)
 

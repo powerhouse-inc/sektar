@@ -27,6 +27,10 @@ jobs:
       - uses: powerhouse-inc/vetra-deploy-action@v1
         with:
           app-id: 43622402-be06-435a-bbfa-bb649b0d6244
-          # Sektar's production stack (switchboard + Connect) as one container;
-          # the environment runs it as a host with PH_HOST=cli (hosts/cli/README.md).
-          fusion-dockerfile: hosts/cli/Dockerfile
+          # Sektar's production stack (switchboard + Connect) as one container,
+          # built on release tags only and recorded as the App's `host` image
+          # on the LATEST channel: Vetra runs it as a host for each cloud
+          # licence (hosts/cli/README.md). Main pushes keep deploying the
+          # package alone, as before.
+          fusion-dockerfile: ${{ startsWith(github.ref, 'refs/tags/v') && 'hosts/cli/Dockerfile' || '' }}
+          fusion-image-name: host
