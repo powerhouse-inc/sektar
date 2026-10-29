@@ -30,9 +30,9 @@ export default {
     backends: {
       switchboard: {
         kind: "remote",
-        // The running switchboard's GraphQL endpoint (its output); a literal
-        // URL attaches to an external switchboard.
-        remote: { url: switchboard.endpoints.graphql },
+        // The running switchboard, named by one of its drives (its output); a
+        // literal drive address attaches to an external switchboard.
+        remote: { url: switchboard.drives.sektar.url },
       },
     },
     protocol: config.connect?.reactor ?? {},

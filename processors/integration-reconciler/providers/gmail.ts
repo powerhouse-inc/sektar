@@ -16,8 +16,8 @@ export const GMAIL_PIECE = "@activepieces/piece-gmail";
 export const GMAIL_PIECE_VERSION = "0.18.1";
 /**
  * The Mail drive. Where it was converted from the legacy drive (2026-10-26)
- * it is this pinned id, whose slug is the id itself; a store made since has
- * it under the slug "mail" (hosts/switchboard declares both). The reconciler
+ * it is this pinned id, whose slug is the id itself (hosts/vetra pins it); a
+ * store made since has it under the slug "mail" (hosts/switchboard). The reconciler
  * looks it up in that order (io.mailDrive) and files mail under the id it
  * finds. Same pair as hosts/connect/routes/-shared/products.ts.
  */

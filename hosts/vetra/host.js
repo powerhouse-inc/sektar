@@ -17,6 +17,22 @@ import connect from "../connect/host.js";
 // the studio Connect attaches each one as a remote, being a remote client of it.
 const servedDrives = switchboard.reactor.drives ?? [];
 
+// COMPAT, remove once Sektar depends on a monorepo release with powerhouse
+// e7be6688f0 (6.2.3-dev.81 or later): then move this id back onto the Mail
+// declaration in hosts/switchboard/host.js and serve servedDrives as they are.
+//
+// The Mail drive converted on 2026-10-26 lives under this id (its slug is the
+// id itself), so the studio switchboard, which serves that store, pins it:
+// seeding by the "mail" slug alone would find nothing and make a second, empty
+// Mail drive. The pin stays out of the shared switchboard host because a
+// monorepo up to 6.2.3-dev.80 cannot seed a fresh store with it (a legacy
+// create may not take a content-addressed id) and stops the server; later
+// releases make the drive anew under its slug instead.
+const MAIL_DRIVE_ID = "HRsIHuMMTdmjgCdy9QGWyx96zOFByPo787oBQcEt9f4";
+const studioDrives = servedDrives.map((d) =>
+  d.slug === "mail" ? { ...d, id: MAIL_DRIVE_ID } : d,
+);
+
 /** @satisfies {PHHost} */
 export default {
   name: "vetra",
@@ -42,7 +58,7 @@ export default {
       reactor: {
         ...switchboard.reactor,
         drives: [
-          ...servedDrives,
+          ...studioDrives,
           {
             slug: "vetra",
             name: "Vetra",

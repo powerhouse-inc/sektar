@@ -43,7 +43,8 @@ export default {
         backends: {
           sb: {
             kind: "remote",
-            remote: { url: switchboard.endpoints.graphql },
+            // a remote backend is named by one of its drives
+            remote: { url: switchboard.drives.sektar.url },
           },
         },
         // Every drive the switchboard member actually serves — its declared

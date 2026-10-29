@@ -54,15 +54,12 @@ export default {
         icon: "./icons/sektar_symbol_64x64.png",
       },
       // Mail: captured emails (sektar/email), opened by the Mail workspace.
-      // Since 2026-10-26 this is a reactor-drive (children are drive/child
-      // relationships, not a node list in the document). The id pins the
-      // seeding to the drive converted then (its slug is its id), so that
-      // store never gets a second one. A store without it cannot take that id
-      // (only a v2 create derives it): the switchboard makes the drive anew
-      // under the "mail" slug, and the reconciler and the Mail link look the
-      // drive up in that order.
+      // A fresh store makes it under the "mail" slug. The store where it was
+      // converted to a reactor-drive (2026-10-26) holds it under a pinned id
+      // whose slug is the id itself: the vetra host pins that (COMPAT there),
+      // and the reconciler and the Mail link look the drive up by that id
+      // first, then by this slug.
       {
-        id: "HRsIHuMMTdmjgCdy9QGWyx96zOFByPo787oBQcEt9f4",
         slug: "mail",
         name: "Mail",
         preferredEditor: "email-workspace",
