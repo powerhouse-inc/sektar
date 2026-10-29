@@ -29,9 +29,11 @@ import { outputs as switchboard } from "../switchboard/outputs.js";
 const NOT_IN_PRODUCTION = new Set(["@powerhousedao/portle/switchboard"]);
 
 /** The drives the switchboard reports (hosts/switchboard/outputs.js). */
-const SERVED_DRIVES = Object.keys(switchboard.drives)
-  .filter((key) => key !== "$item")
-  .sort();
+const SERVED_DRIVES = /** @type {Exclude<keyof typeof switchboard.drives, "$item">[]} */ (
+  Object.keys(switchboard.drives)
+    .filter((key) => key !== "$item")
+    .sort()
+);
 
 /** Every interface: in a container, Docker publishes the ports from outside. */
 const ALL_INTERFACES = "0.0.0.0";
