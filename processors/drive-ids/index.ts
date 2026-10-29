@@ -99,3 +99,34 @@ export function supersededDrive<T extends HasHeader>(
     !!drives?.some((d) => d.header.id === pinned)
   );
 }
+
+/** The drive apps of the drives Sektar's processors serve, by slug. */
+export const DRIVE_APPS = {
+  mail: "email-workspace",
+  sektar: "sektar",
+  calendar: "calendar",
+  files: "files",
+  trips: "trips",
+  integrations: "integrations",
+  backfills: "backfills",
+  workflows: "workflow-studio",
+} as const;
+
+export type ServedDrive = keyof typeof DRIVE_APPS;
+
+/**
+ * Whether a processor that serves `slugs` runs on this drive: `bindsTo` for
+ * any of them. A processor runs on the drives whose documents it indexes and
+ * nowhere else: every processor on every drive replays every drive's history
+ * (Mail's hundred thousand messages) for nothing.
+ */
+export async function bindsToAny(
+  read: DriveReader,
+  header: { id: string; slug: string; meta?: unknown },
+  slugs: readonly ServedDrive[],
+): Promise<boolean> {
+  for (const slug of slugs) {
+    if (await bindsTo(read, header, slug, DRIVE_APPS[slug])) return true;
+  }
+  return false;
+}
