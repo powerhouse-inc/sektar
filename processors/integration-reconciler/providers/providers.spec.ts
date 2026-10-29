@@ -16,7 +16,7 @@ import {
 } from "../backfill-workflow.js";
 import { workflowDrift, type WorkflowFacts } from "../workflow-spec.js";
 import { distyra } from "./distyra.js";
-import { gmail, MAIL_DRIVE } from "./gmail.js";
+import { gmail, MAIL_DRIVE_ID } from "./gmail.js";
 
 const newId = () => "id-new";
 
@@ -39,6 +39,7 @@ describe("Gmail, as the existing mail workflows run", () => {
     connectionId: "conn-new",
     accountLabel: "wkampmann@gmail.com",
     reactorConnectionId: REACTOR,
+    mailDriveId: MAIL_DRIVE_ID,
   };
 
   it("checks for new mail on the same schedule, with the same search, mapping and upsert", () => {
@@ -78,7 +79,7 @@ describe("Gmail, as the existing mail workflows run", () => {
           name: "$item.name",
           items: "{{steps.map_emails.output.items}}",
           limit: 500,
-          driveId: MAIL_DRIVE,
+          driveId: MAIL_DRIVE_ID,
           folderName: "$item.folder",
           itemKeyPath: "key",
           stopOnError: false,
@@ -197,6 +198,7 @@ describe("Distyra, as the existing transaction workflows run", () => {
       connectionId: "WSEf1HivUP",
       accountLabel: null,
       reactorConnectionId: REACTOR,
+      mailDriveId: "",
     });
     expect(spec.trigger.config).toEqual({
       mode: "interval",
@@ -274,6 +276,7 @@ describe("a renamed mailbox", () => {
       connectionId: "c",
       accountLabel: "wkampmann@gmail.com",
       reactorConnectionId: REACTOR,
+      mailDriveId: MAIL_DRIVE_ID,
     });
     const built = liveWorkflowSpec(gmail, ctx(before));
     const facts: WorkflowFacts = {

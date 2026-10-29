@@ -62,6 +62,7 @@ function world(
     WorkflowFacts & { actions: WorkflowAction[] }
   >();
   let reactorConnection: string | null = "reactor-conn";
+  let mailDrive: string | null = "mail-drive";
   const health = new Map<string, RuntimeHealth>();
   /** An older workflow model: SET_MANAGED_BY is refused */
   let refuseManaged = false;
@@ -175,6 +176,7 @@ function world(
     },
     newId: () => `id-${++n}`,
     findReactorConnection: () => Promise.resolve(reactorConnection),
+    mailDrive: () => Promise.resolve(mailDrive),
     readWorkflow: (id) => {
       const w = workflows.get(id);
       return Promise.resolve(w ? { ...w } : null);
@@ -249,6 +251,9 @@ function world(
     },
     noReactorConnection: () => {
       reactorConnection = null;
+    },
+    mailDriveIs: (id: string | null) => {
+      mailDrive = id;
     },
     health,
     queues,
@@ -614,6 +619,49 @@ describe("the history", () => {
     await w.pass();
     expect(history().status).toBe("DISABLED");
     expect(s().fixes).toEqual([]);
+  });
+
+  it("files mail into the Mail drive it finds, and builds nothing while there is none", async () => {
+    const { actions } = await import("document-models/integration/v1");
+    const w = world("READ", [
+      actions.initialize({ kind: "EMAIL", provider: "gmail" }),
+      actions.setEmailSource({
+        mailbox: "KSDC",
+        address: "wouter@ksdc.be",
+        folders: [],
+      }),
+    ]);
+    w.mailDriveIs(null);
+    await w.pass();
+    const c = w.connections.get("conn-1")!;
+    w.connections.set("conn-1", {
+      ...c,
+      status: "OK",
+      signedIn: true,
+      granted: [...c.scopes],
+      accountLabel: "wouter@ksdc.be",
+    });
+    await w.pass();
+    expect(w.doc.state.global.resources.liveWorkflowId).toBeFalsy();
+    expect(w.doc.state.global.check?.issues.map((i) => i.code)).toContain(
+      "NO_MAIL_DRIVE",
+    );
+
+    // A fresh store's drive, made under the "mail" slug
+    w.mailDriveIs("mail-made-here");
+    await w.pass();
+    const id = w.doc.state.global.resources.liveWorkflowId!;
+    const upsert = w.workflows
+      .get(id)!
+      .actions.find(
+        (a) =>
+          a.type === "ADD_STEP" &&
+          (a.input as { actionName: string }).actionName === "upsert-documents",
+      )!;
+    expect(upsert.input).toMatchObject({
+      config: { documentType: "sektar/email", driveId: "mail-made-here" },
+    });
+    expect(w.doc.state.global.check?.issues).toEqual([]);
   });
 
   it("fills a gap between backfills with one more, newest first, once", async () => {
@@ -1009,6 +1057,7 @@ describe("a reconcile pass", () => {
         deleteIntegration: () => Promise.resolve(),
         newId: () => "x",
         findReactorConnection: () => Promise.resolve(null),
+        mailDrive: () => Promise.resolve(null),
         readWorkflow: () => Promise.resolve(null),
         createWorkflow: () => Promise.reject(new Error("no")),
         updateWorkflow: () => Promise.resolve(),

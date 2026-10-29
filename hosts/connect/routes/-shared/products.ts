@@ -16,6 +16,11 @@ export type NavItem = {
   label: string;
   icon: IconName;
   /**
+   * For a drive item: the id of the drive in stores that made it before its
+   * slug (`to` names the slug). The item opens that drive while it exists.
+   */
+  pinnedId?: string;
+  /**
    * For a drive the item opens by slug: the drive app it is bound to. A drive
    * created before its app existed has none; the shell binds it (bindDriveApps).
    */
@@ -54,9 +59,12 @@ export const PRODUCTS: readonly Product[] = [
     icon: { light: iconSageLight, dark: iconSageDark },
     nav: [
       { to: "/productivity", label: "Welcome", icon: "dashboard" },
-      // The Mail drive (hosts/*: reactor-drive, drive app email-workspace)
+      // The Mail drive (hosts/*: reactor-drive, drive app email-workspace):
+      // the converted drive by its id where it exists, else the "mail" slug.
+      // Same pair as processors/integration-reconciler/providers/gmail.ts.
       {
-        to: "/d/HRsIHuMMTdmjgCdy9QGWyx96zOFByPo787oBQcEt9f4",
+        to: "/d/mail",
+        pinnedId: "HRsIHuMMTdmjgCdy9QGWyx96zOFByPo787oBQcEt9f4",
         label: "Mail",
         icon: "mail",
       },
@@ -166,6 +174,11 @@ export function driveFor<D extends DriveLike>(
       ? drive.header.id
       : drive.header.slug || drive.header.id;
   return { drive, param };
+}
+
+/** Every address a nav item's page can have: its own, and its pinned drive's. */
+export function navTargets(item: NavItem): string[] {
+  return item.pinnedId ? [item.to, `/d/${item.pinnedId}`] : [item.to];
 }
 
 /**

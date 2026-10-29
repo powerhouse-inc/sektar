@@ -55,8 +55,12 @@ export default {
       },
       // Mail: captured emails (sektar/email), opened by the Mail workspace.
       // Since 2026-10-26 this is a reactor-drive (children are drive/child
-      // relationships, not a node list in the document); the id pins the
-      // seeding to the converted drive so a boot never creates a legacy one.
+      // relationships, not a node list in the document). The id pins the
+      // seeding to the drive converted then (its slug is its id), so that
+      // store never gets a second one. A store without it cannot take that id
+      // (only a v2 create derives it): the switchboard makes the drive anew
+      // under the "mail" slug, and the reconciler and the Mail link look the
+      // drive up in that order.
       {
         id: "HRsIHuMMTdmjgCdy9QGWyx96zOFByPo787oBQcEt9f4",
         slug: "mail",

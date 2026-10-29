@@ -82,6 +82,8 @@ export interface ReconcileIO {
   newId(): string;
   /** The switchboard's own reactor connection, for steps that write documents */
   findReactorConnection(): Promise<string | null>;
+  /** The Mail drive's id: the pinned drive, else the one under the "mail" slug; null while neither is there */
+  mailDrive(): Promise<string | null>;
   /** Null when the workflow document is gone */
   readWorkflow(id: string): Promise<WorkflowFacts | null>;
   /** Creates a workflow document in the Workflows drive and applies the actions; returns its id */
@@ -251,12 +253,26 @@ async function reconcileLiveWorkflow(
     });
     return false;
   }
+  const mailDriveId = provider.needsMailDrive ? await io.mailDrive() : "";
+  if (mailDriveId === null) {
+    issues.push({
+      code: "NO_MAIL_DRIVE",
+      severity: "BLOCKING",
+      subject: null,
+      message:
+        "The Mail drive the messages go into is not on this computer yet",
+      fixable: false,
+      since: since("NO_MAIL_DRIVE"),
+    });
+    return false;
+  }
   const ctx: ProviderContext = {
     name: doc.name,
     state: s,
     connectionId: connection.connectionId,
     accountLabel: connection.accountLabel,
     reactorConnectionId,
+    mailDriveId,
   };
   const spec = liveWorkflowSpec(provider, ctx);
   const id = s.resources.liveWorkflowId;
@@ -329,12 +345,16 @@ async function reconcileBackfill(
   const items = s.intent.backfill.items;
   // A provider without backfills (an aggregator that keeps its own history)
   if (provider.backfillPollSeconds === undefined) return true;
+  const mailDriveId = provider.needsMailDrive ? await io.mailDrive() : "";
+  // The live pass has said so already
+  if (mailDriveId === null) return false;
   const ctx: ProviderContext = {
     name: doc.name,
     state: s,
     connectionId: connection.connectionId,
     accountLabel: connection.accountLabel,
     reactorConnectionId,
+    mailDriveId,
   };
 
   const queues = new Map<string, { id: string; state: QueueState }>();

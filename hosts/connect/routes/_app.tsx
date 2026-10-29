@@ -32,6 +32,7 @@ import { ProductSwitch } from "./-shared/product-switch.js";
 import {
   driveFor,
   navMatches,
+  navTargets,
   PRODUCTS,
   productFor,
   rememberProduct,
@@ -99,7 +100,7 @@ function pageTitle(pathname: string, product: Product) {
     ...product.nav,
     ...(product.beforeDrive ?? []),
     ...(product.afterDrive ?? []),
-  ].find((n) => navMatches(pathname, n.to));
+  ].find((n) => navTargets(n).some((to) => navMatches(pathname, to)));
   if (nav) return nav.label;
   if (pathname.startsWith("/d/")) return product.drive.label;
   if (pathname.startsWith("/settings")) return "Settings";
@@ -334,11 +335,17 @@ function NavLink({
   pathname: string;
   onNavigate?: () => void;
 }) {
-  const active = navMatches(pathname, item.to);
+  const drives = useDrives();
+  const active = navTargets(item).some((to) => navMatches(pathname, to));
+  // The pinned drive where this store has it, else the item's own address
+  const to =
+    item.pinnedId && drives?.some((d) => d.header.id === item.pinnedId)
+      ? `/d/${item.pinnedId}`
+      : item.to;
   return (
     <li>
       <Link
-        to={item.to}
+        to={to}
         className={active ? "sk-nav__item is-active" : "sk-nav__item"}
         aria-current={active ? "page" : undefined}
         onClick={onNavigate}

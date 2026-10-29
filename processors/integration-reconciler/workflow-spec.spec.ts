@@ -30,6 +30,7 @@ const ctx = {
   connectionId: "conn-1",
   accountLabel: null,
   reactorConnectionId: "reactor",
+  mailDriveId: "",
 };
 const ids = () => {
   let n = 0;

@@ -15,11 +15,14 @@ import type { ProviderAdapter, ProviderContext } from "./types.js";
 export const GMAIL_PIECE = "@activepieces/piece-gmail";
 export const GMAIL_PIECE_VERSION = "0.18.1";
 /**
- * The Mail drive, by id: hosts/switchboard pins it (a converted
- * reactor-drive whose slug is its id), and the legacy mail workflows wrote
- * to it by id. Its "mail" slug does not resolve.
+ * The Mail drive. Where it was converted from the legacy drive (2026-10-26)
+ * it is this pinned id, whose slug is the id itself; a store made since has
+ * it under the slug "mail" (hosts/switchboard declares both). The reconciler
+ * looks it up in that order (io.mailDrive) and files mail under the id it
+ * finds. Same pair as hosts/connect/routes/-shared/products.ts.
  */
-export const MAIL_DRIVE = "HRsIHuMMTdmjgCdy9QGWyx96zOFByPo787oBQcEt9f4";
+export const MAIL_DRIVE_ID = "HRsIHuMMTdmjgCdy9QGWyx96zOFByPo787oBQcEt9f4";
+export const MAIL_DRIVE_SLUG = "mail";
 export const EMAIL_TYPE = "sektar/email";
 
 const IDENTITY = ["openid", "https://www.googleapis.com/auth/userinfo.email"];
@@ -83,7 +86,7 @@ function tail(ctx: ProviderContext): StepSpec[] {
         name: "$item.name",
         items: "{{steps.map_emails.output.items}}",
         limit: 500,
-        driveId: MAIL_DRIVE,
+        driveId: ctx.mailDriveId,
         folderName: "$item.folder",
         itemKeyPath: "key",
         stopOnError: false,
@@ -100,6 +103,7 @@ export const gmail: ProviderAdapter = {
   id: "gmail",
   label: "Google",
   auth: "oauth",
+  needsMailDrive: true,
   // A day of mail a minute, as the largest existing backfill walks
   backfillPollSeconds: 60,
   backfillSliceSeconds: 86_400,

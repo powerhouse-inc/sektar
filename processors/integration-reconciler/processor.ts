@@ -32,6 +32,7 @@ import {
   type ConnectionFacts,
   type ReconcileIO,
 } from "./reconcile.js";
+import { MAIL_DRIVE_ID, MAIL_DRIVE_SLUG } from "./providers/gmail.js";
 
 export const INTEGRATION_TYPE = "sektar/integration";
 /** The switchboard's own reactor connection: steps that write documents use it. */
@@ -212,6 +213,17 @@ export class IntegrationReconciler implements IProcessor {
         await dispatch.deleteDocument(integrationId);
       },
       newId: () => generateId(),
+      mailDrive: async () => {
+        // The converted drive where it exists, else the one made under the slug
+        for (const key of [MAIL_DRIVE_ID, MAIL_DRIVE_SLUG]) {
+          try {
+            return (await read.get(key)).header.id;
+          } catch {
+            // not here: try the next
+          }
+        }
+        return null;
+      },
       findReactorConnection: async () => {
         const page = await read.find({ type: "powerhouse/connection" });
         const found = page.results.find((doc) => {
