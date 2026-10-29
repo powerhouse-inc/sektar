@@ -90,6 +90,8 @@ export const schema: DocumentNode = gql`
     """Transactions still to review."""
     newCount: Int!
     lastImportedAt: String
+    """When its latest transaction was booked; null without transactions."""
+    lastBookedAt: String
     updatedAt: String!
   }
 

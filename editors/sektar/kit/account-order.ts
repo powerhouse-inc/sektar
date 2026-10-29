@@ -1,6 +1,7 @@
 /**
  * How account lists are ordered: by name, alphabetically (case-insensitive,
- * numbers in numeric order), and what counts as an empty account.
+ * numbers in numeric order), or the most recently used first; and what counts
+ * as an empty account.
  */
 
 type Named = { name: string | null; balance: number };
@@ -19,11 +20,28 @@ function byName(a: Named, b: Named): number {
   });
 }
 
-/** The accounts that hold money, by name (the dashboard's Accounts card). */
-export function accountsWithBalance<T extends Named>(
-  accounts: readonly T[],
-): T[] {
-  return accounts.filter((a) => !isZeroBalance(a)).sort(byName);
+/** How many accounts the dashboard's Accounts card shows. */
+export const RECENT_ACCOUNTS = 6;
+
+/**
+ * The accounts that hold money, the most recently used first: by the date of
+ * their latest transaction, an account without any last, then by name; at
+ * most `max` (the dashboard's Accounts card).
+ */
+export function recentAccountsWithBalance<
+  T extends Named & { lastBookedAt: string | null },
+>(accounts: readonly T[], max = RECENT_ACCOUNTS): T[] {
+  return accounts
+    .filter((a) => !isZeroBalance(a))
+    .sort((a, b) => {
+      if (a.lastBookedAt !== b.lastBookedAt) {
+        if (!a.lastBookedAt) return 1;
+        if (!b.lastBookedAt) return -1;
+        return b.lastBookedAt.localeCompare(a.lastBookedAt);
+      }
+      return byName(a, b);
+    })
+    .slice(0, max);
 }
 
 /** Every account by name, the empty ones last (the account picker). */

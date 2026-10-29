@@ -46,7 +46,7 @@ import {
   NewInvoicePanel,
 } from "../../-shared/forms.js";
 import { SetupState } from "../../-shared/setup.js";
-import { accountsWithBalance } from "../../../../../editors/sektar/kit/account-order.js";
+import { recentAccountsWithBalance } from "../../../../../editors/sektar/kit/account-order.js";
 
 export const Route = createFileRoute("/_app/finops/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard · Sektar" }] }),
@@ -258,7 +258,7 @@ function Dashboard() {
             }
           >
             <ul className="sk-list sk-list--divided">
-              {accountsWithBalance(accounts).map((a) => (
+              {recentAccountsWithBalance(accounts).map((a) => (
                 <li key={a.id}>
                   <ListItem
                     icon={

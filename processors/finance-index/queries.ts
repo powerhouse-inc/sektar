@@ -292,13 +292,24 @@ export function toInvoiceRow(r: InvoiceRow, now: string): InvoiceListRow {
 
 /* ---------------------------------------------------------------- accounts */
 
-/** Every account, by name. Small: one row per account document. */
+/**
+ * Every account, by name, with the date of its latest transaction. Small: one
+ * row per account document; the date is the newest booking among its rows in
+ * transaction_index, read through the (account_id, booked_at desc) index.
+ */
 export function accountsQuery(db: FinanceQueryBuilder) {
   return db
     .selectFrom("account_index")
-    .selectAll()
-    .orderBy("name", "asc")
-    .orderBy("document_id", "asc");
+    .selectAll("account_index")
+    .select((eb) =>
+      eb
+        .selectFrom("transaction_index")
+        .whereRef("transaction_index.account_id", "=", "account_index.document_id")
+        .select((t) => t.fn.max("transaction_index.booked_at").as("booked"))
+        .as("last_booked_at"),
+    )
+    .orderBy("account_index.name", "asc")
+    .orderBy("account_index.document_id", "asc");
 }
 
 export interface AccountListRow {
@@ -313,10 +324,14 @@ export interface AccountListRow {
   txCount: number;
   newCount: number;
   lastImportedAt: string | null;
+  /** When its latest transaction was booked; null without transactions. */
+  lastBookedAt: string | null;
   updatedAt: string;
 }
 
-export function toAccountRow(r: AccountRow): AccountListRow {
+export function toAccountRow(
+  r: AccountRow & { last_booked_at?: string | null },
+): AccountListRow {
   return {
     id: r.document_id,
     name: r.name,
@@ -329,6 +344,7 @@ export function toAccountRow(r: AccountRow): AccountListRow {
     txCount: Number(r.tx_count),
     newCount: Number(r.new_count),
     lastImportedAt: r.last_imported_at,
+    lastBookedAt: r.last_booked_at ?? null,
     updatedAt: r.updated_at,
   };
 }

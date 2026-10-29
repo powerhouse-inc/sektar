@@ -183,7 +183,7 @@ function useFinanceSource(drive: DocumentDriveDocument | undefined): {
 /* ---------------------------------------------------------------- wire */
 
 const INVOICE_FIELDS = `id direction kind status number counterpartyName counterpartyContactId subject firstLine currency issuedAt dueAt deliveredAt periodStart periodEnd createdAt gross outstanding bookGross bookOutstanding bookRateKnown overdue issuedCopyId issuedCopyRef lineCount linesMissingAttachments lastPaidAt updatedAt`;
-const ACCOUNT_FIELDS = `id name kind institution ibanLast4 currency openingBalance balance txCount newCount lastImportedAt updatedAt`;
+const ACCOUNT_FIELDS = `id name kind institution ibanLast4 currency openingBalance balance txCount newCount lastImportedAt lastBookedAt updatedAt`;
 const TRANSACTION_FIELDS = `id accountId bookedAt counterparty description reference category status amount currency contactId matchedDocumentId matchedKind importBatch`;
 
 const INVOICES_QUERY = `query ($d: String!, $dir: String, $v: FinanceInvoiceView, $q: String, $n: String, $o: Int, $l: Int) {
