@@ -10,6 +10,8 @@ import {
   matchTransaction,
   MatchTransactionInputSchema,
   reducer,
+  removePendingTransactions,
+  RemovePendingTransactionsInputSchema,
   unmatchTransaction,
   UnmatchTransactionInputSchema,
   utils,
@@ -95,6 +97,25 @@ describe("FeedOperations", () => {
     expect(updatedDocument.operations.global).toHaveLength(1);
     expect(updatedDocument.operations.global[0].action.type).toBe(
       "EXCLUDE_TRANSACTION",
+    );
+    expect(updatedDocument.operations.global[0].action.input).toStrictEqual(
+      input,
+    );
+    expect(updatedDocument.operations.global[0].index).toEqual(0);
+  });
+
+  it("should handle removePendingTransactions operation", () => {
+    const document = utils.createDocument();
+    const input = generateMock(RemovePendingTransactionsInputSchema());
+
+    const updatedDocument = reducer(document, removePendingTransactions(input));
+
+    expect(isBankAccountDocument(updatedDocument)).toBe(true);
+    expect(updatedDocument.operations.global).toHaveLength(1);
+    // A rejected operation records its error; give it the state it needs.
+    expect(updatedDocument.operations.global[0].error).toBeUndefined();
+    expect(updatedDocument.operations.global[0].action.type).toBe(
+      "REMOVE_PENDING_TRANSACTIONS",
     );
     expect(updatedDocument.operations.global[0].action.input).toStrictEqual(
       input,

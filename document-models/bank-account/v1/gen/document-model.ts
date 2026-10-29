@@ -17,7 +17,7 @@ export const documentModel: DocumentModelGlobalState = {
       state: {
         global: {
           schema:
-            "type BankAccountState {\n  name: String\n  institution: String\n  iban: String\n  kind: AccountKind!\n  currency: String!\n  openingBalance: Float!\n  transactions: [Transaction!]!\n  lastImportedAt: DateTime\n}\n\ntype Transaction {\n  id: OID!\n  bookedAt: DateTime!\n  amount: Float!\n  counterparty: String!\n  description: String\n  reference: String\n  category: TransactionCategory!\n  contactId: String\n  matchedDocumentId: String\n  matchedKind: MatchKind\n  status: TransactionStatus!\n  importBatch: String\n}\n\nenum AccountKind {\n  CURRENT\n  SAVINGS\n  CREDIT_CARD\n}\n\nenum MatchKind {\n  INVOICE\n  EXPENSE\n}\n\nenum TransactionStatus {\n  NEW\n  CATEGORIZED\n  MATCHED\n  EXCLUDED\n}\n\nenum TransactionCategory {\n  UNCATEGORIZED\n  SALES\n  SUPPLIES\n  PAYROLL\n  RENT\n  SOFTWARE\n  TRAVEL\n  MARKETING\n  TAX\n  BANK_FEES\n  TRANSFER\n  OTHER\n}",
+            'type BankAccountState {\n  name: String\n  institution: String\n  iban: String\n  kind: AccountKind!\n  currency: String!\n  openingBalance: Float!\n  transactions: [Transaction!]!\n  lastImportedAt: DateTime\n}\n\ntype Transaction {\n  id: OID!\n  bookedAt: DateTime!\n  amount: Float!\n  counterparty: String!\n  description: String\n  reference: String\n  category: TransactionCategory!\n  contactId: String\n  matchedDocumentId: String\n  matchedKind: MatchKind\n  status: TransactionStatus!\n  importBatch: String\n}\n\nenum AccountKind {\n  CURRENT\n  SAVINGS\n  CREDIT_CARD\n}\n\nenum MatchKind {\n  INVOICE\n  EXPENSE\n}\n\nenum TransactionStatus {\n  "Reported by the bank, not booked yet: shown, not counted, not reviewed; the booked entry replaces it"\n  PENDING\n  NEW\n  CATEGORIZED\n  MATCHED\n  EXCLUDED\n}\n\nenum TransactionCategory {\n  UNCATEGORIZED\n  SALES\n  SUPPLIES\n  PAYROLL\n  RENT\n  SOFTWARE\n  TRAVEL\n  MARKETING\n  TAX\n  BANK_FEES\n  TRANSFER\n  OTHER\n}',
           initialValue:
             '{"name": null, "institution": null, "iban": null, "kind": "CURRENT", "currency": "EUR", "openingBalance": 0, "transactions": [], "lastImportedAt": null}',
           examples: [],
@@ -68,10 +68,10 @@ export const documentModel: DocumentModelGlobalState = {
               name: "IMPORT_TRANSACTIONS",
               description: "",
               schema:
-                "input ImportTransactionsInput {\n  batchId: String!\n  importedAt: DateTime!\n  transactions: [ImportedTransactionInput!]!\n}\n\ninput ImportedTransactionInput {\n  id: OID!\n  bookedAt: DateTime!\n  amount: Float!\n  counterparty: String!\n  description: String\n  reference: String\n}",
+                'input ImportTransactionsInput {\n  batchId: String!\n  importedAt: DateTime!\n  transactions: [ImportedTransactionInput!]!\n}\n\ninput ImportedTransactionInput {\n  id: OID!\n  bookedAt: DateTime!\n  amount: Float!\n  counterparty: String!\n  description: String\n  reference: String\n  "True: the bank has not booked it yet (status PENDING)"\n  pending: Boolean\n}',
               template: "",
               reducer:
-                'if (action.input.transactions.length === 0) throw new EmptyImportError("Nothing to import");\nconst known = new Set(state.transactions.map((t) => t.reference).filter((r) => r !== null));\nfor (const t of action.input.transactions) {\n  if (t.reference && known.has(t.reference)) {\n    throw new DuplicateTransactionError(`Transaction ${t.reference} was imported before`);\n  }\n  if (t.reference) known.add(t.reference);\n  state.transactions.push({\n    id: t.id,\n    bookedAt: t.bookedAt,\n    amount: t.amount,\n    counterparty: t.counterparty,\n    description: t.description || null,\n    reference: t.reference || null,\n    category: "UNCATEGORIZED",\n    contactId: null,\n    matchedDocumentId: null,\n    matchedKind: null,\n    status: "NEW",\n    importBatch: action.input.batchId,\n  });\n}\nstate.lastImportedAt = action.input.importedAt;',
+                'if (action.input.transactions.length === 0) throw new EmptyImportError("Nothing to import");\nconst known = new Set(state.transactions.map((t) => t.reference).filter((r) => r !== null));\nfor (const t of action.input.transactions) {\n  if (t.reference && known.has(t.reference)) {\n    throw new DuplicateTransactionError(`Transaction ${t.reference} was imported before`);\n  }\n  if (t.reference) known.add(t.reference);\n  state.transactions.push({\n    id: t.id,\n    bookedAt: t.bookedAt,\n    amount: t.amount,\n    counterparty: t.counterparty,\n    description: t.description || null,\n    reference: t.reference || null,\n    category: "UNCATEGORIZED",\n    contactId: null,\n    matchedDocumentId: null,\n    matchedKind: null,\n    status: t.pending ? "PENDING" : "NEW",\n    importBatch: action.input.batchId,\n  });\n}\nstate.lastImportedAt = action.input.importedAt;',
               errors: [
                 {
                   id: "1d6fcd8e-c138-47c1-9645-196bd4092d5a",
@@ -100,13 +100,21 @@ export const documentModel: DocumentModelGlobalState = {
                 "input CategorizeTransactionInput {\n  id: OID!\n  category: TransactionCategory!\n  contactId: String\n}",
               template: "",
               reducer:
-                'const tx = state.transactions.find((t) => t.id === action.input.id);\nif (!tx) throw new TransactionNotFoundError(`Transaction ${action.input.id} not found`);\ntx.category = action.input.category;\nif (action.input.contactId !== undefined) tx.contactId = action.input.contactId;\nif (tx.status === "NEW") tx.status = "CATEGORIZED";',
+                'const tx = state.transactions.find((t) => t.id === action.input.id);\nif (!tx) throw new TransactionNotFoundError(`Transaction ${action.input.id} not found`);\nif (tx.status === "PENDING") throw new TransactionPendingError("A pending transaction is reviewed once it is booked");\ntx.category = action.input.category;\nif (action.input.contactId !== undefined) tx.contactId = action.input.contactId;\nif (tx.status === "NEW") tx.status = "CATEGORIZED";',
               errors: [
                 {
                   id: "57fdb18a-fa1d-43e3-afcf-130015d44525",
                   code: "TRANSACTION_NOT_FOUND",
                   name: "TransactionNotFoundError",
                   description: "No transaction with that id",
+                  template: "",
+                },
+                {
+                  id: "b67038d2-fed9-4388-9384-22d3552d1a64",
+                  code: "TRANSACTION_PENDING",
+                  name: "TransactionPendingError",
+                  description:
+                    "A pending transaction cannot be reviewed until it is booked",
                   template: "",
                 },
               ],
@@ -121,7 +129,7 @@ export const documentModel: DocumentModelGlobalState = {
                 "input MatchTransactionInput {\n  id: OID!\n  documentId: String!\n  kind: MatchKind!\n}",
               template: "",
               reducer:
-                'const tx = state.transactions.find((t) => t.id === action.input.id);\nif (!tx) throw new TransactionNotFoundError(`Transaction ${action.input.id} not found`);\nif (tx.status === "EXCLUDED") throw new TransactionExcludedError("An excluded transaction cannot be matched");\ntx.matchedDocumentId = action.input.documentId;\ntx.matchedKind = action.input.kind;\ntx.status = "MATCHED";',
+                'const tx = state.transactions.find((t) => t.id === action.input.id);\nif (!tx) throw new TransactionNotFoundError(`Transaction ${action.input.id} not found`);\nif (tx.status === "PENDING") throw new TransactionPendingError("A pending transaction is reviewed once it is booked");\nif (tx.status === "EXCLUDED") throw new TransactionExcludedError("An excluded transaction cannot be matched");\ntx.matchedDocumentId = action.input.documentId;\ntx.matchedKind = action.input.kind;\ntx.status = "MATCHED";',
               errors: [
                 {
                   id: "9703d8d1-a6d3-41a1-b130-8716f81ee28f",
@@ -137,6 +145,14 @@ export const documentModel: DocumentModelGlobalState = {
                   description: "The transaction is excluded from bookkeeping",
                   template: "",
                 },
+                {
+                  id: "2856b23f-7559-4153-9796-c2b7d368c79f",
+                  code: "TRANSACTION_PENDING",
+                  name: "TransactionPendingError",
+                  description:
+                    "A pending transaction cannot be reviewed until it is booked",
+                  template: "",
+                },
               ],
               examples: [],
               scope: "global",
@@ -148,13 +164,21 @@ export const documentModel: DocumentModelGlobalState = {
               schema: "input UnmatchTransactionInput {\n  id: OID!\n}",
               template: "",
               reducer:
-                'const tx = state.transactions.find((t) => t.id === action.input.id);\nif (!tx) throw new TransactionNotFoundError(`Transaction ${action.input.id} not found`);\ntx.matchedDocumentId = null;\ntx.matchedKind = null;\ntx.status = tx.category === "UNCATEGORIZED" ? "NEW" : "CATEGORIZED";',
+                'const tx = state.transactions.find((t) => t.id === action.input.id);\nif (!tx) throw new TransactionNotFoundError(`Transaction ${action.input.id} not found`);\nif (tx.status === "PENDING") throw new TransactionPendingError("A pending transaction is reviewed once it is booked");\ntx.matchedDocumentId = null;\ntx.matchedKind = null;\ntx.status = tx.category === "UNCATEGORIZED" ? "NEW" : "CATEGORIZED";',
               errors: [
                 {
                   id: "a0fc0dda-7982-4d03-9f39-794d5909d0e8",
                   code: "TRANSACTION_NOT_FOUND",
                   name: "TransactionNotFoundError",
                   description: "No transaction with that id",
+                  template: "",
+                },
+                {
+                  id: "5963b5e7-6ecd-4afe-868f-17d0bbbb33cf",
+                  code: "TRANSACTION_PENDING",
+                  name: "TransactionPendingError",
+                  description:
+                    "A pending transaction cannot be reviewed until it is booked",
                   template: "",
                 },
               ],
@@ -169,13 +193,43 @@ export const documentModel: DocumentModelGlobalState = {
                 "input ExcludeTransactionInput {\n  id: OID!\n  excluded: Boolean!\n}",
               template: "",
               reducer:
-                'const tx = state.transactions.find((t) => t.id === action.input.id);\nif (!tx) throw new TransactionNotFoundError(`Transaction ${action.input.id} not found`);\nif (action.input.excluded) {\n  tx.matchedDocumentId = null;\n  tx.matchedKind = null;\n  tx.status = "EXCLUDED";\n} else {\n  tx.status = tx.category === "UNCATEGORIZED" ? "NEW" : "CATEGORIZED";\n}',
+                'const tx = state.transactions.find((t) => t.id === action.input.id);\nif (!tx) throw new TransactionNotFoundError(`Transaction ${action.input.id} not found`);\nif (tx.status === "PENDING") throw new TransactionPendingError("A pending transaction is reviewed once it is booked");\nif (action.input.excluded) {\n  tx.matchedDocumentId = null;\n  tx.matchedKind = null;\n  tx.status = "EXCLUDED";\n} else {\n  tx.status = tx.category === "UNCATEGORIZED" ? "NEW" : "CATEGORIZED";\n}',
               errors: [
                 {
                   id: "1c0dfd8c-12f7-45c3-b7a8-3b50aaeb949a",
                   code: "TRANSACTION_NOT_FOUND",
                   name: "TransactionNotFoundError",
                   description: "No transaction with that id",
+                  template: "",
+                },
+                {
+                  id: "f0ea585f-2c3f-4464-af99-139206084cce",
+                  code: "TRANSACTION_PENDING",
+                  name: "TransactionPendingError",
+                  description:
+                    "A pending transaction cannot be reviewed until it is booked",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+            {
+              id: "dc47e207-d77b-4b8d-ba4a-954252fa8aab",
+              name: "REMOVE_PENDING_TRANSACTIONS",
+              description:
+                "Drops pending transactions the bank no longer reports: booked since (the booked entry arrives on its own) or cancelled. Ids already gone are skipped.",
+              schema:
+                "input RemovePendingTransactionsInput {\n  ids: [OID!]!\n}",
+              template: "",
+              reducer:
+                'const ids = new Set(action.input.ids);\nfor (const tx of state.transactions) {\n  if (ids.has(tx.id) && tx.status !== "PENDING") {\n    throw new NotPendingError(`Transaction ${tx.id} is no longer pending`);\n  }\n}\nstate.transactions = state.transactions.filter((t) => !ids.has(t.id));',
+              errors: [
+                {
+                  id: "fe59e522-4896-41f9-ad57-c985d8ff6524",
+                  code: "NOT_PENDING",
+                  name: "NotPendingError",
+                  description: "Only a pending transaction can be removed",
                   template: "",
                 },
               ],

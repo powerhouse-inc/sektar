@@ -8,6 +8,7 @@ import type {
   ExcludeTransactionInput,
   ImportTransactionsInput,
   MatchTransactionInput,
+  RemovePendingTransactionsInput,
   UnmatchTransactionInput,
 } from "../types.js";
 
@@ -31,10 +32,15 @@ export type ExcludeTransactionAction = Action & {
   type: "EXCLUDE_TRANSACTION";
   input: ExcludeTransactionInput;
 };
+export type RemovePendingTransactionsAction = Action & {
+  type: "REMOVE_PENDING_TRANSACTIONS";
+  input: RemovePendingTransactionsInput;
+};
 
 export type BankAccountFeedAction =
   | ImportTransactionsAction
   | CategorizeTransactionAction
   | MatchTransactionAction
   | UnmatchTransactionAction
-  | ExcludeTransactionAction;
+  | ExcludeTransactionAction
+  | RemovePendingTransactionsAction;

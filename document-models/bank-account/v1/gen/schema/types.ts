@@ -98,6 +98,8 @@ export type ImportedTransactionInput = {
   counterparty: Scalars["String"]["input"];
   description?: InputMaybe<Scalars["String"]["input"]>;
   id: Scalars["OID"]["input"];
+  /** True: the bank has not booked it yet (status PENDING) */
+  pending?: InputMaybe<Scalars["Boolean"]["input"]>;
   reference?: InputMaybe<Scalars["String"]["input"]>;
 };
 
@@ -107,6 +109,10 @@ export type MatchTransactionInput = {
   documentId: Scalars["String"]["input"];
   id: Scalars["OID"]["input"];
   kind: MatchKind;
+};
+
+export type RemovePendingTransactionsInput = {
+  ids: Array<Scalars["OID"]["input"]>;
 };
 
 export type SetAccountDetailsInput = {
@@ -147,7 +153,13 @@ export type TransactionCategory =
   | "TRAVEL"
   | "UNCATEGORIZED";
 
-export type TransactionStatus = "CATEGORIZED" | "EXCLUDED" | "MATCHED" | "NEW";
+export type TransactionStatus =
+  | "CATEGORIZED"
+  | "EXCLUDED"
+  | "MATCHED"
+  | "NEW"
+  /** Reported by the bank, not booked yet: shown, not counted, not reviewed; the booked entry replaces it */
+  | "PENDING";
 
 export type UnmatchTransactionInput = {
   id: Scalars["OID"]["input"];

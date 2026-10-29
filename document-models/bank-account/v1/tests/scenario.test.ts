@@ -4,6 +4,7 @@ import {
   importTransactions,
   matchTransaction,
   reducer,
+  removePendingTransactions,
   setAccountDetails,
   unmatchTransaction,
   utils,
@@ -216,5 +217,63 @@ describe("bank account feed", () => {
       currency: "USD",
       kind: "CREDIT_CARD",
     });
+  });
+
+  it("holds pending transactions apart until they are booked", () => {
+    let doc = account();
+    doc = reducer(
+      doc,
+      importTransactions({
+        batchId: "b2",
+        importedAt: T,
+        transactions: [
+          {
+            id: "p1",
+            bookedAt: T,
+            amount: -12.5,
+            counterparty: "Bakery",
+            description: null,
+            reference: "pending-1",
+            pending: true,
+          },
+          {
+            id: "t3",
+            bookedAt: T,
+            amount: -3,
+            counterparty: "Kiosk",
+            description: null,
+            reference: "booked-3",
+            pending: false,
+          },
+        ],
+      }),
+    );
+    const byId = (id: string) =>
+      doc.state.global.transactions.find((t) => t.id === id);
+    expect(byId("p1")?.status).toBe("PENDING");
+    expect(byId("t3")?.status).toBe("NEW");
+
+    // A pending row is not reviewed: every review action refuses it
+    for (const action of [
+      categorizeTransaction({ id: "p1", category: "OTHER" }),
+      matchTransaction({ id: "p1", documentId: "inv", kind: "INVOICE" }),
+      unmatchTransaction({ id: "p1" }),
+      excludeTransaction({ id: "p1", excluded: true }),
+    ]) {
+      doc = reducer(doc, action);
+      expect(lastError(doc)).toBe(
+        "A pending transaction is reviewed once it is booked",
+      );
+    }
+    expect(byId("p1")?.status).toBe("PENDING");
+
+    // Only pending rows can be removed; ids already gone are skipped
+    doc = reducer(doc, removePendingTransactions({ ids: ["p1", "t3"] }));
+    expect(lastError(doc)).toBe("Transaction t3 is no longer pending");
+    expect(byId("p1")).toBeDefined();
+    doc = reducer(doc, removePendingTransactions({ ids: ["p1", "gone"] }));
+    expect(lastError(doc)).toBeUndefined();
+    expect(byId("p1")).toBeUndefined();
+    expect(byId("t3")?.status).toBe("NEW");
   });
 });

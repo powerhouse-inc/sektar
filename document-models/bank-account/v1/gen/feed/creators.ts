@@ -8,6 +8,7 @@ import {
   ExcludeTransactionInputSchema,
   ImportTransactionsInputSchema,
   MatchTransactionInputSchema,
+  RemovePendingTransactionsInputSchema,
   UnmatchTransactionInputSchema,
 } from "../schema/zod.js";
 import type {
@@ -15,6 +16,7 @@ import type {
   ExcludeTransactionInput,
   ImportTransactionsInput,
   MatchTransactionInput,
+  RemovePendingTransactionsInput,
   UnmatchTransactionInput,
 } from "../types.js";
 import type {
@@ -22,6 +24,7 @@ import type {
   ExcludeTransactionAction,
   ImportTransactionsAction,
   MatchTransactionAction,
+  RemovePendingTransactionsAction,
   UnmatchTransactionAction,
 } from "./actions.js";
 
@@ -67,5 +70,16 @@ export const excludeTransaction = (input: ExcludeTransactionInput) =>
     { ...input },
     undefined,
     ExcludeTransactionInputSchema,
+    "global",
+  );
+
+export const removePendingTransactions = (
+  input: RemovePendingTransactionsInput,
+) =>
+  createAction<RemovePendingTransactionsAction>(
+    "REMOVE_PENDING_TRANSACTIONS",
+    { ...input },
+    undefined,
+    RemovePendingTransactionsInputSchema,
     "global",
   );

@@ -10,6 +10,7 @@ import type {
   ImportedTransactionInput,
   MatchKind,
   MatchTransactionInput,
+  RemovePendingTransactionsInput,
   SetAccountDetailsInput,
   Transaction,
   TransactionCategory,
@@ -54,6 +55,7 @@ export const TransactionStatusSchema = z.enum([
   "EXCLUDED",
   "MATCHED",
   "NEW",
+  "PENDING",
 ]);
 
 export function BankAccountStateSchema(): z.ZodObject<
@@ -110,6 +112,7 @@ export function ImportedTransactionInputSchema(): z.ZodObject<
     counterparty: z.string(),
     description: z.string().nullish(),
     id: z.string(),
+    pending: z.boolean().nullish(),
     reference: z.string().nullish(),
   });
 }
@@ -121,6 +124,14 @@ export function MatchTransactionInputSchema(): z.ZodObject<
     documentId: z.string(),
     id: z.string(),
     kind: MatchKindSchema,
+  });
+}
+
+export function RemovePendingTransactionsInputSchema(): z.ZodObject<
+  Properties<RemovePendingTransactionsInput>
+> {
+  return z.object({
+    ids: z.array(z.string()),
   });
 }
 

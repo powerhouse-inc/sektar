@@ -57,6 +57,8 @@ enum MatchKind {
 }
 
 enum TransactionStatus {
+  "Reported by the bank, not booked yet: shown, not counted, not reviewed; the booked entry replaces it"
+  PENDING
   NEW
   CATEGORIZED
   MATCHED
@@ -104,6 +106,8 @@ input ImportedTransactionInput {
   counterparty: String!
   description: String
   reference: String
+  "True: the bank has not booked it yet (status PENDING)"
+  pending: Boolean
 }
 
 input CategorizeTransactionInput {
@@ -125,4 +129,8 @@ input UnmatchTransactionInput {
 input ExcludeTransactionInput {
   id: OID!
   excluded: Boolean!
+}
+
+input RemovePendingTransactionsInput {
+  ids: [OID!]!
 }

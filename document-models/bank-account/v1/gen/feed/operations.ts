@@ -9,6 +9,7 @@ import type {
   ExcludeTransactionAction,
   ImportTransactionsAction,
   MatchTransactionAction,
+  RemovePendingTransactionsAction,
   UnmatchTransactionAction,
 } from "./actions.js";
 
@@ -36,6 +37,11 @@ export interface BankAccountFeedOperations {
   excludeTransactionOperation: (
     state: BankAccountGlobalState,
     action: ExcludeTransactionAction,
+    dispatch?: SignalDispatch,
+  ) => void;
+  removePendingTransactionsOperation: (
+    state: BankAccountGlobalState,
+    action: RemovePendingTransactionsAction,
     dispatch?: SignalDispatch,
   ) => void;
 }

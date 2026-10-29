@@ -1,8 +1,15 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import type { Reducer, StateReducer } from "document-model";
 import { createReducer, isDocumentAction } from "document-model";
 import type { BankAccountPHState } from "document-models/bank-account/v1";
+import type { SetAccountDetailsAction } from "./account/actions.js";
+import type {
+  CategorizeTransactionAction,
+  ExcludeTransactionAction,
+  ImportTransactionsAction,
+  MatchTransactionAction,
+  RemovePendingTransactionsAction,
+  UnmatchTransactionAction,
+} from "./feed/actions.js";
 
 import { bankAccountAccountOperations } from "../src/reducers/account.js";
 import { bankAccountFeedOperations } from "../src/reducers/feed.js";
@@ -12,6 +19,7 @@ import {
   ExcludeTransactionInputSchema,
   ImportTransactionsInputSchema,
   MatchTransactionInputSchema,
+  RemovePendingTransactionsInputSchema,
   SetAccountDetailsInputSchema,
   UnmatchTransactionInputSchema,
 } from "./schema/zod.js";
@@ -40,8 +48,8 @@ const stateReducer: StateReducer<BankAccountPHState> = (
       memoizedSchema(SetAccountDetailsInputSchema).parse(action.input);
 
       bankAccountAccountOperations.setAccountDetailsOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as SetAccountDetailsAction,
         dispatch,
       );
 
@@ -52,8 +60,8 @@ const stateReducer: StateReducer<BankAccountPHState> = (
       memoizedSchema(ImportTransactionsInputSchema).parse(action.input);
 
       bankAccountFeedOperations.importTransactionsOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as ImportTransactionsAction,
         dispatch,
       );
 
@@ -64,8 +72,8 @@ const stateReducer: StateReducer<BankAccountPHState> = (
       memoizedSchema(CategorizeTransactionInputSchema).parse(action.input);
 
       bankAccountFeedOperations.categorizeTransactionOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as CategorizeTransactionAction,
         dispatch,
       );
 
@@ -76,8 +84,8 @@ const stateReducer: StateReducer<BankAccountPHState> = (
       memoizedSchema(MatchTransactionInputSchema).parse(action.input);
 
       bankAccountFeedOperations.matchTransactionOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as MatchTransactionAction,
         dispatch,
       );
 
@@ -88,8 +96,8 @@ const stateReducer: StateReducer<BankAccountPHState> = (
       memoizedSchema(UnmatchTransactionInputSchema).parse(action.input);
 
       bankAccountFeedOperations.unmatchTransactionOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as UnmatchTransactionAction,
         dispatch,
       );
 
@@ -100,8 +108,20 @@ const stateReducer: StateReducer<BankAccountPHState> = (
       memoizedSchema(ExcludeTransactionInputSchema).parse(action.input);
 
       bankAccountFeedOperations.excludeTransactionOperation(
-        (state as any)[action.scope],
-        action as any,
+        state.global,
+        action as ExcludeTransactionAction,
+        dispatch,
+      );
+
+      break;
+    }
+
+    case "REMOVE_PENDING_TRANSACTIONS": {
+      memoizedSchema(RemovePendingTransactionsInputSchema).parse(action.input);
+
+      bankAccountFeedOperations.removePendingTransactionsOperation(
+        state.global,
+        action as RemovePendingTransactionsAction,
         dispatch,
       );
 
