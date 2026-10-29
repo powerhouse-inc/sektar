@@ -7,6 +7,7 @@ import {
   addDocument,
   addFolder,
   dispatchActions,
+  getPHStore,
   type useAttachments,
 } from "@powerhousedao/reactor-browser";
 import type { DocumentDriveDocument } from "@powerhousedao/shared/document-drive";
@@ -310,7 +311,13 @@ async function ensureAccountFolder(
   const key = `${drive.header.id}:${name}`;
   const cached = createdFolders.get(key);
   if (cached) return cached;
-  const existing = folderNode(drive, name);
+  // The drive's root only: a mailbox folder sits there, and the Mail drive
+  // holds a hundred thousand messages below it.
+  const root = await getPHStore()
+    ?.reactorClient?.read.drives.listNodes(drive.header.id, null, { cursor: "", limit: 500 })
+    .then((page) => page.results)
+    .catch(() => undefined);
+  const existing = root ? folderNode(root, name) : undefined;
   if (existing) {
     createdFolders.set(key, existing.id);
     return existing.id;

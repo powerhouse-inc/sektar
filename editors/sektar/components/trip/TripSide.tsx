@@ -17,6 +17,9 @@ const SOURCE_ICON: Record<TripSource["kind"], IconName> = {
   MANUAL: "settings",
 };
 
+/** How many sources the side lists, newest first. */
+const SOURCES_SHOWN = 12;
+
 const ADD: { kind: ItemKind; label: string; glyph: "plane" | "bed" | "meal" | "ticket" }[] = [
   { kind: "transport", label: "Add a leg", glyph: "plane" },
   { kind: "stay", label: "Add a stay", glyph: "bed" },
@@ -28,8 +31,20 @@ export function TripSide({ doc, dispatch }: { doc: TripDocument; dispatch: Dispa
   const s = doc.state.global;
   const [adding, setAdding] = useState<ItemKind | null>(null);
   const sources = useMemo(() => [...s.sources].sort((a, b) => (b.at ?? "").localeCompare(a.at ?? "")), [s.sources]);
-  // the source documents' names, for the ones that are documents
-  const ids = useMemo(() => [...new Set(sources.map((x) => x.documentId).filter((x): x is string => !!x))], [sources]);
+  // The names of the sources shown that carry no label of their own: at most
+  // a dozen documents, not every source the trip ever collected.
+  const ids = useMemo(
+    () => [
+      ...new Set(
+        sources
+          .slice(0, SOURCES_SHOWN)
+          .filter((x) => !x.label)
+          .map((x) => x.documentId)
+          .filter((x): x is string => !!x),
+      ),
+    ],
+    [sources],
+  );
   const named = useDocumentsByIds(ids);
   const nameOf = (id: string | null | undefined) => (id ? named.find((d) => d.header.id === id)?.header.name : undefined);
 
@@ -62,7 +77,7 @@ export function TripSide({ doc, dispatch }: { doc: TripDocument; dispatch: Dispa
       <Card title="Found in" compact>
         {sources.length ? (
           <Feed
-            items={sources.slice(0, 12).map((x) => ({
+            items={sources.slice(0, SOURCES_SHOWN).map((x) => ({
               key: x.id,
               icon: SOURCE_ICON[x.kind],
               text: x.label ?? nameOf(x.documentId) ?? x.kind.toLowerCase().replace("_", " "),

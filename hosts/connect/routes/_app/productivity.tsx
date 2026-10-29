@@ -91,6 +91,8 @@ function useRetirePlaceholder(
       (d) =>
         d.header.id === product.drive.slug &&
         !d.header.meta?.preferredEditor &&
+        // only a legacy drive has a node list; a reactor-drive is never the placeholder
+        Array.isArray(d.state.global.nodes) &&
         d.state.global.nodes.length === 0,
     );
     if (!placeholder) return;

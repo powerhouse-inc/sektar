@@ -5,14 +5,12 @@
 import {
   addDocument,
   dispatchActions,
-  useDocumentsByIds,
   useDrives,
 } from "@powerhousedao/reactor-browser";
-import type { DocumentDriveDocument, FileNode } from "@powerhousedao/shared/document-drive";
+import type { DocumentDriveDocument } from "@powerhousedao/shared/document-drive";
 import { generateId } from "document-model";
 import {
   actions,
-  isTripDocument,
   tripTotals,
   type TripAction,
   type TripDocument,
@@ -23,7 +21,6 @@ import {
   type TripStatus,
   type TripTransportMode,
 } from "document-models/trip";
-import { useMemo } from "react";
 import type { BadgeTone } from "./format.js";
 import type { IconName } from "./ui.js";
 
@@ -36,28 +33,6 @@ export const TRIP_TYPE = "sektar/trip";
 export function useTripsDrive(): DocumentDriveDocument | undefined {
   const drives = useDrives();
   return drives?.find((d) => d.header.slug === TRIPS_DRIVE_SLUG || d.header.id === TRIPS_DRIVE_SLUG);
-}
-
-export function tripIds(drive: DocumentDriveDocument | undefined): string[] {
-  return (drive?.state.global.nodes ?? [])
-    .filter((n): n is FileNode => n.kind === "file")
-    .filter((n) => n.documentType === TRIP_TYPE)
-    .map((n) => n.id);
-}
-
-/**
- * Every trip in a drive (the Trips drive by default), newest first.
- *
- * Loads every trip document: right for the trip editor, wrong for a list.
- * The boards list trips from the index instead: `useTripList` and
- * `useTripYears` in ./trip-index.ts, which load a document only when it is opened.
- */
-export function useTrips(drive?: DocumentDriveDocument): TripDocument[] {
-  const fallback = useTripsDrive();
-  const key = tripIds(drive ?? fallback).join(",");
-  const ids = useMemo(() => (key ? key.split(",") : []), [key]);
-  const docs = useDocumentsByIds(ids).filter(isTripDocument);
-  return useMemo(() => [...docs].sort(byStartDesc), [docs]);
 }
 
 export const byStartDesc = (a: TripDocument, b: TripDocument) =>

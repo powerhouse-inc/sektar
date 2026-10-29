@@ -8,7 +8,9 @@ import {
   useAttachments,
   useDocumentModelModules,
   useDocumentSafe,
+  useDriveNode,
   useDrives,
+  useReactorClient,
 } from "@powerhousedao/reactor-browser";
 import type { FileDocument, FileRendition } from "document-models/file";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -315,17 +317,69 @@ function useFetchedText(url: string | undefined, wanted: boolean): string | null
 
 /* ---------------------------------------------------- linked documents */
 
-/** Where a document lives: its drive and node, to open it there. */
-export function useDocumentLocation(documentId: string | null | undefined) {
+/** The read half's relationship edges. The browser client's interface leaves
+ * them out, but both of its read halves (the switchboard's GraphQL client and
+ * the tab's own reactor) answer them. */
+type EdgeReader = {
+  getIncomingRelationshipEdges?: (
+    targetIdentifier: string,
+  ) => Promise<{ results: { sourceId: string; relationshipType: string }[] }>;
+};
+
+/** Edges that file a document in a drive: a reactor-drive's and a legacy drive's. */
+const DRIVE_EDGES = new Set(["drive/child", "child"]);
+
+/**
+ * The drive a document is filed in, from the relationship index: one small
+ * read, rather than every drive's node list. `knownDriveId` skips it when the
+ * caller already knows (a board over one drive).
+ */
+function useParentDriveId(
+  documentId: string | null | undefined,
+  knownDriveId: string | undefined,
+): string | undefined {
+  const client = useReactorClient();
+  const [found, setFound] = useState<{ id: string; drive: string } | null>(null);
+  useEffect(() => {
+    if (!documentId || knownDriveId) return;
+    const read = client?.read as EdgeReader | undefined;
+    if (!read?.getIncomingRelationshipEdges) return;
+    let active = true;
+    read
+      .getIncomingRelationshipEdges(documentId)
+      .then((page) => {
+        const edge = page.results.find((e) => DRIVE_EDGES.has(e.relationshipType));
+        if (active && edge) setFound({ id: documentId, drive: edge.sourceId });
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [client, documentId, knownDriveId]);
+  if (knownDriveId) return knownDriveId;
+  return found && found.id === documentId ? found.drive : undefined;
+}
+
+/**
+ * Where a document lives: its drive and node, to open it there. Pass the
+ * drive's slug or id when it is known; otherwise the drive is found through
+ * the document's relationships. Works on legacy drives and reactor-drives.
+ */
+export function useDocumentLocation(
+  documentId: string | null | undefined,
+  driveSlugOrId?: string,
+) {
   const drives = useDrives();
+  const known = driveSlugOrId
+    ? drives?.find((d) => d.header.slug === driveSlugOrId || d.header.id === driveSlugOrId)
+    : undefined;
+  const driveId = useParentDriveId(documentId, known?.header.id);
+  const node = useDriveNode(driveId, documentId);
   return useMemo(() => {
-    if (!documentId) return null;
-    for (const drive of drives ?? []) {
-      const node = drive.state.global.nodes.find((n) => n.id === documentId);
-      if (node) return { drive, node };
-    }
-    return null;
-  }, [drives, documentId]);
+    if (!documentId || !driveId || !node) return null;
+    const drive = known ?? drives?.find((d) => d.header.id === driveId);
+    return drive ? { drive, node } : null;
+  }, [documentId, driveId, node, known, drives]);
 }
 
 export function openDocument(location: ReturnType<typeof useDocumentLocation>) {
