@@ -31,3 +31,5 @@ Thumbs.db
 *.log
 
 /scripts/
+# The cli container's settings (hosts/cli/cli.env.example)
+hosts/cli/cli.env

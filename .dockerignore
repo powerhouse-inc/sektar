@@ -1,0 +1,21 @@
+# The image builds from source (hosts/cli/Dockerfile): installs, builds and
+# stores stay out of the build context.
+node_modules
+**/node_modules
+.ph
+dist
+coverage
+*.tsbuildinfo
+.tsbuild
+
+# Local settings and secrets: a container takes them from its environment
+.env
+.env.*
+**/client_secret*.json
+
+# Not part of the app
+.git
+.github
+backup-documents
+qa
+/*.png

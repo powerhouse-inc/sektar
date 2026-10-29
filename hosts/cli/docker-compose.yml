@@ -1,0 +1,61 @@
+# Sektar's cli host in a container, with its Postgres. README.md explains
+# the configuration. From this folder:
+#
+#   cp cli.env.example cli.env      # then fill in the secrets
+#   docker compose up --build
+#
+# Connect: http://localhost:3000 (it proxies the switchboard on the same origin)
+# Switchboard, directly (GraphQL, MCP): http://localhost:4001
+name: sektar
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sektar}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sektar}
+      POSTGRES_DB: ${POSTGRES_DB:-sektar}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    # Published for a local `ph run cli` (hosts/cli/host.js defaults to it);
+    # the cli container reaches it as postgres:5432.
+    ports:
+      - "${POSTGRES_PORT:-5434}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  cli:
+    build:
+      context: ../..
+      dockerfile: hosts/cli/Dockerfile
+      args:
+        PH_HOST: cli
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - path: cli.env
+        required: false
+    environment:
+      # One database for the reactor store and the read model
+      PH_SWITCHBOARD_DATABASE_URL: postgres://${POSTGRES_USER:-sektar}:${POSTGRES_PASSWORD:-sektar}@postgres:5432/${POSTGRES_DB:-sektar}
+    volumes:
+      # The switchboard's identity, attachments and registry packages
+      - sektar-data:/data
+      # The publisher OAuth app's client files (powerhouse.config.json
+      # workflows.oauthApps names them ../client_secret_*.json, relative to
+      # /app/powerhouse.config.json, so they sit at the container's root)
+      - ${OAUTH_WEB_CLIENT_FILE:-../../../client_secret_sektar-web-app.json}:/client_secret_sektar-web-app.json:ro
+      - ${OAUTH_DESKTOP_CLIENT_FILE:-../../../client_secret_sektar_desktop-app.json}:/client_secret_sektar_desktop-app.json:ro
+    ports:
+      - "${CONNECT_PORT:-3000}:6540"
+      - "${SWITCHBOARD_PORT:-4001}:7540"
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  sektar-data:
