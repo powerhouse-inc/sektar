@@ -27,3 +27,6 @@ jobs:
       - uses: powerhouse-inc/vetra-deploy-action@v1
         with:
           app-id: 43622402-be06-435a-bbfa-bb649b0d6244
+          # Sektar's production stack (switchboard + Connect) as one container;
+          # the environment runs it as a host with PH_HOST=cli (hosts/cli/README.md).
+          fusion-dockerfile: hosts/cli/Dockerfile
