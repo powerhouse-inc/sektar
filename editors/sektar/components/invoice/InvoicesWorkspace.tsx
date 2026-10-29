@@ -27,13 +27,13 @@ import {
 } from "document-models/invoice";
 import { Component, memo, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFillHeight, useNarrow } from "../../../backfills/components/measure.js";
+import { SEKTAR_DRIVE_SLUG } from "../../kit/data.js";
 import type { InvoiceList, InvoiceRow, InvoiceView } from "../../kit/finance-index.js";
 import {
   counterparty,
   fmtDate,
   fmtShortDate,
   fromDateInput,
-  INVOICE_STATUS,
   invoiceTotals,
   isOverdue,
   money,
@@ -49,7 +49,7 @@ import { useRowWindow } from "../../kit/virtual.js";
 import { Pane, PaneSwitch, SubBar, Workspace } from "../../kit/workspace.js";
 import { bytes, fileKind } from "../../kit/files.js";
 import { FileTypeTile, useDocumentLocation } from "../FilePreview.js";
-import { InvoiceStatusBadge } from "../InvoiceDetail.js";
+import { InvoiceStatusBadge, InvoiceRowStatusBadge as RowStatusBadge } from "../InvoiceDetail.js";
 import { InvoicePrintPreview } from "./InvoicePrintPreview.js";
 import { IssueDialog, PaymentDialog } from "./InvoiceWorkspace.js";
 import { PartyDetails } from "./PartyEditor.js";
@@ -636,23 +636,6 @@ function InvoicePanes({
 
 /* ------------------------------------------------------------------ list */
 
-/** Where an invoice stands, from its index row: as `InvoiceStatusBadge` says it from the document. */
-function RowStatusBadge({ row }: { row: InvoiceRow }) {
-  if (row.overdue)
-    return (
-      <Badge tone="danger" dot>
-        Overdue
-      </Badge>
-    );
-  const known = row.status in INVOICE_STATUS ? INVOICE_STATUS[row.status as keyof typeof INVOICE_STATUS] : null;
-  if (!known) return <Badge tone="outline">{row.status}</Badge>;
-  return (
-    <Badge tone={known.tone} dot={row.status === "OPEN"}>
-      {known.label}
-    </Badge>
-  );
-}
-
 /** A row re-renders only when its index row or its selection changes. */
 const InvoiceListItem = memo(InvoiceListItemImpl);
 
@@ -712,7 +695,7 @@ function InvoiceListItemImpl({ row: r, selected, onPick }: { row: InvoiceRow; se
 
 /** Opens the invoice in its editor, where it is changed. */
 function useOpenInvoice(documentId: string): (() => void) | null {
-  const location = useDocumentLocation(documentId);
+  const location = useDocumentLocation(documentId, SEKTAR_DRIVE_SLUG);
   if (!location) return null;
   return () =>
     openTarget({

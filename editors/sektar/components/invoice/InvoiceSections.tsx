@@ -13,12 +13,11 @@ import {
   type ExchangeRate,
   type InvoiceAction,
   type InvoiceAttachment,
-  type InvoiceDocument,
   type InvoiceState,
   type VatCategory,
 } from "document-models/invoice";
 import { useMemo, useRef, useState } from "react";
-import { useInvoices } from "../../kit/data.js";
+import { useInvoiceNumbers, type InvoiceNumberRow } from "../../kit/finance-index.js";
 import { bytes, fileKind } from "../../kit/files.js";
 import { fmtDate, fromDateInput, money, PAYMENT_METHOD, toDateInput } from "../../kit/format.js";
 import {
@@ -148,22 +147,22 @@ export function DetailsSection({
 }
 
 function PrecedingInvoices({ state, dispatch, locked }: { state: InvoiceState; dispatch: Dispatch; locked: boolean }) {
-  const invoices = useInvoices();
-  const pool = invoices.filter(
+  // The numbered invoices of the direction, from the finance index.
+  const numbers = useInvoiceNumbers(state.direction);
+  const pool = numbers.filter(
     (i) =>
-      i.state.global.kind === "INVOICE" &&
-      i.state.global.direction === state.direction &&
-      i.state.global.number &&
-      !state.precedingInvoices.some((p) => p.number === i.state.global.number),
+      i.kind === "INVOICE" &&
+      i.number &&
+      !state.precedingInvoices.some((p) => p.number === i.number),
   );
   const [typed, setTyped] = useState("");
-  const add = (doc: InvoiceDocument | null, number: string) =>
+  const add = (row: InvoiceNumberRow | null, number: string) =>
     dispatch(
       actions.addPrecedingInvoice({
         id: generateId(),
         number,
-        issuedAt: doc?.state.global.issuedAt ?? null,
-        documentId: doc?.header.id ?? null,
+        issuedAt: row?.issuedAt ?? null,
+        documentId: row?.id ?? null,
       }),
     );
   return (
@@ -189,14 +188,14 @@ function PrecedingInvoices({ state, dispatch, locked }: { state: InvoiceState; d
             <Select
               value=""
               onChange={(e) => {
-                const doc = pool.find((i) => i.header.id === e.target.value);
-                if (doc?.state.global.number) add(doc, doc.state.global.number);
+                const row = pool.find((i) => i.id === e.target.value);
+                if (row?.number) add(row, row.number);
               }}
             >
               <option value="">Pick an invoice…</option>
               {pool.map((i) => (
-                <option key={i.header.id} value={i.header.id}>
-                  {i.state.global.number} · {fmtDate(i.state.global.issuedAt)}
+                <option key={i.id} value={i.id}>
+                  {i.number} · {fmtDate(i.issuedAt)}
                 </option>
               ))}
             </Select>

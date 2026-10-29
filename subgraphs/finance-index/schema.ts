@@ -180,6 +180,177 @@ export const schema: DocumentNode = gql`
     recent: [FinanceTransactionRow!]!
   }
 
+  """A numbered invoice: the issue dialog's and the credit note's pickers."""
+  type FinanceInvoiceNumber {
+    id: String!
+    number: String!
+    """INVOICE | CREDIT_NOTE"""
+    kind: String!
+    issuedAt: String
+  }
+
+  """Our side of an invoice, as a new invoice copies it."""
+  type FinanceParty {
+    name: String
+    street: String
+    additionalStreet: String
+    postalCode: String
+    city: String
+    region: String
+    country: String
+    vatId: String
+    registrationId: String
+    registrationScheme: String
+    endpointId: String
+    endpointScheme: String
+    email: String
+    phone: String
+  }
+
+  """One expense claim as the board's card shows it."""
+  type FinanceExpenseRow {
+    id: String!
+    title: String
+    submitterName: String
+    submitterEmail: String
+    """DRAFT | SUBMITTED | APPROVED | REJECTED | REIMBURSED"""
+    status: String!
+    currency: String!
+    total: Float!
+    """Paid personally or in cash: owed back."""
+    reimbursable: Float!
+    vatTotal: Float!
+    itemCount: Int!
+    """The receipts' categories, distinct, in item order."""
+    categories: [String!]!
+    """The first receipt's date."""
+    firstSpentAt: String
+    submittedAt: String
+    decidedAt: String
+    reimbursedAt: String
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  type FinanceExpensePage {
+    items: [FinanceExpenseRow!]!
+    total: Int!
+    hasMore: Boolean!
+  }
+
+  type FinanceExpenseStatusCount {
+    status: String!
+    count: Int!
+    """The claims' totals added up."""
+    total: Float!
+    reimbursable: Float!
+  }
+
+  type FinanceExpenseCounts {
+    all: Int!
+    """One entry per status, DRAFT to REIMBURSED."""
+    byStatus: [FinanceExpenseStatusCount!]!
+  }
+
+  """The Contacts board's filter."""
+  enum FinanceContactView {
+    """Every active contact."""
+    ALL
+    CUSTOMERS
+    SUPPLIERS
+    ARCHIVED
+  }
+
+  """One contact with what the books hold on it."""
+  type FinanceContactRow {
+    id: String!
+    name: String
+    """SUPPLIER | CUSTOMER | BOTH | OTHER"""
+    kind: String!
+    """ACTIVE | ARCHIVED"""
+    status: String!
+    email: String
+    phone: String
+    website: String
+    vatId: String
+    registrationNumber: String
+    street: String
+    postalCode: String
+    city: String
+    country: String
+    paymentTermsDays: Int!
+    defaultCategory: String!
+    tags: [String!]!
+    """OPEN invoices whose other party is this contact."""
+    openInvoiceCount: Int!
+    """Their book outstanding added up."""
+    openBookOutstanding: Float!
+    """Bank transactions linked to the contact."""
+    transactionCount: Int!
+    lastTransactionAt: String
+  }
+
+  type FinanceContactPage {
+    items: [FinanceContactRow!]!
+    total: Int!
+    hasMore: Boolean!
+  }
+
+  type FinanceContactCounts {
+    """Active contacts."""
+    all: Int!
+    customers: Int!
+    suppliers: Int!
+    archived: Int!
+  }
+
+  type FinanceContactName {
+    id: String!
+    name: String
+  }
+
+  """One transaction with its account and what it is matched to."""
+  type FinanceTransactionDetail {
+    id: String!
+    accountId: String!
+    bookedAt: String!
+    counterparty: String!
+    description: String
+    reference: String
+    category: String!
+    status: String!
+    amount: Float!
+    currency: String!
+    contactId: String
+    matchedDocumentId: String
+    matchedKind: String
+    importBatch: String
+    accountName: String
+    """CURRENT | SAVINGS | CREDIT_CARD"""
+    accountKind: String!
+    """The matched invoice's number or claim's title."""
+    matchedLabel: String
+  }
+
+  type FinanceMatchCandidate {
+    """INVOICE | EXPENSE"""
+    kind: String!
+    id: String!
+    label: String!
+    """Left to pay (an invoice) or to reimburse (a claim)."""
+    amount: Float!
+    """How far the amount is from the transaction's."""
+    distance: Float!
+  }
+
+  """How many documents of each kind the books hold."""
+  type FinanceCounts {
+    accounts: Int!
+    invoices: Int!
+    expenses: Int!
+    contacts: Int!
+  }
+
   type FinanceIndexQueries {
     """
     A page of invoices in the workspace's order: drafts first (latest first
@@ -194,6 +365,8 @@ export const schema: DocumentNode = gql`
       view: FinanceInvoiceView = ALL
       query: String
       now: String
+      """Only the invoices whose other party is this contact."""
+      contactId: String
       offset: Int
       limit: Int = 100
     ): FinanceInvoicePage!
@@ -214,6 +387,8 @@ export const schema: DocumentNode = gql`
       status: String
       category: String
       query: String
+      """Only the transactions linked to this contact."""
+      contactId: String
       offset: Int
       limit: Int = 100
     ): FinanceTransactionPage!
@@ -223,6 +398,76 @@ export const schema: DocumentNode = gql`
 
     """The Finances dashboard's numbers as of \`now\` (ISO)."""
     dashboard(driveId: String!, now: String!): FinanceDashboardStats!
+
+    """Every numbered invoice in a direction, highest number first."""
+    invoiceNumbers(driveId: String!, direction: String!): [FinanceInvoiceNumber!]!
+
+    """
+    The next number in the direction's sequence as of \`now\` (ISO; the
+    server's clock when absent), leaving out the invoice \`excludeId\`.
+    """
+    nextInvoiceNumber(
+      driveId: String!
+      direction: String!
+      now: String
+      excludeId: String
+    ): String!
+
+    """Our side as the latest invoice in the direction has it; null when none names it."""
+    latestOurParty(driveId: String!, direction: String!): FinanceParty
+
+    """
+    A page of expense claims, the latest changed first. \`statuses\` keeps
+    any of those; \`query\` is a word search over title, submitter and
+    merchants.
+    """
+    expenses(
+      driveId: String!
+      statuses: [String!]
+      query: String
+      offset: Int
+      limit: Int = 100
+    ): FinanceExpensePage!
+
+    """Claims per status with their totals, for the search given."""
+    expenseCounts(driveId: String!, query: String): FinanceExpenseCounts!
+
+    """Receipts spent in the 90 days before \`now\` (ISO), added up."""
+    spend90d(driveId: String!, now: String): Float!
+
+    """
+    A page of contacts by name, with their open invoices and bank activity.
+    \`query\` is a word search over name, email, city and tags.
+    """
+    contacts(
+      driveId: String!
+      view: FinanceContactView = ALL
+      query: String
+      offset: Int
+      limit: Int = 100
+    ): FinanceContactPage!
+
+    """The Contacts board's filter counts."""
+    contactCounts(driveId: String!): FinanceContactCounts!
+
+    """One contact with its open invoices and bank activity."""
+    contact(driveId: String!, id: String!): FinanceContactRow
+
+    """The names of the contacts asked for."""
+    contactNames(driveId: String!, ids: [String!]!): [FinanceContactName!]!
+
+    """One transaction with its account and what it is matched to."""
+    transaction(driveId: String!, id: String!): FinanceTransactionDetail
+
+    """
+    What a transaction of \`amount\` could settle, closest first: OPEN
+    invoices in the money's direction and, for money out, claims approved
+    or awaiting approval. At most eight.
+    """
+    matchCandidates(driveId: String!, amount: Float!): [FinanceMatchCandidate!]!
+
+    """How many accounts, invoices, claims and contacts the books hold."""
+    counts(driveId: String!): FinanceCounts!
   }
 
   type Query {

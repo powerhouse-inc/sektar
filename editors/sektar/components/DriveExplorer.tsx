@@ -1,10 +1,5 @@
 import type { EditorProps } from "document-model";
-import {
-  useContacts,
-  useExpenseReports,
-  useInvoices,
-  useAccounts,
-} from "../kit/data.js";
+import { useFinanceCounts } from "../kit/finance-index.js";
 import { Badge, Sprite } from "../kit/ui.js";
 import { plural } from "../kit/format.js";
 import { DriveContents } from "./DriveContents.js";
@@ -17,10 +12,8 @@ import { FolderTree } from "./FolderTree.js";
  */
 export function DriveExplorer({ children }: EditorProps) {
   const showDocumentEditor = !!children;
-  const accounts = useAccounts();
-  const invoices = useInvoices();
-  const reports = useExpenseReports();
-  const contacts = useContacts();
+  // Four counts from the finance index, not four collections of documents.
+  const counts = useFinanceCounts();
 
   // A selected document renders Connect's toolbar plus its own editor; keep
   // it outside the Sektar-styled region so the toolbar keeps Connect's look.
@@ -69,12 +62,14 @@ export function DriveExplorer({ children }: EditorProps) {
               one to see its full history.
             </p>
           </div>
-          <div className="sk-row sk-row--2 sk-row--wrap">
-            <Badge tone="outline">{plural(accounts.length, "account")}</Badge>
-            <Badge tone="outline">{plural(invoices.length, "invoice")}</Badge>
-            <Badge tone="outline">{plural(reports.length, "claim")}</Badge>
-            <Badge tone="outline">{plural(contacts.length, "contact")}</Badge>
-          </div>
+          {counts && (
+            <div className="sk-row sk-row--2 sk-row--wrap">
+              <Badge tone="outline">{plural(counts.accounts, "account")}</Badge>
+              <Badge tone="outline">{plural(counts.invoices, "invoice")}</Badge>
+              <Badge tone="outline">{plural(counts.expenses, "claim")}</Badge>
+              <Badge tone="outline">{plural(counts.contacts, "contact")}</Badge>
+            </div>
+          )}
         </header>
         <DriveContents />
       </div>

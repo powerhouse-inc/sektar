@@ -12,16 +12,17 @@ import {
   createContact,
   createExpenseReport,
   createInvoice,
-  latestOurParty,
-  partyFromContact,
   importTransactions,
-  useAccounts,
-  useContacts,
-  useInvoices,
   type ImportedTransaction,
   type NewExpenseItem,
   type NewInvoiceLine,
 } from "../../../../editors/sektar/kit/data.js";
+import {
+  partyFromContactRow,
+  useAccountRows,
+  useContactOptions,
+  useLatestOurParty,
+} from "../../../../editors/sektar/kit/finance-index.js";
 import {
   CATEGORY,
   CATEGORY_ORDER,
@@ -55,11 +56,11 @@ export function NewInvoicePanel({
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
-  const invoices = useInvoices();
-  const contacts = useContacts().filter(
-    (c) => c.state.global.status === "ACTIVE",
-  );
+  // The pickers read the finance index: the active contacts, and our details
+  // as the latest invoice in the direction has them.
+  const contacts = useContactOptions(drive);
   const [direction, setDirection] = useState<InvoiceDirection>(initial);
+  const us = useLatestOurParty(direction, drive);
   const [contactId, setContactId] = useState("");
   const [name, setName] = useState("");
   const [reference, setReference] = useState("");
@@ -68,8 +69,8 @@ export function NewInvoicePanel({
     { description: "", quantity: 1, unitPrice: 0, vatRate: 21 },
   ]);
   const [busy, setBusy] = useState(false);
-  const contact = contacts.find((c) => c.header.id === contactId);
-  const partyName = contact?.state.global.name ?? name;
+  const contact = contacts.find((c) => c.id === contactId);
+  const partyName = contact?.name ?? name;
   const valid =
     partyName.trim() &&
     lines.some((l) => l.description.trim() && l.quantity > 0);
@@ -78,9 +79,7 @@ export function NewInvoicePanel({
     0,
   );
   const pool = contacts.filter((c) =>
-    direction === "OUTGOING"
-      ? c.state.global.kind !== "SUPPLIER"
-      : c.state.global.kind !== "CUSTOMER",
+    direction === "OUTGOING" ? c.kind !== "SUPPLIER" : c.kind !== "CUSTOMER",
   );
 
   const submit = () => {
@@ -88,8 +87,8 @@ export function NewInvoicePanel({
     setBusy(true);
     void createInvoice(drive, {
       direction,
-      party: contact ? partyFromContact(contact) : { name: partyName.trim() },
-      us: latestOurParty(invoices, direction),
+      party: contact ? partyFromContactRow(contact) : { name: partyName.trim() },
+      us: us ?? undefined,
       reference: reference.trim() || null,
       notes: notes.trim() || null,
       lines: lines
@@ -137,8 +136,8 @@ export function NewInvoicePanel({
         >
           <option value="">— pick a contact or type a name —</option>
           {pool.map((c) => (
-            <option key={c.header.id} value={c.header.id}>
-              {c.state.global.name}
+            <option key={c.id} value={c.id}>
+              {c.name}
             </option>
           ))}
         </Select>
@@ -611,10 +610,11 @@ export function ImportPanel({
   onClose: () => void;
   onImported: () => void;
 }) {
-  const accounts = useAccounts();
-  const [accountId, setAccountId] = useState(
-    accounts.length ? accounts[0].header.id : "",
-  );
+  // The accounts from the finance index: an id and a name is all the picker needs.
+  const accounts = useAccountRows(drive);
+  // Until one is picked, the first account; "" is a new one.
+  const [picked, setAccountId] = useState<string | null>(null);
+  const accountId = picked ?? accounts[0]?.id ?? "";
   const [text, setText] = useState("");
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -660,8 +660,8 @@ export function ImportPanel({
           onChange={(e) => setAccountId(e.target.value)}
         >
           {accounts.map((a) => (
-            <option key={a.header.id} value={a.header.id}>
-              {a.state.global.name}
+            <option key={a.id} value={a.id}>
+              {a.name}
             </option>
           ))}
           <option value="">+ new account…</option>
@@ -697,4 +697,3 @@ export function ImportPanel({
   );
 }
 
-export { useInvoices };

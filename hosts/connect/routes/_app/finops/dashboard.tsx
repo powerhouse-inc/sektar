@@ -1,19 +1,17 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import {
-  useExpenseReports,
-  useSektarDrive,
-} from "../../../../../editors/sektar/kit/data.js";
+import { useSektarDrive } from "../../../../../editors/sektar/kit/data.js";
 import {
   accountKindOf,
   categoryOf,
   useAccountIndex,
+  useAwaitingClaims,
   useDashboardStats,
+  useExpenseCounts,
 } from "../../../../../editors/sektar/kit/finance-index.js";
 import {
   ACCOUNT_KIND,
   CATEGORY,
-  expenseTotal,
   fmtMonth,
   fmtShortDate,
   money,
@@ -67,15 +65,16 @@ function Dashboard() {
   const index = useDashboardStats(drive, now);
   const accountIndex = useAccountIndex(drive);
   const accounts = accountIndex ?? [];
-  const reports = useExpenseReports();
+  // The claims awaiting approval and the claims per status, from the index.
+  const awaitingClaims = useAwaitingClaims(drive);
+  const claimCounts = useExpenseCounts("", drive);
   const navigate = useNavigate();
   const [panel, setPanel] = useState<
     "invoice" | "expense" | "contact" | "import" | null
   >(null);
 
   // The numbers come from the finance index; what is left here is
-  // presentation (month labels, the month-on-month delta) and the expense
-  // claims, which the index does not hold.
+  // presentation (month labels, the month-on-month delta).
   const stats = useMemo(() => {
     if (!index) return undefined;
     const months = index.months.map((m) => ({
@@ -87,9 +86,11 @@ function Dashboard() {
     const lastMonth = months[months.length - 2] ?? empty;
     const pct = (a: number, b: number) =>
       b > 0 ? Math.round(((a - b) / b) * 100) : 0;
-    const awaiting = reports.filter(
-      (r) => r.state.global.status === "SUBMITTED",
-    );
+    const awaiting = awaitingClaims;
+    const claims = claimCounts?.all ?? 0;
+    const decided = (claimCounts?.byStatus ?? [])
+      .filter((c) => ["APPROVED", "REIMBURSED", "REJECTED"].includes(c.status))
+      .reduce((sum, c) => sum + c.count, 0);
     const pctOf = (n: number, d: number) =>
       d ? Math.round((n / d) * 100) : 100;
     const readinessRows = [
@@ -98,14 +99,7 @@ function Dashboard() {
       { label: "Invoices issued", value: index.issuedPct },
       {
         label: "Claims decided",
-        value: pctOf(
-          reports.filter((r) =>
-            ["APPROVED", "REIMBURSED", "REJECTED"].includes(
-              r.state.global.status,
-            ),
-          ).length,
-          reports.length,
-        ),
+        value: pctOf(decided, claims),
       },
     ];
     return {
@@ -118,7 +112,7 @@ function Dashboard() {
       spendSlices: index.spend.map((x) => [x.category, x.amount] as const),
       readinessRows,
     };
-  }, [index, reports]);
+  }, [index, awaitingClaims, claimCounts]);
 
   if (
     !drive ||
@@ -126,7 +120,7 @@ function Dashboard() {
       accountIndex &&
       accountIndex.length === 0 &&
       index.invoiceCount === 0 &&
-      reports.length === 0)
+      claimCounts?.all === 0)
   ) {
     return <SetupState what="books" />;
   }
@@ -160,11 +154,11 @@ function Dashboard() {
         ]
       : []),
     ...stats.awaiting.map((r) => ({
-      key: r.header.id,
+      key: r.id,
       icon: "wallet" as const,
-      title: `${r.state.global.title} awaits approval`,
-      meta: r.state.global.submitter.name ?? "",
-      value: money(expenseTotal(r.state.global)),
+      title: `${r.title} awaits approval`,
+      meta: r.submitterName ?? "",
+      value: money(r.total),
       to: "/finops/expenses" as const,
     })),
   ];

@@ -6,7 +6,14 @@
 // importing the package lets tsc refer to "kysely", not to a path into .pnpm.
 import type {} from "kysely";
 import type { IRelationalDb } from "@powerhousedao/reactor-browser";
-import type { AccountRow, DB, InvoiceRow, TransactionRow } from "./schema.js";
+import type {
+  AccountRow,
+  ContactRow,
+  DB,
+  ExpenseRow,
+  InvoiceRow,
+  TransactionRow,
+} from "./schema.js";
 import { BOOK_CURRENCY } from "./rows.js";
 
 /** What both a namespaced query builder and a Kysely instance offer. */
@@ -71,11 +78,14 @@ export interface InvoiceFilter {
   words?: readonly string[];
   /** ISO instant: an OPEN invoice due before it is overdue. */
   now: string;
+  /** Only the invoices whose other party is this contact. */
+  contactId?: string | null;
 }
 
 function invoicesFiltered(db: FinanceQueryBuilder, f: InvoiceFilter) {
   let q = db.selectFrom("invoice_index");
   if (f.direction) q = q.where("direction", "=", f.direction);
+  if (f.contactId) q = q.where("counterparty_contact_id", "=", f.contactId);
   switch (f.view ?? "all") {
     case "draft":
       q = q.where("status", "=", "DRAFT");
@@ -332,11 +342,14 @@ export interface TransactionFilter {
   category?: string | null;
   /** Lower-cased words over counterparty, description, reference, amount, category label. */
   words?: readonly string[];
+  /** Only the transactions linked to this contact. */
+  contactId?: string | null;
 }
 
 function transactionsFiltered(db: FinanceQueryBuilder, f: TransactionFilter) {
   let q = db.selectFrom("transaction_index");
   if (f.accountId) q = q.where("account_id", "=", f.accountId);
+  if (f.contactId) q = q.where("contact_id", "=", f.contactId);
   if (f.status) q = q.where("status", "=", f.status);
   if (f.category) q = q.where("category", "=", f.category);
   for (const word of f.words ?? []) {
@@ -731,4 +744,750 @@ export async function loadDashboard(
     spend,
     recent,
   });
+}
+
+const NO_RESTRICTION: QueryRestriction = (q) => q;
+
+/* ------------------------------------------------- numbers and our party */
+
+/**
+ * Every numbered invoice in a direction, highest number first: the issue
+ * dialog's "already used" and the credit note's "corrects" picker. Only
+ * numbers, so a direction with years of invoices is still a small answer.
+ */
+export function invoiceNumbersQuery(db: FinanceQueryBuilder, direction: string) {
+  return db
+    .selectFrom("invoice_index")
+    .select(["document_id", "number", "kind", "issued_at"])
+    .where("direction", "=", direction)
+    .where("number", "is not", null)
+    .orderBy("list_key", "desc")
+    .orderBy("document_id", "desc");
+}
+
+export interface InvoiceNumberRow {
+  id: string;
+  number: string;
+  /** INVOICE | CREDIT_NOTE */
+  kind: string;
+  issuedAt: string | null;
+}
+
+export function toInvoiceNumberRow(
+  r: Pick<InvoiceRow, "document_id" | "number" | "kind" | "issued_at">,
+): InvoiceNumberRow {
+  return {
+    id: r.document_id,
+    number: r.number ?? "",
+    kind: r.kind,
+    issuedAt: r.issued_at,
+  };
+}
+
+/**
+ * The next number in the sequence the latest issued invoice in that
+ * direction uses: "2026009" → "2026010", "INV-2026-0012" → "INV-2026-0013".
+ * A new year restarts a sequence that starts with the year. The same rule as
+ * `nextNumber` in editors/sektar/kit/invoice.ts (queries.spec.ts checks they
+ * agree), over the numbers alone.
+ */
+export function nextNumberFrom(
+  used: readonly string[],
+  direction: string,
+  at = new Date(),
+): string {
+  const year = String(at.getUTCFullYear());
+  const numbers = used.filter(Boolean);
+  const sameYear = numbers.filter((n) => n.includes(year));
+  const pool = sameYear.length ? sameYear : numbers;
+  const best = pool
+    .map((n) => {
+      const m = /^(.*?)(\d+)$/.exec(n);
+      return m ? { prefix: m[1], digits: m[2], value: Number(m[2]) } : null;
+    })
+    .filter(
+      (x): x is { prefix: string; digits: string; value: number } => x !== null,
+    )
+    .sort((a, b) => b.value - a.value)
+    .at(0);
+  if (!best)
+    return direction === "OUTGOING" ? `${year}001` : `BILL-${year}-001`;
+  if (!sameYear.length) {
+    // Last year's sequence carries the year: this year's starts again at 1
+    // ("2025015" → "2026001", "INV-2025-0012" → "INV-2026-0001").
+    const lastYear = String(at.getUTCFullYear() - 1);
+    const joined = best.prefix + best.digits;
+    const at4 = joined.indexOf(lastYear);
+    const tail = /^(.*?)(\d+)$/.exec(at4 >= 0 ? joined.slice(at4 + 4) : "");
+    if (at4 >= 0 && tail)
+      return (
+        joined.slice(0, at4) +
+        year +
+        tail[1] +
+        "1".padStart(tail[2].length, "0")
+      );
+  }
+  const next = String(best.value + 1).padStart(best.digits.length, "0");
+  return best.prefix + next;
+}
+
+/** The fields of a party a new invoice copies for our side. */
+export const PARTY_FIELDS = [
+  "name",
+  "street",
+  "additionalStreet",
+  "postalCode",
+  "city",
+  "region",
+  "country",
+  "vatId",
+  "registrationId",
+  "registrationScheme",
+  "endpointId",
+  "endpointScheme",
+  "email",
+  "phone",
+] as const;
+
+export type OurParty = Record<(typeof PARTY_FIELDS)[number], string | null>;
+
+/** Our side as the row stores it (JSON), with every field present; null when there is none. */
+export function toOurParty(json: string | null | undefined): OurParty | null {
+  if (!json) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object") return null;
+  const source = parsed as Record<string, unknown>;
+  const party = {} as OurParty;
+  for (const field of PARTY_FIELDS) {
+    const v = source[field];
+    party[field] = typeof v === "string" ? v : null;
+  }
+  return party.name ? party : null;
+}
+
+/**
+ * Our details as the latest invoice in that direction has them (by issue
+ * date, else creation): there is no company profile yet, so each new
+ * invoice starts from the last one.
+ */
+export function latestOurPartyQuery(db: FinanceQueryBuilder, direction: string) {
+  return db
+    .selectFrom("invoice_index")
+    .select("our_party")
+    .where("direction", "=", direction)
+    .where("our_party", "is not", null)
+    .orderBy((eb) => eb.fn.coalesce("issued_at", "created_at"), "desc")
+    .orderBy("document_id", "desc")
+    .limit(1);
+}
+
+/* ---------------------------------------------------------------- expenses */
+
+/** The claim statuses, in the order the board's columns read them. */
+export const EXPENSE_STATUSES = [
+  "DRAFT",
+  "SUBMITTED",
+  "APPROVED",
+  "REJECTED",
+  "REIMBURSED",
+] as const;
+
+export interface ExpenseFilter {
+  /** Any of these statuses; every status when absent or empty. */
+  statuses?: readonly string[] | null;
+  /** Lower-cased words over title, submitter and merchants. */
+  words?: readonly string[];
+}
+
+function expensesFiltered(db: FinanceQueryBuilder, f: ExpenseFilter) {
+  let q = db.selectFrom("expense_index");
+  if (f.statuses?.length) q = q.where("status", "in", [...f.statuses]);
+  for (const word of f.words ?? []) {
+    if (word) q = q.where("search_text", "like", likeWord(word));
+  }
+  return q;
+}
+
+/** One page of claims, the latest changed first. One row more than the page. */
+export function expensesQuery(
+  db: FinanceQueryBuilder,
+  f: ExpenseFilter,
+  page: { offset?: number | null; limit: number },
+) {
+  const ordered = expensesFiltered(db, f)
+    .selectAll()
+    .orderBy("updated_at", "desc")
+    .orderBy("document_id", "desc")
+    .limit(page.limit + 1);
+  return page.offset ? ordered.offset(page.offset) : ordered;
+}
+
+/** How many claims the filters match. */
+export function expenseCountQuery(db: FinanceQueryBuilder, f: ExpenseFilter) {
+  return expensesFiltered(db, f).select((eb) =>
+    eb.fn.countAll<number>().as("n"),
+  );
+}
+
+/** Claims per status with their totals, for the words given (the board's columns and its cards). */
+export function expenseStatusQuery(
+  db: FinanceQueryBuilder,
+  words?: readonly string[],
+) {
+  return expensesFiltered(db, { words })
+    .select("status")
+    .select((eb) => [
+      eb.fn.countAll<number>().as("n"),
+      eb.fn.sum<number>("total").as("total"),
+      eb.fn.sum<number>("reimbursable").as("reimbursable"),
+    ])
+    .groupBy("status");
+}
+
+export interface ExpenseStatusCount {
+  status: string;
+  count: number;
+  /** The claims' totals added up (in their own currencies, as the board adds them). */
+  total: number;
+  reimbursable: number;
+}
+
+export interface ExpenseCounts {
+  all: number;
+  /** One entry per status, in EXPENSE_STATUSES order. */
+  byStatus: ExpenseStatusCount[];
+}
+
+export function toExpenseCounts(
+  rows: readonly {
+    status: string;
+    n: Num;
+    total: Num;
+    reimbursable: Num;
+  }[],
+): ExpenseCounts {
+  const byStatus = EXPENSE_STATUSES.map((status) => {
+    const r = rows.find((x) => x.status === status);
+    return {
+      status,
+      count: n(r?.n),
+      total: n(r?.total),
+      reimbursable: n(r?.reimbursable),
+    };
+  });
+  return { all: byStatus.reduce((sum, s) => sum + s.count, 0), byStatus };
+}
+
+/** Receipts spent after `since` (ISO), added up: the board's 90-day spend. */
+export function expenseSpendQuery(db: FinanceQueryBuilder, since: string) {
+  return db
+    .selectFrom("expense_item_index")
+    .select((eb) => eb.fn.sum<number>("amount").as("spent"))
+    .where("spent_at", ">", since);
+}
+
+/** The instant 90 days before `nowMs`, as the spend is measured from. */
+export function spendSince(nowMs: number): string {
+  return new Date(nowMs - 90 * DAY_MS).toISOString();
+}
+
+export interface ExpenseListRow {
+  id: string;
+  title: string | null;
+  submitterName: string | null;
+  submitterEmail: string | null;
+  status: string;
+  currency: string;
+  total: number;
+  reimbursable: number;
+  vatTotal: number;
+  itemCount: number;
+  /** Distinct, in item order. */
+  categories: string[];
+  firstSpentAt: string | null;
+  submittedAt: string | null;
+  decidedAt: string | null;
+  reimbursedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExpensePageResult {
+  items: ExpenseListRow[];
+  total: number;
+  hasMore: boolean;
+}
+
+export function toExpenseRow(r: ExpenseRow): ExpenseListRow {
+  return {
+    id: r.document_id,
+    title: r.title,
+    submitterName: r.submitter_name,
+    submitterEmail: r.submitter_email,
+    status: r.status,
+    currency: r.currency,
+    total: Number(r.total),
+    reimbursable: Number(r.reimbursable),
+    vatTotal: Number(r.vat_total),
+    itemCount: Number(r.item_count),
+    categories: r.categories ? r.categories.split(",") : [],
+    firstSpentAt: r.first_spent_at,
+    submittedAt: r.submitted_at,
+    decidedAt: r.decided_at,
+    reimbursedAt: r.reimbursed_at,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+/* ---------------------------------------------------------------- contacts */
+
+/** The Contacts board's filter: the active ones, by relationship, or the archived. */
+export type ContactView = "all" | "customers" | "suppliers" | "archived";
+export const CONTACT_VIEWS: readonly ContactView[] = [
+  "all",
+  "customers",
+  "suppliers",
+  "archived",
+];
+
+export interface ContactFilter {
+  view?: ContactView;
+  /** Lower-cased words over name, email, city and tags. */
+  words?: readonly string[];
+  /** Only these contacts. */
+  id?: string | null;
+}
+
+function contactsFiltered(db: FinanceQueryBuilder, f: ContactFilter) {
+  let q = db.selectFrom("contact_index");
+  if (f.id) q = q.where("contact_index.document_id", "=", f.id);
+  switch (f.view) {
+    case "archived":
+      q = q.where("contact_index.status", "=", "ARCHIVED");
+      break;
+    case "customers":
+      q = q
+        .where("contact_index.status", "=", "ACTIVE")
+        .where("contact_index.kind", "in", ["CUSTOMER", "BOTH"]);
+      break;
+    case "suppliers":
+      q = q
+        .where("contact_index.status", "=", "ACTIVE")
+        .where("contact_index.kind", "in", ["SUPPLIER", "BOTH"]);
+      break;
+    case "all":
+      q = q.where("contact_index.status", "=", "ACTIVE");
+      break;
+    default:
+      // no view: every contact (a lookup by id)
+      break;
+  }
+  for (const word of f.words ?? []) {
+    if (word) q = q.where("contact_index.search_text", "like", likeWord(word));
+  }
+  return q;
+}
+
+/**
+ * One page of contacts by name, each with what the books hold on it: its
+ * OPEN invoices (count, book outstanding) and its bank activity (count,
+ * latest booking). The aggregates are subqueries over the invoice and
+ * transaction rows, each narrowed by `restrict` to what the caller may
+ * read, so a total never counts a document the caller could not open.
+ */
+export function contactsQuery(
+  db: FinanceQueryBuilder,
+  f: ContactFilter,
+  page: { offset?: number | null; limit: number },
+  restrict: QueryRestriction = NO_RESTRICTION,
+) {
+  const ordered = contactsFiltered(db, f)
+    .selectAll("contact_index")
+    .select((eb) => [
+      restrict(
+        eb
+          .selectFrom("invoice_index")
+          .select((s) => s.fn.countAll<number>().as("n"))
+          .whereRef(
+            "invoice_index.counterparty_contact_id",
+            "=",
+            "contact_index.document_id",
+          )
+          .where("invoice_index.status", "=", "OPEN"),
+        "invoice_index.document_id",
+      ).as("open_count"),
+      restrict(
+        eb
+          .selectFrom("invoice_index")
+          .select((s) =>
+            s.fn.sum<number>("invoice_index.book_outstanding").as("n"),
+          )
+          .whereRef(
+            "invoice_index.counterparty_contact_id",
+            "=",
+            "contact_index.document_id",
+          )
+          .where("invoice_index.status", "=", "OPEN"),
+        "invoice_index.document_id",
+      ).as("open_book"),
+      restrict(
+        eb
+          .selectFrom("transaction_index")
+          .select((s) => s.fn.countAll<number>().as("n"))
+          .whereRef(
+            "transaction_index.contact_id",
+            "=",
+            "contact_index.document_id",
+          ),
+        "transaction_index.account_id",
+      ).as("tx_count"),
+      restrict(
+        eb
+          .selectFrom("transaction_index")
+          .select((s) => s.fn.max("transaction_index.booked_at").as("n"))
+          .whereRef(
+            "transaction_index.contact_id",
+            "=",
+            "contact_index.document_id",
+          ),
+        "transaction_index.account_id",
+      ).as("last_tx_at"),
+    ])
+    // The board's `(name ?? "").localeCompare`, case-insensitively.
+    .orderBy((eb) =>
+      eb.fn("lower", [eb.fn.coalesce("contact_index.name", eb.val(""))]),
+    )
+    .orderBy("contact_index.document_id", "asc")
+    .limit(page.limit + 1);
+  return page.offset ? ordered.offset(page.offset) : ordered;
+}
+
+/** How many contacts the filters match. */
+export function contactCountQuery(db: FinanceQueryBuilder, f: ContactFilter) {
+  return contactsFiltered(db, f).select((eb) =>
+    eb.fn.countAll<number>().as("n"),
+  );
+}
+
+/** The board's filter counts: active ones in all, per relationship, and the archived. */
+export function contactViewCountsQuery(db: FinanceQueryBuilder) {
+  return db.selectFrom("contact_index").select((eb) => [
+    eb.fn.countAll<number>().filterWhere("status", "=", "ACTIVE").as("all"),
+    eb.fn
+      .countAll<number>()
+      .filterWhere((w) =>
+        w.and([
+          w("status", "=", "ACTIVE"),
+          w("kind", "in", ["CUSTOMER", "BOTH"]),
+        ]),
+      )
+      .as("customers"),
+    eb.fn
+      .countAll<number>()
+      .filterWhere((w) =>
+        w.and([
+          w("status", "=", "ACTIVE"),
+          w("kind", "in", ["SUPPLIER", "BOTH"]),
+        ]),
+      )
+      .as("suppliers"),
+    eb.fn
+      .countAll<number>()
+      .filterWhere("status", "=", "ARCHIVED")
+      .as("archived"),
+  ]);
+}
+
+export interface ContactCounts {
+  all: number;
+  customers: number;
+  suppliers: number;
+  archived: number;
+}
+
+export function toContactCounts(
+  r:
+    | { all: Num; customers: Num; suppliers: Num; archived: Num }
+    | undefined,
+): ContactCounts {
+  return {
+    all: n(r?.all),
+    customers: n(r?.customers),
+    suppliers: n(r?.suppliers),
+    archived: n(r?.archived),
+  };
+}
+
+/** The names of the contacts asked for (a table's rows name a few). */
+export function contactNamesQuery(
+  db: FinanceQueryBuilder,
+  ids: readonly string[],
+) {
+  // `in ()` is not SQL: no id asks for no row.
+  const q = db.selectFrom("contact_index").select(["document_id", "name"]);
+  return ids.length
+    ? q.where("document_id", "in", [...ids])
+    : q.where("document_id", "is", null);
+}
+
+export interface ContactName {
+  id: string;
+  name: string | null;
+}
+
+export interface ContactListRow {
+  id: string;
+  name: string | null;
+  kind: string;
+  status: string;
+  email: string | null;
+  phone: string | null;
+  website: string | null;
+  vatId: string | null;
+  registrationNumber: string | null;
+  street: string | null;
+  postalCode: string | null;
+  city: string | null;
+  country: string | null;
+  paymentTermsDays: number;
+  defaultCategory: string;
+  tags: string[];
+  /** OPEN invoices whose other party is this contact. */
+  openInvoiceCount: number;
+  /** Their book outstanding added up (EUR). */
+  openBookOutstanding: number;
+  /** Bank transactions linked to the contact. */
+  transactionCount: number;
+  lastTransactionAt: string | null;
+}
+
+export interface ContactPageResult {
+  items: ContactListRow[];
+  total: number;
+  hasMore: boolean;
+}
+
+/** Tags as stored (a JSON array), never throwing on a bad row. */
+function tagsOf(json: string | null | undefined): string[] {
+  try {
+    const parsed: unknown = JSON.parse(json ?? "[]");
+    return Array.isArray(parsed)
+      ? parsed.filter((t): t is string => typeof t === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function toContactRow(
+  r: ContactRow & {
+    open_count?: Num;
+    open_book?: Num;
+    tx_count?: Num;
+    last_tx_at?: string | null;
+  },
+): ContactListRow {
+  return {
+    id: r.document_id,
+    name: r.name,
+    kind: r.kind,
+    status: r.status,
+    email: r.email,
+    phone: r.phone,
+    website: r.website,
+    vatId: r.vat_id,
+    registrationNumber: r.registration_number,
+    street: r.street,
+    postalCode: r.postal_code,
+    city: r.city,
+    country: r.country,
+    paymentTermsDays: Number(r.payment_terms_days),
+    defaultCategory: r.default_category,
+    tags: tagsOf(r.tags),
+    openInvoiceCount: n(r.open_count),
+    openBookOutstanding: n(r.open_book),
+    transactionCount: n(r.tx_count),
+    lastTransactionAt: r.last_tx_at ?? null,
+  };
+}
+
+/* ----------------------------------------------------- one transaction */
+
+export interface TransactionDetailRow extends TransactionListRow {
+  accountName: string | null;
+  /** CURRENT | SAVINGS | CREDIT_CARD: a card payment is recorded as such on the invoice. */
+  accountKind: string;
+  /** What it is matched to, as the detail names it: the invoice's number or the claim's title. */
+  matchedLabel: string | null;
+}
+
+/**
+ * One transaction with what its detail shows of its account and of what it
+ * is matched to; null when the index holds no such transaction (or the
+ * caller may not read it).
+ */
+export async function loadTransaction(
+  db: FinanceQueryBuilder,
+  id: string,
+  restrict: QueryRestriction = NO_RESTRICTION,
+): Promise<TransactionDetailRow | null> {
+  const row = await restrict(
+    db.selectFrom("transaction_index").selectAll().where("id", "=", id),
+    "account_id",
+  ).executeTakeFirst();
+  if (!row) return null;
+  const matchedId = row.matched_document_id;
+  const [account, invoice, claim] = await Promise.all([
+    restrict(
+      db
+        .selectFrom("account_index")
+        .select(["name", "kind"])
+        .where("document_id", "=", row.account_id),
+      "document_id",
+    ).executeTakeFirst(),
+    matchedId && row.matched_kind === "INVOICE"
+      ? restrict(
+          db
+            .selectFrom("invoice_index")
+            .select("number")
+            .where("document_id", "=", matchedId),
+          "document_id",
+        ).executeTakeFirst()
+      : undefined,
+    matchedId && row.matched_kind !== "INVOICE"
+      ? restrict(
+          db
+            .selectFrom("expense_index")
+            .select("title")
+            .where("document_id", "=", matchedId),
+          "document_id",
+        ).executeTakeFirst()
+      : undefined,
+  ]);
+  return {
+    ...toTransactionRow(row),
+    accountName: account?.name ?? null,
+    accountKind: account?.kind ?? "CURRENT",
+    matchedLabel: matchedId
+      ? row.matched_kind === "INVOICE"
+        ? (invoice?.number ?? "Invoice")
+        : (claim?.title ?? "Expense claim")
+      : null,
+  };
+}
+
+/* --------------------------------------------------- match candidates */
+
+export interface MatchCandidate {
+  /** INVOICE | EXPENSE */
+  kind: string;
+  id: string;
+  label: string;
+  /** What is left to pay (an invoice) or to reimburse (a claim). */
+  amount: number;
+  /** How far `amount` is from the transaction's. */
+  distance: number;
+}
+
+const MATCH_LIMIT = 8;
+
+/**
+ * What a transaction of `amount` could settle, closest amount first: OPEN
+ * invoices in the money's direction (money in pays a sale, money out a
+ * bill), and for money out the claims approved or awaiting approval.
+ */
+export async function loadMatchCandidates(
+  db: FinanceQueryBuilder,
+  amount: number,
+  restrict: QueryRestriction = NO_RESTRICTION,
+): Promise<MatchCandidate[]> {
+  const size = Math.abs(amount);
+  const [invoices, claims] = await Promise.all([
+    restrict(
+      db
+        .selectFrom("invoice_index")
+        .select(["document_id", "number", "counterparty_name", "outstanding"])
+        .where("status", "=", "OPEN")
+        .where("direction", "=", amount > 0 ? "OUTGOING" : "INCOMING")
+        .orderBy((eb) => eb.fn("abs", [eb("outstanding", "-", size)]))
+        .orderBy("document_id", "asc")
+        .limit(MATCH_LIMIT),
+      "document_id",
+    ).execute(),
+    amount < 0
+      ? restrict(
+          db
+            .selectFrom("expense_index")
+            .select(["document_id", "title", "submitter_name", "reimbursable"])
+            .where("status", "in", ["APPROVED", "SUBMITTED"])
+            .orderBy((eb) => eb.fn("abs", [eb("reimbursable", "-", size)]))
+            .orderBy("document_id", "asc")
+            .limit(MATCH_LIMIT),
+          "document_id",
+        ).execute()
+      : [],
+  ]);
+  const found: MatchCandidate[] = [
+    ...invoices.map((i) => ({
+      kind: "INVOICE",
+      id: i.document_id,
+      label: `${i.number ?? "Draft"} · ${i.counterparty_name ?? ""}`,
+      amount: Number(i.outstanding),
+      distance: Math.abs(Number(i.outstanding) - size),
+    })),
+    ...claims.map((c) => ({
+      kind: "EXPENSE",
+      id: c.document_id,
+      label: `${c.title ?? "Claim"} · ${c.submitter_name ?? ""}`,
+      amount: Number(c.reimbursable),
+      distance: Math.abs(Number(c.reimbursable) - size),
+    })),
+  ];
+  return found.sort((a, b) => a.distance - b.distance).slice(0, MATCH_LIMIT);
+}
+
+/* ------------------------------------------------------------------ counts */
+
+export interface FinanceCounts {
+  accounts: number;
+  invoices: number;
+  expenses: number;
+  contacts: number;
+}
+
+/** How many documents of each kind the index holds: the business drive's badges. */
+export async function loadCounts(
+  db: FinanceQueryBuilder,
+  restrict: QueryRestriction = NO_RESTRICTION,
+): Promise<FinanceCounts> {
+  const [accounts, invoices, expenses, contacts] = await Promise.all([
+    restrict(
+      db.selectFrom("account_index").select((eb) => eb.fn.countAll<number>().as("n")),
+      "document_id",
+    ).executeTakeFirst(),
+    restrict(
+      db.selectFrom("invoice_index").select((eb) => eb.fn.countAll<number>().as("n")),
+      "document_id",
+    ).executeTakeFirst(),
+    restrict(
+      db.selectFrom("expense_index").select((eb) => eb.fn.countAll<number>().as("n")),
+      "document_id",
+    ).executeTakeFirst(),
+    restrict(
+      db.selectFrom("contact_index").select((eb) => eb.fn.countAll<number>().as("n")),
+      "document_id",
+    ).executeTakeFirst(),
+  ]);
+  return {
+    accounts: n(accounts?.n),
+    invoices: n(invoices?.n),
+    expenses: n(expenses?.n),
+    contacts: n(contacts?.n),
+  };
 }

@@ -5,11 +5,7 @@ import type {
   ProcessorFilter,
 } from "@powerhousedao/reactor-browser";
 import type { PHDocumentHeader } from "document-model";
-import {
-  ACCOUNT_DOCUMENT_TYPE,
-  FinanceIndex,
-  INVOICE_DOCUMENT_TYPE,
-} from "./processor.js";
+import { FINANCE_DOCUMENT_TYPES, FinanceIndex } from "./processor.js";
 
 export const financeIndexFactoryBuilder: ProcessorFactoryBuilder =
   (module: IProcessorHostModule) =>
@@ -24,7 +20,7 @@ export const financeIndexFactoryBuilder: ProcessorFactoryBuilder =
     const filter: ProcessorFilter = {
       branch: ["main"],
       documentId: ["*"],
-      documentType: [INVOICE_DOCUMENT_TYPE, ACCOUNT_DOCUMENT_TYPE],
+      documentType: [...FINANCE_DOCUMENT_TYPES],
       scope: ["global", "document"],
     };
 

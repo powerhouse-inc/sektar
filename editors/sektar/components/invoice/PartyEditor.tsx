@@ -8,13 +8,12 @@ import {
   type InvoiceState,
   type SetBuyerInput,
 } from "document-models/invoice";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
-  latestOurParty,
-  partyFromContact,
-  useContacts,
-  useInvoices,
-} from "../../kit/data.js";
+  partyFromContactRow,
+  useContactOptions,
+  useLatestOurParty,
+} from "../../kit/finance-index.js";
 import { SCHEMES } from "../../kit/invoice.js";
 import { Button, cx, Field, Icon, Input, Modal, Select } from "../../kit/ui.js";
 
@@ -200,10 +199,9 @@ function PartyModal({
   const current = state[which];
   const ours = (which === "seller") === (state.direction === "OUTGOING");
   const [draft, setDraft] = useState<Record<PartyKey, string>>(() => toDraft(current));
-  const contacts = useContacts();
-  const invoices = useInvoices();
-  const last = useMemo(() => latestOurParty(invoices, state.direction), [invoices, state.direction]);
-  const pool = contacts.filter((c) => c.state.global.status === "ACTIVE");
+  // The active contacts and our details on the latest invoice, from the finance index.
+  const pool = useContactOptions();
+  const last = useLatestOurParty(state.direction);
   const set = (key: PartyKey) => (e: { target: { value: string } }) =>
     setDraft((d) => ({ ...d, [key]: e.target.value }));
   // Copies what the source has; fields it leaves out keep what was typed.
@@ -244,15 +242,15 @@ function PartyModal({
             <Select
               value={draft.contactId}
               onChange={(e) => {
-                const c = pool.find((x) => x.header.id === e.target.value);
-                if (c) fill(partyFromContact(c));
+                const c = pool.find((x) => x.id === e.target.value);
+                if (c) fill(partyFromContactRow(c));
                 else setDraft((d) => ({ ...d, contactId: "" }));
               }}
             >
               <option value="">Not linked to a contact</option>
               {pool.map((c) => (
-                <option key={c.header.id} value={c.header.id}>
-                  {c.state.global.name ?? "Unnamed contact"}
+                <option key={c.id} value={c.id}>
+                  {c.name ?? "Unnamed contact"}
                 </option>
               ))}
             </Select>

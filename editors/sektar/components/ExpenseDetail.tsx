@@ -2,6 +2,7 @@
 // the current status. Shared by the expenses board and the document editor.
 import type {
   ExpenseReportDocument,
+  ExpenseStatus,
   PaidWith,
 } from "document-models/expense-report";
 import type { TransactionCategory } from "document-models/bank-account";
@@ -47,10 +48,11 @@ import {
   cx,
 } from "../kit/ui.js";
 
-export function ExpenseStatusBadge({ doc }: { doc: ExpenseReportDocument }) {
-  const { label, tone } = EXPENSE_STATUS[doc.state.global.status];
+/** Where a claim stands; the board passes its index row's status, the detail its document's. */
+export function ExpenseStatusBadge({ status }: { status: ExpenseStatus }) {
+  const { label, tone } = EXPENSE_STATUS[status];
   return (
-    <Badge tone={tone} dot={doc.state.global.status === "SUBMITTED"}>
+    <Badge tone={tone} dot={status === "SUBMITTED"}>
       {label}
     </Badge>
   );
@@ -84,7 +86,7 @@ export function ExpenseDetail({ doc }: { doc: ExpenseReportDocument }) {
             {s.submitter.name ? ` · ${s.submitter.name}` : ""}
           </>
         }
-        tags={<ExpenseStatusBadge doc={doc} />}
+        tags={<ExpenseStatusBadge status={s.status} />}
         actions={
           <>
           {editable && (

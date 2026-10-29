@@ -1,12 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useDocumentsByIds } from "@powerhousedao/reactor-browser";
-import { isContactDocument } from "document-models/contact";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   statusAfterCategorise,
   TransactionDetail,
   TransactionStatusBadge,
-  useAccountTransaction,
+  type TransactionChange,
 } from "../../../../../editors/sektar/components/TransactionDetail.js";
 import {
   categorizeTransaction,
@@ -16,8 +14,11 @@ import {
   accountKindOf,
   categoryOf,
   FINANCE_PAGE,
+  matchKindOf,
   txStatusOf,
   useAccountIndex,
+  useContactNames,
+  useTransactionDetail,
   useTransactionList,
   type TransactionRow,
   type TransactionStatusView,
@@ -80,17 +81,13 @@ function TransactionsPage() {
     if (accountParam) setAccountId(accountParam);
   }, [accountParam]);
   const [status, setStatus] = useState<StatusFilter>("ALL");
-  // The open transaction and the account that holds it: the one document the detail loads.
-  const [selected, setSelected] = useState<{
-    id: string;
-    accountId: string | null;
-  } | null>(
-    openParam ? { id: openParam, accountId: accountParam ?? null } : null,
+  // The open transaction: the index row says which account holds it.
+  const [selected, setSelected] = useState<{ id: string } | null>(
+    openParam ? { id: openParam } : null,
   );
   useEffect(() => {
-    if (openParam)
-      setSelected({ id: openParam, accountId: accountParam ?? null });
-  }, [openParam, accountParam]);
+    if (openParam) setSelected({ id: openParam });
+  }, [openParam]);
   const [importing, setImporting] = useState(!!importParam);
   useEffect(() => {
     if (importParam) setImporting(true);
@@ -139,14 +136,17 @@ function TransactionsPage() {
     ? Array.from({ length: rowCount }, (_, i) => list.rowAt(i))
     : NO_ROWS;
 
-  // `?open=` without `?account=`: the account comes from the row once its page is here.
-  const selectedAccountId =
-    selected?.accountId ??
-    rows.find((r) => r?.id === selected?.id)?.accountId ??
-    null;
-  const open = useAccountTransaction(selectedAccountId, selected?.id);
+  // The open transaction from the index (with its account and what it is
+  // matched to), not its account document with every transaction in it.
+  const detail = useTransactionDetail(selected?.id);
+  const open = detail.row;
+  const onChanged = (change: TransactionChange) => {
+    if (!open) return;
+    list.patch(open.id, change);
+    detail.patch(change);
+  };
 
-  // Only the contacts the loaded rows point at, not the whole address book.
+  // Only the names of the contacts the loaded rows point at.
   const contactIds = useMemo(
     () => [
       ...new Set(
@@ -155,10 +155,10 @@ function TransactionsPage() {
     ],
     [rows],
   );
-  const contactDocs = useDocumentsByIds(contactIds).filter(isContactDocument);
+  const contactNames = useContactNames(contactIds);
   const accountName = (id: string) => accounts.find((a) => a.id === id)?.name;
   const contactName = (id: string | null | undefined) =>
-    contactDocs.find((c) => c.header.id === id)?.state.global.name;
+    id ? contactNames.get(id) : undefined;
 
   if (!drive || (accountIndex !== undefined && accountIndex.length === 0))
     return <SetupState what="bank accounts" />;
@@ -252,14 +252,16 @@ function TransactionsPage() {
                     }
                     contactName={contactName(tx.contactId)}
                     onOpen={() =>
-                      setSelected({ id: tx.id, accountId: tx.accountId })
+                      setSelected({ id: tx.id })
                     }
                     onCategorise={(category) => {
                       void categorizeTransaction(tx.accountId, tx.id, category);
-                      list.patch(tx.id, {
+                      const change = {
                         category,
                         status: statusAfterCategorise(txStatusOf(tx.status)),
-                      });
+                      };
+                      list.patch(tx.id, change);
+                      if (open?.id === tx.id) detail.patch(change);
                     }}
                   />
                 ) : (
@@ -284,13 +286,25 @@ function TransactionsPage() {
 
       {selected && open && (
         <SidePanel
-          title={open.tx.counterparty}
-          subtitle={`${open.account.state.global.name} · ${fmtDate(open.tx.bookedAt)}`}
+          title={open.counterparty}
+          subtitle={`${open.accountName ?? ""} · ${fmtDate(open.bookedAt)}`}
           onClose={() => setSelected(null)}
         >
           <TransactionDetail
-            row={open}
-            onChanged={(change) => list.patch(open.tx.id, change)}
+            tx={{
+              ...open,
+              category: categoryOf(open.category),
+              status: txStatusOf(open.status),
+              matchedKind: matchKindOf(open.matchedKind),
+            }}
+            account={{
+              id: open.accountId,
+              name: open.accountName,
+              currency: open.currency,
+              kind: accountKindOf(open.accountKind),
+            }}
+            matchedLabel={open.matchedLabel}
+            onChanged={onChanged}
           />
         </SidePanel>
       )}

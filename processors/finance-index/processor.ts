@@ -1,6 +1,6 @@
 /**
- * Keeps the finance index in step with the invoice and bank-account
- * documents.
+ * Keeps the finance index in step with the invoice, bank-account,
+ * expense-report and contact documents.
  *
  * Rows come only off the operations' resulting state: an invoice's row, an
  * account's row and every transaction row of that account are all derived
@@ -23,19 +23,42 @@ import { up } from "./migrations.js";
 import {
   accountRows,
   accountState,
+  contactRow,
+  contactState,
   diffTransactions,
+  expenseRows,
+  expenseState,
   invoiceRow,
   invoiceState,
   parseState,
 } from "./rows.js";
-import type { DB, InvoiceRow, TransactionRow } from "./schema.js";
+import type {
+  ContactRow,
+  DB,
+  ExpenseItemRow,
+  ExpenseRow,
+  InvoiceRow,
+  TransactionRow,
+} from "./schema.js";
 
 export const INVOICE_DOCUMENT_TYPE = "sektar/invoice";
 export const ACCOUNT_DOCUMENT_TYPE = "sektar/bank-account";
+export const EXPENSE_DOCUMENT_TYPE = "sektar/expense-report";
+export const CONTACT_DOCUMENT_TYPE = "sektar/contact";
+
+/** Every document type the index follows. */
+export const FINANCE_DOCUMENT_TYPES = [
+  INVOICE_DOCUMENT_TYPE,
+  ACCOUNT_DOCUMENT_TYPE,
+  EXPENSE_DOCUMENT_TYPE,
+  CONTACT_DOCUMENT_TYPE,
+] as const;
+
+const FOLLOWED: ReadonlySet<string> = new Set(FINANCE_DOCUMENT_TYPES);
 
 /**
- * Rows per statement. The widest table has thirty-three columns, so 200 rows
- * is 6,600 bind parameters: well under PostgreSQL's 65,535 and under what the
+ * Rows per statement. The widest table has thirty-four columns, so 200 rows
+ * is 6,800 bind parameters: well under PostgreSQL's 65,535 and under what the
  * driver builds comfortably (see the osc-index processor for how that fails).
  */
 const BATCH = 200;
@@ -92,11 +115,7 @@ export class FinanceIndex extends RelationalDbProcessor<DB> {
         continue;
       }
       const { documentId, documentType } = context;
-      if (
-        documentType !== INVOICE_DOCUMENT_TYPE &&
-        documentType !== ACCOUNT_DOCUMENT_TYPE
-      )
-        continue;
+      if (!FOLLOWED.has(documentType)) continue;
       if (!firstAt.has(documentId)) firstAt.set(documentId, timeOf(operation));
       if (context.scope !== "global") continue;
       // A refused operation left the document as it was.
@@ -120,14 +139,29 @@ export class FinanceIndex extends RelationalDbProcessor<DB> {
 
     const invoices: [string, Latest][] = [];
     const accounts: [string, Latest][] = [];
+    const expenses: [string, Latest][] = [];
+    const contacts: [string, Latest][] = [];
     for (const entry of latest) {
-      if (entry[1].documentType === INVOICE_DOCUMENT_TYPE) invoices.push(entry);
-      else accounts.push(entry);
+      switch (entry[1].documentType) {
+        case INVOICE_DOCUMENT_TYPE:
+          invoices.push(entry);
+          break;
+        case ACCOUNT_DOCUMENT_TYPE:
+          accounts.push(entry);
+          break;
+        case EXPENSE_DOCUMENT_TYPE:
+          expenses.push(entry);
+          break;
+        default:
+          contacts.push(entry);
+      }
     }
     await this.writeInvoices(invoices, firstAt);
     for (const [documentId, entry] of accounts) {
       await this.writeAccount(documentId, entry);
     }
+    await this.writeExpenses(expenses, firstAt);
+    await this.writeContacts(contacts);
   }
 
   private async deleteDocuments(ids: string[]): Promise<void> {
@@ -144,6 +178,18 @@ export class FinanceIndex extends RelationalDbProcessor<DB> {
       await this.relationalDb
         .deleteFrom("transaction_index")
         .where("account_id", "in", chunk)
+        .execute();
+      await this.relationalDb
+        .deleteFrom("expense_index")
+        .where("document_id", "in", chunk)
+        .execute();
+      await this.relationalDb
+        .deleteFrom("expense_item_index")
+        .where("report_id", "in", chunk)
+        .execute();
+      await this.relationalDb
+        .deleteFrom("contact_index")
+        .where("document_id", "in", chunk)
         .execute();
     }
   }
@@ -210,6 +256,121 @@ export class FinanceIndex extends RelationalDbProcessor<DB> {
               "excluded.lines_missing_attachments",
             ),
             last_paid_at: eb.ref("excluded.last_paid_at"),
+            our_party: eb.ref("excluded.our_party"),
+            search_text: eb.ref("excluded.search_text"),
+            updated_at: eb.ref("excluded.updated_at"),
+          })),
+        )
+        .execute();
+    }
+  }
+
+  /** The claims' rows, and their receipts' rows replaced with the claims' own. */
+  private async writeExpenses(
+    entries: [string, Latest][],
+    firstAt: Map<string, string>,
+  ): Promise<void> {
+    for (let at = 0; at < entries.length; at += BATCH) {
+      const chunk = entries.slice(at, at + BATCH);
+      // A stored row keeps the creation time it was first written with.
+      const stored = await this.relationalDb
+        .selectFrom("expense_index")
+        .select(["document_id", "created_at"])
+        .where(
+          "document_id",
+          "in",
+          chunk.map(([id]) => id),
+        )
+        .execute();
+      const createdAt = new Map(
+        stored.map((r) => [r.document_id, r.created_at]),
+      );
+      const reports: ExpenseRow[] = [];
+      const items: ExpenseItemRow[] = [];
+      for (const [documentId, entry] of chunk) {
+        const json = parseState(entry.resultingState);
+        const state = json ? expenseState(json) : null;
+        if (!state) continue;
+        const created =
+          createdAt.get(documentId) ?? firstAt.get(documentId) ?? entry.at;
+        const rows = expenseRows(documentId, state, created, entry.at);
+        reports.push(rows.report);
+        items.push(...rows.items);
+      }
+      if (reports.length === 0) continue;
+      await this.relationalDb
+        .insertInto("expense_index")
+        .values(reports)
+        .onConflict((oc) =>
+          oc.column("document_id").doUpdateSet((eb) => ({
+            title: eb.ref("excluded.title"),
+            submitter_name: eb.ref("excluded.submitter_name"),
+            submitter_email: eb.ref("excluded.submitter_email"),
+            status: eb.ref("excluded.status"),
+            currency: eb.ref("excluded.currency"),
+            total: eb.ref("excluded.total"),
+            reimbursable: eb.ref("excluded.reimbursable"),
+            vat_total: eb.ref("excluded.vat_total"),
+            item_count: eb.ref("excluded.item_count"),
+            categories: eb.ref("excluded.categories"),
+            first_spent_at: eb.ref("excluded.first_spent_at"),
+            submitted_at: eb.ref("excluded.submitted_at"),
+            decided_at: eb.ref("excluded.decided_at"),
+            reimbursed_at: eb.ref("excluded.reimbursed_at"),
+            search_text: eb.ref("excluded.search_text"),
+            updated_at: eb.ref("excluded.updated_at"),
+          })),
+        )
+        .execute();
+      // A claim holds a handful of receipts: replacing them is simpler than
+      // a diff and costs no more.
+      await this.relationalDb
+        .deleteFrom("expense_item_index")
+        .where(
+          "report_id",
+          "in",
+          reports.map((r) => r.document_id),
+        )
+        .execute();
+      for (let i = 0; i < items.length; i += BATCH) {
+        await this.relationalDb
+          .insertInto("expense_item_index")
+          .values(items.slice(i, i + BATCH))
+          .onConflict((oc) => oc.columns(["report_id", "id"]).doNothing())
+          .execute();
+      }
+    }
+  }
+
+  private async writeContacts(entries: [string, Latest][]): Promise<void> {
+    for (let at = 0; at < entries.length; at += BATCH) {
+      const rows: ContactRow[] = [];
+      for (const [documentId, entry] of entries.slice(at, at + BATCH)) {
+        const json = parseState(entry.resultingState);
+        const state = json ? contactState(json) : null;
+        if (state) rows.push(contactRow(documentId, state, entry.at));
+      }
+      if (rows.length === 0) continue;
+      await this.relationalDb
+        .insertInto("contact_index")
+        .values(rows)
+        .onConflict((oc) =>
+          oc.column("document_id").doUpdateSet((eb) => ({
+            name: eb.ref("excluded.name"),
+            kind: eb.ref("excluded.kind"),
+            status: eb.ref("excluded.status"),
+            email: eb.ref("excluded.email"),
+            phone: eb.ref("excluded.phone"),
+            website: eb.ref("excluded.website"),
+            vat_id: eb.ref("excluded.vat_id"),
+            registration_number: eb.ref("excluded.registration_number"),
+            street: eb.ref("excluded.street"),
+            postal_code: eb.ref("excluded.postal_code"),
+            city: eb.ref("excluded.city"),
+            country: eb.ref("excluded.country"),
+            payment_terms_days: eb.ref("excluded.payment_terms_days"),
+            default_category: eb.ref("excluded.default_category"),
+            tags: eb.ref("excluded.tags"),
             search_text: eb.ref("excluded.search_text"),
             updated_at: eb.ref("excluded.updated_at"),
           })),

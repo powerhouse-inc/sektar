@@ -1,8 +1,9 @@
 // Reading the finance boards through the finance index rather than their
 // documents (processors/finance-index).
 //
-// The Finances dashboard, the Invoices list and the Transactions table show
-// rows and sums. Loading every account document (each carries every
+// The Finances dashboard, the Invoices list, the Transactions table, the
+// Expenses and Contacts boards, and every picker over them show rows and
+// sums. Loading every account document (each carries every
 // transaction ever imported) and every invoice to draw them is what made the
 // boards slow; the index holds one lean row per invoice, account and
 // transaction, and a document is loaded only when it is opened for editing.
@@ -17,46 +18,93 @@ import { indexGql as gql } from "./index-gql.js";
 import type { DocumentDriveDocument } from "@powerhousedao/shared/document-drive";
 import type {
   AccountKind,
+  MatchKind,
   TransactionCategory,
   TransactionStatus,
 } from "document-models/bank-account";
+import type { ContactKind } from "document-models/contact";
+import type { ExpenseStatus } from "document-models/expense-report";
+import type { SetBuyerInput } from "document-models/invoice";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ACCOUNT_DOCUMENT_TYPE,
   accountsQuery,
+  CONTACT_DOCUMENT_TYPE,
+  contactCountQuery,
+  contactNamesQuery,
+  contactsQuery,
+  contactViewCountsQuery,
+  EXPENSE_DOCUMENT_TYPE,
+  expenseCountQuery,
+  expenseSpendQuery,
+  expensesQuery,
+  expenseStatusQuery,
+  FINANCE_DOCUMENT_TYPES,
   FINANCE_PAGE,
   FinanceIndex,
   INVOICE_DOCUMENT_TYPE,
   INVOICE_VIEWS,
   invoiceCountQuery,
+  invoiceNumbersQuery,
   invoicesQuery,
   invoiceViewCountsQuery,
   isoNow,
+  latestOurPartyQuery,
+  loadCounts,
   loadDashboard,
+  loadMatchCandidates,
+  loadTransaction,
+  nextNumberFrom,
+  PARTY_FIELDS,
   searchWords,
+  spendSince,
   toAccountRow,
+  toContactCounts,
+  toContactRow,
+  toExpenseCounts,
+  toExpenseRow,
   toInvoiceCounts,
+  toInvoiceNumberRow,
   toInvoiceRow,
+  toOurParty,
   toTransactionCounts,
   toTransactionRow,
   transactionCountQuery,
   transactionCountsQuery,
   transactionsQuery,
   type AccountListRow,
+  type ContactCounts,
+  type ContactListRow,
+  type ContactName,
+  type ContactView,
   type DashboardMonth,
   type DashboardSpend,
   type DashboardStats,
   type DB,
+  type ExpenseCounts,
+  type ExpenseListRow,
+  type ExpenseStatusCount,
+  type FinanceCounts,
   type FinanceQueryBuilder,
   type InvoiceCounts,
   type InvoiceListRow,
+  type InvoiceNumberRow,
   type InvoiceView,
+  type MatchCandidate,
+  type OurParty,
   type TransactionCounts,
+  type TransactionDetailRow,
   type TransactionListRow,
   type ViewCount,
 } from "../../../processors/finance-index/index.js";
 import { useSektarDrive } from "./data.js";
-import { ACCOUNT_KIND, CATEGORY, TX_STATUS } from "./format.js";
+import {
+  ACCOUNT_KIND,
+  CATEGORY,
+  CONTACT_KIND,
+  EXPENSE_STATUS,
+  TX_STATUS,
+} from "./format.js";
 import { useMailIndexMode } from "./mail-index.js";
 import { usePagedList, type PagedList } from "./paged.js";
 
@@ -96,6 +144,10 @@ export function txStatusOf(value: string): TransactionStatus {
 
 export function accountKindOf(value: string): AccountKind {
   return value in ACCOUNT_KIND ? (value as AccountKind) : "CURRENT";
+}
+
+export function matchKindOf(value: string | null): MatchKind | null {
+  return value === "INVOICE" || value === "EXPENSE" ? value : null;
 }
 
 /* --------------------------------------------------------------- source */
@@ -640,4 +692,653 @@ export function useDashboardStats(drive: DocumentDriveDocument | undefined, now:
     fetch: () => (source ? fetchDashboard(source, nowRef.current) : Promise.reject(new Error("no source"))),
     types: FINANCE_TYPES,
   });
+}
+
+/* ------------------------------------------------- claims, contacts, rest */
+
+// The rest of the books' reads: the Expenses board, the Contacts board and
+// the contact detail, the transaction detail and its match picker, the
+// invoice editor's numbers and parties, the creation panels' pickers, and
+// the business drive's badges. Each was a whole collection of documents
+// loaded through the write store; each is now one index query.
+
+const EXPENSE_FIELDS = `id title submitterName submitterEmail status currency total reimbursable vatTotal itemCount categories firstSpentAt submittedAt decidedAt reimbursedAt createdAt updatedAt`;
+const CONTACT_FIELDS = `id name kind status email phone website vatId registrationNumber street postalCode city country paymentTermsDays defaultCategory tags openInvoiceCount openBookOutstanding transactionCount lastTransactionAt`;
+const PARTY_GQL_FIELDS = PARTY_FIELDS.join(" ");
+
+const EXPENSES_QUERY = `query ($d: String!, $s: [String!], $q: String, $o: Int, $l: Int) {
+  financeIndex { expenses(driveId: $d, statuses: $s, query: $q, offset: $o, limit: $l) {
+    total
+    items { ${EXPENSE_FIELDS} }
+  } }
+}`;
+
+const EXPENSE_COUNTS_QUERY = `query ($d: String!, $q: String) {
+  financeIndex { expenseCounts(driveId: $d, query: $q) { all byStatus { status count total reimbursable } } }
+}`;
+
+const SPEND_QUERY = `query ($d: String!, $n: String) {
+  financeIndex { spend90d(driveId: $d, now: $n) }
+}`;
+
+const CONTACTS_QUERY = `query ($d: String!, $v: FinanceContactView, $q: String, $o: Int, $l: Int) {
+  financeIndex { contacts(driveId: $d, view: $v, query: $q, offset: $o, limit: $l) {
+    total
+    items { ${CONTACT_FIELDS} }
+  } }
+}`;
+
+const CONTACT_COUNTS_QUERY = `query ($d: String!) {
+  financeIndex { contactCounts(driveId: $d) { all customers suppliers archived } }
+}`;
+
+const CONTACT_ACTIVITY_QUERY = `query ($d: String!, $id: String!, $n: String, $il: Int, $tl: Int) {
+  financeIndex {
+    contact(driveId: $d, id: $id) { ${CONTACT_FIELDS} }
+    invoices(driveId: $d, contactId: $id, now: $n, limit: $il) { items { ${INVOICE_FIELDS} } }
+    transactions(driveId: $d, contactId: $id, limit: $tl) { items { ${TRANSACTION_FIELDS} } }
+  }
+}`;
+
+const CONTACT_NAMES_QUERY = `query ($d: String!, $ids: [String!]!) {
+  financeIndex { contactNames(driveId: $d, ids: $ids) { id name } }
+}`;
+
+const TRANSACTION_QUERY = `query ($d: String!, $id: String!) {
+  financeIndex { transaction(driveId: $d, id: $id) { ${TRANSACTION_FIELDS} accountName accountKind matchedLabel } }
+}`;
+
+const MATCH_QUERY = `query ($d: String!, $a: Float!) {
+  financeIndex { matchCandidates(driveId: $d, amount: $a) { kind id label amount distance } }
+}`;
+
+const NUMBERS_QUERY = `query ($d: String!, $dir: String!) {
+  financeIndex { invoiceNumbers(driveId: $d, direction: $dir) { id number kind issuedAt } }
+}`;
+
+const NEXT_NUMBER_QUERY = `query ($d: String!, $dir: String!, $n: String, $x: String) {
+  financeIndex { nextInvoiceNumber(driveId: $d, direction: $dir, now: $n, excludeId: $x) }
+}`;
+
+const OUR_PARTY_QUERY = `query ($d: String!, $dir: String!) {
+  financeIndex { latestOurParty(driveId: $d, direction: $dir) { ${PARTY_GQL_FIELDS} } }
+}`;
+
+const COUNTS_QUERY = `query ($d: String!) {
+  financeIndex { counts(driveId: $d) { accounts invoices expenses contacts } }
+}`;
+
+/** An expense claim as the board's card shows it (FinanceExpenseRow). */
+export type ExpenseRow = ExpenseListRow;
+/** A contact with its open invoices and bank activity (FinanceContactRow). */
+export type ContactRow = ContactListRow;
+/** One transaction with its account and what it is matched to. */
+export type TransactionDetail = TransactionDetailRow;
+export type {
+  ContactCounts,
+  ContactView,
+  ExpenseCounts,
+  ExpenseStatusCount,
+  FinanceCounts,
+  InvoiceNumberRow,
+  MatchCandidate,
+  OurParty,
+};
+
+/** Rows a picker or a detail asks for at once: every contact, a contact's invoices. */
+const ALL_ROWS = 500;
+/** The contact detail's bank activity: the latest few. */
+const CONTACT_ACTIVITY_ROWS = 8;
+
+async function fetchExpenses(
+  src: Source,
+  f: { statuses: readonly string[]; query: string },
+  page: number,
+  pageSize = FINANCE_PAGE,
+): Promise<Page<ExpenseRow>> {
+  const offset = page * pageSize;
+  if (src.kind === "remote") {
+    const data = await gql<{ financeIndex: { expenses: Page<ExpenseRow> } }>(src.base, EXPENSES_QUERY, {
+      d: src.driveId,
+      s: f.statuses.length ? f.statuses : null,
+      q: f.query || null,
+      o: offset,
+      l: pageSize,
+    });
+    return data.financeIndex.expenses;
+  }
+  const filter = { statuses: f.statuses, words: searchWords(f.query) };
+  const [rows, count] = await Promise.all([
+    expensesQuery(src.db, filter, { offset, limit: pageSize }).execute(),
+    expenseCountQuery(src.db, filter).executeTakeFirst(),
+  ]);
+  return { items: rows.slice(0, pageSize).map(toExpenseRow), total: Number(count?.n ?? 0) };
+}
+
+async function fetchExpenseCounts(src: Source, query: string): Promise<ExpenseCounts> {
+  if (src.kind === "remote") {
+    const data = await gql<{ financeIndex: { expenseCounts: ExpenseCounts } }>(src.base, EXPENSE_COUNTS_QUERY, {
+      d: src.driveId,
+      q: query || null,
+    });
+    return data.financeIndex.expenseCounts;
+  }
+  return toExpenseCounts(await expenseStatusQuery(src.db, searchWords(query)).execute());
+}
+
+async function fetchSpend(src: Source, nowMs: number): Promise<number> {
+  if (src.kind === "remote") {
+    const data = await gql<{ financeIndex: { spend90d: number } }>(src.base, SPEND_QUERY, {
+      d: src.driveId,
+      n: new Date(nowMs).toISOString(),
+    });
+    return data.financeIndex.spend90d;
+  }
+  const row = await expenseSpendQuery(src.db, spendSince(nowMs)).executeTakeFirst();
+  return Number(row?.spent ?? 0) || 0;
+}
+
+async function fetchContacts(
+  src: Source,
+  f: { view: ContactView; query: string },
+  page: number,
+  pageSize = FINANCE_PAGE,
+): Promise<Page<ContactRow>> {
+  const offset = page * pageSize;
+  if (src.kind === "remote") {
+    const data = await gql<{ financeIndex: { contacts: Page<ContactRow> } }>(src.base, CONTACTS_QUERY, {
+      d: src.driveId,
+      v: f.view.toUpperCase(),
+      q: f.query || null,
+      o: offset,
+      l: pageSize,
+    });
+    return data.financeIndex.contacts;
+  }
+  const filter = { view: f.view, words: searchWords(f.query) };
+  const [rows, count] = await Promise.all([
+    contactsQuery(src.db, filter, { offset, limit: pageSize }).execute(),
+    contactCountQuery(src.db, filter).executeTakeFirst(),
+  ]);
+  return { items: rows.slice(0, pageSize).map(toContactRow), total: Number(count?.n ?? 0) };
+}
+
+async function fetchContactCounts(src: Source): Promise<ContactCounts> {
+  if (src.kind === "remote") {
+    const data = await gql<{ financeIndex: { contactCounts: ContactCounts } }>(src.base, CONTACT_COUNTS_QUERY, {
+      d: src.driveId,
+    });
+    return data.financeIndex.contactCounts;
+  }
+  return toContactCounts(await contactViewCountsQuery(src.db).executeTakeFirst());
+}
+
+/** A contact with the invoices that name it and its latest bank activity. */
+export interface ContactActivity {
+  /** Null while the index does not hold the contact yet. */
+  contact: ContactRow | null;
+  invoices: InvoiceRow[];
+  transactions: TransactionRow[];
+}
+
+async function fetchContactActivity(src: Source, id: string, now: string): Promise<ContactActivity> {
+  if (src.kind === "remote") {
+    const data = await gql<{
+      financeIndex: {
+        contact: ContactRow | null;
+        invoices: { items: InvoiceRow[] };
+        transactions: { items: TransactionRow[] };
+      };
+    }>(src.base, CONTACT_ACTIVITY_QUERY, {
+      d: src.driveId,
+      id,
+      n: now,
+      il: ALL_ROWS,
+      tl: CONTACT_ACTIVITY_ROWS,
+    });
+    return {
+      contact: data.financeIndex.contact,
+      invoices: data.financeIndex.invoices.items,
+      transactions: data.financeIndex.transactions.items,
+    };
+  }
+  const [contact, invoices, transactions] = await Promise.all([
+    contactsQuery(src.db, { id }, { limit: 1 }).executeTakeFirst(),
+    invoicesQuery(src.db, { contactId: id, now }, { limit: ALL_ROWS }).execute(),
+    transactionsQuery(src.db, { contactId: id }, { limit: CONTACT_ACTIVITY_ROWS }).execute(),
+  ]);
+  return {
+    contact: contact ? toContactRow(contact) : null,
+    invoices: invoices.slice(0, ALL_ROWS).map((r) => toInvoiceRow(r, now)),
+    transactions: transactions.slice(0, CONTACT_ACTIVITY_ROWS).map(toTransactionRow),
+  };
+}
+
+async function fetchContactNames(src: Source, ids: readonly string[]): Promise<ContactName[]> {
+  if (ids.length === 0) return [];
+  if (src.kind === "remote") {
+    const data = await gql<{ financeIndex: { contactNames: ContactName[] } }>(src.base, CONTACT_NAMES_QUERY, {
+      d: src.driveId,
+      ids,
+    });
+    return data.financeIndex.contactNames;
+  }
+  const rows = await contactNamesQuery(src.db, ids).execute();
+  return rows.map((r) => ({ id: r.document_id, name: r.name }));
+}
+
+async function fetchTransaction(src: Source, id: string): Promise<TransactionDetail | null> {
+  if (src.kind === "remote") {
+    const data = await gql<{ financeIndex: { transaction: TransactionDetail | null } }>(src.base, TRANSACTION_QUERY, {
+      d: src.driveId,
+      id,
+    });
+    return data.financeIndex.transaction;
+  }
+  return loadTransaction(src.db, id);
+}
+
+async function fetchMatchCandidates(src: Source, amount: number): Promise<MatchCandidate[]> {
+  if (src.kind === "remote") {
+    const data = await gql<{ financeIndex: { matchCandidates: MatchCandidate[] } }>(src.base, MATCH_QUERY, {
+      d: src.driveId,
+      a: amount,
+    });
+    return data.financeIndex.matchCandidates;
+  }
+  return loadMatchCandidates(src.db, amount);
+}
+
+async function fetchInvoiceNumbers(src: Source, direction: string): Promise<InvoiceNumberRow[]> {
+  if (src.kind === "remote") {
+    const data = await gql<{ financeIndex: { invoiceNumbers: InvoiceNumberRow[] } }>(src.base, NUMBERS_QUERY, {
+      d: src.driveId,
+      dir: direction,
+    });
+    return data.financeIndex.invoiceNumbers;
+  }
+  return (await invoiceNumbersQuery(src.db, direction).execute()).map(toInvoiceNumberRow);
+}
+
+async function fetchNextInvoiceNumber(
+  src: Source,
+  direction: string,
+  nowMs: number,
+  excludeId: string | null,
+): Promise<string> {
+  if (src.kind === "remote") {
+    const data = await gql<{ financeIndex: { nextInvoiceNumber: string } }>(src.base, NEXT_NUMBER_QUERY, {
+      d: src.driveId,
+      dir: direction,
+      n: new Date(nowMs).toISOString(),
+      x: excludeId,
+    });
+    return data.financeIndex.nextInvoiceNumber;
+  }
+  const rows = await invoiceNumbersQuery(src.db, direction).execute();
+  const used = rows.filter((r) => r.document_id !== excludeId).map((r) => r.number ?? "");
+  return nextNumberFrom(used, direction, new Date(nowMs));
+}
+
+async function fetchLatestOurParty(src: Source, direction: string): Promise<OurParty | null> {
+  if (src.kind === "remote") {
+    const data = await gql<{ financeIndex: { latestOurParty: OurParty | null } }>(src.base, OUR_PARTY_QUERY, {
+      d: src.driveId,
+      dir: direction,
+    });
+    return data.financeIndex.latestOurParty;
+  }
+  const row = await latestOurPartyQuery(src.db, direction).executeTakeFirst();
+  return toOurParty(row?.our_party);
+}
+
+async function fetchCounts(src: Source): Promise<FinanceCounts> {
+  if (src.kind === "remote") {
+    const data = await gql<{ financeIndex: { counts: FinanceCounts } }>(src.base, COUNTS_QUERY, {
+      d: src.driveId,
+    });
+    return data.financeIndex.counts;
+  }
+  return loadCounts(src.db);
+}
+
+const EXPENSE_TYPES = [EXPENSE_DOCUMENT_TYPE] as const;
+const CONTACT_TYPES = [CONTACT_DOCUMENT_TYPE] as const;
+/** A contact's aggregates move with its invoices and the accounts' transactions. */
+const CONTACT_ACTIVITY_TYPES = [CONTACT_DOCUMENT_TYPE, INVOICE_DOCUMENT_TYPE, ACCOUNT_DOCUMENT_TYPE] as const;
+/** A transaction's detail names its account and what it is matched to. */
+const TRANSACTION_DETAIL_TYPES = [ACCOUNT_DOCUMENT_TYPE, INVOICE_DOCUMENT_TYPE, EXPENSE_DOCUMENT_TYPE] as const;
+const MATCH_TYPES = [INVOICE_DOCUMENT_TYPE, EXPENSE_DOCUMENT_TYPE] as const;
+const NO_EXPENSES: ExpenseRow[] = [];
+const NO_CONTACTS: ContactRow[] = [];
+const NO_NUMBERS: InvoiceNumberRow[] = [];
+const NO_NAMES = new Map<string, string | null>();
+
+/** Rejects: a hook asked before its source is known (it is not enabled then). */
+const notYet = (): Promise<never> => Promise.reject(new Error("The finance index is not reachable yet"));
+
+export interface ExpenseListFilter {
+  /** Any of these statuses (a board column); every status when empty. */
+  statuses: readonly string[];
+  /** The top bar's search, raw. */
+  query: string;
+}
+
+export type ExpenseList = PagedList<ExpenseRow> & { mode: "remote" | "local" | "unknown" };
+
+/** Expense claims, the latest changed first, filtered in the index and paged where the reader is. */
+export function useExpenseList(filter: ExpenseListFilter, drive?: DocumentDriveDocument): ExpenseList {
+  const sektar = useSektarDrive();
+  const { source, tag, mode } = useFinanceSource(drive ?? sektar);
+  const query = useSettled(filter.query.trim().toLowerCase(), 250);
+  const statuses = filter.statuses.join(",");
+  const key = JSON.stringify([tag, statuses, query]);
+  const fetchPage = useCallback(
+    (page: number) =>
+      source
+        ? fetchExpenses(source, { statuses: statuses ? statuses.split(",") : [], query }, page)
+        : notYet(),
+    [source, statuses, query],
+  );
+  const list = usePagedList<ExpenseRow>({
+    kind: "finance-expenses",
+    key,
+    enabled: source !== null,
+    pageSize: FINANCE_PAGE,
+    fetchPage,
+    refreshDebounceMs: REFRESH_DEBOUNCE_MS,
+  });
+  // a claim submitted or approved moves between columns
+  const { invalidate } = list;
+  useFinanceChanges(source !== null, EXPENSE_TYPES, invalidate);
+  return { ...list, mode };
+}
+
+/** Claims per status with their totals, for the search given; undefined until the index has answered. */
+export function useExpenseCounts(query: string, drive?: DocumentDriveDocument): ExpenseCounts | undefined {
+  const sektar = useSektarDrive();
+  const { source, tag } = useFinanceSource(drive ?? sektar);
+  const settled = useSettled(query.trim().toLowerCase(), 250);
+  return useIndexValue<ExpenseCounts>({
+    key: JSON.stringify(["expense-counts", tag, settled]),
+    enabled: source !== null,
+    fetch: () => (source ? fetchExpenseCounts(source, settled) : notYet()),
+    types: EXPENSE_TYPES,
+  });
+}
+
+/** Receipts spent in the 90 days before `now` (ms), added up; undefined until the index has answered. */
+export function useExpenseSpend(now: number, drive?: DocumentDriveDocument): number | undefined {
+  const sektar = useSektarDrive();
+  const { source, tag } = useFinanceSource(drive ?? sektar);
+  const day = new Date(now).toISOString().slice(0, 10);
+  const nowRef = useRef(now);
+  nowRef.current = now;
+  return useIndexValue<number>({
+    key: JSON.stringify(["expense-spend", tag, day]),
+    enabled: source !== null,
+    fetch: () => (source ? fetchSpend(source, nowRef.current) : notYet()),
+    types: EXPENSE_TYPES,
+  });
+}
+
+/** Claims awaiting approval, the latest changed first: the dashboard's "needs attention". */
+export function useAwaitingClaims(drive?: DocumentDriveDocument): ExpenseRow[] {
+  const sektar = useSektarDrive();
+  const { source, tag } = useFinanceSource(drive ?? sektar);
+  const page = useIndexValue<Page<ExpenseRow>>({
+    key: JSON.stringify(["expense-awaiting", tag]),
+    enabled: source !== null,
+    fetch: () => (source ? fetchExpenses(source, { statuses: ["SUBMITTED"], query: "" }, 0) : notYet()),
+    types: EXPENSE_TYPES,
+  });
+  return page?.items ?? NO_EXPENSES;
+}
+
+export interface ContactListFilter {
+  view: ContactView;
+  /** The top bar's search, raw. */
+  query: string;
+}
+
+export type ContactList = PagedList<ContactRow> & { mode: "remote" | "local" | "unknown" };
+
+/** The Contacts board: by name, with each contact's open invoices and bank activity, paged where the reader is. */
+export function useContactList(filter: ContactListFilter, drive?: DocumentDriveDocument): ContactList {
+  const sektar = useSektarDrive();
+  const { source, tag, mode } = useFinanceSource(drive ?? sektar);
+  const query = useSettled(filter.query.trim().toLowerCase(), 250);
+  const key = JSON.stringify([tag, filter.view, query]);
+  const fetchPage = useCallback(
+    (page: number) => (source ? fetchContacts(source, { view: filter.view, query }, page) : notYet()),
+    [source, filter.view, query],
+  );
+  const list = usePagedList<ContactRow>({
+    kind: "finance-contacts",
+    key,
+    enabled: source !== null,
+    pageSize: FINANCE_PAGE,
+    fetchPage,
+    refreshDebounceMs: REFRESH_DEBOUNCE_MS,
+  });
+  // a rename moves a row; an invoice or a categorise changes the aggregates
+  const { invalidate } = list;
+  useFinanceChanges(source !== null, CONTACT_ACTIVITY_TYPES, invalidate);
+  return { ...list, mode };
+}
+
+/** The Contacts board's filter counts; undefined until the index has answered. */
+export function useContactCounts(drive?: DocumentDriveDocument): ContactCounts | undefined {
+  const sektar = useSektarDrive();
+  const { source, tag } = useFinanceSource(drive ?? sektar);
+  return useIndexValue<ContactCounts>({
+    key: JSON.stringify(["contact-counts", tag]),
+    enabled: source !== null,
+    fetch: () => (source ? fetchContactCounts(source) : notYet()),
+    types: CONTACT_TYPES,
+  });
+}
+
+/**
+ * Every active contact by name, for a picker (a transaction's contact, an
+ * invoice's party, a new invoice's customer); empty until the index has
+ * answered.
+ */
+export function useContactOptions(drive?: DocumentDriveDocument): ContactRow[] {
+  const sektar = useSektarDrive();
+  const { source, tag } = useFinanceSource(drive ?? sektar);
+  const page = useIndexValue<Page<ContactRow>>({
+    key: JSON.stringify(["contact-options", tag]),
+    enabled: source !== null,
+    fetch: () => (source ? fetchContacts(source, { view: "all", query: "" }, 0, ALL_ROWS) : notYet()),
+    types: CONTACT_TYPES,
+  });
+  return page?.items ?? NO_CONTACTS;
+}
+
+/** A contact's aggregates, the invoices that name it and its latest bank activity; undefined until answered. */
+export function useContactActivity(
+  contactId: string | null | undefined,
+  drive?: DocumentDriveDocument,
+): ContactActivity | undefined {
+  const sektar = useSektarDrive();
+  const { source, tag } = useFinanceSource(drive ?? sektar);
+  // overdue is measured at the day's start of asking; a new day asks again
+  const day = new Date().toISOString().slice(0, 10);
+  return useIndexValue<ContactActivity>({
+    key: JSON.stringify(["contact-activity", tag, contactId ?? "", day]),
+    enabled: source !== null && !!contactId,
+    fetch: () => (source && contactId ? fetchContactActivity(source, contactId, isoNow(Date.now())) : notYet()),
+    types: CONTACT_ACTIVITY_TYPES,
+  });
+}
+
+/** The names of the contacts asked for, by id (absent until the index has answered). */
+export function useContactNames(
+  ids: readonly string[],
+  drive?: DocumentDriveDocument,
+): ReadonlyMap<string, string | null> {
+  const sektar = useSektarDrive();
+  const { source, tag } = useFinanceSource(drive ?? sektar);
+  const wanted = [...new Set(ids)].sort().join(",");
+  const names = useIndexValue<ContactName[]>({
+    key: JSON.stringify(["contact-names", tag, wanted]),
+    enabled: source !== null && wanted !== "",
+    fetch: () => (source ? fetchContactNames(source, wanted.split(",")) : notYet()),
+    types: CONTACT_TYPES,
+  });
+  return useMemo(
+    () => (names ? new Map(names.map((c) => [c.id, c.name])) : NO_NAMES),
+    [names],
+  );
+}
+
+/**
+ * One transaction for its detail: the index row with its account and what
+ * it is matched to. `row` is undefined while asked, null when the index
+ * does not hold it. `patch` shows a change this tab made until the index
+ * agrees (or a while has passed).
+ */
+export function useTransactionDetail(
+  id: string | null | undefined,
+  drive?: DocumentDriveDocument,
+): {
+  row: TransactionDetail | null | undefined;
+  patch: (change: Partial<TransactionDetail>) => void;
+} {
+  const sektar = useSektarDrive();
+  const { source, tag } = useFinanceSource(drive ?? sektar);
+  const [overlay, setOverlay] = useState<{ id: string; change: Partial<TransactionDetail>; at: number } | null>(null);
+  const fetched = useIndexValue<TransactionDetail | null>({
+    key: JSON.stringify(["transaction", tag, id ?? ""]),
+    enabled: source !== null && !!id,
+    fetch: () => (source && id ? fetchTransaction(source, id) : notYet()),
+    types: TRANSACTION_DETAIL_TYPES,
+    trigger: overlay?.at,
+  });
+  const patch = useCallback(
+    (change: Partial<TransactionDetail>) => {
+      if (!id) return;
+      setOverlay((prev) => ({
+        id,
+        change: { ...(prev?.id === id ? prev.change : {}), ...change },
+        at: Date.now(),
+      }));
+    },
+    [id],
+  );
+  // the patch has had its time: the index row stands on its own
+  useEffect(() => {
+    if (!overlay) return;
+    const timer = setTimeout(() => setOverlay(null), PATCH_TTL_MS);
+    return () => clearTimeout(timer);
+  }, [overlay]);
+  const row = useMemo((): TransactionDetail | null | undefined => {
+    if (!id || fetched === undefined) return undefined;
+    if (fetched === null) return null;
+    // the previous transaction's answer, kept while this one is asked
+    if (fetched.id !== id) return undefined;
+    if (!overlay || overlay.id !== id) return fetched;
+    const fields = Object.keys(overlay.change) as (keyof TransactionDetail)[];
+    if (fields.every((k) => fetched[k] === overlay.change[k])) return fetched;
+    return { ...fetched, ...overlay.change };
+  }, [fetched, overlay, id]);
+  return { row, patch };
+}
+
+/** What a transaction of `amount` could settle, closest first; undefined until answered. */
+export function useMatchCandidates(
+  amount: number | null,
+  drive?: DocumentDriveDocument,
+): MatchCandidate[] | undefined {
+  const sektar = useSektarDrive();
+  const { source, tag } = useFinanceSource(drive ?? sektar);
+  return useIndexValue<MatchCandidate[]>({
+    key: JSON.stringify(["match-candidates", tag, amount]),
+    enabled: source !== null && amount !== null,
+    fetch: () => (source && amount !== null ? fetchMatchCandidates(source, amount) : notYet()),
+    types: MATCH_TYPES,
+  });
+}
+
+/** Every numbered invoice in a direction, highest first; empty until the index has answered. */
+export function useInvoiceNumbers(direction: string, drive?: DocumentDriveDocument): InvoiceNumberRow[] {
+  const sektar = useSektarDrive();
+  const { source, tag } = useFinanceSource(drive ?? sektar);
+  const rows = useIndexValue<InvoiceNumberRow[]>({
+    key: JSON.stringify(["invoice-numbers", tag, direction]),
+    enabled: source !== null,
+    fetch: () => (source ? fetchInvoiceNumbers(source, direction) : notYet()),
+    types: INVOICE_TYPES,
+  });
+  return rows ?? NO_NUMBERS;
+}
+
+/** The next number in a direction's sequence, leaving `excludeId` out; undefined until answered. */
+export function useNextInvoiceNumber(
+  direction: string,
+  excludeId: string | null,
+  drive?: DocumentDriveDocument,
+): string | undefined {
+  const sektar = useSektarDrive();
+  const { source, tag } = useFinanceSource(drive ?? sektar);
+  const year = new Date().getUTCFullYear();
+  return useIndexValue<string>({
+    key: JSON.stringify(["next-number", tag, direction, excludeId, year]),
+    enabled: source !== null,
+    fetch: () => (source ? fetchNextInvoiceNumber(source, direction, Date.now(), excludeId) : notYet()),
+    types: INVOICE_TYPES,
+  });
+}
+
+/**
+ * Our details as the latest invoice in that direction has them (there is no
+ * company profile yet); null when no invoice names them, undefined until
+ * the index has answered.
+ */
+export function useLatestOurParty(direction: string, drive?: DocumentDriveDocument): OurParty | null | undefined {
+  const sektar = useSektarDrive();
+  const { source, tag } = useFinanceSource(drive ?? sektar);
+  return useIndexValue<OurParty | null>({
+    key: JSON.stringify(["our-party", tag, direction]),
+    enabled: source !== null,
+    fetch: () => (source ? fetchLatestOurParty(source, direction) : notYet()),
+    types: INVOICE_TYPES,
+  });
+}
+
+/** How many accounts, invoices, claims and contacts the books hold; undefined until answered. */
+export function useFinanceCounts(drive?: DocumentDriveDocument): FinanceCounts | undefined {
+  const sektar = useSektarDrive();
+  const { source, tag } = useFinanceSource(drive ?? sektar);
+  return useIndexValue<FinanceCounts>({
+    key: JSON.stringify(["counts", tag]),
+    enabled: source !== null,
+    fetch: () => (source ? fetchCounts(source) : notYet()),
+    types: FINANCE_DOCUMENT_TYPES,
+  });
+}
+
+/** A contact as an invoice party, from its index row: the fields an invoice copies (`partyFromContact`). */
+export function partyFromContactRow(c: ContactRow): SetBuyerInput {
+  return {
+    name: c.name,
+    contactId: c.id,
+    email: c.email,
+    phone: c.phone,
+    vatId: c.vatId,
+    registrationId: c.registrationNumber,
+    street: c.street,
+    postalCode: c.postalCode,
+    city: c.city,
+    country: c.country,
+  };
+}
+
+export function contactKindOf(value: string): ContactKind {
+  return value in CONTACT_KIND ? (value as ContactKind) : "OTHER";
+}
+
+export function expenseStatusOf(value: string): ExpenseStatus {
+  return value in EXPENSE_STATUS ? (value as ExpenseStatus) : "DRAFT";
 }

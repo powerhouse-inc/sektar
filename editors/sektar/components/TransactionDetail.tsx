@@ -1,45 +1,67 @@
 // One bank/card transaction with the bookkeeping controls: categorise, link
 // a contact, match to an open invoice or approved claim, or exclude it.
 //
-// The writes dispatch on the account document. The Transactions board lists
-// transactions from the finance index and loads just the one account the
-// open transaction belongs to (`useAccountTransaction`); `onChanged` tells it
-// what a write changed, so its row follows before the index catches up.
-import {
-  useBankAccountDocumentById,
-  type MatchKind,
-  type Transaction,
-  type TransactionCategory,
-  type TransactionStatus,
+// The writes dispatch on the account document by id, without loading it.
+// The Transactions board shows the transaction from the finance index
+// (`useTransactionDetail`), the bank-account editor from its open document;
+// `onChanged` tells the board what a write changed, so its rows follow
+// before the index catches up. The contact picker and the match candidates
+// come from the index too.
+import type {
+  AccountKind,
+  MatchKind,
+  TransactionCategory,
+  TransactionStatus,
 } from "document-models/bank-account";
-import { useMemo } from "react";
 import {
   categorizeTransaction,
   excludeTransaction,
   matchTransaction,
   recordPayment,
   unmatchTransaction,
-  useContacts,
-  useExpenseReports,
-  useInvoices,
-  type TransactionRow,
 } from "../kit/data.js";
+import {
+  categoryOf,
+  useContactOptions,
+  useMatchCandidates,
+  useTransactionDetail,
+} from "../kit/finance-index.js";
 import {
   CATEGORY,
   CATEGORY_ORDER,
-  expenseReimbursable,
   fmtDate,
-  counterparty,
-  invoiceTotals,
   money,
   TX_STATUS,
 } from "../kit/format.js";
 import { Badge, Button, Dl, Field, Icon, Select } from "../kit/ui.js";
 
+/** What the detail shows of a transaction: an index row or the document's own. */
+export interface TransactionView {
+  id: string;
+  bookedAt: string;
+  counterparty: string;
+  description?: string | null;
+  reference?: string | null;
+  category: TransactionCategory;
+  status: TransactionStatus;
+  amount: number;
+  contactId?: string | null;
+  matchedDocumentId?: string | null;
+  matchedKind?: MatchKind | null;
+}
+
+/** What the detail shows of the account that holds it. */
+export interface AccountView {
+  id: string;
+  name?: string | null;
+  currency: string;
+  kind: AccountKind;
+}
+
 export function TransactionStatusBadge({
   status,
 }: {
-  status: TransactionRow["tx"]["status"];
+  status: TransactionStatus;
 }) {
   const { label, tone } = TX_STATUS[status];
   return (
@@ -68,90 +90,45 @@ function statusUnsettled(category: TransactionCategory): TransactionStatus {
   return category === "UNCATEGORIZED" ? "NEW" : "CATEGORIZED";
 }
 
-/**
- * One transaction with its account document, loaded by id: the account is
- * the one document the detail needs (its writes dispatch on it). Undefined
- * while it loads, or when the account does not hold the transaction.
- */
-export function useAccountTransaction(
-  accountId: string | null | undefined,
-  transactionId: string | null | undefined,
-): TransactionRow | undefined {
-  const [account] = useBankAccountDocumentById(accountId);
-  return useMemo(() => {
-    if (!account || !transactionId) return undefined;
-    const tx: Transaction | undefined = account.state.global.transactions.find(
-      (t) => t.id === transactionId,
-    );
-    return tx ? { tx, account } : undefined;
-  }, [account, transactionId]);
-}
+/** A candidate's kind as the match action takes it. */
+const candidateKind = (kind: string): MatchKind =>
+  kind === "EXPENSE" ? "EXPENSE" : "INVOICE";
 
 export function TransactionDetail({
-  row,
+  tx,
+  account,
+  matchedLabel,
   onChanged,
 }: {
-  row: TransactionRow;
+  tx: TransactionView;
+  account: AccountView;
+  /**
+   * What the transaction is matched to, as the index names it. Left out
+   * (the bank-account editor), the detail asks the index itself.
+   */
+  matchedLabel?: string | null;
   /** Called after each write with what it changed. */
   onChanged?: (change: TransactionChange) => void;
 }) {
-  const { tx, account } = row;
   const changed = (change: TransactionChange) => onChanged?.(change);
-  const accountId = account.header.id;
-  const currency = account.state.global.currency;
-  const contacts = useContacts().filter(
-    (c) => c.state.global.status === "ACTIVE",
+  const accountId = account.id;
+  const currency = account.currency;
+  const contacts = useContactOptions();
+  const contact = contacts.find((c) => c.id === tx.contactId);
+  const indexed = useTransactionDetail(
+    matchedLabel === undefined && tx.matchedDocumentId ? tx.id : null,
   );
-  const invoices = useInvoices();
-  const reports = useExpenseReports();
-  const contact = contacts.find((c) => c.header.id === tx.contactId);
 
   // Candidates: open invoices in the same direction as the money, approved
-  // claims for outflows. Sorted by how close the amount is.
-  const candidates = useMemo(() => {
-    const amount = Math.abs(tx.amount);
-    const inv = invoices
-      .filter((i) => i.state.global.status === "OPEN")
-      .filter((i) =>
-        tx.amount > 0
-          ? i.state.global.direction === "OUTGOING"
-          : i.state.global.direction === "INCOMING",
-      )
-      .map((i) => {
-        const t = invoiceTotals(i.state.global);
-        return {
-          kind: "INVOICE" as const,
-          id: i.header.id,
-          label: `${i.state.global.number ?? "Draft"} · ${counterparty(i.state.global).name ?? ""}`,
-          amount: t.outstanding,
-          distance: Math.abs(t.outstanding - amount),
-        };
-      });
-    const exp =
-      tx.amount < 0
-        ? reports
-            .filter(
-              (r) =>
-                r.state.global.status === "APPROVED" ||
-                r.state.global.status === "SUBMITTED",
-            )
-            .map((r) => ({
-              kind: "EXPENSE" as const,
-              id: r.header.id,
-              label: `${r.state.global.title ?? "Claim"} · ${r.state.global.submitter.name ?? ""}`,
-              amount: expenseReimbursable(r.state.global),
-              distance: Math.abs(expenseReimbursable(r.state.global) - amount),
-            }))
-        : [];
-    return [...inv, ...exp].sort((a, b) => a.distance - b.distance).slice(0, 8);
-  }, [invoices, reports, tx.amount]);
+  // or submitted claims for outflows, closest amount first (the index
+  // sorts them); asked only while there is something to match.
+  const matchable = tx.status !== "MATCHED" && tx.status !== "EXCLUDED";
+  const candidates = useMatchCandidates(matchable ? tx.amount : null) ?? [];
 
   const matched = tx.matchedDocumentId
-    ? tx.matchedKind === "INVOICE"
-      ? (invoices.find((i) => i.header.id === tx.matchedDocumentId)?.state
-          .global.number ?? "Invoice")
-      : (reports.find((r) => r.header.id === tx.matchedDocumentId)?.state.global
-          .title ?? "Expense claim")
+    ? (matchedLabel ??
+      indexed.row?.matchedLabel ??
+      (tx.matchedKind === "INVOICE" ? "Invoice" : "Expense claim"))
     : null;
 
   return (
@@ -195,7 +172,7 @@ export function TransactionDetail({
           { label: "Booked", value: fmtDate(tx.bookedAt) },
           { label: "Counterparty", value: tx.counterparty },
           { label: "Description", value: tx.description ?? "—" },
-          { label: "Account", value: account.state.global.name ?? "—" },
+          { label: "Account", value: account.name ?? "—" },
           {
             label: "Bank reference",
             value: (
@@ -229,12 +206,10 @@ export function TransactionDetail({
             <Select
               value={tx.contactId ?? ""}
               onChange={(e) => {
-                const next = contacts.find(
-                  (c) => c.header.id === e.target.value,
-                );
+                const next = contacts.find((c) => c.id === e.target.value);
                 const category =
                   tx.category === "UNCATEGORIZED" && next
-                    ? next.state.global.defaultCategory
+                    ? categoryOf(next.defaultCategory)
                     : tx.category;
                 const contactId = e.target.value || null;
                 void categorizeTransaction(
@@ -252,8 +227,8 @@ export function TransactionDetail({
             >
               <option value="">— none —</option>
               {contacts.map((c) => (
-                <option key={c.header.id} value={c.header.id}>
-                  {c.state.global.name}
+                <option key={c.id} value={c.id}>
+                  {c.name}
                 </option>
               ))}
             </Select>
@@ -316,17 +291,18 @@ export function TransactionDetail({
                           await recordPayment(
                             c.id,
                             Math.min(Math.abs(tx.amount), c.amount),
-                            account.state.global.kind === "CREDIT_CARD"
+                            account.kind === "CREDIT_CARD"
                               ? "CARD"
                               : "BANK_TRANSFER",
                             { paidAt: tx.bookedAt, transactionId: tx.id },
                           );
                         }
-                        await matchTransaction(accountId, tx.id, c.id, c.kind);
+                        const kind = candidateKind(c.kind);
+                        await matchTransaction(accountId, tx.id, c.id, kind);
                         changed({
                           status: "MATCHED",
                           matchedDocumentId: c.id,
-                          matchedKind: c.kind,
+                          matchedKind: kind,
                         });
                       })();
                     }}
@@ -341,8 +317,8 @@ export function TransactionDetail({
       )}
       {contact && (
         <div className="sk-caption">
-          Default category for {contact.state.global.name}:{" "}
-          {CATEGORY[contact.state.global.defaultCategory].label}
+          Default category for {contact.name}:{" "}
+          {CATEGORY[categoryOf(contact.defaultCategory)].label}
         </div>
       )}
     </div>

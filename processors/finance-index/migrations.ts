@@ -1,10 +1,12 @@
-import type { IRelationalDb } from "@powerhousedao/reactor-browser";
+import type { Kysely } from "kysely";
 import type { DB } from "./schema.js";
 
 const money = "double precision";
 const stamp = "varchar(64)";
 
-export async function up(db: IRelationalDb<DB>): Promise<void> {
+// A plain Kysely is enough here: the processor passes its namespaced handle,
+// the tests a database of their own.
+export async function up(db: Kysely<DB>): Promise<void> {
   await db.schema
     .createTable("invoice_index")
     .addColumn("document_id", "varchar(255)", (c) => c.primaryKey())
@@ -130,9 +132,104 @@ export async function up(db: IRelationalDb<DB>): Promise<void> {
     .columns(["category", "booked_at desc"])
     .ifNotExists()
     .execute();
+
+  // Added with the expense and contact tables. Every statement here runs on
+  // each start, so a store made before them gains them in place; their rows
+  // fill as their documents change (or on a replay).
+  await db.schema
+    .alterTable("invoice_index")
+    .addColumn("our_party", "text", (c) => c.ifNotExists())
+    .execute();
+  // A contact's open invoices and its bank activity.
+  await db.schema
+    .createIndex("invoice_index_by_contact")
+    .on("invoice_index")
+    .columns(["counterparty_contact_id", "status"])
+    .ifNotExists()
+    .execute();
+  await db.schema
+    .createIndex("transaction_index_by_contact")
+    .on("transaction_index")
+    .columns(["contact_id", "booked_at desc"])
+    .ifNotExists()
+    .execute();
+
+  await db.schema
+    .createTable("expense_index")
+    .addColumn("document_id", "varchar(255)", (c) => c.primaryKey())
+    .addColumn("title", "text")
+    .addColumn("submitter_name", "text")
+    .addColumn("submitter_email", "text")
+    .addColumn("status", "varchar(16)", (c) => c.notNull())
+    .addColumn("currency", "varchar(8)", (c) => c.notNull())
+    .addColumn("total", money, (c) => c.notNull().defaultTo(0))
+    .addColumn("reimbursable", money, (c) => c.notNull().defaultTo(0))
+    .addColumn("vat_total", money, (c) => c.notNull().defaultTo(0))
+    .addColumn("item_count", "integer", (c) => c.notNull().defaultTo(0))
+    .addColumn("categories", "text", (c) => c.notNull().defaultTo(""))
+    .addColumn("first_spent_at", stamp)
+    .addColumn("submitted_at", stamp)
+    .addColumn("decided_at", stamp)
+    .addColumn("reimbursed_at", stamp)
+    .addColumn("created_at", stamp, (c) => c.notNull())
+    .addColumn("search_text", "text", (c) => c.notNull().defaultTo(""))
+    .addColumn("updated_at", stamp, (c) => c.notNull())
+    .ifNotExists()
+    .execute();
+  // The board's columns, latest changed first.
+  await db.schema
+    .createIndex("expense_index_by_status")
+    .on("expense_index")
+    .columns(["status", "updated_at desc"])
+    .ifNotExists()
+    .execute();
+
+  await db.schema
+    .createTable("expense_item_index")
+    .addColumn("report_id", "varchar(255)", (c) => c.notNull())
+    .addColumn("id", "varchar(255)", (c) => c.notNull())
+    .addColumn("spent_at", stamp, (c) => c.notNull())
+    .addColumn("amount", money, (c) => c.notNull().defaultTo(0))
+    .addColumn("category", "varchar(32)", (c) => c.notNull())
+    .addColumn("paid_with", "varchar(16)", (c) => c.notNull())
+    .addPrimaryKeyConstraint("expense_item_index_pk", ["report_id", "id"])
+    .ifNotExists()
+    .execute();
+  await db.schema
+    .createIndex("expense_item_index_by_spent")
+    .on("expense_item_index")
+    .column("spent_at")
+    .ifNotExists()
+    .execute();
+
+  await db.schema
+    .createTable("contact_index")
+    .addColumn("document_id", "varchar(255)", (c) => c.primaryKey())
+    .addColumn("name", "text")
+    .addColumn("kind", "varchar(16)", (c) => c.notNull())
+    .addColumn("status", "varchar(16)", (c) => c.notNull())
+    .addColumn("email", "text")
+    .addColumn("phone", "text")
+    .addColumn("website", "text")
+    .addColumn("vat_id", "text")
+    .addColumn("registration_number", "text")
+    .addColumn("street", "text")
+    .addColumn("postal_code", "text")
+    .addColumn("city", "text")
+    .addColumn("country", "text")
+    .addColumn("payment_terms_days", "integer", (c) => c.notNull().defaultTo(0))
+    .addColumn("default_category", "varchar(32)", (c) => c.notNull())
+    .addColumn("tags", "text", (c) => c.notNull().defaultTo("[]"))
+    .addColumn("search_text", "text", (c) => c.notNull().defaultTo(""))
+    .addColumn("updated_at", stamp, (c) => c.notNull())
+    .ifNotExists()
+    .execute();
 }
 
-export async function down(db: IRelationalDb<DB>): Promise<void> {
+export async function down(db: Kysely<DB>): Promise<void> {
+  await db.schema.dropTable("contact_index").ifExists().execute();
+  await db.schema.dropTable("expense_item_index").ifExists().execute();
+  await db.schema.dropTable("expense_index").ifExists().execute();
   await db.schema.dropTable("transaction_index").ifExists().execute();
   await db.schema.dropTable("account_index").ifExists().execute();
   await db.schema.dropTable("invoice_index").ifExists().execute();

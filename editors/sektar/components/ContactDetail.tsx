@@ -1,5 +1,7 @@
 // One contact: profile, address, bank details, terms, tags, people, and the
-// invoices and transactions that reference it.
+// invoices and transactions that reference it. The contact is the one
+// document loaded; its invoices and bank activity come from the finance
+// index.
 import type { TransactionCategory } from "document-models/bank-account";
 import type { ContactDocument, ContactKind } from "document-models/contact";
 import { useState } from "react";
@@ -13,17 +15,19 @@ import {
   setContactBank,
   setContactProfile,
   setContactTerms,
-  useInvoices,
-  useTransactions,
+  useSektarDrive,
 } from "../kit/data.js";
+import {
+  useAccountRows,
+  useContactActivity,
+  type InvoiceRow,
+  type TransactionRow,
+} from "../kit/finance-index.js";
 import {
   CATEGORY,
   CATEGORY_ORDER,
   CONTACT_KIND,
   fmtDate,
-  counterparty,
-  bookTotals,
-  invoiceTotals,
   money,
   plural,
 } from "../kit/format.js";
@@ -39,12 +43,16 @@ import {
   Table,
   Textarea,
 } from "../kit/ui.js";
-import { InvoiceStatusBadge } from "./InvoiceDetail.js";
+import { InvoiceRowStatusBadge } from "./InvoiceDetail.js";
 
-export function ContactKindBadge({ doc }: { doc: ContactDocument }) {
-  const { label, tone } = CONTACT_KIND[doc.state.global.kind];
+/** The relationship; the board passes its index row's kind, the detail its document's. */
+export function ContactKindBadge({ kind }: { kind: ContactKind }) {
+  const { label, tone } = CONTACT_KIND[kind];
   return <Badge tone={tone}>{label}</Badge>;
 }
+
+const NO_INVOICES: InvoiceRow[] = [];
+const NO_TRANSACTIONS: TransactionRow[] = [];
 
 export function ContactDetail({
   doc,
@@ -55,18 +63,16 @@ export function ContactDetail({
 }) {
   const s = doc.state.global;
   const id = doc.header.id;
-  const invoices = useInvoices().filter(
-    (i) => counterparty(i.state.global).contactId === id,
-  );
-  const transactions = useTransactions().filter(
-    ({ tx }) => tx.contactId === id,
-  );
+  const drive = useSektarDrive();
+  const activity = useContactActivity(id, drive);
+  const invoices = activity?.invoices ?? NO_INVOICES;
+  const transactions = activity?.transactions ?? NO_TRANSACTIONS;
+  const accounts = useAccountRows(drive);
+  const accountName = (accountId: string) =>
+    accounts.find((a) => a.id === accountId)?.name;
   const [editing, setEditing] = useState(false);
-  const open = invoices.filter((i) => i.state.global.status === "OPEN");
-  const openTotal = open.reduce(
-    (sum, i) => sum + bookTotals(i.state.global).outstanding,
-    0,
-  );
+  const open = invoices.filter((i) => i.status === "OPEN");
+  const openTotal = open.reduce((sum, i) => sum + i.bookOutstanding, 0);
 
   return (
     <div className="sk-stack sk-stack--6">
@@ -85,7 +91,7 @@ export function ContactDetail({
         }
         tags={
           <>
-            <ContactKindBadge doc={doc} />
+            <ContactKindBadge kind={s.kind} />
             {s.status === "ARCHIVED" && <Badge tone="neutral">Archived</Badge>}
             {s.tags.map((t) => (
               <Badge key={t} tone="outline">
@@ -224,29 +230,18 @@ export function ContactDetail({
             <tbody>
               {invoices.map((inv) => (
                 <tr
-                  key={inv.header.id}
+                  key={inv.id}
                   onClick={
-                    onOpenInvoice
-                      ? () => onOpenInvoice(inv.header.id)
-                      : undefined
+                    onOpenInvoice ? () => onOpenInvoice(inv.id) : undefined
                   }
                   style={onOpenInvoice ? { cursor: "pointer" } : undefined}
                 >
-                  <td className="sk-weight-medium">
-                    {inv.state.global.number ?? "Draft"}
-                  </td>
-                  <td className="is-muted">
-                    {fmtDate(inv.state.global.issuedAt)}
-                  </td>
+                  <td className="sk-weight-medium">{inv.number ?? "Draft"}</td>
+                  <td className="is-muted">{fmtDate(inv.issuedAt)}</td>
                   <td>
-                    <InvoiceStatusBadge doc={inv} />
+                    <InvoiceRowStatusBadge row={inv} />
                   </td>
-                  <td className="is-num">
-                    {money(
-                      invoiceTotals(inv.state.global).gross,
-                      inv.state.global.currency,
-                    )}
-                  </td>
+                  <td className="is-num">{money(inv.gross, inv.currency)}</td>
                 </tr>
               ))}
             </tbody>
@@ -267,19 +262,17 @@ export function ContactDetail({
               </tr>
             </thead>
             <tbody>
-              {transactions.slice(0, 8).map(({ tx, account }) => (
+              {transactions.slice(0, 8).map((tx) => (
                 <tr key={tx.id}>
                   <td className="is-muted sk-nowrap">{fmtDate(tx.bookedAt)}</td>
                   <td>{tx.description ?? tx.counterparty}</td>
-                  <td className="is-muted">{account.state.global.name}</td>
+                  <td className="is-muted">{accountName(tx.accountId)}</td>
                   <td
                     className={
                       tx.amount > 0 ? "is-num sk-amount--in" : "is-num"
                     }
                   >
-                    {money(tx.amount, account.state.global.currency, {
-                      signed: true,
-                    })}
+                    {money(tx.amount, tx.currency, { signed: true })}
                   </td>
                 </tr>
               ))}

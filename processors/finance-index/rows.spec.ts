@@ -5,6 +5,11 @@
  * `.spec.ts` so codegen never claims the filename.
  */
 import type { BankAccountState, Transaction } from "document-models/bank-account";
+import { utils as contactUtils, type ContactState } from "document-models/contact";
+import {
+  utils as expenseUtils,
+  type ExpenseReportState,
+} from "document-models/expense-report";
 import {
   addAttachment,
   addLine,
@@ -25,6 +30,8 @@ import {
   BOOK_CURRENCY as KIT_BOOK_CURRENCY,
   CATEGORY,
   bookTotals,
+  expenseReimbursable,
+  expenseTotal,
   invoiceTotals,
 } from "../../editors/sektar/kit/format.js";
 import {
@@ -32,7 +39,9 @@ import {
   searchWords,
   toDashboardStats,
   toInvoiceCounts,
+  toContactRow,
   toInvoiceRow,
+  toOurParty,
   toTransactionCounts,
 } from "./queries.js";
 import {
@@ -40,11 +49,16 @@ import {
   accountState,
   BOOK_CURRENCY,
   CATEGORY_LABEL,
+  contactRow,
+  contactState,
   diffTransactions,
+  expenseRows,
+  expenseState,
   invoiceAmounts,
   invoiceRow,
   invoiceState,
   numberSortKey,
+  ourPartyOf,
   parseState,
 } from "./rows.js";
 
@@ -417,5 +431,166 @@ describe("queries' folds", () => {
     expect(stats.categorisedPct).toBe(100);
     expect(stats.matchedPct).toBe(100);
     expect(stats.issuedPct).toBe(100);
+  });
+});
+
+/* ------------------------------------------------- claims, contacts, ours */
+
+const claim = (over: Partial<ExpenseReportState> = {}): ExpenseReportState => ({
+  ...expenseUtils.createDocument().state.global,
+  title: "Berlin trip",
+  submitter: { name: "Mila Jansen", email: "mila@juniper.studio" },
+  status: "SUBMITTED",
+  currency: "EUR",
+  items: [
+    {
+      id: "i1",
+      spentAt: "2026-10-03T00:00:00.000Z",
+      merchant: "Deutsche Bahn",
+      category: "TRAVEL",
+      amount: 120.4,
+      vatAmount: 7.88,
+      paidWith: "PERSONAL",
+      receiptName: null,
+      note: null,
+      contactId: null,
+    },
+    {
+      id: "i2",
+      spentAt: "2026-10-04T00:00:00.000Z",
+      merchant: "Hotel Adlon",
+      category: "TRAVEL",
+      amount: 310.15,
+      vatAmount: 20.3,
+      paidWith: "COMPANY_CARD",
+      receiptName: null,
+      note: null,
+      contactId: null,
+    },
+    {
+      id: "i3",
+      spentAt: "2026-10-04T00:00:00.000Z",
+      merchant: "Kiosk",
+      category: "OTHER",
+      amount: 4.2,
+      vatAmount: 0,
+      paidWith: "CASH",
+      receiptName: null,
+      note: null,
+      contactId: null,
+    },
+  ],
+  ...over,
+});
+
+describe("a claim's rows", () => {
+  it("adds up as the board does and keeps every receipt", () => {
+    const state = claim();
+    const { report, items } = expenseRows("exp-1", state, CREATED, AT);
+    expect(report).toMatchObject({
+      document_id: "exp-1",
+      title: "Berlin trip",
+      submitter_name: "Mila Jansen",
+      submitter_email: "mila@juniper.studio",
+      status: "SUBMITTED",
+      currency: "EUR",
+      total: expenseTotal(state),
+      reimbursable: expenseReimbursable(state),
+      vat_total: 28.18,
+      item_count: 3,
+      categories: "TRAVEL,OTHER",
+      first_spent_at: "2026-10-03T00:00:00.000Z",
+      created_at: CREATED,
+      updated_at: AT,
+    });
+    expect(report.search_text).toContain("hotel adlon");
+    expect(report.search_text).toContain("mila jansen");
+    expect(items.map((i) => [i.report_id, i.id, i.amount, i.paid_with])).toEqual([
+      ["exp-1", "i1", 120.4, "PERSONAL"],
+      ["exp-1", "i2", 310.15, "COMPANY_CARD"],
+      ["exp-1", "i3", 4.2, "CASH"],
+    ]);
+  });
+
+  it("has no first date and no categories without receipts", () => {
+    const { report, items } = expenseRows("exp-2", claim({ items: [] }), CREATED, AT);
+    expect(report).toMatchObject({ total: 0, item_count: 0, categories: "", first_spent_at: null });
+    expect(items).toEqual([]);
+  });
+
+  it("is not built from a state that is no claim", () => {
+    expect(expenseState({ items: [] })).toBeNull();
+    expect(expenseState({ ...claim() })).not.toBeNull();
+  });
+});
+
+describe("a contact's row", () => {
+  it("takes what the board, the pickers and the invoice party need", () => {
+    const state: ContactState = {
+      ...contactUtils.createDocument().state.global,
+      name: "Maple & Finch",
+      kind: "CUSTOMER",
+      email: "hello@maple.nl",
+      vatId: "NL123",
+      registrationNumber: "KVK 55",
+      address: { street: "Keizersgracht 1", postalCode: "1015", city: "Amsterdam", country: "NL" },
+      paymentTermsDays: 14,
+      defaultCategory: "SALES",
+      tags: ["retainer", "photo"],
+    };
+    const row = contactRow("c-1", state, AT);
+    expect(row).toMatchObject({
+      document_id: "c-1",
+      name: "Maple & Finch",
+      kind: "CUSTOMER",
+      status: "ACTIVE",
+      email: "hello@maple.nl",
+      vat_id: "NL123",
+      registration_number: "KVK 55",
+      street: "Keizersgracht 1",
+      postal_code: "1015",
+      city: "Amsterdam",
+      country: "NL",
+      payment_terms_days: 14,
+      default_category: "SALES",
+      updated_at: AT,
+    });
+    expect(JSON.parse(row.tags)).toEqual(["retainer", "photo"]);
+    expect(row.search_text).toContain("amsterdam");
+    expect(row.search_text).toContain("retainer");
+    expect(toContactRow(row)).toMatchObject({ id: "c-1", tags: ["retainer", "photo"], openInvoiceCount: 0 });
+  });
+
+  it("is not built from a state that is no contact", () => {
+    expect(contactState({ tags: [] })).toBeNull();
+    expect(contactState({ ...contactUtils.createDocument().state.global })).not.toBeNull();
+  });
+});
+
+describe("our side of an invoice", () => {
+  it("is the seller of a sale and the buyer of a bill, without the contact link", () => {
+    const party = ourPartyOf(sale().state.global);
+    expect(party && toOurParty(party)).toMatchObject({ name: "Sektar", street: null });
+    expect(party).not.toContain("contactId");
+    const bill = apply(
+      utils.createDocument(),
+      setHeader({ direction: "INCOMING" }),
+      setBuyer({ name: "Juniper Studio", contactId: "me", vatId: "NL999" }),
+      setSeller({ name: "Supplier" }),
+    );
+    expect(toOurParty(ourPartyOf(bill.state.global))).toMatchObject({ name: "Juniper Studio", vatId: "NL999" });
+  });
+
+  it("is null while our side has no name", () => {
+    const draft = apply(utils.createDocument(), setHeader({ direction: "OUTGOING" }));
+    expect(ourPartyOf(draft.state.global)).toBeNull();
+    expect(toOurParty(null)).toBeNull();
+    expect(toOurParty("not json")).toBeNull();
+  });
+
+  it("is on the invoice's row", () => {
+    expect(invoiceRow("inv-1", sale().state.global, CREATED, AT).our_party).toBe(
+      ourPartyOf(sale().state.global),
+    );
   });
 });

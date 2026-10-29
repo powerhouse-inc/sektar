@@ -299,7 +299,15 @@ export default function Editor() {
             subtitle={`${s.name ?? "Account"} · ${fmtDate(selected.bookedAt)}`}
             onClose={() => setSelectedId(null)}
           >
-            <TransactionDetail row={{ tx: selected, account: document }} />
+            <TransactionDetail
+              tx={selected}
+              account={{
+                id: document.header.id,
+                name: s.name,
+                currency: s.currency,
+                kind: s.kind,
+              }}
+            />
           </SidePanel>
         )}
       </div>

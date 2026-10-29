@@ -1,6 +1,6 @@
 /**
- * The finance index: one lean row per invoice, per bank account and per
- * transaction.
+ * The finance index: one lean row per invoice, per bank account, per
+ * transaction, per expense claim (and its receipts) and per contact.
  *
  * The Finances dashboard, the Invoices list and the Transactions table show
  * rows and sums, never whole documents. An account document carries every
@@ -63,6 +63,12 @@ export interface InvoiceRow {
   lines_missing_attachments: number;
   /** The last payment's date, as the row's "paid …" shows it. */
   last_paid_at: string | null;
+  /**
+   * Our side of the invoice (the seller of a sale, the buyer of a bill) as
+   * JSON, without its contact link; null while it has no name. A new invoice
+   * starts from the latest one's (there is no company profile yet).
+   */
+  our_party: string | null;
   /** Lower-cased haystack: number, counterparty, subject, buyer reference, gross. */
   search_text: string;
   updated_at: string;
@@ -111,8 +117,76 @@ export interface TransactionRow {
   search_text: string;
 }
 
+export interface ExpenseRow {
+  document_id: string;
+  title: string | null;
+  submitter_name: string | null;
+  submitter_email: string | null;
+  /** DRAFT | SUBMITTED | APPROVED | REJECTED | REIMBURSED */
+  status: string;
+  currency: string;
+  /** Every item's amount, as `expenseTotal` adds it. */
+  total: number;
+  /** Items paid personally or in cash: what is owed back (`expenseReimbursable`). */
+  reimbursable: number;
+  vat_total: number;
+  item_count: number;
+  /** The items' categories, distinct, in item order, comma-separated. */
+  categories: string;
+  /** The first item's date: what the card shows. */
+  first_spent_at: string | null;
+  submitted_at: string | null;
+  decided_at: string | null;
+  reimbursed_at: string | null;
+  /** When the document was made: the first operation the index saw for it. */
+  created_at: string;
+  /** Lower-cased haystack: title, submitter, merchants. */
+  search_text: string;
+  updated_at: string;
+}
+
+/** One receipt on a claim: what the 90-day spend adds up. */
+export interface ExpenseItemRow {
+  report_id: string;
+  id: string;
+  spent_at: string;
+  amount: number;
+  category: string;
+  /** COMPANY_CARD | PERSONAL | CASH */
+  paid_with: string;
+}
+
+export interface ContactRow {
+  document_id: string;
+  name: string | null;
+  /** SUPPLIER | CUSTOMER | BOTH | OTHER */
+  kind: string;
+  /** ACTIVE | ARCHIVED */
+  status: string;
+  email: string | null;
+  phone: string | null;
+  website: string | null;
+  vat_id: string | null;
+  registration_number: string | null;
+  street: string | null;
+  postal_code: string | null;
+  city: string | null;
+  country: string | null;
+  payment_terms_days: number;
+  /** TransactionCategory */
+  default_category: string;
+  /** JSON array of the tags. */
+  tags: string;
+  /** Lower-cased haystack: name, email, city, tags. */
+  search_text: string;
+  updated_at: string;
+}
+
 export interface DB {
   invoice_index: InvoiceRow;
   account_index: AccountRow;
   transaction_index: TransactionRow;
+  expense_index: ExpenseRow;
+  expense_item_index: ExpenseItemRow;
+  contact_index: ContactRow;
 }

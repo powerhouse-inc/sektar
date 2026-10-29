@@ -1,4 +1,5 @@
-// Turns invoice and bank-account documents into their index rows. Pure,
+// Turns invoice, bank-account, expense-report and contact documents into
+// their index rows. Pure,
 // shared by the processor (which runs in the switchboard and in a tab's
 // in-process reactor) and by its tests. Rows come only off an operation's
 // resulting state: the whole document state, so the row is exact and an
@@ -14,9 +15,18 @@ import {
   round2,
   type InvoiceState,
 } from "document-models/invoice";
+import type { ContactState } from "document-models/contact";
+import type { ExpenseReportState } from "document-models/expense-report";
 import type { InvoiceState as InvoiceStateV1 } from "document-models/invoice/v1";
 import { upgradeGlobal } from "../../document-models/invoice/upgrades/v2.js";
-import type { AccountRow, InvoiceRow, TransactionRow } from "./schema.js";
+import type {
+  AccountRow,
+  ContactRow,
+  ExpenseItemRow,
+  ExpenseRow,
+  InvoiceRow,
+  TransactionRow,
+} from "./schema.js";
 
 type Json = Record<string, unknown>;
 
@@ -138,6 +148,18 @@ export function invoiceAmounts(state: InvoiceState): InvoiceAmounts {
 }
 
 /**
+ * Our side of an invoice as a new invoice copies it: the party without its
+ * contact link, as JSON; null while it has no name (a new invoice skips
+ * such invoices).
+ */
+export function ourPartyOf(state: InvoiceState): string | null {
+  const ours = state.direction === "OUTGOING" ? state.seller : state.buyer;
+  if (!ours?.name) return null;
+  const { contactId: _contactId, ...rest } = ours;
+  return JSON.stringify(rest);
+}
+
+/**
  * The row for an invoice from its global state. `createdAt` is when the
  * document was made (the drafts' last fallback in the list order); `at` is
  * the operation's time.
@@ -187,6 +209,7 @@ export function invoiceRow(
     line_count: lines.length,
     lines_missing_attachments: lines.filter((l) => (l.attachments ?? []).length === 0).length,
     last_paid_at: str(state.payments.at(-1)?.paidAt),
+    our_party: ourPartyOf(state),
     search_text: haystack(
       number,
       party?.name,
@@ -312,4 +335,106 @@ export function diffTransactions(
     if (!current || !sameTransaction(current, row)) upserts.push(row);
   }
   return { deletes, upserts };
+}
+
+/* ---------------------------------------------------------------- expenses */
+
+/** An expense report's global state, or null when the state is not one. */
+export function expenseState(state: Json): ExpenseReportState | null {
+  if (!Array.isArray(state.items)) return null;
+  if (!state.submitter || typeof state.submitter !== "object") return null;
+  if (typeof state.status !== "string") return null;
+  return state as unknown as ExpenseReportState;
+}
+
+/**
+ * The claim's row and its receipts' rows from its global state. `createdAt`
+ * is when the document was made (the card's date without receipts); `at`
+ * is the operation's time.
+ */
+export function expenseRows(
+  documentId: string,
+  state: ExpenseReportState,
+  createdAt: string,
+  at: string,
+): { report: ExpenseRow; items: ExpenseItemRow[] } {
+  const items = state.items.filter((i) => typeof i?.id === "string" && i.id !== "");
+  const categories = [...new Set(items.map((i) => i.category ?? "UNCATEGORIZED"))];
+  return {
+    report: {
+      document_id: documentId,
+      title: str(state.title),
+      submitter_name: str(state.submitter?.name),
+      submitter_email: str(state.submitter?.email),
+      status: state.status,
+      currency: state.currency || BOOK_CURRENCY,
+      total: round2(items.reduce((sum, i) => sum + num(i.amount), 0)),
+      reimbursable: round2(
+        items
+          .filter((i) => i.paidWith === "PERSONAL" || i.paidWith === "CASH")
+          .reduce((sum, i) => sum + num(i.amount), 0),
+      ),
+      vat_total: round2(items.reduce((sum, i) => sum + num(i.vatAmount), 0)),
+      item_count: items.length,
+      categories: categories.join(","),
+      first_spent_at: str(items[0]?.spentAt),
+      submitted_at: str(state.submittedAt),
+      decided_at: str(state.decidedAt),
+      reimbursed_at: str(state.reimbursedAt),
+      created_at: createdAt,
+      search_text: haystack(
+        state.title,
+        state.submitter?.name,
+        ...items.map((i) => i.merchant),
+      ),
+      updated_at: at,
+    },
+    items: items.map((i) => ({
+      report_id: documentId,
+      id: i.id,
+      spent_at: i.spentAt,
+      amount: num(i.amount),
+      category: i.category ?? "UNCATEGORIZED",
+      paid_with: i.paidWith ?? "PERSONAL",
+    })),
+  };
+}
+
+/* ---------------------------------------------------------------- contacts */
+
+/** A contact's global state, or null when the state is not one. */
+export function contactState(state: Json): ContactState | null {
+  if (!Array.isArray(state.tags) || !Array.isArray(state.people)) return null;
+  if (!state.address || typeof state.address !== "object") return null;
+  return state as unknown as ContactState;
+}
+
+/** The row for a contact from its global state; `at` is the operation's time. */
+export function contactRow(
+  documentId: string,
+  state: ContactState,
+  at: string,
+): ContactRow {
+  const tags = state.tags.filter((t): t is string => typeof t === "string");
+  return {
+    document_id: documentId,
+    name: str(state.name),
+    kind: state.kind ?? "SUPPLIER",
+    status: state.status ?? "ACTIVE",
+    email: str(state.email),
+    phone: str(state.phone),
+    website: str(state.website),
+    vat_id: str(state.vatId),
+    registration_number: str(state.registrationNumber),
+    street: str(state.address?.street),
+    postal_code: str(state.address?.postalCode),
+    city: str(state.address?.city),
+    country: str(state.address?.country),
+    payment_terms_days:
+      typeof state.paymentTermsDays === "number" ? state.paymentTermsDays : 30,
+    default_category: state.defaultCategory ?? "UNCATEGORIZED",
+    tags: JSON.stringify(tags),
+    search_text: haystack(state.name, state.email, state.address?.city, ...tags),
+    updated_at: at,
+  };
 }

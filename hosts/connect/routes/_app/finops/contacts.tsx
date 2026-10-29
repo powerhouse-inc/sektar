@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import type { ContactDocument, ContactKind } from "document-models/contact";
-import { useEffect, useState } from "react";
+import { useContactDocumentById } from "document-models/contact";
+import { useInvoiceDocumentById } from "document-models/invoice";
+import { useEffect, useRef, useState } from "react";
 import {
   ContactDetail,
   ContactKindBadge,
@@ -8,19 +9,16 @@ import {
 import {
   InvoiceDetail,
 } from "../../../../../editors/sektar/components/InvoiceDetail.js";
+import { useSektarDrive } from "../../../../../editors/sektar/kit/data.js";
 import {
-  useContacts,
-  useInvoices,
-  useSektarDrive,
-  useTransactions,
-} from "../../../../../editors/sektar/kit/data.js";
-import {
-  counterparty,
-  bookTotals,
-  invoiceTotals,
-  money,
-  plural,
-} from "../../../../../editors/sektar/kit/format.js";
+  contactKindOf,
+  FINANCE_PAGE,
+  useContactCounts,
+  useContactList,
+  type ContactRow,
+  type ContactView,
+} from "../../../../../editors/sektar/kit/finance-index.js";
+import { money, plural } from "../../../../../editors/sektar/kit/format.js";
 import {
   Avatar,
   Badge,
@@ -35,7 +33,7 @@ import {
 import artDark from "../../../../../editors/sektar/design/shapes/sektar-growth-four-column-combined-dark.svg";
 import artLight from "../../../../../editors/sektar/design/shapes/sektar-growth-four-column-combined-light.svg";
 import { NewContactPanel } from "../../-shared/forms.js";
-import { matches, useSearch } from "../../-shared/search.js";
+import { useSearch } from "../../-shared/search.js";
 import { SetupState } from "../../-shared/setup.js";
 
 export const Route = createFileRoute("/_app/finops/contacts")({
@@ -48,11 +46,15 @@ export const Route = createFileRoute("/_app/finops/contacts")({
 
 type Filter = "ALL" | "CUSTOMERS" | "SUPPLIERS" | "ARCHIVED";
 
+const VIEW: Record<Filter, ContactView> = {
+  ALL: "all",
+  CUSTOMERS: "customers",
+  SUPPLIERS: "suppliers",
+  ARCHIVED: "archived",
+};
+
 function ContactsPage() {
   const drive = useSektarDrive();
-  const contacts = useContacts();
-  const invoices = useInvoices();
-  const rows = useTransactions();
   const { query } = useSearch();
   const [filter, setFilter] = useState<Filter>("ALL");
   const { open: openParam } = Route.useSearch();
@@ -65,53 +67,54 @@ function ContactsPage() {
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const isKind = (c: ContactDocument, kinds: ContactKind[]) =>
-    kinds.includes(c.state.global.kind);
-  const visible = contacts
-    .filter((c) =>
-      filter === "ARCHIVED"
-        ? c.state.global.status === "ARCHIVED"
-        : c.state.global.status === "ACTIVE",
-    )
-    .filter((c) =>
-      filter === "CUSTOMERS"
-        ? isKind(c, ["CUSTOMER", "BOTH"])
-        : filter === "SUPPLIERS"
-          ? isKind(c, ["SUPPLIER", "BOTH"])
-          : true,
-    )
-    .filter((c) =>
-      matches(
-        query,
-        c.state.global.name,
-        c.state.global.email,
-        c.state.global.address.city,
-        ...c.state.global.tags,
-      ),
-    )
-    .sort((a, b) =>
-      (a.state.global.name ?? "").localeCompare(b.state.global.name ?? ""),
-    );
-  const selected = contacts.find((c) => c.header.id === selectedId);
-  const openInvoice = invoices.find((i) => i.header.id === invoiceId);
-
-  const openFor = (id: string) =>
-    invoices.filter(
-      (i) =>
-        counterparty(i.state.global).contactId === id &&
-        i.state.global.status === "OPEN",
-    );
-  const activityFor = (id: string) =>
-    rows.filter((r) => r.tx.contactId === id).length;
-  const active = contacts.filter((c) => c.state.global.status === "ACTIVE");
+  // The list, its filters' counts and each contact's open invoices and bank
+  // activity come from the finance index; the contact and the invoice that
+  // are open are the documents this page loads.
+  const list = useContactList({ view: VIEW[filter], query }, drive);
+  const indexCounts = useContactCounts(drive);
+  const [selected] = useContactDocumentById(selectedId);
+  const [openInvoice] = useInvoiceDocumentById(invoiceId);
   const counts: Record<Filter, number> = {
-    ALL: active.length,
-    CUSTOMERS: active.filter((c) => isKind(c, ["CUSTOMER", "BOTH"])).length,
-    SUPPLIERS: active.filter((c) => isKind(c, ["SUPPLIER", "BOTH"])).length,
-    ARCHIVED: contacts.length - active.length,
+    ALL: indexCounts?.all ?? 0,
+    CUSTOMERS: indexCounts?.customers ?? 0,
+    SUPPLIERS: indexCounts?.suppliers ?? 0,
+    ARCHIVED: indexCounts?.archived ?? 0,
   };
 
-  if (!drive || contacts.length === 0) return <SetupState what="contacts" />;
+  // The list grows a page at a time as its end scrolls into view.
+  const filterKey = JSON.stringify([filter, query]);
+  const [shown, setShown] = useState({ key: filterKey, count: FINANCE_PAGE });
+  const shownCount = shown.key === filterKey ? shown.count : FINANCE_PAGE;
+  const rowCount = Math.min(list.total, shownCount);
+  const { ensure } = list;
+  useEffect(() => {
+    if (rowCount > 0) ensure(0, rowCount);
+  }, [ensure, rowCount, list.version]);
+  const sentinel = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el || rowCount >= list.total) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setShown({ key: filterKey, count: shownCount + FINANCE_PAGE });
+        }
+      },
+      { rootMargin: "400px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [filterKey, shownCount, rowCount, list.total]);
+  const rows: (ContactRow | undefined)[] = Array.from(
+    { length: rowCount },
+    (_, i) => list.rowAt(i),
+  );
+
+  if (
+    !drive ||
+    (indexCounts && indexCounts.all + indexCounts.archived === 0)
+  )
+    return <SetupState what="contacts" />;
 
   return (
     <div className="sk-page sk-stack sk-stack--6">
@@ -143,71 +146,42 @@ function ContactsPage() {
         ]}
       />
 
-      {visible.length === 0 ? (
+      {!list.loaded ? (
+        <div className="sk-small sk-text-muted">Loading contacts…</div>
+      ) : list.total === 0 && !list.stale ? (
         <EmptyState icon="customers" title="No contacts here">
-          {query
-            ? `Nothing matches “${query}”.`
-            : "Add a customer or supplier to get going."}
+          {list.error
+            ? `The contacts could not be loaded: ${list.error}`
+            : query
+              ? `Nothing matches “${query}”.`
+              : "Add a customer or supplier to get going."}
         </EmptyState>
       ) : (
         <Card compact className="sk-p-0">
-          <ul className="sk-list sk-list--rich">
-            {visible.map((c) => {
-              const s = c.state.global;
-              const open = openFor(c.header.id);
-              const outstanding = open.reduce(
-                (sum, i) => sum + bookTotals(i.state.global).outstanding,
-                0,
-              );
-              return (
-                <li key={c.header.id}>
-                  <ListItem
-                    rich
-                    selected={selectedId === c.header.id}
-                    onClick={() => setSelectedId(c.header.id)}
-                    icon={
-                      <Avatar
-                        name={s.name}
-                        variant={s.kind === "CUSTOMER" ? "sage" : "forest"}
-                      />
-                    }
-                    title={s.name}
-                    sub={[
-                      [s.address.city, s.address.country]
-                        .filter(Boolean)
-                        .join(", ") || s.email,
-                      `${
-                        s.paymentTermsDays === 0
-                          ? "On receipt"
-                          : `${s.paymentTermsDays}-day terms`
-                      } · ${plural(activityFor(c.header.id), "transaction")}`,
-                    ].filter(Boolean)}
-                    tags={
-                      s.tags.length > 0
-                        ? s.tags.map((t) => (
-                            <Badge key={t} tone="outline">
-                              {t}
-                            </Badge>
-                          ))
-                        : undefined
-                    }
-                    aside={
-                      <>
-                        <ContactKindBadge doc={c} />
-                        {open.length > 0 ? (
-                          <span className="sk-small sk-weight-medium sk-tabular sk-text">
-                            {money(outstanding)} open
-                          </span>
-                        ) : (
-                          <span>Settled</span>
-                        )}
-                      </>
-                    }
-                    chevron
+          <ul
+            className="sk-list sk-list--rich"
+            style={{ opacity: list.stale ? 0.6 : 1 }}
+          >
+            {rows.map((c, i) =>
+              c ? (
+                <li key={c.id}>
+                  <ContactListItem
+                    row={c}
+                    selected={selectedId === c.id}
+                    onClick={() => setSelectedId(c.id)}
                   />
                 </li>
-              );
-            })}
+              ) : (
+                <li key={`pending-${i}`} aria-hidden>
+                  &nbsp;
+                </li>
+              ),
+            )}
+            {rowCount < list.total && (
+              <li ref={sentinel} className="sk-small sk-text-muted">
+                Loading more…
+              </li>
+            )}
           </ul>
         </Card>
       )}
@@ -243,5 +217,58 @@ function ContactsPage() {
         />
       )}
     </div>
+  );
+}
+
+function ContactListItem({
+  row: c,
+  selected,
+  onClick,
+}: {
+  row: ContactRow;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  const kind = contactKindOf(c.kind);
+  return (
+    <ListItem
+      rich
+      selected={selected}
+      onClick={onClick}
+      icon={
+        <Avatar name={c.name} variant={kind === "CUSTOMER" ? "sage" : "forest"} />
+      }
+      title={c.name}
+      sub={[
+        [c.city, c.country].filter(Boolean).join(", ") || c.email,
+        `${
+          c.paymentTermsDays === 0
+            ? "On receipt"
+            : `${c.paymentTermsDays}-day terms`
+        } · ${plural(c.transactionCount, "transaction")}`,
+      ].filter(Boolean)}
+      tags={
+        c.tags.length > 0
+          ? c.tags.map((t) => (
+              <Badge key={t} tone="outline">
+                {t}
+              </Badge>
+            ))
+          : undefined
+      }
+      aside={
+        <>
+          <ContactKindBadge kind={kind} />
+          {c.openInvoiceCount > 0 ? (
+            <span className="sk-small sk-weight-medium sk-tabular sk-text">
+              {money(c.openBookOutstanding)} open
+            </span>
+          ) : (
+            <span>Settled</span>
+          )}
+        </>
+      }
+      chevron
+    />
   );
 }

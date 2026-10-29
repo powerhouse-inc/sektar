@@ -1,21 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
-import type {
-  ExpenseReportDocument,
-  ExpenseStatus,
+import {
+  useExpenseReportDocumentById,
+  type ExpenseStatus,
 } from "document-models/expense-report";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ExpenseDetail,
   ExpenseStatusBadge,
 } from "../../../../../editors/sektar/components/ExpenseDetail.js";
+import { useSektarDrive } from "../../../../../editors/sektar/kit/data.js";
 import {
-  useExpenseReports,
-  useSektarDrive,
-} from "../../../../../editors/sektar/kit/data.js";
+  categoryOf,
+  expenseStatusOf,
+  FINANCE_PAGE,
+  useExpenseCounts,
+  useExpenseList,
+  useExpenseSpend,
+  type ExpenseCounts,
+  type ExpenseRow,
+} from "../../../../../editors/sektar/kit/finance-index.js";
 import {
   CATEGORY,
-  expenseReimbursable,
-  expenseTotal,
   fmtShortDate,
   money,
   plural,
@@ -30,7 +35,7 @@ import {
   cx,
 } from "../../../../../editors/sektar/kit/ui.js";
 import { NewExpensePanel } from "../../-shared/forms.js";
-import { matches, useSearch } from "../../-shared/search.js";
+import { useSearch } from "../../-shared/search.js";
 import { SetupState } from "../../-shared/setup.js";
 
 export const Route = createFileRoute("/_app/finops/expenses")({
@@ -41,7 +46,9 @@ export const Route = createFileRoute("/_app/finops/expenses")({
   component: ExpensesBoard,
 });
 
-const COLUMNS: { status: ExpenseStatus[]; label: string; caption: string }[] = [
+type Column = { status: ExpenseStatus[]; label: string; caption: string };
+
+const COLUMNS: Column[] = [
   {
     status: ["DRAFT", "REJECTED"],
     label: "In progress",
@@ -56,9 +63,20 @@ const COLUMNS: { status: ExpenseStatus[]; label: string; caption: string }[] = [
   { status: ["REIMBURSED"], label: "Reimbursed", caption: "Paid out" },
 ];
 
+/** A status's count and totals out of the index's per-status counts. */
+function statusOf(counts: ExpenseCounts | undefined, status: string) {
+  return (
+    counts?.byStatus.find((c) => c.status === status) ?? {
+      status,
+      count: 0,
+      total: 0,
+      reimbursable: 0,
+    }
+  );
+}
+
 function ExpensesBoard() {
   const drive = useSektarDrive();
-  const reports = useExpenseReports();
   const { query } = useSearch();
   const { open: openParam } = Route.useSearch();
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -68,30 +86,19 @@ function ExpensesBoard() {
     if (openParam) setSelectedId(openParam);
   }, [openParam]);
   const [creating, setCreating] = useState(false);
+  // The board's instant: fixed for the visit, so the spend does not re-ask per render.
+  const [now] = useState(() => Date.now());
 
-  const visible = reports
-    .filter((r) =>
-      matches(
-        query,
-        r.state.global.title,
-        r.state.global.submitter.name,
-        ...r.state.global.items.map((i) => i.merchant),
-      ),
-    )
-    .sort((a, b) =>
-      b.header.lastModifiedAtUtcIso.localeCompare(
-        a.header.lastModifiedAtUtcIso,
-      ),
-    );
-  const selected = reports.find((r) => r.header.id === selectedId);
-  const awaiting = reports.filter((r) => r.state.global.status === "SUBMITTED");
-  const approved = reports.filter((r) => r.state.global.status === "APPROVED");
-  const spend90 = reports
-    .flatMap((r) => r.state.global.items)
-    .filter((i) => Date.parse(i.spentAt) > Date.now() - 90 * 86_400_000)
-    .reduce((s, i) => s + i.amount, 0);
+  // Every number comes from the finance index; the claim that is open is
+  // the one document this board loads.
+  const totals = useExpenseCounts("", drive);
+  const searched = useExpenseCounts(query, drive);
+  const spend90 = useExpenseSpend(now, drive);
+  const [selected] = useExpenseReportDocumentById(selectedId);
+  const awaiting = statusOf(totals, "SUBMITTED");
+  const approved = statusOf(totals, "APPROVED");
 
-  if (!drive || reports.length === 0)
+  if (!drive || totals?.all === 0)
     return <SetupState what="expense claims" />;
 
   return (
@@ -114,79 +121,34 @@ function ExpensesBoard() {
         <Stat
           icon="wallet"
           label="Awaiting approval"
-          value={money(
-            awaiting.reduce((s, r) => s + expenseTotal(r.state.global), 0),
-            "EUR",
-            { compact: true },
-          )}
-          foot={plural(awaiting.length, "claim")}
+          value={money(awaiting.total, "EUR", { compact: true })}
+          foot={plural(awaiting.count, "claim")}
         />
         <Stat
           icon="customers"
           label="Owed to the team"
-          value={money(
-            approved.reduce(
-              (s, r) => s + expenseReimbursable(r.state.global),
-              0,
-            ),
-            "EUR",
-            { compact: true },
-          )}
+          value={money(approved.reimbursable, "EUR", { compact: true })}
           foot="approved, not yet reimbursed"
         />
         <Stat
           icon="pie"
           label="Spend · 90 days"
-          value={money(spend90, "EUR", { compact: true })}
+          value={money(spend90 ?? 0, "EUR", { compact: true })}
           foot="across all claims"
         />
       </div>
 
       <div className="sk-board">
-        {COLUMNS.map((col) => {
-          const items = visible.filter((r) =>
-            col.status.includes(r.state.global.status),
-          );
-          return (
-            <section key={col.label} className="sk-board__col">
-              <header className="sk-board__head">
-                <div>
-                  <div className="sk-weight-semibold">
-                    {col.label}{" "}
-                    <span className="sk-text-muted sk-weight-regular">
-                      {items.length}
-                    </span>
-                  </div>
-                  <div className="sk-caption">{col.caption}</div>
-                </div>
-                <div className="sk-caption sk-tabular">
-                  {money(
-                    items.reduce((s, r) => s + expenseTotal(r.state.global), 0),
-                    "EUR",
-                    { compact: true },
-                  )}
-                </div>
-              </header>
-              {items.length === 0 ? (
-                <div
-                  className="sk-empty"
-                  style={{ padding: "var(--sk-space-6)" }}
-                >
-                  <span className="sk-caption">Nothing here</span>
-                </div>
-              ) : (
-                items.map((r) => (
-                  <ExpenseCard
-                    key={r.header.id}
-                    doc={r}
-                    selected={r.header.id === selectedId}
-                    onClick={() => setSelectedId(r.header.id)}
-                  />
-                ))
-              )}
-            </section>
-          );
-        })}
+        {COLUMNS.map((col) => (
+          <ExpenseColumn
+            key={col.label}
+            col={col}
+            query={query}
+            counts={searched}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+          />
+        ))}
       </div>
 
       {selected && (
@@ -208,17 +170,111 @@ function ExpensesBoard() {
   );
 }
 
+/** One column of the board: its claims, a page at a time, latest changed first. */
+function ExpenseColumn({
+  col,
+  query,
+  counts,
+  selectedId,
+  onSelect,
+}: {
+  col: Column;
+  query: string;
+  /** Per status, for the same search: the column's count and total. */
+  counts: ExpenseCounts | undefined;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  const list = useExpenseList({ statuses: col.status, query });
+  const filterKey = JSON.stringify([col.status, query]);
+  const [shown, setShown] = useState({ key: filterKey, count: FINANCE_PAGE });
+  const shownCount = shown.key === filterKey ? shown.count : FINANCE_PAGE;
+  const rowCount = Math.min(list.total, shownCount);
+  const { ensure } = list;
+  useEffect(() => {
+    if (rowCount > 0) ensure(0, rowCount);
+  }, [ensure, rowCount, list.version]);
+  const sentinel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el || rowCount >= list.total) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setShown({ key: filterKey, count: shownCount + FINANCE_PAGE });
+        }
+      },
+      { rootMargin: "400px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [filterKey, shownCount, rowCount, list.total]);
+
+  const head = col.status.map((s) => statusOf(counts, s));
+  const count = counts ? head.reduce((n, s) => n + s.count, 0) : list.total;
+  const total = head.reduce((n, s) => n + s.total, 0);
+  const rows: (ExpenseRow | undefined)[] = Array.from(
+    { length: rowCount },
+    (_, i) => list.rowAt(i),
+  );
+
+  return (
+    <section className="sk-board__col">
+      <header className="sk-board__head">
+        <div>
+          <div className="sk-weight-semibold">
+            {col.label}{" "}
+            <span className="sk-text-muted sk-weight-regular">{count}</span>
+          </div>
+          <div className="sk-caption">{col.caption}</div>
+        </div>
+        <div className="sk-caption sk-tabular">
+          {money(total, "EUR", { compact: true })}
+        </div>
+      </header>
+      {list.loaded && list.total === 0 && !list.stale ? (
+        <div className="sk-empty" style={{ padding: "var(--sk-space-6)" }}>
+          <span className="sk-caption">
+            {list.error ? "Could not load the claims" : "Nothing here"}
+          </span>
+        </div>
+      ) : (
+        <>
+          {rows.map((r, i) =>
+            r ? (
+              <ExpenseCard
+                key={r.id}
+                row={r}
+                selected={r.id === selectedId}
+                onClick={() => onSelect(r.id)}
+              />
+            ) : (
+              <div key={`pending-${i}`} aria-hidden className="sk-card sk-card--compact">
+                &nbsp;
+              </div>
+            ),
+          )}
+          {rowCount < list.total && (
+            <div ref={sentinel} className="sk-caption sk-text-muted">
+              Loading more…
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
 function ExpenseCard({
-  doc,
+  row: r,
   selected,
   onClick,
 }: {
-  doc: ExpenseReportDocument;
+  row: ExpenseRow;
   selected: boolean;
   onClick: () => void;
 }) {
-  const s = doc.state.global;
-  const cats = [...new Set(s.items.map((i) => i.category))].slice(0, 3);
+  const cats = r.categories.slice(0, 3).map(categoryOf);
   return (
     <button
       type="button"
@@ -231,15 +287,15 @@ function ExpenseCard({
     >
       <div className="sk-row sk-row--between">
         <span className="sk-weight-semibold sk-small sk-truncate">
-          {s.title}
+          {r.title}
         </span>
-        <ExpenseStatusBadge doc={doc} />
+        <ExpenseStatusBadge status={expenseStatusOf(r.status)} />
       </div>
       <div className="sk-row sk-row--2">
-        <Avatar name={s.submitter.name} size="sm" variant="sage" />
+        <Avatar name={r.submitterName} size="sm" variant="sage" />
         <span className="sk-caption">
-          {s.submitter.name} · {plural(s.items.length, "receipt")} ·{" "}
-          {fmtShortDate(s.items[0]?.spentAt ?? doc.header.createdAtUtcIso)}
+          {r.submitterName} · {plural(r.itemCount, "receipt")} ·{" "}
+          {fmtShortDate(r.firstSpentAt ?? r.createdAt)}
         </span>
       </div>
       <div className="sk-row sk-row--2 sk-row--wrap">
@@ -251,10 +307,10 @@ function ExpenseCard({
       </div>
       <div className="sk-row sk-row--between">
         <span className="sk-numeral" style={{ fontSize: "var(--sk-text-xl)" }}>
-          {money(expenseTotal(s), s.currency)}
+          {money(r.total, r.currency)}
         </span>
         <span className="sk-caption">
-          {money(expenseReimbursable(s), s.currency)} to reimburse
+          {money(r.reimbursable, r.currency)} to reimburse
         </span>
       </div>
     </button>

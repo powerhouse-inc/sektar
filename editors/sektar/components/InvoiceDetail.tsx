@@ -3,6 +3,8 @@
 // reads it. Editing happens in the invoice editor, one click away.
 import { makeNodeSlug, openTarget } from "@powerhousedao/reactor-browser";
 import { computeTotals, type InvoiceDocument, type InvoiceState } from "document-models/invoice";
+import { SEKTAR_DRIVE_SLUG } from "../kit/data.js";
+import type { InvoiceRow } from "../kit/finance-index.js";
 import { counterparty, fmtDate, INVOICE_STATUS, isOverdue, money, relativeDays } from "../kit/format.js";
 import { invoiceChecks } from "../kit/invoice.js";
 import { Avatar, Badge, Button, DetailHeader, EmptyState, MetaStrip } from "../kit/ui.js";
@@ -30,8 +32,25 @@ export function InvoiceStatusBadge({ doc }: { doc: InvoiceDocument }) {
   );
 }
 
+/** Where an invoice stands, from its index row: as `InvoiceStatusBadge` says it from the document. */
+export function InvoiceRowStatusBadge({ row }: { row: InvoiceRow }) {
+  if (row.overdue)
+    return (
+      <Badge tone="danger" dot>
+        Overdue
+      </Badge>
+    );
+  const known = row.status in INVOICE_STATUS ? INVOICE_STATUS[row.status as keyof typeof INVOICE_STATUS] : null;
+  if (!known) return <Badge tone="outline">{row.status}</Badge>;
+  return (
+    <Badge tone={known.tone} dot={row.status === "OPEN"}>
+      {known.label}
+    </Badge>
+  );
+}
+
 export function InvoiceDetail({ doc }: { doc: InvoiceDocument }) {
-  const location = useDocumentLocation(doc.header.id);
+  const location = useDocumentLocation(doc.header.id, SEKTAR_DRIVE_SLUG);
   const open = () =>
     location &&
     openTarget({

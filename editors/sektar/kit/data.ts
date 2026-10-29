@@ -1,43 +1,41 @@
-// Reading and writing Sektar's documents. Reads are hooks over the Sektar
-// drive; writes are imperative helpers around addDocument/dispatchActions so
-// boards, panels, editors and the seed share one vocabulary.
+// Reading and writing Sektar's documents. Writes are imperative helpers
+// around addDocument/dispatchActions so boards, panels, editors and the seed
+// share one vocabulary. Lists, counts and pickers do not read documents:
+// they come from the finance index (kit/finance-index.ts); the write store
+// is read only for the one document that is open.
 import {
   addDocument,
   addFolder,
   dispatchActions,
-  useDocumentsByIds,
+  getPHStore,
+  loadDriveNodes,
   useDrives,
 } from "@powerhousedao/reactor-browser";
 import type {
   DocumentDriveDocument,
   FileNode,
   FolderNode,
+  Node,
 } from "@powerhousedao/shared/document-drive";
-import { generateId } from "document-model";
+import { generateId, type Action } from "document-model";
 import {
   actions as bankActions,
-  isBankAccountDocument,
   type AccountKind,
   type BankAccountDocument,
   type MatchKind,
-  type Transaction,
   type TransactionCategory,
 } from "document-models/bank-account";
 import {
   actions as contactActions,
-  isContactDocument,
   type ContactDocument,
   type ContactKind,
 } from "document-models/contact";
 import {
   actions as expenseActions,
-  isExpenseReportDocument,
-  type ExpenseReportDocument,
   type PaidWith,
 } from "document-models/expense-report";
 import {
   actions as invoiceActions,
-  isInvoiceDocument,
   type InvoiceDirection,
   type InvoiceDocument,
   type InvoiceParty,
@@ -47,7 +45,6 @@ import {
   type SetSellerInput,
   type VatCategory,
 } from "document-models/invoice";
-import { useMemo } from "react";
 
 /** The business drive, declared in the host files. */
 export const SEKTAR_DRIVE_SLUG = "sektar";
@@ -70,6 +67,14 @@ const now = () => new Date().toISOString();
 
 /* ------------------------------------------------------------- reading */
 
+// The whole-collection hooks that lived here (useAccounts, useInvoices,
+// useExpenseReports, useContacts, useTransactions) loaded every document of
+// a type through the write store. They are gone: use the finance index
+// (kit/finance-index.ts) — useAccountRows, useInvoiceList,
+// useTransactionList, useExpenseList, useContactList, useContactOptions,
+// useInvoiceNumbers, useFinanceCounts — and `use<Type>DocumentById` for the
+// one document that is open.
+
 export function useSektarDrive(): DocumentDriveDocument | undefined {
   const drives = useDrives();
   return drives?.find(
@@ -78,81 +83,36 @@ export function useSektarDrive(): DocumentDriveDocument | undefined {
   );
 }
 
+/**
+ * A drive's nodes as a list, for either drive type: a node list read
+ * through `read.drives` (`useDriveNodes`, `loadDriveNodes`) as is, a legacy
+ * drive document's own node array otherwise. A reactor-drive's document
+ * holds no nodes, so passing one yields none: read its nodes instead.
+ */
+function nodesOf(
+  source: readonly Node[] | DocumentDriveDocument | undefined,
+): readonly Node[] {
+  if (!source) return [];
+  if (isNodeList(source)) return source;
+  const state = source.state.global as { nodes?: readonly Node[] };
+  return state.nodes ?? [];
+}
+
+function isNodeList(
+  source: readonly Node[] | DocumentDriveDocument,
+): source is readonly Node[] {
+  return Array.isArray(source);
+}
+
+/** The ids of the files of a document type among a drive's nodes. */
 export function fileIds(
-  drive: DocumentDriveDocument | undefined,
+  nodes: readonly Node[] | undefined,
   type: string,
-) {
-  return (drive?.state.global.nodes ?? [])
+): string[] {
+  return nodesOf(nodes)
     .filter((n): n is FileNode => n.kind === "file")
     .filter((n) => n.documentType === type)
     .map((n) => n.id);
-}
-
-/** Stable id list (by content), so subscriptions do not churn per render. */
-function useIdsOfType(type: string): string[] {
-  const drive = useSektarDrive();
-  const key = fileIds(drive, type).join(",");
-  return useMemo(() => (key ? key.split(",") : []), [key]);
-}
-
-/**
- * Every account document, whole (with every transaction ever imported).
- * For lists, balances and counts use the finance index instead:
- * `useAccountRows` in kit/finance-index.ts; to edit one account,
- * `useBankAccountDocumentById`.
- */
-export function useAccounts(): BankAccountDocument[] {
-  return useDocumentsByIds(useIdsOfType(DOC_TYPES.account)).filter(
-    isBankAccountDocument,
-  );
-}
-
-/**
- * Every invoice document, whole. For the Invoices list, counts and the
- * dashboard's sums use the finance index instead: `useInvoiceList` /
- * `useDashboardStats` in kit/finance-index.ts; to edit one invoice,
- * `useInvoiceDocumentById`.
- */
-export function useInvoices(): InvoiceDocument[] {
-  return useDocumentsByIds(useIdsOfType(DOC_TYPES.invoice)).filter(
-    isInvoiceDocument,
-  );
-}
-
-export function useExpenseReports(): ExpenseReportDocument[] {
-  return useDocumentsByIds(useIdsOfType(DOC_TYPES.expense)).filter(
-    isExpenseReportDocument,
-  );
-}
-
-export function useContacts(): ContactDocument[] {
-  return useDocumentsByIds(useIdsOfType(DOC_TYPES.contact)).filter(
-    isContactDocument,
-  );
-}
-
-/** Every transaction across accounts, newest first, with its account. */
-export type TransactionRow = {
-  tx: Transaction;
-  account: BankAccountDocument;
-};
-
-/**
- * Every transaction of every account, built from the whole account
- * documents. For the Transactions table and its counts use the finance
- * index instead: `useTransactionList` in kit/finance-index.ts.
- */
-export function useTransactions(): TransactionRow[] {
-  const accounts = useAccounts();
-  return useMemo(
-    () =>
-      accounts
-        .flatMap((account) =>
-          account.state.global.transactions.map((tx) => ({ tx, account })),
-        )
-        .sort((a, b) => b.tx.bookedAt.localeCompare(a.tx.bookedAt)),
-    [accounts],
-  );
 }
 
 export function accountBalance(account: BankAccountDocument): number {
@@ -162,21 +122,27 @@ export function accountBalance(account: BankAccountDocument): number {
     .reduce((sum, t) => sum + t.amount, s.openingBalance);
 }
 
+/**
+ * The root folder of that name among a drive's nodes. Pass the nodes
+ * (`useDriveNodes(driveId)` or `await loadDriveNodes(driveId)`); a legacy
+ * drive document is still accepted for the callers that pass one.
+ */
 export function folderNode(
-  drive: DocumentDriveDocument,
+  nodes: readonly Node[] | DocumentDriveDocument | undefined,
   name: string,
 ): FolderNode | undefined {
-  return drive.state.global.nodes.find(
+  return nodesOf(nodes).find(
     (n): n is FolderNode =>
       n.kind === "folder" && n.name === name && !n.parentFolder,
   );
 }
 
+/** The file node of a document among a drive's nodes. */
 export function fileNodeOf(
-  drive: DocumentDriveDocument | undefined,
+  nodes: readonly Node[] | undefined,
   documentId: string,
 ): FileNode | undefined {
-  return drive?.state.global.nodes.find(
+  return nodesOf(nodes).find(
     (n): n is FileNode => n.kind === "file" && n.id === documentId,
   );
 }
@@ -186,18 +152,79 @@ export function fileNodeOf(
  * just made instead of adding "(copy) n" siblings. */
 const createdFolders = new Map<string, string>();
 
-async function ensureFolder(drive: DocumentDriveDocument, name: string) {
-  const key = `${drive.header.id}:${name}`;
+/**
+ * The id of the drive's root folder of that name, made when missing. The
+ * drive's nodes are read through `read.drives` unless given, so this works
+ * on a legacy drive and on a reactor-drive alike.
+ */
+export async function ensureFolder(
+  drive: DocumentDriveDocument,
+  name: string,
+  nodes?: readonly Node[],
+): Promise<string> {
+  const driveId = drive.header.id;
+  const key = `${driveId}:${name}`;
   const cached = createdFolders.get(key);
   if (cached) return cached;
-  const existing = folderNode(drive, name);
+  let known = nodes;
+  if (!known) {
+    try {
+      known = await loadDriveNodes(driveId);
+    } catch {
+      // no listing: the folder is made, as it would be in an empty drive
+      known = [];
+    }
+  }
+  const existing = folderNode(known, name);
   if (existing) {
     createdFolders.set(key, existing.id);
     return existing.id;
   }
-  const created = await addFolder(drive.header.id, name);
+  const created = await addFolder(driveId, name);
   createdFolders.set(key, created.id);
   return created.id;
+}
+
+/* -------------------------------------------------------------- writing */
+
+/**
+ * The connected user as the signer of an action, as `dispatchActions` adds
+ * it (reactor-browser's addActionContext, which it does not export).
+ */
+function withSigner(action: Action): Action {
+  const renown = getPHStore()?.renown;
+  if (!renown?.user) return action;
+  return {
+    context: {
+      signer: {
+        app: { name: "Connect", key: renown.did },
+        user: {
+          address: renown.user.address,
+          networkId: renown.user.networkId,
+          chainId: renown.user.chainId,
+        },
+        signatures: [],
+      },
+    },
+    ...action,
+  };
+}
+
+/**
+ * Writes actions to a document by id without loading it first: what
+ * `dispatchActions(actions, id)` does, minus the read of the whole document
+ * it makes to start (for a bank account, every transaction ever imported).
+ * Resolves once the operations are in the log.
+ */
+export async function dispatchById(
+  documentId: string,
+  actions: Action | Action[],
+): Promise<void> {
+  const client = getPHStore()?.reactorClient;
+  if (!client) throw new Error("ReactorClient not initialized");
+  const list = (Array.isArray(actions) ? actions : [actions]).map(withSigner);
+  const handle = await client.write.execute(documentId, "main", list);
+  await handle.written;
 }
 
 /* ------------------------------------------------------------- accounts */
@@ -266,19 +293,22 @@ export function importTransactions(
   );
 }
 
+// A transaction's bookkeeping writes go to its account by id without
+// loading the account: the document holds every transaction ever imported.
+
 export function categorizeTransaction(
   accountId: string,
   id: string,
   category: TransactionCategory,
   contactId?: string | null,
 ) {
-  return dispatchActions(
+  return dispatchById(
+    accountId,
     bankActions.categorizeTransaction({
       id,
       category,
       contactId: contactId === undefined ? undefined : contactId,
     }),
-    accountId,
   );
 }
 
@@ -288,14 +318,14 @@ export function matchTransaction(
   documentId: string,
   kind: MatchKind,
 ) {
-  return dispatchActions(
-    bankActions.matchTransaction({ id, documentId, kind }),
+  return dispatchById(
     accountId,
+    bankActions.matchTransaction({ id, documentId, kind }),
   );
 }
 
 export function unmatchTransaction(accountId: string, id: string) {
-  return dispatchActions(bankActions.unmatchTransaction({ id }), accountId);
+  return dispatchById(accountId, bankActions.unmatchTransaction({ id }));
 }
 
 export function excludeTransaction(
@@ -303,9 +333,9 @@ export function excludeTransaction(
   id: string,
   excluded: boolean,
 ) {
-  return dispatchActions(
-    bankActions.excludeTransaction({ id, excluded }),
+  return dispatchById(
     accountId,
+    bankActions.excludeTransaction({ id, excluded }),
   );
 }
 
@@ -362,26 +392,8 @@ export function ourParty(state: InvoiceState): InvoiceParty {
   return state.direction === "OUTGOING" ? state.seller : state.buyer;
 }
 
-/**
- * Our details as the latest invoice in that direction has them: there is no
- * company profile yet, so each new invoice starts from the last one.
- */
-export function latestOurParty(
-  invoices: readonly InvoiceDocument[],
-  direction: InvoiceDirection,
-): SetSellerInput | undefined {
-  const latest = invoices
-    .filter((i) => i.state.global.direction === direction && ourParty(i.state.global).name)
-    .sort((a, b) =>
-      (b.state.global.issuedAt ?? b.header.createdAtUtcIso).localeCompare(
-        a.state.global.issuedAt ?? a.header.createdAtUtcIso,
-      ),
-    )
-    .at(0);
-  if (!latest) return undefined;
-  const { contactId: _contactId, ...rest } = ourParty(latest.state.global);
-  return rest;
-}
+// Our details for a new invoice (the latest invoice's, there being no
+// company profile yet) come from the finance index: `useLatestOurParty`.
 
 export function newLineAction(line: NewInvoiceLine) {
   return invoiceActions.addLine({
@@ -533,22 +545,8 @@ export function voidInvoice(invoiceId: string, reason: string) {
   return dispatchActions(invoiceActions.voidInvoice({ reason }), invoiceId);
 }
 
-/** "INV-2026-0012": one sequence per direction, from the existing documents. */
-export function nextInvoiceNumber(
-  invoices: InvoiceDocument[],
-  direction: InvoiceDirection,
-  at = new Date(),
-): string {
-  const prefix = direction === "OUTGOING" ? "INV" : "BILL";
-  const year = at.getUTCFullYear();
-  const used = invoices
-    .map((i) => i.state.global.number ?? "")
-    .filter((n) => n.startsWith(`${prefix}-${year}-`))
-    .map((n) => Number(n.split("-").pop()))
-    .filter((n) => Number.isFinite(n));
-  const next = Math.max(0, ...used) + 1;
-  return `${prefix}-${year}-${String(next).padStart(4, "0")}`;
-}
+// The next number for an invoice comes from the finance index:
+// `useNextInvoiceNumber` (the issue dialog's rule, over every number used).
 
 /* ------------------------------------------------------------- expenses */
 

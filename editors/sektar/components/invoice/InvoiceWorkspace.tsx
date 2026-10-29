@@ -16,9 +16,10 @@ import {
 } from "document-models/invoice";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFillHeight, useNarrow } from "../../../backfills/components/measure.js";
-import { duplicateInvoice, useInvoices } from "../../kit/data.js";
+import { duplicateInvoice, SEKTAR_DRIVE_SLUG } from "../../kit/data.js";
+import { useInvoiceNumbers, useNextInvoiceNumber } from "../../kit/finance-index.js";
 import { counterparty, fmtDate, fromDateInput, INVOICE_STATUS, isOverdue, money, PAYMENT_METHOD, relativeDays, toDateInput } from "../../kit/format.js";
-import { CHECK_TONE, invoiceChecks, invoiceDocuments, nextNumber, termsDays, type Check } from "../../kit/invoice.js";
+import { CHECK_TONE, invoiceChecks, invoiceDocuments, termsDays, type Check } from "../../kit/invoice.js";
 import { Menu } from "../../kit/menu.js";
 import { Alert, Badge, Button, cx, EmptyState, Field, Input, Modal, Select, Selector } from "../../kit/ui.js";
 import { Pane, Workspace } from "../../kit/workspace.js";
@@ -196,7 +197,7 @@ function Heading({ state }: { state: InvoiceState }) {
 
 function HeaderMenu({ doc, onVoid }: { doc: InvoiceDocument; onVoid: () => void }) {
   const s = doc.state.global;
-  const location = useDocumentLocation(doc.header.id);
+  const location = useDocumentLocation(doc.header.id, SEKTAR_DRIVE_SLUG);
   const [busy, setBusy] = useState(false);
   const copy = (credit: boolean) => {
     if (!location) return;
@@ -511,13 +512,18 @@ export function IssueDialog({
   dispatch: Dispatch;
 }) {
   const s = doc.state.global;
-  const invoices = useInvoices();
+  // The numbers in use and the next one come from the finance index, not
+  // from every invoice document.
+  const used = useInvoiceNumbers(s.direction);
+  const next = useNextInvoiceNumber(s.direction, doc.header.id);
   const today = toDateInput(new Date().toISOString());
-  const [number, setNumber] = useState(() => (s.direction === "OUTGOING" ? nextNumber(invoices.filter((i) => i.header.id !== doc.header.id), s.direction) : ""));
+  const [typed, setNumber] = useState<string | null>(null);
+  // A sale proposes the next in its sequence until a number is typed; a bill takes theirs.
+  const number = typed ?? (s.direction === "OUTGOING" ? (next ?? "") : "");
   const [issued, setIssued] = useState(today);
   const days = termsDays(s.paymentTerms) ?? 30;
   const [due, setDue] = useState(() => toDateInput(s.dueAt) || toDateInput(new Date(Date.now() + days * 86_400_000).toISOString()));
-  const taken = invoices.some((i) => i.header.id !== doc.header.id && i.state.global.direction === s.direction && i.state.global.number === number.trim());
+  const taken = used.some((i) => i.id !== doc.header.id && i.number === number.trim());
   const errors = checks.filter((c) => c.level === "error");
   const incoming = s.direction === "INCOMING";
   return (
