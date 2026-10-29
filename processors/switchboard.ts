@@ -3,6 +3,8 @@
  * This file is auto-generated and updated by codegen
  */
 import type { ProcessorFactoryBuilder } from "@powerhousedao/reactor-browser";
+import { calendarIndexFactoryBuilder } from "processors/calendar-index";
+import { integrationIndexFactoryBuilder } from "processors/integration-index";
 import { emailIndexFactoryBuilder } from "processors/email-index";
 import { filesIndexFactoryBuilder } from "processors/files-index";
 import { financeIndexFactoryBuilder } from "processors/finance-index";
@@ -22,5 +24,7 @@ export const processorFactoryBuilders: ProcessorFactoryBuilder[] = [
   folderSyncFactoryBuilder,
   financeIndexFactoryBuilder,
   tripIndexFactoryBuilder,
+  calendarIndexFactoryBuilder,
+  integrationIndexFactoryBuilder,
   integrationReconcilerFactoryBuilder,
 ];

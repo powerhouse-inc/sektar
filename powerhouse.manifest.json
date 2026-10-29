@@ -61,7 +61,8 @@
       "id": "sektar",
       "name": "sektar",
       "documentTypes": [
-        "powerhouse/document-drive"
+        "powerhouse/document-drive",
+        "powerhouse/reactor-drive"
       ]
     },
     {
@@ -76,28 +77,40 @@
       "id": "backfills",
       "name": "Backfills",
       "documentTypes": [
-        "powerhouse/document-drive"
+        "powerhouse/document-drive",
+        "powerhouse/reactor-drive"
       ]
     },
     {
       "id": "files",
       "name": "files",
       "documentTypes": [
-        "powerhouse/document-drive"
+        "powerhouse/document-drive",
+        "powerhouse/reactor-drive"
       ]
     },
     {
       "id": "trips",
       "name": "trips",
       "documentTypes": [
-        "powerhouse/document-drive"
+        "powerhouse/document-drive",
+        "powerhouse/reactor-drive"
       ]
     },
     {
       "id": "integrations",
       "name": "Integrations",
       "documentTypes": [
-        "powerhouse/document-drive"
+        "powerhouse/document-drive",
+        "powerhouse/reactor-drive"
+      ]
+    },
+    {
+      "id": "calendar",
+      "name": "Calendar",
+      "documentTypes": [
+        "powerhouse/document-drive",
+        "powerhouse/reactor-drive"
       ]
     }
   ],
@@ -209,6 +222,14 @@
     {
       "id": "integration-reconciler",
       "name": "integration-reconciler"
+    },
+    {
+      "id": "calendar-index",
+      "name": "calendar-index"
+    },
+    {
+      "id": "integration-index",
+      "name": "integration-index"
     }
   ],
   "subgraphs": [
@@ -235,6 +256,18 @@
     {
       "id": "files-index",
       "name": "files-index"
+    },
+    {
+      "id": "search-index",
+      "name": "search-index"
+    },
+    {
+      "id": "calendar-index",
+      "name": "calendar-index"
+    },
+    {
+      "id": "integration-index",
+      "name": "integration-index"
     }
   ],
   "pieces": [
