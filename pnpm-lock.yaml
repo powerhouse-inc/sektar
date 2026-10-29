@@ -23,53 +23,53 @@ importers:
         specifier: 0.2.20
         version: 0.2.20(@electric-sql/pglite@0.3.15)
       '@powerhousedao/clint':
-        specifier: 6.2.3-dev.80
-        version: 6.2.3-dev.80(d40e2eb73cf3ff487476eff3ddc17760)
+        specifier: 6.2.3-dev.81
+        version: 6.2.3-dev.81(d40e2eb73cf3ff487476eff3ddc17760)
       '@powerhousedao/connect':
-        specifier: 6.2.3-dev.80
-        version: 6.2.3-dev.80(92f9dbea2f875f1f976a787ed36458b2)
+        specifier: 6.2.3-dev.81
+        version: 6.2.3-dev.81(92f9dbea2f875f1f976a787ed36458b2)
       '@powerhousedao/design-system':
-        specifier: 6.2.3-dev.80
-        version: 6.2.3-dev.80(eded0605c822e7bc352d55e1a3b6ba29)
+        specifier: 6.2.3-dev.81
+        version: 6.2.3-dev.81(eded0605c822e7bc352d55e1a3b6ba29)
       '@powerhousedao/desktop':
-        specifier: 6.2.3-dev.80
-        version: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+        specifier: 6.2.3-dev.81
+        version: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       '@powerhousedao/document-engineering':
         specifier: 1.40.5
         version: 1.40.5(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(graphql@16.12.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(supports-color@8.1.1)(zod@4.6.5)
       '@powerhousedao/host-core':
-        specifier: 6.2.3-dev.80
-        version: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+        specifier: 6.2.3-dev.81
+        version: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       '@powerhousedao/ph-cli':
-        specifier: 6.2.3-dev.80
-        version: 6.2.3-dev.80(a1e26cd25630aed8f268773ec82c2fa1)
+        specifier: 6.2.3-dev.81
+        version: 6.2.3-dev.81(a1e26cd25630aed8f268773ec82c2fa1)
       '@powerhousedao/pieces-framework':
-        specifier: 6.2.3-dev.80
-        version: 6.2.3-dev.80(@powerhousedao/reactor@6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))(@powerhousedao/shared@6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))
+        specifier: 6.2.3-dev.81
+        version: 6.2.3-dev.81(@powerhousedao/reactor@6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))(@powerhousedao/shared@6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))
       '@powerhousedao/portle':
-        specifier: 6.2.3-dev.80
-        version: 6.2.3-dev.80(@powerhousedao/host-core@6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))(@powerhousedao/reactor-api@6.2.3-dev.80(4effa61a489165808d7d03d15e6ba08c))
+        specifier: 6.2.3-dev.81
+        version: 6.2.3-dev.81(@powerhousedao/host-core@6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))(@powerhousedao/reactor-api@6.2.3-dev.81(4effa61a489165808d7d03d15e6ba08c))
       '@powerhousedao/reactor':
-        specifier: 6.2.3-dev.80
-        version: 6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+        specifier: 6.2.3-dev.81
+        version: 6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       '@powerhousedao/reactor-api':
-        specifier: 6.2.3-dev.80
-        version: 6.2.3-dev.80(4effa61a489165808d7d03d15e6ba08c)
+        specifier: 6.2.3-dev.81
+        version: 6.2.3-dev.81(4effa61a489165808d7d03d15e6ba08c)
       '@powerhousedao/reactor-browser':
-        specifier: 6.2.3-dev.80
-        version: 6.2.3-dev.80(6ba4cc111c72ed20eacb3721481c22a0)
+        specifier: 6.2.3-dev.81
+        version: 6.2.3-dev.81(6ba4cc111c72ed20eacb3721481c22a0)
       '@powerhousedao/shared':
-        specifier: 6.2.3-dev.80
-        version: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+        specifier: 6.2.3-dev.81
+        version: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       '@powerhousedao/switchboard':
-        specifier: 6.2.3-dev.80
-        version: 6.2.3-dev.80(d49fb33ac636c880b7c19128b21377fa)
+        specifier: 6.2.3-dev.81
+        version: 6.2.3-dev.81(d49fb33ac636c880b7c19128b21377fa)
       '@powerhousedao/vetra-studio':
-        specifier: 6.2.3-dev.80
-        version: 6.2.3-dev.80(4629ef2b1efc8914e7f8dfa12421811c)
+        specifier: 6.2.3-dev.81
+        version: 6.2.3-dev.81(f6db6bdf1164591c70736fcb29e8fc3c)
       '@powerhousedao/workflow':
-        specifier: 6.2.3-dev.80
-        version: 6.2.3-dev.80(d1b6c598d4648dca05bcdcba0f7f2fcb)
+        specifier: 6.2.3-dev.81
+        version: 6.2.3-dev.81(d1b6c598d4648dca05bcdcba0f7f2fcb)
       '@tailwindcss/cli':
         specifier: ^4.1.18
         version: 4.3.3
@@ -98,8 +98,8 @@ importers:
         specifier: 5.0.3
         version: 5.0.3(vitest@5.0.3)
       document-model:
-        specifier: 6.2.3-dev.80
-        version: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+        specifier: 6.2.3-dev.81
+        version: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       graphql:
         specifier: 16.12.0
         version: 16.12.0
@@ -148,32 +148,26 @@ packages:
   '@adraffy/ens-normalize@1.11.1':
     resolution: {integrity: sha512-nhCBV3quEgesuf7c7KYfperqSS14T8bYuvJ8PcLJp6znkZpFc0AuW4qBtr8eKVyPPe/8RSr7sglCWPU5eaxwKQ==}
 
-  '@ai-sdk/gateway@4.0.67':
-    resolution: {integrity: sha512-LtyxLkg7dZ2iz8Ouh1806BJbA+q+FKc/mXUCl4v/wdNNIGtbfk80dNtlhqjhqOZa4dnfc3caVafRL7ocxzoegA==}
+  '@ai-sdk/gateway@4.0.106':
+    resolution: {integrity: sha512-NprSdFzyVnbEp2SDWtIgsCFIUHFCehOD9S6FQkF/dLrCmnke8w4SOK3KcmUUiEbwtVzlUF8prkaELp+ohcQaQw==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/openai-compatible@3.0.37':
-    resolution: {integrity: sha512-X9LfyiV73cyT89GSKCDUsCZ8nV6wZAn6elJJ4CzZF1WRdofBvAjWz5CL1VHj7jeR5ahiqsWml6X/B8vUDgiXtg==}
+  '@ai-sdk/openai-compatible@3.0.65':
+    resolution: {integrity: sha512-TBfQk1hf9hOioOwdeDvuXdbmFDp+uLvYf5lfu/gCKVFy6rzjpEqTekEln2ebYonrnq2lIglsuj9S9IovaGhDZA==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/provider-utils@5.0.30':
-    resolution: {integrity: sha512-9TyxUXolql77ntHIeygLqt7PO1O0HZPB73cJhLG2OsPecSBRIZhNXLxT1T7rlL6Zpm1eDoLMFrMV99kAJ28/Sg==}
+  '@ai-sdk/provider-utils@5.0.56':
+    resolution: {integrity: sha512-F7/U1YpVXEfSxRHbxScm0PVdr9lN6GaUWHnt8ws2UjuGeuxWHqCkV25dGpHAkpDHkuIXoC+aak/OqSylKSJmHw==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/provider-utils@5.0.32':
-    resolution: {integrity: sha512-MZUhlINn6FzKIWuX3T36h+yM9d7bG+yatH+kC99ZCe0DHxXfP73KwaoLiLcZDPQDamFyO3umPPBLJieZJyG4DQ==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
-  '@ai-sdk/provider@4.0.8':
-    resolution: {integrity: sha512-aWO7iwhFUGf347tCwNGggggfmZigaSu7TF739IZSrWWABUp7zkb4Cr3fMqvBe5EIS7ABJJu3Cadn0g/zs1G0QQ==}
+  '@ai-sdk/provider@4.0.24':
+    resolution: {integrity: sha512-iztFqJTdxNN0ZzqZAAnVPMhRMaL1bfQFa3GIPAffWQ0+dP2FXIkyMD8kHeEI7EpB/C6TR45cqOkrS7YZZ1sATA==}
     engines: {node: '>=22'}
 
   '@alcalzone/ansi-tokenize@0.2.5':
@@ -2723,28 +2717,28 @@ packages:
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
 
-  '@powerhousedao/analytics-engine-browser@6.2.3-dev.80':
-    resolution: {integrity: sha512-MgEKXFvBNbGnbKF5ChQK6s1kLIaV79AlfknpdkysHiMRxqOM0KZY0fSSjhVpaCXqDW5c5OnybjeNCprnLvZnPw==}
+  '@powerhousedao/analytics-engine-browser@6.2.3-dev.81':
+    resolution: {integrity: sha512-dGrsmXwU3PY3c3N1D4B1g3574eeswnBGLdhP5I1hpT9Cr59CMjbhWChMyN7aXm2+1kObFDT7WTnZLJNG8N/meA==}
 
-  '@powerhousedao/analytics-engine-core@6.2.3-dev.80':
-    resolution: {integrity: sha512-5nCpkxUm/h5BOXHFQ7Tmp2HeoBnQtyLydbEKCNDjqox9f9wARrTxBmaCGr5nqvSKUYVRLHjB/l1+OWXTAFgUaA==}
+  '@powerhousedao/analytics-engine-core@6.2.3-dev.81':
+    resolution: {integrity: sha512-njOFhU0KKHicKkKQ7v6lwBMcHCuDPvz/T2PBdXpyoN3LA8T2/LscPFkcI3FYRR0dJvFxTSWkMdOZTjWXham0lg==}
 
-  '@powerhousedao/analytics-engine-graphql@6.2.3-dev.80':
-    resolution: {integrity: sha512-OQOV+bUjMOzBcjXnUwYL0XMxMachkXSHjLXj6QTSh6kJ8/Fd8LyoLeaJYdgv6KykhNF0gPDHBTC+CisGR/CjBA==}
+  '@powerhousedao/analytics-engine-graphql@6.2.3-dev.81':
+    resolution: {integrity: sha512-teBULjtRP6vhbEgg2e0EXhwChAJRe+JOMcWnoce7dstXmNbV5gBi0A7s3tuWIrDhoOsA9qAwGL+kt25fjyM5YQ==}
 
-  '@powerhousedao/analytics-engine-knex@6.2.3-dev.80':
-    resolution: {integrity: sha512-K0aEwMjAHsq9OLFtMLoCbDEhe1i+3/SusPq/lF2CGnxpP4dUS4L9RP0wjoeP5yQYTQfVju2BN4yydfnh2xaOPw==}
+  '@powerhousedao/analytics-engine-knex@6.2.3-dev.81':
+    resolution: {integrity: sha512-utuw6QB2TXJPdNIV2Wtvz6sZ+dT4l6eoW7yXL9N8nYmHt568Nm8EtmO4QS32fFeZvlEdLmm5TgDvliAVBIogNA==}
     peerDependencies:
       knex: ^3.1.0
     peerDependenciesMeta:
       knex:
         optional: true
 
-  '@powerhousedao/analytics-engine-pg@6.2.3-dev.80':
-    resolution: {integrity: sha512-LRCd915QwlaEeOcUVCF/r5+fjzngF3flwDcvU/iyingjVBa2Y+K12c+R+ZRrikOUcNeJZ+gY4KCq2ho/mqJ2bQ==}
+  '@powerhousedao/analytics-engine-pg@6.2.3-dev.81':
+    resolution: {integrity: sha512-XtyvwBgF37C84z4JIuioCHRDLv9ei+5bcOMpgdYMAKNEdiYfDVE/yL05uM9wmjZK+5mDS1/vma4AZG01CAWo1Q==}
 
-  '@powerhousedao/builder-tools@6.2.3-dev.80':
-    resolution: {integrity: sha512-Ec2gdCDdCkzCBVy6upGOPOLDvxwJQG2Aj0dVjX/1qEgr6RMUcYSYYzWn0FRbyiKnCGW6sezSYt9fNN4wuoPo3Q==}
+  '@powerhousedao/builder-tools@6.2.3-dev.81':
+    resolution: {integrity: sha512-C5XGLQOLC0/VDgz85kWb2LzQxQJTDGCwDkLNFB3OLfFmyCd83e/zlErCvNnNDUOlBHzIF7dS/0T18fb2ETVA5w==}
     peerDependencies:
       '@sentry/vite-plugin': ^4.3.0
       vite-plugin-externalize-dependencies: ^1.0.1
@@ -2754,8 +2748,8 @@ packages:
       vite-plugin-externalize-dependencies:
         optional: true
 
-  '@powerhousedao/clint@6.2.3-dev.80':
-    resolution: {integrity: sha512-mCXB1F257PXwOsXqnL5ZpD/O9jdesP9hAEeJx3rs7C829ASCzZV1cQqSTiN65NmBKGDdYlSw9HwEH6/1tsZ+dw==}
+  '@powerhousedao/clint@6.2.3-dev.81':
+    resolution: {integrity: sha512-w5TFf3BtqGdX0MHFoNM4b6EofkkdQNs7x4qiDwNsn9c0uD2jt9uypfuhKXJdFjrTOb8/e24T+zI5sMEvgbTaHA==}
     peerDependencies:
       '@electric-sql/pglite': '>=0.2.0'
       '@mastra/core': '>=1.41.0'
@@ -2771,43 +2765,43 @@ packages:
       '@mastra/memory':
         optional: true
 
-  '@powerhousedao/codegen@6.2.3-dev.80':
-    resolution: {integrity: sha512-eAIvCMzLjjrupt8vAZvhIAsCfETjRpE12JnUyb7inEbgjW32M6DyL0W6Ga3gaJQuVOqvmhZGqjMk5iBeJp1rjQ==}
+  '@powerhousedao/codegen@6.2.3-dev.81':
+    resolution: {integrity: sha512-LftPMSqYyTcHCE9c/kgNLZdjoVSkxiRvvzhxbHPlbTxIJ3QKmgn3losEyTCB6u4jvwnhWYuI8ZdxXjOJwEgBCQ==}
     peerDependencies:
       graphql: ^16
 
-  '@powerhousedao/common@6.2.3-dev.80':
-    resolution: {integrity: sha512-g/UBSuRkOs8XGrhTBrc9KUOVsXqI6TA2nyZqiRJQm9WSi/QJD6/mhu1fg+YOaNy4FUbhfZ3OjJDXti8vUefQ/A==}
+  '@powerhousedao/common@6.2.3-dev.81':
+    resolution: {integrity: sha512-jZOXHVUgzRzdhQ8YhBe6Ezj6OorjvgEYOq834F7sIFf3lfyh05eDS+fnbMn8viNt0hEBbHzaueBm7BZ5lKNzWg==}
     peerDependencies:
       react: '>=19.0.0'
       react-dom: '>=19.0.0'
 
-  '@powerhousedao/config@6.2.3-dev.80':
-    resolution: {integrity: sha512-QK7LV/4L5lucvdDqlaGKgIhC+UFboxmY7RlCSxeF4zgF8lU/iF4JhLC5XLct7NFI29oEzOhKVCwsrsB3YSFwMQ==}
+  '@powerhousedao/config@6.2.3-dev.81':
+    resolution: {integrity: sha512-cIAvX1VlXKI4a7i5WFq70KhG+0ETRs8oBrKM6ErO4/6EoP21N+3wjtUGcoCGSV0mwCMatfimZN3cBcbu8LDZtw==}
 
-  '@powerhousedao/connect-core@6.2.3-dev.80':
-    resolution: {integrity: sha512-q6I2L1D2jqF62Z7eaUdD5lGBlKWuOLYD/iaF7j+iHB5KP3sHY76VsqH2opstclkcZOojhnR2z+DruU+BiAcdUA==}
+  '@powerhousedao/connect-core@6.2.3-dev.81':
+    resolution: {integrity: sha512-TPzXG9Sa0zKffGEAlfv0+JbsIreuXGIkwpHbQuNfxlixlFb1svj/SX2lwLtaFDzqoj28N0kindMHBQflocXDQw==}
     peerDependencies:
       '@tanstack/react-router': 1.170.41
       react: '>=19.0.0'
       react-dom: '>=19.0.0'
 
-  '@powerhousedao/connect@6.2.3-dev.80':
-    resolution: {integrity: sha512-Q3bfTLfdiRXMvmneuVrrDrnEw2SVyEfrSY9ClnIIwfzlizqVCdUiRM5CSHs7wKHNSSFN3obhx9GAIWdTE5dupg==}
+  '@powerhousedao/connect@6.2.3-dev.81':
+    resolution: {integrity: sha512-TJJtEjpsJA0kgQCLsSUg5g+E3c8VYTFYiIeNobKLex9o5bQFKyrWp/nl1ILbf/5+93COuyTVLWzI5S2xBuLlUQ==}
     engines: {node: '>=24.0.0'}
     peerDependencies:
       '@tanstack/react-router': 1.170.41
       react: '>=19.0.0'
       react-dom: '>=19.0.0'
 
-  '@powerhousedao/design-system@6.2.3-dev.80':
-    resolution: {integrity: sha512-fpdhmYY7l3GDfuUKSc4qWkUSGOpzE4abVr2jsr8k5fHT7z59Y6nL6YqWlfoyK9JLspYz++ZsHuOZ3xta5aZyCA==}
+  '@powerhousedao/design-system@6.2.3-dev.81':
+    resolution: {integrity: sha512-fvmtBilffRvb0RiGW1gkfyncOUzbUqy/fFgLSsZnYFUmi6ASW+nkNPC4IRdpRu8vWqgBsY6qiIpxY0/coE0hKA==}
     peerDependencies:
       react: '>=19.0.0'
       react-dom: '>=19.0.0'
 
-  '@powerhousedao/desktop@6.2.3-dev.80':
-    resolution: {integrity: sha512-2jA7+VIqST+UagbcI3Z5nl2AaOe/DvudxNxCQa8MJ+doxV8x9wyfBanUFJZLCLn4SjcVIgqcVNvRqNJtxAIOZg==}
+  '@powerhousedao/desktop@6.2.3-dev.81':
+    resolution: {integrity: sha512-IjT2xU8QhOAi07BxjtwrZAefhcg1uKD9p5BbzyceIGPBLxAw7W0s0tMGYiKXY1Ez/c33JgkhG4uR7pie9garwA==}
 
   '@powerhousedao/document-engineering@1.40.5':
     resolution: {integrity: sha512-8gPp4cVFll64EcJ8MBUqM1zaeVAxAy8IiSHb5rwHCQH89XEB0E75AI/ScKauUudTkrTjUv1vhSG2BEN+PhavzQ==}
@@ -2817,45 +2811,45 @@ packages:
       react-dom: ^19.2.0
       zod: ^4.0.0
 
-  '@powerhousedao/host-core@6.2.3-dev.80':
-    resolution: {integrity: sha512-AutLoDphawhxDqKFrbL9XOCi23EnKeSPaTQvFNtLQ/F1rDm5YLxVnnwcHIuIyGGCPMTQkyO1s5Wt9UXhrZmh2g==}
+  '@powerhousedao/host-core@6.2.3-dev.81':
+    resolution: {integrity: sha512-L4DWD805RZlZXdDgiGGl4sXW0W3O8uTEodPLCfckEwZK7Ervebqri16nay9QpxZ++51aj6HZfrEXC7L5GlQ1Fg==}
 
-  '@powerhousedao/opentelemetry-instrumentation-reactor@6.2.3-dev.80':
-    resolution: {integrity: sha512-MRfd7fyygfBwijxWe63+6Wh2OJ6xucCCZU9PpExXbGvwcvM9mz4CqRyfY2aSmA161hkwVx61y5DjEqpdvyQfcg==}
+  '@powerhousedao/opentelemetry-instrumentation-reactor@6.2.3-dev.81':
+    resolution: {integrity: sha512-npVXv2WTntqqZUohuqGe64Wpu86gTOp/9af436zYiIgDDbaYDrwx6gDcA09+xvi0KRAH3Uhv6TSuZgi5fpRGmQ==}
     peerDependencies:
-      '@powerhousedao/reactor': 6.2.3-dev.80
+      '@powerhousedao/reactor': 6.2.3-dev.81
 
-  '@powerhousedao/ph-cli@6.2.3-dev.80':
-    resolution: {integrity: sha512-1WxFZbr+CJdhQ7JZhX1jUQtXRdOx3w3N8a2CS2f/+hRXaX6rI7UcfMAYf5GSq/86H3lNBrOuDxZRSkrCTwtKGw==}
+  '@powerhousedao/ph-cli@6.2.3-dev.81':
+    resolution: {integrity: sha512-ljeyEdO5jWzJb/DX769aMF0jcYxaOhNVNBveya/+cySBu3ylig4iaEiyuo2yayBaxXakv9DvoBhTXN+WUVTo4w==}
     engines: {node: '>=24.0.0'}
     hasBin: true
 
-  '@powerhousedao/pieces-framework@6.2.3-dev.80':
-    resolution: {integrity: sha512-TtacM+/LQs1hIU2m3dbYt/Zhk6Rj9M0qeg3ObEoQFxwnRTfeDQ97RhHh2V6XKz4CV91mcSdulTcjym8Ys4rsGw==}
+  '@powerhousedao/pieces-framework@6.2.3-dev.81':
+    resolution: {integrity: sha512-QsRS8+/6F1ZPIZg2JRrUgdu02qQg88zjC0KXjKJDTTgttTeeRF9/QVAzFDwfMCfIE67MWMLxlWPChL1saP85xg==}
     peerDependencies:
-      '@powerhousedao/reactor': 6.2.3-dev.80
-      '@powerhousedao/shared': 6.2.3-dev.80
+      '@powerhousedao/reactor': 6.2.3-dev.81
+      '@powerhousedao/shared': 6.2.3-dev.81
     peerDependenciesMeta:
       '@powerhousedao/reactor':
         optional: true
       '@powerhousedao/shared':
         optional: true
 
-  '@powerhousedao/portle@6.2.3-dev.80':
-    resolution: {integrity: sha512-mkF0Vsd0fBCrIVneiAC8pPCx+t5Q3FMKIoYs32Tgsc/e2Mmses+Q5biarASs37O7Av+jfu0FJ6T+YCuVQPFRcQ==}
+  '@powerhousedao/portle@6.2.3-dev.81':
+    resolution: {integrity: sha512-GM3f5brAxGolwTqSKIgQiqFJeH0RpSXg67zbuQEmnG6g+2j12mMN4RM2Ykmt2s9sKlogNZFwg7X0z4eCa2VaIQ==}
     peerDependencies:
-      '@powerhousedao/host-core': 6.2.3-dev.80
-      '@powerhousedao/reactor-api': 6.2.3-dev.80
+      '@powerhousedao/host-core': 6.2.3-dev.81
+      '@powerhousedao/reactor-api': 6.2.3-dev.81
 
-  '@powerhousedao/powerhouse-vetra-packages@6.2.3-dev.80':
-    resolution: {integrity: sha512-Fk3L4crqec+8gLSt2MkyWPtI2xGJ2HfFYre40wAFutARAn5ZA8bG8f2PeRXPyTiOT3JzdPmgUYGdZMlEDsRGQw==}
+  '@powerhousedao/powerhouse-vetra-packages@6.2.3-dev.81':
+    resolution: {integrity: sha512-gQPPk5rS9ehZKv8yRKArh8yjTGGnSrOOGBJ9JU1mGQPqCVea8Jpe5FnB43IP5zqUfR3q9Dj9bN3n45/0MG4MnQ==}
     peerDependencies:
       graphql: ^16
       react: ^19
       react-dom: ^19
 
-  '@powerhousedao/reactor-api@6.2.3-dev.80':
-    resolution: {integrity: sha512-JxAiLVRxVF4lBE+gVkEHsWG10lmEffbKsXYBwhm7jl9P7bbwbl6byFtueX10yD1YwgnFiB4ev+G2JDSOg1R6kw==}
+  '@powerhousedao/reactor-api@6.2.3-dev.81':
+    resolution: {integrity: sha512-i7FREuVJ56PTNdM0/qXo1mQXJbuD+RBPfLNFML/JxbmOlrrhBn9xJzHVLSerSe6TzHDCbcL+LerCFAwoVcJarQ==}
     peerDependencies:
       '@fastify/cors': ^11.0.1
       '@fastify/formbody': ^8.0.1
@@ -2882,41 +2876,41 @@ packages:
       vite:
         optional: true
 
-  '@powerhousedao/reactor-attachments@6.2.3-dev.80':
-    resolution: {integrity: sha512-/d9BM4MgBx+9tnecjJ7YYSAExUK7PPB5vfIJrbb+oEM5Q5+a+YLXXTXswEEIaxMZH8ECxj5rCKDDNyXKPgZQtw==}
+  '@powerhousedao/reactor-attachments@6.2.3-dev.81':
+    resolution: {integrity: sha512-ct6WbxNQ6VmS5wAAQsIddV0AilEat6a/VWyJCjrln+PFZnluf2e0WyVRZwFx2IKxDaD3DLp/EefbmuQVJxXAew==}
 
-  '@powerhousedao/reactor-browser@6.2.3-dev.80':
-    resolution: {integrity: sha512-qmOquYCch4VSCGtD5amIyIziNeG95a+V7HyTBhVbO6V6E6UrIG2VEQrh7jt432X9e1LPhbDLu5elJB4YWEGd5w==}
+  '@powerhousedao/reactor-browser@6.2.3-dev.81':
+    resolution: {integrity: sha512-mejQ9Y6Z+ig96N6Xw0dxaiEqzNukJAb9BW6w9t2R83pc4cYwn4kFmvcn7X2H7KohEqxS1OH7vmGbueN3wuonIA==}
     peerDependencies:
       graphql: ^16
       graphql-tag: ^2
       react: '>=19.0.0'
       react-dom: '>=19.0.0'
 
-  '@powerhousedao/reactor-drive@6.2.3-dev.80':
-    resolution: {integrity: sha512-OcSR8vp7VGB1DacA3O5hLprXPpNhHIc1cpyAOGtYQMXqedzh2VDZxdlgie0RVyS/G/oyLMMXFhzjC4KJ5ppXnQ==}
+  '@powerhousedao/reactor-drive@6.2.3-dev.81':
+    resolution: {integrity: sha512-AIIrpk+g7RBzrUb7BIDIz/pHqU6FpXJM5PKZDINca5QaUPtl/zn4o5Pjpsu/oj66LgKgLcChlRFliCGfuYOa4Q==}
 
-  '@powerhousedao/reactor-group@6.2.3-dev.80':
-    resolution: {integrity: sha512-6AR/guN721n2yyYqVEgr55EHd1joeaz6y5cZ5C0qaaB3TTIn1TpSvaISBTw3ujAA3UTFzbD1w6/rR2piE9eHvA==}
+  '@powerhousedao/reactor-group@6.2.3-dev.81':
+    resolution: {integrity: sha512-UpK442nTF5huI3cHHDwD4TEchYe7ZSkMJRP6Fz0eB8C6ir8ql6kQCdcw1Tev/CWUpniXuVyrU4We8mr5DS7ZUg==}
 
-  '@powerhousedao/reactor-mcp@6.2.3-dev.80':
-    resolution: {integrity: sha512-3hB6bAwaO7jzHFmbtBRlL6aOK6uun7CFZVKJAnDqXb2qMiY339Uly+tkWLAgmTfrhmoYmjkMQJmE/pOzj3ED4w==}
+  '@powerhousedao/reactor-mcp@6.2.3-dev.81':
+    resolution: {integrity: sha512-bNpl+RMPtPFZ5LR9tCpUWTLEloBZbS1j0twa56ZspwmcUKJGXOUZ5Qc2fYq+pg2DO9K2IMZJt4h+0JJpAF+ssg==}
     hasBin: true
 
-  '@powerhousedao/reactor-privacy@6.2.3-dev.80':
-    resolution: {integrity: sha512-hZ2T2+729Td/EXpl6xAdD7dsbF2/gd1xdY+hYyVXho/7RSAzWlkv50mDHFDdp3hQWquZUJidId09cSa5tjEYYQ==}
+  '@powerhousedao/reactor-privacy@6.2.3-dev.81':
+    resolution: {integrity: sha512-OeyAjiUhr2Yj0JajBBOEl7P4+qYTVc+zIITvZsTWmovQr9NThp7EYPgFQJ7VHty6nCksW+bd2xEt9OD7XleGmQ==}
 
-  '@powerhousedao/reactor-router@6.2.3-dev.80':
-    resolution: {integrity: sha512-6lyXTTcwJzr/whrKgGXxJ5bTZ67qNu8n1yzqeJRhuOwKgiA4iMy73L14z8XZWLs+hvINegUXlAIEXt8mDB8HWg==}
+  '@powerhousedao/reactor-router@6.2.3-dev.81':
+    resolution: {integrity: sha512-KFPknrfjVHlNFOgA4Qm5D8jbi6sJPKrDfdBMmk1Tymkuem58mNDAt8RQveivdQRqi09bCyqPoMvK8Xm9EqMejg==}
 
-  '@powerhousedao/reactor-workflow@6.2.3-dev.80':
-    resolution: {integrity: sha512-G2gQfYMPl4sCRRRrHEEeXl+s0HHJgEJ571rOVczE32VXuM67mj5uRMJlPTZgZ+lg0TT850k0cQVmozayq9o8bQ==}
+  '@powerhousedao/reactor-workflow@6.2.3-dev.81':
+    resolution: {integrity: sha512-VsQnyIEiNUgjjUmm7POe2E+S8+A7BbaCoqiPKovb5eNWZ2GiC8XeTr7C8qU9dt2edyGFgflczwREduhIYMzZGA==}
 
-  '@powerhousedao/reactor@6.2.3-dev.80':
-    resolution: {integrity: sha512-V53J522axCY1dytyjEIIXa467LYwMJAGKCXlBJj/AnQo8vhT3OxnsgdPBCWmtbJfb0QFTq1lf2kNsXCt79JRbQ==}
+  '@powerhousedao/reactor@6.2.3-dev.81':
+    resolution: {integrity: sha512-py7rl2enqrKyGP2VwynbPcJ7hmwEaoSKB91flwTs+ZVWVGSwCrP7/sGzbg+A/NELMauXnIbi1/NyNEbJbxsjYQ==}
 
-  '@powerhousedao/shared@6.2.3-dev.80':
-    resolution: {integrity: sha512-rjmHKS0e8O6bzfmW9h18JWptVYDhS2A5IOIImUcZhsahKCRJ+kn2lkLUgUxAK/ESw+h3+/jkp8eS7+1EcDb4Jw==}
+  '@powerhousedao/shared@6.2.3-dev.81':
+    resolution: {integrity: sha512-Cc8EuBvIGlZUzVd85l/36OWmn6Oc7kWmRKkC9aYh9idkRATfouNJM9QmTwRGB4yn/3SsVZ9TRZWyVVksGRYVCg==}
     peerDependencies:
       '@electric-sql/pglite': ^0.3.15
       '@sentry/node-core': ^10.52.0
@@ -2929,23 +2923,23 @@ packages:
       rolldown:
         optional: true
 
-  '@powerhousedao/switchboard@6.2.3-dev.80':
-    resolution: {integrity: sha512-WERN+xn5Sn6NrYohwxnLjUtI5EEII8ZcEFJ8YXf/rJp1HGqUe8ik2klZ0zzpbJCgqHbvL0+5A8BsXua+B/PAfg==}
+  '@powerhousedao/switchboard@6.2.3-dev.81':
+    resolution: {integrity: sha512-mVAlxhRVI18towSOSHLqlZ2XWQC1li6nBvNh4e71zJzMPp130PL1Qc2xJxVfB3h13Ush7Q+PQd2Tgrh9cyEd6g==}
     engines: {node: '>=24.0.0'}
     hasBin: true
     peerDependencies:
       react: '>=19.0.0'
 
-  '@powerhousedao/vetra-studio@6.2.3-dev.80':
-    resolution: {integrity: sha512-0MZG3lUMaBLiZQrAuADFWiukr9pOJlB38aaAi7p1vJYH6ITuImUE9nqUJpHpeSKSq9ubwJ+d5J2PBOfRB7gCDQ==}
+  '@powerhousedao/vetra-studio@6.2.3-dev.81':
+    resolution: {integrity: sha512-6DIuXE7cuynpJxfdUPii883jo1D7nzrvlWQi7D1Io6X8JVsuZ9CA6KJI7TLosBbIlx6B2/8c8cuecgeOPc8/ag==}
     peerDependencies:
-      '@powerhousedao/reactor-api': 6.2.3-dev.80
+      '@powerhousedao/reactor-api': 6.2.3-dev.81
 
-  '@powerhousedao/vetra@6.2.3-dev.80':
-    resolution: {integrity: sha512-zBb7zJPsfTpHjaUlVuKQMXpTGFYKSTFTl77PXTlxRNtyFLVSqCc/SuUrFcA69sljDvwAuv/pkoPGsIdBo/7vVg==}
+  '@powerhousedao/vetra@6.2.3-dev.81':
+    resolution: {integrity: sha512-la/Z+q8deQg9mEcZHUcXD/w8nna01TYEszpSiJwnCRpVhQGLGUOkMZ0xGTqB9U3K8K4seIW9P0Ch7DRC0xfgWg==}
 
-  '@powerhousedao/workflow@6.2.3-dev.80':
-    resolution: {integrity: sha512-vpCkEQZA2HbEWhxwn+HMElw+yiUrH4DKxbd/gCwiWI9T4Eej6e5H1jsQoVvYxcBV3NkLYGk9awwaEf3/hkSPtA==}
+  '@powerhousedao/workflow@6.2.3-dev.81':
+    resolution: {integrity: sha512-Dd59ST75qf8KnsqvTX/aMK3oFeAQdsHlj3kp+tzsYdbVwq45lIqzM/do+Xf11ugy33jb/3vAQHC2wtdBzk1yBQ==}
 
   '@privy-io/api-base@1.9.3':
     resolution: {integrity: sha512-MDUNJ/BQvQlzRPB/uA6B9LTWgdENUeJCnil0YcXFGkAYN66ZnBzm+iGYi1Excx8YABZN/ujSgJpaEC/1yKeGlA==}
@@ -3499,8 +3493,8 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
 
-  '@renown/sdk@6.2.3-dev.80':
-    resolution: {integrity: sha512-AF9pcLNTxUTrAiFuAtBMry1sTzI3BSSaHTS7o6etVSkeNynsqtBFjg6Dve814d3yyYAlqfEaWrhzv2OCoTpoRQ==}
+  '@renown/sdk@6.2.3-dev.81':
+    resolution: {integrity: sha512-IEDMyIcBUJI+B+xw4yVyZuX+IEemNV5YhOBwHlc6DZNQE6Bi5cc64CNq5YqTx2vgrgp4nClpQcA5LckG4jZXug==}
     peerDependencies:
       '@privy-io/react-auth': ^3.25.0
       '@rainbow-me/rainbowkit': ^2.2.11
@@ -5566,8 +5560,8 @@ packages:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
     engines: {node: '>= 14'}
 
-  ai@7.0.83:
-    resolution: {integrity: sha512-bg7+SopUwqA7DeQ2O8I9qELyQTHCeeI/0RuNUlT/gGz+LqWrIl5vbYRQv3eMBEnUsVFaM33n6SA8Vqe9gi8L1w==}
+  ai@7.0.130:
+    resolution: {integrity: sha512-QkBkCogl46jXUg0SrSsdqQlOI2ZVMCjfnbBQS8t3gE21U/SO17oNMVFyjmcC9z20wOoYUA+2O2vsso0maoS7dw==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -6485,8 +6479,8 @@ packages:
     resolution: {integrity: sha512-WkrWp9GR4KXfKGYzOLmTuGVi1UWFfws377n9cc55/tb6DuqyF6pcQ5AbiHEshaDpY9v6oaSr2XCDidGmMwdzIA==}
     engines: {node: '>=8'}
 
-  document-model@6.2.3-dev.80:
-    resolution: {integrity: sha512-jkogMQDFIXv8hGp451AMexhg4A7IGWifFp2NB1ZdDG4Q4SqPRkkfYu4fVQT28zrXvYaA6uZowNODp7QCnzhnJA==}
+  document-model@6.2.3-dev.81:
+    resolution: {integrity: sha512-F/8bjB3NjwdzoLNiasV6c4tM9DZYAjqaUvTo2KAmIc5groUtnTiqIgxjVnzyBIIIhF0hLv3vCbZV6B9gVXX3Pw==}
 
   dom-helpers@5.2.1:
     resolution: {integrity: sha512-nRCa7CK3VTrM2NmGkIy4cbK7IZlgBE/PYMn55rrXefr5xXDP0LdtfPnblFDoVdcAfslJ7or6iqAUnx0CCGIWQA==}
@@ -11327,38 +11321,29 @@ snapshots:
 
   '@adraffy/ens-normalize@1.11.1': {}
 
-  '@ai-sdk/gateway@4.0.67(zod@4.6.5)':
+  '@ai-sdk/gateway@4.0.106(zod@4.6.5)':
     dependencies:
-      '@ai-sdk/provider': 4.0.8
-      '@ai-sdk/provider-utils': 5.0.32(zod@4.6.5)
+      '@ai-sdk/provider': 4.0.24
+      '@ai-sdk/provider-utils': 5.0.56(zod@4.6.5)
       '@vercel/oidc': 3.2.0
       zod: 4.6.5
 
-  '@ai-sdk/openai-compatible@3.0.37(zod@4.6.5)':
+  '@ai-sdk/openai-compatible@3.0.65(zod@4.6.5)':
     dependencies:
-      '@ai-sdk/provider': 4.0.8
-      '@ai-sdk/provider-utils': 5.0.30(zod@4.6.5)
+      '@ai-sdk/provider': 4.0.24
+      '@ai-sdk/provider-utils': 5.0.56(zod@4.6.5)
       zod: 4.6.5
 
-  '@ai-sdk/provider-utils@5.0.30(zod@4.6.5)':
+  '@ai-sdk/provider-utils@5.0.56(zod@4.6.5)':
     dependencies:
-      '@ai-sdk/provider': 4.0.8
+      '@ai-sdk/provider': 4.0.24
       '@standard-schema/spec': 1.1.0
       '@workflow/serde': 4.1.0
       eventsource-parser: 3.1.1
       undici: 7.30.1
       zod: 4.6.5
 
-  '@ai-sdk/provider-utils@5.0.32(zod@4.6.5)':
-    dependencies:
-      '@ai-sdk/provider': 4.0.8
-      '@standard-schema/spec': 1.1.0
-      '@workflow/serde': 4.1.0
-      eventsource-parser: 3.1.1
-      undici: 7.30.1
-      zod: 4.6.5
-
-  '@ai-sdk/provider@4.0.8':
+  '@ai-sdk/provider@4.0.24':
     dependencies:
       json-schema: 0.4.0
 
@@ -12505,7 +12490,7 @@ snapshots:
 
   '@base-ui/react@1.9.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.3.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
     dependencies:
-      '@babel/runtime': 7.29.10
+      '@babel/runtime': 8.0.8
       '@base-ui/utils': 0.5.0(@types/react@19.3.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@floating-ui/react-dom': 2.1.9(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@floating-ui/utils': 0.2.12
@@ -12519,7 +12504,7 @@ snapshots:
 
   '@base-ui/utils@0.5.0(@types/react@19.3.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
     dependencies:
-      '@babel/runtime': 7.29.10
+      '@babel/runtime': 8.0.8
       '@floating-ui/utils': 0.2.12
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
@@ -13244,14 +13229,14 @@ snapshots:
   '@graphql-tools/optimize@2.0.1(graphql@16.12.0)':
     dependencies:
       graphql: 16.12.0
-      tslib: 2.8.1
+      tslib: 2.6.3
 
   '@graphql-tools/relay-operation-optimizer@7.1.14(graphql@16.12.0)':
     dependencies:
       '@ardatan/relay-compiler': 13.0.2(graphql@16.12.0)
       '@graphql-tools/utils': 12.1.0(graphql@16.12.0)
       graphql: 16.12.0
-      tslib: 2.8.1
+      tslib: 2.6.3
 
   '@graphql-tools/schema@10.0.31(graphql@16.12.0)':
     dependencies:
@@ -13776,7 +13761,7 @@ snapshots:
       '@noble/hashes': 1.8.0
       '@scure/base': 1.2.6
       '@types/debug': 4.1.13
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.3.4(supports-color@8.1.1)
       pony-cause: 2.1.11
       semver: 7.8.5
       uuid: 9.0.1
@@ -13790,7 +13775,7 @@ snapshots:
       '@noble/hashes': 1.8.0
       '@scure/base': 1.2.6
       '@types/debug': 4.1.13
-      debug: 4.4.3(supports-color@8.1.1)
+      debug: 4.3.4(supports-color@8.1.1)
       pony-cause: 2.1.11
       semver: 7.8.5
       uuid: 9.0.1
@@ -14615,10 +14600,10 @@ snapshots:
 
   '@polka/url@1.0.0-next.29': {}
 
-  '@powerhousedao/analytics-engine-browser@6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
+  '@powerhousedao/analytics-engine-browser@6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
     dependencies:
       '@electric-sql/pglite': 0.3.15
-      '@powerhousedao/analytics-engine-core': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/analytics-engine-core': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       change-case: 5.4.4
       luxon: 3.7.2
     transitivePeerDependencies:
@@ -14626,9 +14611,9 @@ snapshots:
       - rolldown
       - supports-color
 
-  '@powerhousedao/analytics-engine-core@6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
+  '@powerhousedao/analytics-engine-core@6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
     dependencies:
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       luxon: 3.7.2
     transitivePeerDependencies:
       - '@electric-sql/pglite'
@@ -14636,9 +14621,9 @@ snapshots:
       - rolldown
       - supports-color
 
-  '@powerhousedao/analytics-engine-graphql@6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
+  '@powerhousedao/analytics-engine-graphql@6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
     dependencies:
-      '@powerhousedao/analytics-engine-core': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/analytics-engine-core': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       luxon: 3.7.2
     transitivePeerDependencies:
       - '@electric-sql/pglite'
@@ -14646,9 +14631,9 @@ snapshots:
       - rolldown
       - supports-color
 
-  '@powerhousedao/analytics-engine-knex@6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(knex@3.1.0(pg@8.18.0)(supports-color@8.1.1))(rolldown@1.0.2)(supports-color@8.1.1)':
+  '@powerhousedao/analytics-engine-knex@6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(knex@3.1.0(pg@8.18.0)(supports-color@8.1.1))(rolldown@1.0.2)(supports-color@8.1.1)':
     dependencies:
-      '@powerhousedao/analytics-engine-core': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/analytics-engine-core': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       change-case: 5.4.4
       luxon: 3.7.2
     optionalDependencies:
@@ -14659,10 +14644,10 @@ snapshots:
       - rolldown
       - supports-color
 
-  '@powerhousedao/analytics-engine-pg@6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
+  '@powerhousedao/analytics-engine-pg@6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
     dependencies:
-      '@powerhousedao/analytics-engine-core': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/analytics-engine-knex': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(knex@3.1.0(pg@8.18.0)(supports-color@8.1.1))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/analytics-engine-core': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/analytics-engine-knex': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(knex@3.1.0(pg@8.18.0)(supports-color@8.1.1))(rolldown@1.0.2)(supports-color@8.1.1)
       knex: 3.1.0(pg@8.18.0)(supports-color@8.1.1)
       pg: 8.18.0
     transitivePeerDependencies:
@@ -14677,16 +14662,16 @@ snapshots:
       - supports-color
       - tedious
 
-  '@powerhousedao/builder-tools@6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(@tanstack/react-router@1.170.41(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@types/node@24.19.2)(jiti@2.7.0)(rolldown@1.0.2)(rollup@4.66.0)(supports-color@8.1.1)(terser@5.51.2)(workbox-build@7.4.1(supports-color@8.1.1))(workbox-window@7.4.1)(yaml@2.9.1)':
+  '@powerhousedao/builder-tools@6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(@tanstack/react-router@1.170.41(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@types/node@24.19.2)(jiti@2.7.0)(rolldown@1.0.2)(rollup@4.66.0)(supports-color@8.1.1)(terser@5.51.2)(workbox-build@7.4.1(supports-color@8.1.1))(workbox-window@7.4.1)(yaml@2.9.1)':
     dependencies:
-      '@powerhousedao/config': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/config': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       '@tailwindcss/vite': 4.2.2(vite@8.0.14(@types/node@24.19.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
       '@tanstack/router-generator': 1.167.40(supports-color@8.1.1)
       '@tanstack/router-plugin': 1.168.42(@tanstack/react-router@1.170.41(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(rolldown@1.0.2)(rollup@4.66.0)(supports-color@8.1.1)(vite@8.0.14(@types/node@24.19.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
       '@tanstack/virtual-file-routes': 1.162.0
       '@vitejs/plugin-react': 6.1.1(vite@8.0.14(@types/node@24.19.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1))
-      document-model: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      document-model: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       es-module-lexer: 2.3.2
       magic-string: 0.30.21
       vite: 8.0.14(@types/node@24.19.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
@@ -14730,17 +14715,17 @@ snapshots:
       - workbox-window
       - yaml
 
-  '@powerhousedao/clint@6.2.3-dev.80(d40e2eb73cf3ff487476eff3ddc17760)':
+  '@powerhousedao/clint@6.2.3-dev.81(d40e2eb73cf3ff487476eff3ddc17760)':
     dependencies:
-      '@powerhousedao/host-core': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor': 6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-api': 6.2.3-dev.80(4effa61a489165808d7d03d15e6ba08c)
-      '@powerhousedao/reactor-browser': 6.2.3-dev.80(6ba4cc111c72ed20eacb3721481c22a0)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/switchboard': 6.2.3-dev.80(d49fb33ac636c880b7c19128b21377fa)
+      '@powerhousedao/host-core': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor': 6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-api': 6.2.3-dev.81(4effa61a489165808d7d03d15e6ba08c)
+      '@powerhousedao/reactor-browser': 6.2.3-dev.81(6ba4cc111c72ed20eacb3721481c22a0)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/switchboard': 6.2.3-dev.81(d49fb33ac636c880b7c19128b21377fa)
       cli-highlight: 2.1.11
       commander: 12.1.0
-      document-model: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      document-model: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       handlebars: 4.7.10
       http-proxy: 1.18.1(debug@4.4.3(supports-color@8.1.1))
       ink: 6.8.0(@types/react@19.3.0)(bufferutil@4.1.0)(react@19.2.6)(utf-8-validate@5.0.10)
@@ -14815,20 +14800,20 @@ snapshots:
       - ws
       - yaml
 
-  '@powerhousedao/codegen@6.2.3-dev.80(@parcel/watcher@2.5.1)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(bufferutil@4.1.0)(crossws@0.3.5)(graphql@16.12.0)(pg@8.18.0)(rolldown@1.0.2)(supports-color@8.1.1)(tarn@3.1.2)(typescript@7.0.2)(utf-8-validate@5.0.10)':
+  '@powerhousedao/codegen@6.2.3-dev.81(@parcel/watcher@2.5.1)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(bufferutil@4.1.0)(crossws@0.3.5)(graphql@16.12.0)(pg@8.18.0)(rolldown@1.0.2)(supports-color@8.1.1)(tarn@3.1.2)(typescript@7.0.2)(utf-8-validate@5.0.10)':
     dependencies:
       '@electric-sql/pglite': 0.3.15
       '@graphql-codegen/add': 6.0.0(graphql@16.12.0)
       '@graphql-codegen/cli': 6.1.1(@parcel/watcher@2.5.1)(@types/node@25.2.3)(bufferutil@4.1.0)(crossws@0.3.5)(graphql@16.12.0)(supports-color@8.1.1)(typescript@7.0.2)(utf-8-validate@5.0.10)
       '@graphql-codegen/typescript': 5.0.7(graphql@16.12.0)
       '@graphql-tools/merge': 9.1.7(graphql@16.12.0)
-      '@powerhousedao/host-core': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/host-core': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       '@types/node': 25.2.3
       arg: 5.0.2
       chalk: 5.6.2
       change-case: 5.4.4
-      document-model: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      document-model: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       graphql: 16.12.0
       graphql-codegen-typescript-validation-schema: 0.18.1(graphql@16.12.0)(zod@4.6.5)
       kysely: 0.28.16
@@ -14866,11 +14851,11 @@ snapshots:
       - utf-8-validate
       - vite-plus
 
-  '@powerhousedao/common@6.2.3-dev.80(6ba4cc111c72ed20eacb3721481c22a0)':
+  '@powerhousedao/common@6.2.3-dev.81(6ba4cc111c72ed20eacb3721481c22a0)':
     dependencies:
-      '@powerhousedao/analytics-engine-core': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-browser': 6.2.3-dev.80(6ba4cc111c72ed20eacb3721481c22a0)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/analytics-engine-core': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-browser': 6.2.3-dev.81(6ba4cc111c72ed20eacb3721481c22a0)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       graphql-request: 7.4.0(graphql@16.12.0)
       luxon: 3.7.2
       react: 19.2.6
@@ -14894,24 +14879,24 @@ snapshots:
       - wagmi
       - ws
 
-  '@powerhousedao/config@6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
+  '@powerhousedao/config@6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
     dependencies:
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
     transitivePeerDependencies:
       - '@electric-sql/pglite'
       - '@sentry/node-core'
       - rolldown
       - supports-color
 
-  '@powerhousedao/connect-core@6.2.3-dev.80(257593a041aea0c4ca9518504c824df2)':
+  '@powerhousedao/connect-core@6.2.3-dev.81(257593a041aea0c4ca9518504c824df2)':
     dependencies:
-      '@powerhousedao/host-core': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor': 6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-browser': 6.2.3-dev.80(6ba4cc111c72ed20eacb3721481c22a0)
-      '@powerhousedao/reactor-router': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/host-core': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor': 6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-browser': 6.2.3-dev.81(6ba4cc111c72ed20eacb3721481c22a0)
+      '@powerhousedao/reactor-router': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       '@tanstack/react-router': 1.170.41(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      document-model: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      document-model: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
     transitivePeerDependencies:
@@ -14933,7 +14918,7 @@ snapshots:
       - wagmi
       - ws
 
-  '@powerhousedao/connect@6.2.3-dev.80(92f9dbea2f875f1f976a787ed36458b2)':
+  '@powerhousedao/connect@6.2.3-dev.81(92f9dbea2f875f1f976a787ed36458b2)':
     dependencies:
       '@electric-sql/pglite': 0.3.15
       '@electric-sql/pglite-tools': 0.2.20(@electric-sql/pglite@0.3.15)
@@ -14941,28 +14926,28 @@ snapshots:
       '@openfeature/core': 1.9.1
       '@openfeature/web-sdk': 1.6.2(@openfeature/core@1.9.1)
       '@openpanel/web': 1.4.2
-      '@powerhousedao/config': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/connect-core': 6.2.3-dev.80(257593a041aea0c4ca9518504c824df2)
-      '@powerhousedao/design-system': 6.2.3-dev.80(eded0605c822e7bc352d55e1a3b6ba29)
+      '@powerhousedao/config': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/connect-core': 6.2.3-dev.81(257593a041aea0c4ca9518504c824df2)
+      '@powerhousedao/design-system': 6.2.3-dev.81(eded0605c822e7bc352d55e1a3b6ba29)
       '@powerhousedao/document-engineering': 1.40.5(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(graphql@16.12.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(supports-color@8.1.1)(zod@4.6.5)
-      '@powerhousedao/host-core': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/powerhouse-vetra-packages': 6.2.3-dev.80(75652212f609f1b926c8fa7700c682f3)
-      '@powerhousedao/reactor': 6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-attachments': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-browser': 6.2.3-dev.80(6ba4cc111c72ed20eacb3721481c22a0)
-      '@powerhousedao/reactor-mcp': 6.2.3-dev.80(6c1df6548d174d13e84a3f0ceafe8c6b)
-      '@powerhousedao/reactor-router': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/vetra': 6.2.3-dev.80(5d86fb4d985014e94bd3a9a64a5d6fd4)
-      '@powerhousedao/workflow': 6.2.3-dev.80(d1b6c598d4648dca05bcdcba0f7f2fcb)
+      '@powerhousedao/host-core': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/powerhouse-vetra-packages': 6.2.3-dev.81(75652212f609f1b926c8fa7700c682f3)
+      '@powerhousedao/reactor': 6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-attachments': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-browser': 6.2.3-dev.81(6ba4cc111c72ed20eacb3721481c22a0)
+      '@powerhousedao/reactor-mcp': 6.2.3-dev.81(6c1df6548d174d13e84a3f0ceafe8c6b)
+      '@powerhousedao/reactor-router': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/vetra': 6.2.3-dev.81(5d86fb4d985014e94bd3a9a64a5d6fd4)
+      '@powerhousedao/workflow': 6.2.3-dev.81(d1b6c598d4648dca05bcdcba0f7f2fcb)
       '@privy-io/react-auth': 3.35.0(@date-fns/tz@1.5.0)(@solana-program/system@0.10.0(@solana/kit@5.5.1(bufferutil@4.1.0)(typescript@7.0.2)(utf-8-validate@5.0.10)))(@solana-program/token@0.9.0(@solana/kit@5.5.1(bufferutil@4.1.0)(typescript@7.0.2)(utf-8-validate@5.0.10)))(@solana/kit@5.5.1(bufferutil@4.1.0)(typescript@7.0.2)(utf-8-validate@5.0.10))(@solana/sysvars@5.5.1(typescript@7.0.2))(@tanstack/query-core@5.105.0)(@tanstack/react-query@5.105.0(@types/react@19.3.0)(react@19.2.6))(@types/react@19.3.0)(bufferutil@4.1.0)(date-fns@4.3.0)(debug@4.4.3(supports-color@8.1.1))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(supports-color@8.1.1)(typescript@7.0.2)(use-sync-external-store@1.4.0(react@19.2.6))(utf-8-validate@5.0.10)(zod@4.6.5)
       '@rainbow-me/rainbowkit': 2.2.11(@tanstack/react-query@5.105.0(@types/react@19.3.0)(react@19.2.6))(@types/react@19.3.0)(babel-plugin-macros@3.1.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@7.0.2)(viem@2.57.13(bufferutil@4.1.0)(typescript@7.0.2)(utf-8-validate@5.0.10)(zod@4.6.5))(wagmi@2.19.5(@tanstack/query-core@5.105.0)(@tanstack/react-query@5.105.0(@types/react@19.3.0)(react@19.2.6))(@types/react@19.3.0)(bufferutil@4.1.0)(debug@4.4.3(supports-color@8.1.1))(react@19.2.6)(supports-color@8.1.1)(typescript@7.0.2)(utf-8-validate@5.0.10)(viem@2.57.13(bufferutil@4.1.0)(typescript@7.0.2)(utf-8-validate@5.0.10)(zod@4.6.5))(zod@4.6.5))
-      '@renown/sdk': 6.2.3-dev.80(26da473c7809d740d62a8afa0409bfd5)
+      '@renown/sdk': 6.2.3-dev.81(26da473c7809d740d62a8afa0409bfd5)
       '@sentry/react': 10.78.0(react@19.2.6)
       '@tailwindcss/node': 4.2.2
       '@tanstack/react-query': 5.105.0(@types/react@19.3.0)(react@19.2.6)
       '@tanstack/react-router': 1.170.41(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      document-model: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      document-model: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       i18next: 25.10.10(typescript@7.0.2)
       kysely: 0.28.16
       kysely-pglite-dialect: 1.2.0(@electric-sql/pglite@0.3.15)(kysely@0.28.16)
@@ -15104,10 +15089,10 @@ snapshots:
       - yaml
       - yup
 
-  '@powerhousedao/design-system@6.2.3-dev.80(eded0605c822e7bc352d55e1a3b6ba29)':
+  '@powerhousedao/design-system@6.2.3-dev.81(eded0605c822e7bc352d55e1a3b6ba29)':
     dependencies:
-      '@powerhousedao/reactor-browser': 6.2.3-dev.80(6ba4cc111c72ed20eacb3721481c22a0)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-browser': 6.2.3-dev.81(6ba4cc111c72ed20eacb3721481c22a0)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       '@radix-ui/react-checkbox': 1.4.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@radix-ui/react-dialog': 1.3.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@radix-ui/react-dropdown-menu': 2.2.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -15160,10 +15145,10 @@ snapshots:
       - wagmi
       - ws
 
-  '@powerhousedao/desktop@6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
+  '@powerhousedao/desktop@6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
     dependencies:
-      '@powerhousedao/host-core': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/host-core': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       zod: 4.6.5
     transitivePeerDependencies:
       - '@electric-sql/pglite'
@@ -15220,9 +15205,9 @@ snapshots:
       - '@types/react-dom'
       - supports-color
 
-  '@powerhousedao/host-core@6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
+  '@powerhousedao/host-core@6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
     dependencies:
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       zod: 4.6.5
     transitivePeerDependencies:
       - '@electric-sql/pglite'
@@ -15230,24 +15215,24 @@ snapshots:
       - rolldown
       - supports-color
 
-  '@powerhousedao/opentelemetry-instrumentation-reactor@6.2.3-dev.80(@powerhousedao/reactor@6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))':
+  '@powerhousedao/opentelemetry-instrumentation-reactor@6.2.3-dev.81(@powerhousedao/reactor@6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))':
     dependencies:
       '@opentelemetry/api': 1.10.0
-      '@powerhousedao/reactor': 6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor': 6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
 
-  '@powerhousedao/ph-cli@6.2.3-dev.80(a1e26cd25630aed8f268773ec82c2fa1)':
+  '@powerhousedao/ph-cli@6.2.3-dev.81(a1e26cd25630aed8f268773ec82c2fa1)':
     dependencies:
       '@modelcontextprotocol/sdk': 1.29.0(supports-color@8.1.1)(zod@4.6.5)
-      '@powerhousedao/builder-tools': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(@tanstack/react-router@1.170.41(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@types/node@24.19.2)(jiti@2.7.0)(rolldown@1.0.2)(rollup@4.66.0)(supports-color@8.1.1)(terser@5.51.2)(workbox-build@7.4.1(supports-color@8.1.1))(workbox-window@7.4.1)(yaml@2.9.1)
-      '@powerhousedao/codegen': 6.2.3-dev.80(@parcel/watcher@2.5.1)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(bufferutil@4.1.0)(crossws@0.3.5)(graphql@16.12.0)(pg@8.18.0)(rolldown@1.0.2)(supports-color@8.1.1)(tarn@3.1.2)(typescript@7.0.2)(utf-8-validate@5.0.10)
-      '@powerhousedao/common': 6.2.3-dev.80(6ba4cc111c72ed20eacb3721481c22a0)
-      '@powerhousedao/config': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor': 6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-mcp': 6.2.3-dev.80(6c1df6548d174d13e84a3f0ceafe8c6b)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/switchboard': 6.2.3-dev.80(d49fb33ac636c880b7c19128b21377fa)
-      '@powerhousedao/vetra': 6.2.3-dev.80(5d86fb4d985014e94bd3a9a64a5d6fd4)
-      '@renown/sdk': 6.2.3-dev.80(26da473c7809d740d62a8afa0409bfd5)
+      '@powerhousedao/builder-tools': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(@tanstack/react-router@1.170.41(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@types/node@24.19.2)(jiti@2.7.0)(rolldown@1.0.2)(rollup@4.66.0)(supports-color@8.1.1)(terser@5.51.2)(workbox-build@7.4.1(supports-color@8.1.1))(workbox-window@7.4.1)(yaml@2.9.1)
+      '@powerhousedao/codegen': 6.2.3-dev.81(@parcel/watcher@2.5.1)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(bufferutil@4.1.0)(crossws@0.3.5)(graphql@16.12.0)(pg@8.18.0)(rolldown@1.0.2)(supports-color@8.1.1)(tarn@3.1.2)(typescript@7.0.2)(utf-8-validate@5.0.10)
+      '@powerhousedao/common': 6.2.3-dev.81(6ba4cc111c72ed20eacb3721481c22a0)
+      '@powerhousedao/config': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor': 6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-mcp': 6.2.3-dev.81(6c1df6548d174d13e84a3f0ceafe8c6b)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/switchboard': 6.2.3-dev.81(d49fb33ac636c880b7c19128b21377fa)
+      '@powerhousedao/vetra': 6.2.3-dev.81(5d86fb4d985014e94bd3a9a64a5d6fd4)
+      '@renown/sdk': 6.2.3-dev.81(26da473c7809d740d62a8afa0409bfd5)
       '@sentry/node-core': 10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))
       '@tsdown/css': 0.23.0(jiti@2.7.0)(postcss@8.5.30)(tsdown@0.23.0)(yaml@2.9.1)
       '@vercel/nft': 1.11.0(rollup@4.66.0)(supports-color@8.1.1)
@@ -15256,7 +15241,7 @@ snapshots:
       change-case: 5.4.4
       cmd-ts: 0.15.0(supports-color@8.1.1)
       colorette: 2.0.20
-      document-model: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      document-model: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       dotenv: 16.4.7
       enquirer: 2.4.1
       kysely: 0.28.16
@@ -15364,7 +15349,7 @@ snapshots:
       - yaml
       - zod
 
-  '@powerhousedao/pieces-framework@6.2.3-dev.80(@powerhousedao/reactor@6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))(@powerhousedao/shared@6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))':
+  '@powerhousedao/pieces-framework@6.2.3-dev.81(@powerhousedao/reactor@6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))(@powerhousedao/shared@6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))':
     dependencies:
       dayjs: 1.11.9
       form-data: 4.0.6
@@ -15372,16 +15357,16 @@ snapshots:
       nanoid: 3.3.17
       zod: 4.6.5
     optionalDependencies:
-      '@powerhousedao/reactor': 6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor': 6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
 
-  '@powerhousedao/portle@6.2.3-dev.80(@powerhousedao/host-core@6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))(@powerhousedao/reactor-api@6.2.3-dev.80(4effa61a489165808d7d03d15e6ba08c))':
+  '@powerhousedao/portle@6.2.3-dev.81(@powerhousedao/host-core@6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))(@powerhousedao/reactor-api@6.2.3-dev.81(4effa61a489165808d7d03d15e6ba08c))':
     dependencies:
-      '@powerhousedao/host-core': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-api': 6.2.3-dev.80(4effa61a489165808d7d03d15e6ba08c)
+      '@powerhousedao/host-core': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-api': 6.2.3-dev.81(4effa61a489165808d7d03d15e6ba08c)
       graphql: 16.12.0
 
-  '@powerhousedao/powerhouse-vetra-packages@6.2.3-dev.80(75652212f609f1b926c8fa7700c682f3)':
+  '@powerhousedao/powerhouse-vetra-packages@6.2.3-dev.81(75652212f609f1b926c8fa7700c682f3)':
     dependencies:
       '@codemirror/autocomplete': 6.18.6
       '@codemirror/commands': 6.8.1
@@ -15393,8 +15378,8 @@ snapshots:
       '@codemirror/view': 6.36.7
       '@graphql-tools/utils': 11.0.0(graphql@16.12.0)
       '@hookform/resolvers': 5.9.2(@sinclair/typebox@0.27.12)(@standard-schema/spec@1.1.0)(ajv@8.20.0)(react-hook-form@7.90.0(@types/react@19.3.0)(react@19.2.6))(superstruct@1.0.4)(zod@4.6.5)
-      '@powerhousedao/reactor-drive': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-group': 6.2.3-dev.80(6ba4cc111c72ed20eacb3721481c22a0)
+      '@powerhousedao/reactor-drive': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-group': 6.2.3-dev.81(6ba4cc111c72ed20eacb3721481c22a0)
       '@radix-ui/react-label': 2.1.17(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@radix-ui/react-slot': 1.5.0(@types/react@19.3.0)(react@19.2.6)
       '@radix-ui/react-tabs': 1.2.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -15455,7 +15440,7 @@ snapshots:
       - yup
       - zod
 
-  '@powerhousedao/reactor-api@6.2.3-dev.80(4effa61a489165808d7d03d15e6ba08c)':
+  '@powerhousedao/reactor-api@6.2.3-dev.81(4effa61a489165808d7d03d15e6ba08c)':
     dependencies:
       '@apollo/gateway': 2.14.4(graphql@16.12.0)(supports-color@8.1.1)
       '@apollo/server': 5.5.1(graphql@16.12.0)(supports-color@8.1.1)
@@ -15466,22 +15451,22 @@ snapshots:
       '@graphql-tools/schema': 10.0.31(graphql@16.12.0)
       '@graphql-tools/utils': 11.0.0(graphql@16.12.0)
       '@originjs/vite-plugin-commonjs': 1.0.3
-      '@powerhousedao/analytics-engine-core': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/analytics-engine-graphql': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/analytics-engine-pg': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/config': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor': 6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-attachments': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-drive': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-group': 6.2.3-dev.80(6ba4cc111c72ed20eacb3721481c22a0)
-      '@powerhousedao/reactor-mcp': 6.2.3-dev.80(6c1df6548d174d13e84a3f0ceafe8c6b)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@renown/sdk': 6.2.3-dev.80(26da473c7809d740d62a8afa0409bfd5)
+      '@powerhousedao/analytics-engine-core': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/analytics-engine-graphql': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/analytics-engine-pg': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/config': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor': 6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-attachments': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-drive': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-group': 6.2.3-dev.81(6ba4cc111c72ed20eacb3721481c22a0)
+      '@powerhousedao/reactor-mcp': 6.2.3-dev.81(6c1df6548d174d13e84a3f0ceafe8c6b)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@renown/sdk': 6.2.3-dev.81(26da473c7809d740d62a8afa0409bfd5)
       body-parser: 1.20.9(supports-color@8.1.1)
       change-case: 5.4.4
       cors: 2.8.6
       devcert: 1.2.3(supports-color@8.1.1)
-      document-model: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      document-model: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       dotenv: 16.6.1
       es-module-lexer: 2.3.2
       express: 4.22.3(supports-color@8.1.1)
@@ -15541,15 +15526,15 @@ snapshots:
       - wagmi
       - yaml
 
-  '@powerhousedao/reactor-attachments@6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
+  '@powerhousedao/reactor-attachments@6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
     dependencies:
       '@aws-sdk/client-s3': 3.1087.0
       '@aws-sdk/s3-request-presigner': 3.1087.0
       '@noble/hashes': 1.8.0
-      '@powerhousedao/reactor': 6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor': 6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       change-case: 5.4.4
-      document-model: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      document-model: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       graphql: 16.12.0
       kysely: 0.28.16
     transitivePeerDependencies:
@@ -15559,20 +15544,20 @@ snapshots:
       - rolldown
       - supports-color
 
-  '@powerhousedao/reactor-browser@6.2.3-dev.80(6ba4cc111c72ed20eacb3721481c22a0)':
+  '@powerhousedao/reactor-browser@6.2.3-dev.81(6ba4cc111c72ed20eacb3721481c22a0)':
     dependencies:
-      '@ai-sdk/openai-compatible': 3.0.37(zod@4.6.5)
-      '@powerhousedao/analytics-engine-browser': 6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/analytics-engine-core': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor': 6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-attachments': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-drive': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@renown/sdk': 6.2.3-dev.80(26da473c7809d740d62a8afa0409bfd5)
+      '@ai-sdk/openai-compatible': 3.0.65(zod@4.6.5)
+      '@powerhousedao/analytics-engine-browser': 6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/analytics-engine-core': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor': 6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-attachments': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-drive': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@renown/sdk': 6.2.3-dev.81(26da473c7809d740d62a8afa0409bfd5)
       '@tanstack/react-query': 5.105.0(@types/react@19.3.0)(react@19.2.6)
-      ai: 7.0.83(zod@4.6.5)
+      ai: 7.0.130(zod@4.6.5)
       change-case: 5.4.4
-      document-model: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      document-model: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       es-module-lexer: 2.3.2
       graphql: 16.12.0
       graphql-request: 7.4.0(graphql@16.12.0)
@@ -15609,11 +15594,11 @@ snapshots:
       - wagmi
       - ws
 
-  '@powerhousedao/reactor-drive@6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
+  '@powerhousedao/reactor-drive@6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
     dependencies:
-      '@powerhousedao/reactor': 6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      document-model: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor': 6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      document-model: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       graphql: 16.12.0
       graphql-tag: 2.12.6(graphql@16.12.0)
       kysely: 0.28.16
@@ -15624,11 +15609,11 @@ snapshots:
       - rolldown
       - supports-color
 
-  '@powerhousedao/reactor-group@6.2.3-dev.80(6ba4cc111c72ed20eacb3721481c22a0)':
+  '@powerhousedao/reactor-group@6.2.3-dev.81(6ba4cc111c72ed20eacb3721481c22a0)':
     dependencies:
-      '@powerhousedao/reactor-browser': 6.2.3-dev.80(6ba4cc111c72ed20eacb3721481c22a0)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      document-model: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-browser': 6.2.3-dev.81(6ba4cc111c72ed20eacb3721481c22a0)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      document-model: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       zod: 4.6.5
     transitivePeerDependencies:
       - '@electric-sql/pglite'
@@ -15651,17 +15636,17 @@ snapshots:
       - wagmi
       - ws
 
-  '@powerhousedao/reactor-mcp@6.2.3-dev.80(6c1df6548d174d13e84a3f0ceafe8c6b)':
+  '@powerhousedao/reactor-mcp@6.2.3-dev.81(6c1df6548d174d13e84a3f0ceafe8c6b)':
     dependencies:
       '@modelcontextprotocol/sdk': 1.29.0(supports-color@8.1.1)(zod@4.6.5)
       '@openfeature/env-var-provider': 0.3.1(@openfeature/server-sdk@1.19.0(@openfeature/core@1.9.1))
       '@openfeature/server-sdk': 1.19.0(@openfeature/core@1.9.1)
-      '@powerhousedao/reactor': 6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-drive': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-group': 6.2.3-dev.80(6ba4cc111c72ed20eacb3721481c22a0)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor': 6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-drive': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-group': 6.2.3-dev.81(6ba4cc111c72ed20eacb3721481c22a0)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       change-case: 5.4.4
-      document-model: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      document-model: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       vite: 8.0.14(@types/node@24.19.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.1)
       zod: 4.6.5
     transitivePeerDependencies:
@@ -15699,10 +15684,10 @@ snapshots:
       - ws
       - yaml
 
-  '@powerhousedao/reactor-privacy@6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
+  '@powerhousedao/reactor-privacy@6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
     dependencies:
-      '@powerhousedao/reactor': 6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor': 6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       graphql: 16.12.0
       graphql-tag: 2.12.6(graphql@16.12.0)
       kysely: 0.28.16
@@ -15713,11 +15698,11 @@ snapshots:
       - rolldown
       - supports-color
 
-  '@powerhousedao/reactor-router@6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
+  '@powerhousedao/reactor-router@6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
     dependencies:
-      '@powerhousedao/reactor': 6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      document-model: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor': 6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      document-model: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
     transitivePeerDependencies:
       - '@electric-sql/pglite'
       - '@sentry/node-core'
@@ -15725,15 +15710,15 @@ snapshots:
       - rolldown
       - supports-color
 
-  '@powerhousedao/reactor-workflow@6.2.3-dev.80(d1b6c598d4648dca05bcdcba0f7f2fcb)':
+  '@powerhousedao/reactor-workflow@6.2.3-dev.81(d1b6c598d4648dca05bcdcba0f7f2fcb)':
     dependencies:
       '@opentelemetry/api': 1.10.0
-      '@powerhousedao/pieces-framework': 6.2.3-dev.80(@powerhousedao/reactor@6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))(@powerhousedao/shared@6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))
-      '@powerhousedao/reactor': 6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/workflow': 6.2.3-dev.80(d1b6c598d4648dca05bcdcba0f7f2fcb)
+      '@powerhousedao/pieces-framework': 6.2.3-dev.81(@powerhousedao/reactor@6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))(@powerhousedao/shared@6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))
+      '@powerhousedao/reactor': 6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/workflow': 6.2.3-dev.81(d1b6c598d4648dca05bcdcba0f7f2fcb)
       croner: 10.0.1
-      document-model: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      document-model: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       graphql: 16.12.0
     transitivePeerDependencies:
       - '@babel/runtime'
@@ -15757,12 +15742,12 @@ snapshots:
       - wagmi
       - ws
 
-  '@powerhousedao/reactor@6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
+  '@powerhousedao/reactor@6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
     dependencies:
       '@electric-sql/pglite': 0.3.15
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       '@sindresorhus/fnv1a': 3.1.0
-      document-model: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      document-model: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       kysely: 0.28.16
       kysely-pglite-dialect: 1.2.0(@electric-sql/pglite@0.3.15)(kysely@0.28.16)
       pg: 8.18.0
@@ -15773,7 +15758,7 @@ snapshots:
       - rolldown
       - supports-color
 
-  '@powerhousedao/shared@6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
+  '@powerhousedao/shared@6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)':
     dependencies:
       '@noble/hashes': 1.8.0
       '@sindresorhus/fnv1a': 3.1.0
@@ -15805,7 +15790,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@powerhousedao/switchboard@6.2.3-dev.80(d49fb33ac636c880b7c19128b21377fa)':
+  '@powerhousedao/switchboard@6.2.3-dev.81(d49fb33ac636c880b7c19128b21377fa)':
     dependencies:
       '@electric-sql/pglite': 0.3.15
       '@electric-sql/pglite-tools': 0.2.20(@electric-sql/pglite@0.3.15)
@@ -15822,24 +15807,24 @@ snapshots:
       '@opentelemetry/sdk-node': 0.218.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1)
       '@opentelemetry/sdk-trace-base': 2.12.0(@opentelemetry/api@1.10.0)
       '@opentelemetry/semantic-conventions': 1.44.0
-      '@powerhousedao/config': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/host-core': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/opentelemetry-instrumentation-reactor': 6.2.3-dev.80(@powerhousedao/reactor@6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))
-      '@powerhousedao/reactor': 6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-api': 6.2.3-dev.80(4effa61a489165808d7d03d15e6ba08c)
-      '@powerhousedao/reactor-attachments': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-drive': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-group': 6.2.3-dev.80(6ba4cc111c72ed20eacb3721481c22a0)
-      '@powerhousedao/reactor-privacy': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-workflow': 6.2.3-dev.80(d1b6c598d4648dca05bcdcba0f7f2fcb)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/vetra': 6.2.3-dev.80(5d86fb4d985014e94bd3a9a64a5d6fd4)
-      '@powerhousedao/workflow': 6.2.3-dev.80(d1b6c598d4648dca05bcdcba0f7f2fcb)
+      '@powerhousedao/config': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/host-core': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/opentelemetry-instrumentation-reactor': 6.2.3-dev.81(@powerhousedao/reactor@6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))
+      '@powerhousedao/reactor': 6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-api': 6.2.3-dev.81(4effa61a489165808d7d03d15e6ba08c)
+      '@powerhousedao/reactor-attachments': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-drive': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-group': 6.2.3-dev.81(6ba4cc111c72ed20eacb3721481c22a0)
+      '@powerhousedao/reactor-privacy': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-workflow': 6.2.3-dev.81(d1b6c598d4648dca05bcdcba0f7f2fcb)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/vetra': 6.2.3-dev.81(5d86fb4d985014e94bd3a9a64a5d6fd4)
+      '@powerhousedao/workflow': 6.2.3-dev.81(d1b6c598d4648dca05bcdcba0f7f2fcb)
       '@pyroscope/nodejs': 0.4.13(express@4.22.3(supports-color@8.1.1))(supports-color@8.1.1)
-      '@renown/sdk': 6.2.3-dev.80(26da473c7809d740d62a8afa0409bfd5)
+      '@renown/sdk': 6.2.3-dev.81(26da473c7809d740d62a8afa0409bfd5)
       '@sentry/node': 10.78.0(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(supports-color@8.1.1)
       '@sentry/opentelemetry': 10.78.0(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))
-      document-model: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      document-model: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       dotenv: 16.6.1
       express: 4.22.3(supports-color@8.1.1)
       graphql: 16.12.0
@@ -15910,11 +15895,11 @@ snapshots:
       - ws
       - yaml
 
-  '@powerhousedao/vetra-studio@6.2.3-dev.80(4629ef2b1efc8914e7f8dfa12421811c)':
+  '@powerhousedao/vetra-studio@6.2.3-dev.81(f6db6bdf1164591c70736fcb29e8fc3c)':
     dependencies:
-      '@powerhousedao/host-core': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-api': 6.2.3-dev.80(4effa61a489165808d7d03d15e6ba08c)
-      '@renown/sdk': 6.2.3-dev.80(26da473c7809d740d62a8afa0409bfd5)
+      '@powerhousedao/host-core': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-api': 6.2.3-dev.81(4effa61a489165808d7d03d15e6ba08c)
+      '@renown/sdk': 6.2.3-dev.81(26da473c7809d740d62a8afa0409bfd5)
       graphql: 16.12.0
     transitivePeerDependencies:
       - '@electric-sql/pglite'
@@ -15931,16 +15916,16 @@ snapshots:
       - wagmi
       - zod
 
-  '@powerhousedao/vetra@6.2.3-dev.80(5d86fb4d985014e94bd3a9a64a5d6fd4)':
+  '@powerhousedao/vetra@6.2.3-dev.81(5d86fb4d985014e94bd3a9a64a5d6fd4)':
     dependencies:
-      '@powerhousedao/codegen': 6.2.3-dev.80(@parcel/watcher@2.5.1)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(bufferutil@4.1.0)(crossws@0.3.5)(graphql@16.12.0)(pg@8.18.0)(rolldown@1.0.2)(supports-color@8.1.1)(tarn@3.1.2)(typescript@7.0.2)(utf-8-validate@5.0.10)
-      '@powerhousedao/config': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/design-system': 6.2.3-dev.80(eded0605c822e7bc352d55e1a3b6ba29)
-      '@powerhousedao/reactor-api': 6.2.3-dev.80(4effa61a489165808d7d03d15e6ba08c)
-      '@powerhousedao/reactor-browser': 6.2.3-dev.80(6ba4cc111c72ed20eacb3721481c22a0)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/codegen': 6.2.3-dev.81(@parcel/watcher@2.5.1)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(bufferutil@4.1.0)(crossws@0.3.5)(graphql@16.12.0)(pg@8.18.0)(rolldown@1.0.2)(supports-color@8.1.1)(tarn@3.1.2)(typescript@7.0.2)(utf-8-validate@5.0.10)
+      '@powerhousedao/config': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/design-system': 6.2.3-dev.81(eded0605c822e7bc352d55e1a3b6ba29)
+      '@powerhousedao/reactor-api': 6.2.3-dev.81(4effa61a489165808d7d03d15e6ba08c)
+      '@powerhousedao/reactor-browser': 6.2.3-dev.81(6ba4cc111c72ed20eacb3721481c22a0)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       change-case: 5.4.4
-      document-model: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      document-model: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       graphql: 16.12.0
       react: 19.2.6
       tailwind-merge: 3.4.0
@@ -16005,17 +15990,17 @@ snapshots:
       - ws
       - yaml
 
-  '@powerhousedao/workflow@6.2.3-dev.80(d1b6c598d4648dca05bcdcba0f7f2fcb)':
+  '@powerhousedao/workflow@6.2.3-dev.81(d1b6c598d4648dca05bcdcba0f7f2fcb)':
     dependencies:
-      '@powerhousedao/design-system': 6.2.3-dev.80(eded0605c822e7bc352d55e1a3b6ba29)
-      '@powerhousedao/pieces-framework': 6.2.3-dev.80(@powerhousedao/reactor@6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))(@powerhousedao/shared@6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))
-      '@powerhousedao/reactor': 6.2.3-dev.80(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
-      '@powerhousedao/reactor-browser': 6.2.3-dev.80(6ba4cc111c72ed20eacb3721481c22a0)
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/design-system': 6.2.3-dev.81(eded0605c822e7bc352d55e1a3b6ba29)
+      '@powerhousedao/pieces-framework': 6.2.3-dev.81(@powerhousedao/reactor@6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))(@powerhousedao/shared@6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1))
+      '@powerhousedao/reactor': 6.2.3-dev.81(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/reactor-browser': 6.2.3-dev.81(6ba4cc111c72ed20eacb3721481c22a0)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       '@tanstack/react-query': 5.105.0(@types/react@19.3.0)(react@19.2.6)
       '@uiw/react-json-view': 2.0.0-alpha.42(@babel/runtime@8.0.8)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@xyflow/react': 12.11.6(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      document-model: 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      document-model: 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       graphql: 16.12.0
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
@@ -16681,10 +16666,10 @@ snapshots:
     dependencies:
       react: 19.2.6
 
-  '@renown/sdk@6.2.3-dev.80(26da473c7809d740d62a8afa0409bfd5)':
+  '@renown/sdk@6.2.3-dev.81(26da473c7809d740d62a8afa0409bfd5)':
     dependencies:
       '@didtools/key-webcrypto': 0.2.0
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       did-jwt-vc: 4.0.16
       did-resolver: 4.1.0
       key-did-resolver: 4.0.0
@@ -20646,11 +20631,11 @@ snapshots:
 
   agent-base@7.1.4: {}
 
-  ai@7.0.83(zod@4.6.5):
+  ai@7.0.130(zod@4.6.5):
     dependencies:
-      '@ai-sdk/gateway': 4.0.67(zod@4.6.5)
-      '@ai-sdk/provider': 4.0.8
-      '@ai-sdk/provider-utils': 5.0.32(zod@4.6.5)
+      '@ai-sdk/gateway': 4.0.106(zod@4.6.5)
+      '@ai-sdk/provider': 4.0.24
+      '@ai-sdk/provider-utils': 5.0.56(zod@4.6.5)
       zod: 4.6.5
 
   ajv-formats@3.0.1(ajv@8.20.0):
@@ -21580,9 +21565,9 @@ snapshots:
     dependencies:
       path-type: 4.0.0
 
-  document-model@6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1):
+  document-model@6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1):
     dependencies:
-      '@powerhousedao/shared': 6.2.3-dev.80(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
+      '@powerhousedao/shared': 6.2.3-dev.81(@electric-sql/pglite@0.3.15)(@sentry/node-core@10.75.2(@opentelemetry/api@1.10.0)(@opentelemetry/core@2.12.0(@opentelemetry/api@1.10.0))(@opentelemetry/exporter-trace-otlp-http@0.218.0(@opentelemetry/api@1.10.0))(@opentelemetry/instrumentation@0.220.0(@opentelemetry/api@1.10.0)(supports-color@8.1.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0)))(rolldown@1.0.2)(supports-color@8.1.1)
       zod: 4.6.5
     transitivePeerDependencies:
       - '@electric-sql/pglite'
@@ -24142,7 +24127,7 @@ snapshots:
     dependencies:
       '@adraffy/ens-normalize': 1.11.1
       '@noble/curves': 1.8.1
-      '@noble/hashes': 1.8.0
+      '@noble/hashes': 1.7.1
       '@scure/bip32': 1.6.2
       '@scure/bip39': 1.5.4
       abitype: 1.0.8(typescript@7.0.2)(zod@3.25.76)
@@ -24156,7 +24141,7 @@ snapshots:
     dependencies:
       '@adraffy/ens-normalize': 1.11.1
       '@noble/curves': 1.8.1
-      '@noble/hashes': 1.8.0
+      '@noble/hashes': 1.7.1
       '@scure/bip32': 1.6.2
       '@scure/bip39': 1.5.4
       abitype: 1.0.8(typescript@7.0.2)(zod@4.6.5)

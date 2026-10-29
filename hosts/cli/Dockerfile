@@ -48,10 +48,15 @@ RUN apt-get update \
 COPY --from=build --chown=node:node /app /app
 ARG PH_HOST=cli
 # PH_USER_DATA_DIR moves what the switchboard keeps outside its database
-# (its identity key pair, attachments, registry packages) onto the volume.
+# (its identity key pair, attachments, registry packages, the workflows
+# secrets key when none is set) onto the volume. Access defaults to signed-in
+# callers only; ADMINS names who manages the instance.
 ENV NODE_ENV=production \
     PH_HOST=${PH_HOST} \
-    PH_USER_DATA_DIR=/data
+    PH_USER_DATA_DIR=/data \
+    AUTH_ENABLED=true \
+    REQUIRE_AUTHENTICATED_CALLER=true \
+    RESOLVE_CALLER_IDENTITY=true
 RUN mkdir -p /data && chown node:node /data
 VOLUME ["/data"]
 USER node
