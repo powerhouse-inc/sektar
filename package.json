@@ -1,7 +1,15 @@
 {
-  "name": "sektar",
+  "name": "@powerhousedao/sektar",
   "version": "1.0.0",
+  "description": "Sektar: business finance and productivity for SMEs, on Powerhouse. Bank transactions, invoices, expenses, contacts, mail, calendar, trips and the integrations that bring them in.",
   "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/powerhouse-inc/sektar"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     "/dist"
   ],

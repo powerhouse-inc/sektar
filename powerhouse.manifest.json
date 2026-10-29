@@ -1,10 +1,10 @@
 {
-  "name": "sektar",
-  "description": "Document models, editors and integrations for invoicing.",
+  "name": "@powerhousedao/sektar",
+  "description": "Sektar: business finance and productivity for SMEs, on Powerhouse. Bank transactions, invoices, expenses, contacts, mail, calendar, trips and the integrations that bring them in.",
   "category": "Finance",
   "publisher": {
-    "name": "Acme Studio",
-    "url": "https://acme.example"
+    "name": "@powerhousedao",
+    "url": "https://github.com/powerhouse-inc/sektar"
   },
   "documentModels": [
     {
