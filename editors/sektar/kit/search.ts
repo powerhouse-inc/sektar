@@ -1,14 +1,20 @@
-// Global search over the search-index processor's table. The processor runs in
-// the tab's in-process reactor (and on the switchboard), so the index is local
-// and live: results update as documents change, no server round trip.
+// Global search over the search-index processor's table. Where the business
+// drive is a remote, the switchboard answers over GraphQL (the processor runs
+// there); where the tab's own reactor holds it, the same query runs live on
+// its database and results follow the documents as they change.
 import { useRelationalQuery } from "@powerhousedao/reactor-browser";
-import { useCallback, useMemo } from "react";
-import { SearchIndex } from "../../../processors/search-index/processor.js";
-import type {
-  DB,
-  SearchEntry,
-} from "../../../processors/search-index/schema.js";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  SEARCH_LIMIT,
+  searchQuery,
+  searchWords,
+  SearchIndex,
+  type DB,
+  type SearchEntry,
+} from "../../../processors/search-index/index.js";
 import { useSektarDrive } from "./data.js";
+import { indexGql } from "./index-gql.js";
+import { useMailIndexMode } from "./mail-index.js";
 
 export type SearchHit = SearchEntry;
 
@@ -46,20 +52,83 @@ export const KIND_LABEL: Record<string, string> = {
   transaction: "Transactions",
 };
 
+/** How long typing is left to settle before the switchboard is asked. */
+const TYPING_DEBOUNCE_MS = 200;
+
+const SEARCH_QUERY = `query ($d: String!, $q: String!, $l: Int) {
+  searchIndex { search(driveId: $d, query: $q, limit: $l) {
+    documentId entityId documentType kind title subtitle amount status at
+  } }
+}`;
+
+interface RemoteHit {
+  documentId: string;
+  entityId: string;
+  documentType: string;
+  kind: string;
+  title: string;
+  subtitle: string | null;
+  amount: number | null;
+  status: string | null;
+  at: string | null;
+}
+
+const fromRemote = (h: RemoteHit): SearchHit => ({
+  document_id: h.documentId,
+  entity_id: h.entityId,
+  document_type: h.documentType,
+  kind: h.kind,
+  title: h.title,
+  subtitle: h.subtitle,
+  body: "",
+  amount: h.amount,
+  status: h.status,
+  at: h.at,
+});
+
+/** The switchboard's answer for `words`, asked once typing has settled. */
+function useRemoteSearch(
+  base: string | null,
+  driveId: string,
+  words: readonly string[],
+  limit: number,
+) {
+  const key = base && driveId && words.length ? `${base}|${driveId}|${words.join(" ")}|${limit}` : "";
+  const [answer, setAnswer] = useState<{ key: string; hits: SearchHit[]; error: Error | null } | null>(null);
+  useEffect(() => {
+    if (!key || !base) return;
+    let active = true;
+    const timer = setTimeout(() => {
+      indexGql<{ searchIndex: { search: RemoteHit[] } }>(base, SEARCH_QUERY, {
+        d: driveId,
+        q: words.join(" "),
+        l: limit,
+      })
+        .then((data) => {
+          if (active) setAnswer({ key, hits: data.searchIndex.search.map(fromRemote), error: null });
+        })
+        .catch((error: unknown) => {
+          if (active)
+            setAnswer({ key, hits: [], error: error instanceof Error ? error : new Error(String(error)) });
+        });
+    }, TYPING_DEBOUNCE_MS);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+    // words and limit are in the key
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  const current = answer && answer.key === key ? answer : null;
+  return { hits: current?.hits ?? [], isLoading: !!key && !current, error: current?.error ?? null };
+}
+
 /** Tokenised match: every word must appear somewhere in the row's body. */
-export function useGlobalSearch(query: string, limit = 40) {
+export function useGlobalSearch(query: string, limit = SEARCH_LIMIT) {
   const drive = useSektarDrive();
   const driveId = drive?.header.id ?? "";
-  const words = useMemo(
-    () =>
-      query
-        .toLowerCase()
-        .split(/\s+/)
-        .map((w) => w.trim())
-        .filter(Boolean)
-        .slice(0, 6),
-    [query],
-  );
+  const mode = useMailIndexMode(drive);
+  const words = useMemo(() => searchWords(query), [query]);
   const params = useMemo(() => ({ words, limit }), [words, limit]);
   const build = useCallback(
     (
@@ -67,26 +136,25 @@ export function useGlobalSearch(query: string, limit = 40) {
         Parameters<typeof useRelationalQuery<DB, SearchHit, typeof params>>[2]
       >[0],
       p?: typeof params,
-    ) => {
-      let q = db.selectFrom("search_entries").selectAll();
-      for (const w of p?.words ?? [])
-        q = q.where("body", "like", `%${w.replace(/[%_]/g, "")}%`);
-      return q
-        .orderBy("at", "desc")
-        .limit(p?.limit ?? 40)
-        .compile();
-    },
+    ) => searchQuery(db, p?.words ?? [], p?.limit ?? SEARCH_LIMIT).compile(),
     [],
   );
-  const { result, isLoading, error } = useRelationalQuery<
-    DB,
-    SearchHit,
-    typeof params
-  >(SearchIndex, driveId, build, params);
-  const hits = useMemo(
-    () => (words.length === 0 || !driveId ? [] : (result?.rows ?? [])),
-    [result, words.length, driveId],
+  const local = useRelationalQuery<DB, SearchHit, typeof params>(
+    SearchIndex,
+    mode.kind === "local" ? driveId : "",
+    build,
+    params,
   );
+  const remote = useRemoteSearch(
+    mode.kind === "remote" ? mode.base : null,
+    driveId,
+    words,
+    limit,
+  );
+  const hits = useMemo(() => {
+    if (words.length === 0 || !driveId) return [];
+    return mode.kind === "remote" ? remote.hits : (local.result?.rows ?? []);
+  }, [words.length, driveId, mode.kind, remote.hits, local.result]);
   const grouped = useMemo(() => {
     const map = new Map<string, SearchHit[]>();
     for (const h of hits) {
@@ -96,11 +164,12 @@ export function useGlobalSearch(query: string, limit = 40) {
     }
     return [...map.entries()].sort((a, b) => b[1].length - a[1].length);
   }, [hits]);
+  const isLoading = mode.kind === "remote" ? remote.isLoading : local.isLoading;
   return {
     hits,
     grouped,
     isLoading: words.length > 0 && isLoading,
-    error,
+    error: mode.kind === "remote" ? remote.error : local.error,
     active: words.length > 0,
   };
 }
