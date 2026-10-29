@@ -5,11 +5,11 @@
  * one under its slug. A store whose drives were converted (Mail on 2026-10-26,
  * the others on 2026-10-29) holds a new reactor-drive under its own id, next
  * to the legacy drive, which keeps the slug and is no longer written. The
- * converted drive is pinned here (hosts/drive-ids.json; the vetra host pins it
- * for the studio switchboard), and every lookup takes the pinned drive where
+ * converted drive is pinned here (drive-ids.json; the vetra host pins the same
+ * ids for the studio switchboard), and every lookup takes the pinned drive where
  * the store has it, else the drive under the slug.
  */
-import pins from "../../hosts/drive-ids.json" with { type: "json" };
+import pins from "./drive-ids.json" with { type: "json" };
 
 export type DriveSlug = keyof typeof pins;
 

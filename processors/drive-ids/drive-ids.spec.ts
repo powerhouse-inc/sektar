@@ -48,3 +48,18 @@ describe("drive pins", () => {
     expect(await bindsTo(both, { id: "other", slug: "other", meta: {} }, "files", "files")).toBe(false);
   });
 });
+
+describe("the vetra host's pins", () => {
+  it("are the ids the code looks drives up by", async () => {
+    const pins = (await import("./drive-ids.json", { with: { type: "json" } })).default;
+    // a host file has no declarations: read it as data
+    const hostFile = "../../hosts/vetra/host.js";
+    const vetra = ((await import(hostFile)) as { default: unknown }).default as {
+      children: { "vetra-switchboard": { reactor: { drives: { slug: string; id?: string }[] } } };
+    };
+    const served = vetra.children["vetra-switchboard"].reactor.drives;
+    for (const [slug, id] of Object.entries(pins)) {
+      expect(served.find((d) => d.slug === slug)?.id, slug).toBe(id);
+    }
+  });
+});

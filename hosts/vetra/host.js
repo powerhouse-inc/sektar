@@ -9,7 +9,6 @@
 // first publish — link the workspace package meanwhile; added to the
 // versioned scaffold deps at that publish event, same as host-core/clint).
 import config from "../../powerhouse.config.json" with { type: "json" };
-import driveIds from "../drive-ids.json" with { type: "json" };
 import switchboard from "../switchboard/host.js";
 import connect from "../connect/host.js";
 
@@ -23,17 +22,28 @@ const servedDrives = switchboard.reactor.drives ?? [];
 // declarations in hosts/switchboard/host.js and serve servedDrives as they are.
 //
 // The drives converted to reactor-drives (Mail on 2026-10-26, the others on
-// 2026-10-29) live under the ids in hosts/drive-ids.json (each one's slug is its
-// id), so the studio switchboard, which serves that store, pins them: seeding
-// by slug alone would find the legacy drive, which is no longer written. The
+// 2026-10-29) live under these ids (each one's slug is its id), so the studio
+// switchboard, which serves that store, pins them: seeding by slug alone would
+// find the legacy drive, which is no longer written. The
 // pins stay out of the shared switchboard host because a monorepo up to
 // 6.2.3-dev.80 cannot seed a fresh store with them (a legacy create may not
 // take a content-addressed id) and stops the server; later releases make the
 // drive anew under its slug instead.
+//
+// The same ids as processors/drive-ids/drive-ids.json (a host file imports
+// no other file; drive-ids.spec.ts checks the two agree).
+/** @type {Record<string, string>} */
+const CONVERTED_DRIVE_IDS = {
+  mail: "HRsIHuMMTdmjgCdy9QGWyx96zOFByPo787oBQcEt9f4",
+  sektar: "5v9yD8F5MatCgOugIgNg47Qzg-JP5OEx618hVCqIqms",
+  calendar: "uRQ_DTyK0ydh0rY2WN2kl1ietHC_PSk1UZ15_5HCKvc",
+  files: "wpoqSWDrc0GNFL_BJd15L9R5rtvezJsH7mZFqGYSVA0",
+  trips: "ohSCDA562h5tE12uWVFMk3C_3sHEqF3vz69TAZ0ax0A",
+  integrations: "pL3TbPK1kE2qRC8DcqrW5-Ng2BYb0gAzjjOVfmEH3tk",
+  backfills: "bxyXzS9OEFouLyHF11E56xEed7asuaQA-QNLjUsQ_TU",
+};
 const studioDrives = servedDrives.map((d) =>
-  d.slug in driveIds
-    ? { ...d, id: driveIds[/** @type {keyof typeof driveIds} */ (d.slug)] }
-    : d,
+  CONVERTED_DRIVE_IDS[d.slug] ? { ...d, id: CONVERTED_DRIVE_IDS[d.slug] } : d,
 );
 
 /** @satisfies {PHHost} */

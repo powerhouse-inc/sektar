@@ -18,7 +18,7 @@ export type NavItem = {
   icon: IconName;
   /**
    * For a drive item: the id of the drive converted to a reactor-drive in
-   * stores that hold one (hosts/drive-ids.json; `to` names the slug). The
+   * stores that hold one (processors/drive-ids/drive-ids.json; `to` names the slug). The
    * item opens that drive while it exists.
    */
   pinnedId?: string;

@@ -16,7 +16,7 @@ import type { ProviderAdapter, ProviderContext } from "./types.js";
 export const GMAIL_PIECE = "@activepieces/piece-gmail";
 export const GMAIL_PIECE_VERSION = "0.18.1";
 /**
- * The Mail drive: the converted drive pinned in hosts/drive-ids.json where the
+ * The Mail drive: the converted drive pinned in processors/drive-ids/drive-ids.json where the
  * store has it, else the drive under the slug "mail" (hosts/switchboard). The
  * reconciler resolves it (io.drive) and files mail under the id it finds.
  */
