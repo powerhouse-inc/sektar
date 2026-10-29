@@ -34,7 +34,7 @@ on:
 
 env:
   NODE_VERSION: "24"
-  PNPM_VERSION: "10"
+  PNPM_VERSION: "12.10.1"
   DOCKER_REGISTRY: cr.vetra.io
   GHCR_REGISTRY: ghcr.io
 
