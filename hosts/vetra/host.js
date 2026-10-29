@@ -76,12 +76,15 @@ export default {
       // messages with bodies, and re-derive the whole history into a sync
       // outbox on every fresh tab, which stalled the switchboard for minutes.
       // The studio drives (vetra, preview) are attached by the studio plugin.
-      // ${origin}: the page's own origin (see runner.proxy above).
+      // ${origin}: the page's own origin (see runner.proxy above). A remote
+      // backend is named by one of the switchboard's drives (the GraphQL
+      // endpoint names no drive): ${origin}/d/sektar is the switchboard at
+      // ${origin}, its GraphQL at ${origin}/graphql.
       reactor: {
         backends: {
           sb: {
             kind: "remote",
-            remote: { url: "${origin}/graphql" },
+            remote: { url: "${origin}/d/sektar" },
           },
         },
         drives: servedDrives.map((d) => ({
