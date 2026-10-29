@@ -43,13 +43,20 @@ export type Product = {
   nav: NavItem[];
   /**
    * The drive behind the product: its slug, its label in the navigation and
-   * the drive app it is bound to (header.meta.preferredEditor).
+   * the drive app it is bound to (header.meta.preferredEditor). `inSidebar:
+   * false` leaves it out of the sidebar (Settings links to it instead).
    */
-  drive: { slug: string; label: string; editor: string };
+  drive: { slug: string; label: string; editor: string; inSidebar?: boolean };
   /** Above the drive's entry, below the divider: what the machinery serves, e.g. Integrations */
   beforeDrive?: NavItem[];
-  /** Below the drive's entry: the product's other machinery, e.g. Backfills */
+  /** Below the drive's entry: the product's other machinery */
   afterDrive?: NavItem[];
+  /**
+   * The product's pages that Settings links to rather than the sidebar
+   * (hosts/connect/routes/_app/settings): they still open with this
+   * product's sidebar.
+   */
+  linked?: NavItem[];
 };
 
 export const PRODUCTS: readonly Product[] = [
@@ -82,10 +89,12 @@ export const PRODUCTS: readonly Product[] = [
       // The Files drive (hosts/*: slug "files", drive app files)
       { to: "/d/files", pinnedId: pinnedDriveId("files"), label: "Files", icon: "folder" },
     ],
+    // The Workflows drive: Settings links to it (settings/workflows.tsx)
     drive: {
       slug: "workflows",
       label: "Workflows",
       editor: "workflow-studio",
+      inSidebar: false,
     },
     beforeDrive: [
       // The Integrations drive (hosts/switchboard: slug "integrations", drive app integrations)
@@ -96,8 +105,9 @@ export const PRODUCTS: readonly Product[] = [
         icon: "sync",
       },
     ],
-    afterDrive: [
-      // The Backfills drive (hosts/*: slug "backfills", drive app backfills)
+    linked: [
+      // The Backfills drive (hosts/*: slug "backfills", drive app backfills):
+      // Settings links to it (settings/backfills.tsx)
       {
         to: "/d/backfills",
         pinnedId: pinnedDriveId("backfills"),
@@ -234,7 +244,12 @@ export function productFor(
 ): Product {
   const own = PRODUCTS.find(
     (p) =>
-      [...p.nav, ...(p.beforeDrive ?? []), ...(p.afterDrive ?? [])].some(
+      [
+        ...p.nav,
+        ...(p.beforeDrive ?? []),
+        ...(p.afterDrive ?? []),
+        ...(p.linked ?? []),
+      ].some(
         // a drive item's page is also its pinned drive's address
         (n) => navTargets(n).some((to) => navMatches(pathname, to)),
       ) ||

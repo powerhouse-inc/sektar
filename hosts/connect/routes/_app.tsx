@@ -78,6 +78,7 @@ function useBindDriveApps() {
       ...p.nav,
       ...(p.beforeDrive ?? []),
       ...(p.afterDrive ?? []),
+      ...(p.linked ?? []),
     ])) {
       if (!item.app || !item.to.startsWith("/d/")) continue;
       const slug = item.to.slice(3);
@@ -99,6 +100,7 @@ function pageTitle(pathname: string, product: Product) {
     ...product.nav,
     ...(product.beforeDrive ?? []),
     ...(product.afterDrive ?? []),
+    ...(product.linked ?? []),
   ].find((n) => navTargets(n).some((to) => navMatches(pathname, to)));
   if (nav) return nav.label;
   if (pathname.startsWith("/d/")) return product.drive.label;
@@ -260,6 +262,7 @@ function Sidebar({
             onNavigate={onNavigate}
           />
         ))}
+        {product.drive.inSidebar !== false && (
         <li>
           <Link
             to="/d/$driveSlug/{-$nodeSlug}"
@@ -275,6 +278,7 @@ function Sidebar({
             <span className="sk-nav__label">{product.drive.label}</span>
           </Link>
         </li>
+        )}
         {(product.afterDrive ?? []).map((item) => (
           <NavLink
             key={item.to}
