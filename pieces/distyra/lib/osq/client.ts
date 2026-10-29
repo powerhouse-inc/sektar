@@ -307,3 +307,63 @@ export const osqDocumentProp = Property.Dropdown<string, true>({
 export function hasWorkToDo(state: QueueState): boolean {
   return state.status === "IN_PROGRESS" && !state.awaitingValues;
 }
+
+/** One cursor's value in a tuple: what PROCEED's `expected` compares. */
+export interface TupleEntry {
+  cursor: string;
+  value: unknown;
+}
+
+/** The tuple the queue is on, by value, as the trigger hands it out. */
+export function tupleOf(state: QueueState): TupleEntry[] {
+  return state.cursors.map((cursor) => ({
+    cursor: cursor.id,
+    value: valueOf(cursor, state.collections),
+  }));
+}
+
+/**
+ * The tuple a run worked on, from what the flow passes back.
+ *
+ * Takes the trigger's whole payload (`{{trigger.payload}}`, whose `cursors`
+ * carry ids and values) or a bare list of `{ cursor | id, value }`, so the
+ * author has nothing to reshape. Anything else is refused loudly: a guard fed
+ * the wrong thing would refuse every move and stall the loop.
+ */
+export function expectedTupleOf(raw: unknown): TupleEntry[] {
+  const list: unknown =
+    raw && typeof raw === "object" && !Array.isArray(raw)
+      ? (raw as { cursors?: unknown }).cursors
+      : raw;
+  if (!Array.isArray(list) || list.length === 0) {
+    throw new Error(
+      "Position should be the For Every trigger's payload ({{trigger.payload}}) or a list of cursors with their values.",
+    );
+  }
+  return list.map((entry: unknown) => {
+    const item = (entry ?? {}) as { cursor?: unknown; id?: unknown; value?: unknown };
+    const cursor = item.cursor ?? item.id;
+    if (typeof cursor !== "string") {
+      throw new Error("Every cursor in the position needs its id.");
+    }
+    return { cursor, value: item.value ?? null };
+  });
+}
+
+/**
+ * Whether the queue is still on that tuple: the same rule the PROCEED
+ * reducer's guard applies, checked here first so a stale caller writes
+ * nothing to the document's history.
+ */
+export function isOnTuple(state: QueueState, expected: TupleEntry[]): boolean {
+  if (!hasWorkToDo(state)) return false;
+  const current = tupleOf(state);
+  if (current.length !== expected.length) return false;
+  return current.every(({ cursor, value }) => {
+    const match = expected.find((entry) => entry.cursor === cursor);
+    return (
+      match !== undefined &&
+      JSON.stringify(match.value ?? null) === JSON.stringify(value ?? null)
+    );
+  });
+}

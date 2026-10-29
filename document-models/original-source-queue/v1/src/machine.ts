@@ -253,6 +253,32 @@ export function currentTuple(
   }));
 }
 
+/**
+ * Whether the queue is on exactly this tuple: the guard behind PROCEED's
+ * `expected`.
+ *
+ * Compared by value, as `currentTuple` stamps errors. A parked queue is on no
+ * tuple at all, so it matches nothing, and a tuple naming a different set of
+ * cursors is not this one.
+ */
+export function isOnTuple(
+  state: OriginalSourceQueueState,
+  expected: readonly { cursor: string; value?: unknown }[],
+): boolean {
+  if (state.status !== "IN_PROGRESS" || state.awaitingValues) return false;
+  const current = currentTuple(state);
+  if (expected.length !== current.length) return false;
+  return current.every(({ cursor, value }) => {
+    const match = expected.find((entry) => entry.cursor === cursor);
+    return match !== undefined && sameValue(match.value, value);
+  });
+}
+
+// Values arrive back through a workflow as JSON, so JSON is the comparison.
+function sameValue(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+}
+
 function readValue(
   state: OriginalSourceQueueState,
   cursor: OsqCursor,

@@ -1,10 +1,11 @@
 /**
  * The history workflow of an integration: the distyra for-every trigger
- * walks the plugged queue a slice per poll on the switchboard's reactor
- * connection, then the provider's steps fetch and store the slice. One per
- * integration; the reconciler points it at one queue at a time.
+ * hands out the plugged queue's slice on the switchboard's reactor
+ * connection, the provider's steps fetch and store it, and a last step moves
+ * the queue on. One per integration; the reconciler points it at one queue at
+ * a time.
  */
-import { forEveryConfig } from "./backfill-osq.js";
+import { forEveryConfig, PROCEED_STEP } from "./backfill-osq.js";
 import type { ProviderAdapter, ProviderContext } from "./providers/index.js";
 import { DISTYRA_PIECE, DISTYRA_PIECE_VERSION } from "./pieces.js";
 import type { WorkflowSpec } from "./workflow-spec.js";
@@ -33,14 +34,32 @@ export function backfillWorkflowSpec(
         pollEverySeconds: provider.backfillPollSeconds ?? BACKFILL_POLL_SECONDS,
       },
     },
-    steps: provider.backfillSteps(ctx, range),
+    steps: [
+      ...provider.backfillSteps(ctx, range),
+      {
+        key: PROCEED_STEP,
+        name: "Move to the next slice",
+        pieceName: DISTYRA_PIECE,
+        pieceVersion: DISTYRA_PIECE_VERSION,
+        actionName: "osq-proceed",
+        reactorConnectionId: ctx.reactorConnectionId,
+        // Only from the slice this run brought in: a second run on the same
+        // slice must not move the queue past the next one.
+        config: { documentId: queueId, position: "{{trigger.payload}}" },
+      },
+    ],
+    // The trigger only reads; without the last step it would hand out the
+    // same slice forever.
+    triggerNeedsSteps: true,
     words: {
       subject: "the history workflow",
       provider: provider.label,
       config: (actual) =>
         actual?.documentId !== queueId
           ? "the history workflow walked another backfill"
-          : "the history workflow's pace was changed",
+          : "advance" in actual
+            ? "the history workflow's trigger had a setting it no longer takes"
+            : "the history workflow's pace was changed",
     },
   };
 }

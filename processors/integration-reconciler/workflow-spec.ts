@@ -86,6 +86,12 @@ export type WorkflowSpec = {
   trigger: TriggerSpec;
   /** Run in this order, one after the other */
   steps: StepSpec[];
+  /**
+   * The trigger only works with every step in place (a for-every that only
+   * reads needs the step that moves the queue): steps it lacks at the end are
+   * added, and the trigger is not changed while they cannot be.
+   */
+  triggerNeedsSteps?: boolean;
   words: DriftWords;
 };
 
@@ -155,19 +161,26 @@ export type Drift = {
 
 /**
  * What to change so the published workflow is the spec again: the trigger's
- * config and connections, the steps' sign-ins, the step retry (then a
- * re-publish), and its status. Empty when it already is.
+ * config and connections, steps the spec ends with that it lacks, the steps'
+ * sign-ins and settings, the step retry (then a re-publish), and its status.
+ * Empty when it already is.
  */
 export function workflowDrift(
   spec: WorkflowSpec,
   facts: WorkflowFacts,
   now: string,
+  newId: () => string,
 ): Drift {
   const { subject, provider } = spec.words;
   const differences: string[] = [];
   const edits: WorkflowAction[] = [];
   const t = spec.trigger;
-  if (!sameJson(facts.triggerConfig, t.config)) {
+  const missing = spec.triggerNeedsSteps ? missingSteps(spec, facts) : null;
+  if (missing === "stuck") {
+    differences.push(
+      `${subject} is missing steps that cannot be added in place`,
+    );
+  } else if (!sameJson(facts.triggerConfig, t.config)) {
     differences.push(spec.words.config(facts.triggerConfig, t.config));
     edits.push(wf.setTriggerConfig({ config: t.config }));
   }
@@ -208,6 +221,16 @@ export function workflowDrift(
       edits.push(wf.updateStep({ id: published.id, config: step.config }));
     }
   }
+  if (missing && missing !== "stuck") {
+    let from = missing.after;
+    for (const step of missing.steps) {
+      const id = newId();
+      differences.push(`${subject} had no step "${step.name}"`);
+      edits.push(wf.addStep({ id, ...step }));
+      edits.push(wf.addEdge({ id: newId(), from, to: id, port: "next" }));
+      from = id;
+    }
+  }
   if (
     facts.defaultRetry !== undefined &&
     !sameJson(facts.defaultRetry, STEP_RETRY)
@@ -229,6 +252,34 @@ export function workflowDrift(
     edits.push(wf.setWorkflowStatus({ status }));
   }
   return { differences, actions: edits };
+}
+
+/**
+ * The steps the spec ends with that the published workflow lacks, and the
+ * published step to chain them after: how a history workflow gets the step
+ * that moves its queue. Only a missing tail is added in place, after the
+ * workflow's last step; anything else is "stuck". null: nothing missing, or
+ * the steps were not read.
+ */
+function missingSteps(
+  spec: WorkflowSpec,
+  facts: WorkflowFacts,
+): { after: string; steps: StepSpec[] } | "stuck" | null {
+  const published = facts.steps;
+  if (!published) return null;
+  const has = (step: StepSpec) => published.some((p) => p.key === step.key);
+  const first = spec.steps.findIndex((step) => !has(step));
+  if (first < 0) return null;
+  const tail = spec.steps.slice(first);
+  const last = published.at(-1);
+  if (
+    first === 0 ||
+    tail.some(has) ||
+    last?.key !== spec.steps[first - 1]?.key
+  ) {
+    return "stuck";
+  }
+  return { after: last.id, steps: tail };
 }
 
 export const sameJson = (a: unknown, b: unknown) =>

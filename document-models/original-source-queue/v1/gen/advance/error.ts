@@ -1,7 +1,9 @@
 export type ErrorCode =
   | "ProceedNotInProgressError"
+  | "ProceedStaleError"
   | "ProceedWithErrorNotInProgressError"
-  | "ProceedWithErrorIdTakenError";
+  | "ProceedWithErrorIdTakenError"
+  | "ProceedWithErrorStaleError";
 
 export interface ReducerError {
   errorCode: ErrorCode;
@@ -10,6 +12,13 @@ export interface ReducerError {
 export class ProceedNotInProgressError extends Error implements ReducerError {
   errorCode = "ProceedNotInProgressError" as ErrorCode;
   constructor(message = "ProceedNotInProgressError") {
+    super(message);
+  }
+}
+
+export class ProceedStaleError extends Error implements ReducerError {
+  errorCode = "ProceedStaleError" as ErrorCode;
+  constructor(message = "ProceedStaleError") {
     super(message);
   }
 }
@@ -34,11 +43,19 @@ export class ProceedWithErrorIdTakenError
   }
 }
 
+export class ProceedWithErrorStaleError extends Error implements ReducerError {
+  errorCode = "ProceedWithErrorStaleError" as ErrorCode;
+  constructor(message = "ProceedWithErrorStaleError") {
+    super(message);
+  }
+}
+
 export const errors = {
-  Proceed: { ProceedNotInProgressError },
+  Proceed: { ProceedNotInProgressError, ProceedStaleError },
 
   ProceedWithError: {
     ProceedWithErrorNotInProgressError,
     ProceedWithErrorIdTakenError,
+    ProceedWithErrorStaleError,
   },
 };

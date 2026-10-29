@@ -273,7 +273,7 @@ async function reconcileLiveWorkflow(
     return true;
   }
   await markManaged(io, id, facts, doc);
-  const drift = workflowDrift(spec, facts, io.now());
+  const drift = workflowDrift(spec, facts, io.now(), () => io.newId());
   if (drift.actions.length === 0) {
     // The workflow is what the integration asks for: is it running?
     const problem = runtimeIssue(await io.workflowHealth(id));
@@ -449,7 +449,7 @@ async function reconcileBackfill(
     s.intent.backfill.enabled && plugged !== null,
     range,
   );
-  const drift = workflowDrift(spec, facts, io.now());
+  const drift = workflowDrift(spec, facts, io.now(), () => io.newId());
   if (drift.actions.length === 0) {
     if (spec.enabled) {
       const problem = runtimeIssue(

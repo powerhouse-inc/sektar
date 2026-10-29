@@ -384,6 +384,117 @@ describe("recording failures", () => {
   });
 });
 
+describe("moving only from the tuple a caller worked on", () => {
+  /** The tuple as the For Every trigger hands it out: ids and values. */
+  function handedOut(document: Doc): { cursor: string; value: unknown }[] {
+    const { cursors, collections } = document.state.global;
+    return cursors.map((cursor) => ({
+      cursor: cursor.id,
+      value: isCollectionCursor(cursor)
+        ? (collections.find((c) => c.id === cursor.collection)?.values[
+            cursor.current ?? -1
+          ] ?? null)
+        : (cursor.current ?? null),
+    }));
+  }
+
+  it("moves when the queue is still on that tuple", () => {
+    let document = reducer(threeLoopDraft(), start({}));
+    const monday = handedOut(document);
+    document = reducer(document, proceed({ expected: monday }));
+    expect(errorAt(document, 5)).toBeUndefined();
+    expect(tuple(document)).toEqual([2025, 1, 1]);
+  });
+
+  it("refuses a second move from the same tuple, so the next is not skipped", () => {
+    let document = reducer(threeLoopDraft(), start({}));
+    const monday = handedOut(document);
+    document = reducer(document, proceed({ expected: monday }));
+    document = reducer(document, proceed({ expected: monday }));
+    expect(errorAt(document, 6)).toContain("no longer on the tuple");
+    // Still on Tuesday: the one the second run never worked on.
+    expect(tuple(document)).toEqual([2025, 1, 1]);
+  });
+
+  it("refuses a tuple that names other cursors", () => {
+    let document = reducer(threeLoopDraft(), start({}));
+    const [year, week] = handedOut(document);
+    document = reducer(document, proceed({ expected: [year, week] }));
+    document = reducer(
+      document,
+      proceed({
+        expected: [year, week, { cursor: "cur-month", value: "Monday" }],
+      }),
+    );
+    expect(errorAt(document, 5)).toContain("no longer on the tuple");
+    expect(errorAt(document, 6)).toContain("no longer on the tuple");
+    expect(tuple(document)).toEqual([2025, 1, 0]);
+  });
+
+  it("compares a time cursor by its instant", () => {
+    let document = reducer(
+      utils.createDocument(),
+      createDateTimeCursor({
+        id: "days",
+        first: "2024-01-01T00:00:00.000Z",
+        last: "2024-01-04T00:00:00.000Z",
+        deltaSeconds: 86400,
+      }),
+    );
+    document = reducer(document, start({}));
+    const first = handedOut(document);
+    expect(first).toEqual([
+      { cursor: "days", value: "2024-01-01T00:00:00.000Z" },
+    ]);
+    document = reducer(
+      document,
+      proceed({
+        expected: [{ cursor: "days", value: "2024-01-02T00:00:00.000Z" }],
+      }),
+    );
+    expect(errorAt(document, 2)).toContain("no longer on the tuple");
+    document = reducer(document, proceed({ expected: first }));
+    expect(errorAt(document, 3)).toBeUndefined();
+    expect(tuple(document)).toEqual(["2024-01-02T00:00:00.000Z"]);
+  });
+
+  it("matches nothing while the queue waits for values", () => {
+    let document = reducer(
+      utils.createDocument(),
+      createCollection({ id: "files", name: "Files", values: [] }),
+    );
+    document = reducer(
+      document,
+      createCollectionCursor({ id: "cur-file", collection: "files" }),
+    );
+    document = reducer(document, start({}));
+    document = reducer(
+      document,
+      proceed({ expected: [{ cursor: "cur-file", value: null }] }),
+    );
+    expect(errorAt(document, 3)).toContain("no longer on the tuple");
+    expect(document.state.global.awaitingValues).toBe(true);
+  });
+
+  it("records a failure only against the tuple the caller worked on", () => {
+    let document = reducer(threeLoopDraft(), start({}));
+    const monday = handedOut(document);
+    document = reducer(
+      document,
+      proceedWithError({ id: "e1", message: "boom", expected: monday }),
+    );
+    document = reducer(
+      document,
+      proceedWithError({ id: "e2", message: "late", expected: monday }),
+    );
+    expect(errorAt(document, 5)).toBeUndefined();
+    expect(errorAt(document, 6)).toContain("stamped on the wrong one");
+    // The late report neither lands on Tuesday nor moves past it.
+    expect(document.state.global.errors.map((e) => e.id)).toEqual(["e1"]);
+    expect(tuple(document)).toEqual([2025, 1, 1]);
+  });
+});
+
 describe("status gates every operation that claims one", () => {
   it("will not start anything but a draft", () => {
     const running = reducer(threeLoopDraft(), start({}));

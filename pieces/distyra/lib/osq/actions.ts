@@ -18,6 +18,8 @@ import {
 } from "@powerhousedao/pieces-framework";
 import {
   applyToQueue,
+  expectedTupleOf,
+  isOnTuple,
   osqDocumentProp,
   readQueue,
   shapeOf,
@@ -37,6 +39,17 @@ const errorProps = {
     required: false,
   }),
 };
+
+/**
+ * The position a run worked on. With it, a move only happens from there, so a
+ * second run on the same position cannot step past the next one.
+ */
+const positionProp = Property.Json({
+  displayName: "Position",
+  description:
+    "The position this run worked on: {{trigger.payload}} in a For Every flow. The queue then only moves if it is still there, so two runs on one position cannot skip the next. Leave empty only in a flow that walks the queue by hand.",
+  required: false,
+});
 
 /** Errors need a caller-supplied id: reducers must stay deterministic. */
 function errorId(): string {
@@ -146,14 +159,30 @@ export const distyraOsqProceedAction = createAction({
   requireReactor: "write",
   displayName: "Proceed",
   description:
-    "Advance the queue one position by hand. Not for use alongside the For Every trigger, which already advances — pairing them would skip every other tuple.",
-  props: { documentId: osqDocumentProp },
+    "Advance the queue one position. The last step of every For Every flow, with Position set to {{trigger.payload}}: the queue then only moves on from the position this run worked on, once its steps succeeded. Without a Position it moves from wherever the queue is, for flows that walk a queue by hand.",
+  props: { documentId: osqDocumentProp, position: positionProp },
   async run(context) {
-    const documentId = context.propsValue.documentId;
+    const { documentId } = context.propsValue;
+    // Typed as an object, but a flow can hand over null as well
+    const position: unknown = context.propsValue.position;
+    if (position === undefined || position === null) {
+      const after = await applyToQueue(context, documentId, [
+        { type: "PROCEED", input: {} },
+      ]);
+      return { ...shapeOf(documentId, after), moved: true };
+    }
+    const expected = expectedTupleOf(position);
+    const before = await readQueue(context, documentId);
+    // Already moved on (another run on the same position got there first):
+    // that is this step's goal reached, not a failure, and writes nothing.
+    if (!isOnTuple(before, expected)) {
+      return { ...shapeOf(documentId, before), moved: false };
+    }
+    // The reducer checks again, which closes the gap between read and write.
     const after = await applyToQueue(context, documentId, [
-      { type: "PROCEED", input: {} },
+      { type: "PROCEED", input: { expected } },
     ]);
-    return shapeOf(documentId, after);
+    return { ...shapeOf(documentId, after), moved: true };
   },
 });
 
@@ -183,17 +212,29 @@ export const distyraOsqProceedWithErrorAction = createAction({
   requireReactor: "write",
   displayName: "Proceed With Error",
   description:
-    "Record a failure against the current position and then advance past it, so one bad slice does not stall the backfill. Not for use alongside the For Every trigger.",
-  props: { documentId: osqDocumentProp, ...errorProps },
+    "Record a failure against the current position and then advance past it, so one bad slice does not stall the backfill. With Position set to {{trigger.payload}}, only against the position this run worked on.",
+  props: { documentId: osqDocumentProp, ...errorProps, position: positionProp },
   async run(context) {
     const { documentId, message, data } = context.propsValue;
+    const position: unknown = context.propsValue.position;
+    const input = { id: errorId(), message, data: data ?? null };
+    if (position === undefined || position === null) {
+      const after = await applyToQueue(context, documentId, [
+        { type: "PROCEED_WITH_ERROR", input },
+      ]);
+      return { ...shapeOf(documentId, after), moved: true };
+    }
+    const expected = expectedTupleOf(position);
+    const before = await readQueue(context, documentId);
+    // The failure belongs to a position the queue has left: recording it
+    // would stamp it on the wrong one.
+    if (!isOnTuple(before, expected)) {
+      return { ...shapeOf(documentId, before), moved: false };
+    }
     const after = await applyToQueue(context, documentId, [
-      {
-        type: "PROCEED_WITH_ERROR",
-        input: { id: errorId(), message, data: data ?? null },
-      },
+      { type: "PROCEED_WITH_ERROR", input: { ...input, expected } },
     ]);
-    return shapeOf(documentId, after);
+    return { ...shapeOf(documentId, after), moved: true };
   },
 });
 

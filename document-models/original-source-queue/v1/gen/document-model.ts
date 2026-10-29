@@ -385,12 +385,13 @@ export const documentModel: DocumentModelGlobalState = {
               id: "op-proceed",
               name: "PROCEED",
               description:
-                "Advance one tuple. May park on an empty queue, or finish when the space is walked.",
-              schema: "input ProceedInput {\n    _: Boolean\n}",
+                "Advance one tuple. May park on an empty queue, or finish when the space is walked. With expected, only from that tuple.",
+              schema:
+                'input ProceedInput {\n    """\n    The tuple the caller worked on, as the For Every trigger handed it out\n    (its cursors\' ids and values). When given, the queue only moves if it is\n    still on exactly this tuple, so two runs that worked on one tuple cannot\n    each move the queue and skip the next one between them.\n    """\n    expected: [ProceedExpectedCursorValueInput!]\n}\n\n"""One cursor\'s value in the tuple a caller expects the queue to be on."""\ninput ProceedExpectedCursorValueInput {\n    cursor: OID!\n    value: Unknown\n}',
               template:
-                "Advance one tuple. May park on an empty queue, or finish when the space is walked.",
+                "Advance one tuple. May park on an empty queue, or finish when the space is walked. With expected, only from that tuple.",
               reducer:
-                '// requires: import { advance } from "../machine.js";\nif (state.status !== "IN_PROGRESS") {\n  throw new ProceedNotInProgressError(\n    `Only a walk in progress can advance; this queue is ${state.status}.`,\n  );\n}\nadvance(state);',
+                '// requires: import { advance, isOnTuple } from "../machine.js";\nif (state.status !== "IN_PROGRESS") {\n  throw new ProceedNotInProgressError(\n    `Only a walk in progress can advance; this queue is ${state.status}.`,\n  );\n}\nif (action.input.expected && !isOnTuple(state, action.input.expected)) {\n  throw new ProceedStaleError(\n    "The queue is no longer on the tuple this caller worked on; moving it again would skip the next one.",\n  );\n}\nadvance(state);',
               errors: [
                 {
                   id: "err-proceed-not-running",
@@ -398,6 +399,14 @@ export const documentModel: DocumentModelGlobalState = {
                   code: "PROCEED_NOT_IN_PROGRESS",
                   description:
                     "Only a walk that is in progress can advance. A paused walk must be resumed and a finished one reset.",
+                  template: "",
+                },
+                {
+                  id: "err-proceed-stale",
+                  name: "ProceedStaleError",
+                  code: "PROCEED_STALE",
+                  description:
+                    "The queue is no longer on the expected tuple: another caller already moved it, or it parked or finished. Nothing moves.",
                   template: "",
                 },
               ],
@@ -410,11 +419,11 @@ export const documentModel: DocumentModelGlobalState = {
               description:
                 "Record a failure against the current tuple and then advance. Equivalent to REPORT_ERROR followed by PROCEED, and the error is stamped before the move.",
               schema:
-                "input ProceedWithErrorInput {\n    id: OID!\n    message: String!\n    data: Unknown\n}",
+                'input ProceedWithErrorInput {\n    id: OID!\n    message: String!\n    data: Unknown\n    """\n    The tuple the caller worked on, as the For Every trigger handed it out\n    (its cursors\' ids and values). When given, the queue only moves if it is\n    still on exactly this tuple, so two runs that worked on one tuple cannot\n    each move the queue and skip the next one between them.\n    """\n    expected: [ProceedWithErrorExpectedCursorValueInput!]\n}\n\n"""One cursor\'s value in the tuple a caller expects the queue to be on."""\ninput ProceedWithErrorExpectedCursorValueInput {\n    cursor: OID!\n    value: Unknown\n}',
               template:
                 "Record a failure against the current tuple and then advance. Equivalent to REPORT_ERROR followed by PROCEED, and the error is stamped before the move.",
               reducer:
-                '// requires: import { advance, currentTuple } from "../machine.js";\nif (state.status !== "IN_PROGRESS") {\n  throw new ProceedWithErrorNotInProgressError(\n    `Only a walk in progress can record a failure and advance; this queue is ${state.status}.`,\n  );\n}\nif (state.errors.some((error) => error.id === action.input.id)) {\n  throw new ProceedWithErrorIdTakenError(\n    `An error with id ${action.input.id} is already recorded; reusing it would overwrite an earlier failure.`,\n  );\n}\n\n// Stamped BEFORE the move, or the error would name the tuple after the\n// failing one \u2014 which is the single most misleading thing this document\n// could record.\nstate.errors.push({\n  id: action.input.id,\n  message: action.input.message,\n  data: action.input.data ?? null,\n  cursors: currentTuple(state),\n});\n\nadvance(state);',
+                '// requires: import { advance, currentTuple, isOnTuple } from "../machine.js";\nif (state.status !== "IN_PROGRESS") {\n  throw new ProceedWithErrorNotInProgressError(\n    `Only a walk in progress can record a failure and advance; this queue is ${state.status}.`,\n  );\n}\nif (action.input.expected && !isOnTuple(state, action.input.expected)) {\n  throw new ProceedWithErrorStaleError(\n    "The queue is no longer on the tuple this caller worked on; the failure would be stamped on the wrong one.",\n  );\n}\nif (state.errors.some((error) => error.id === action.input.id)) {\n  throw new ProceedWithErrorIdTakenError(\n    `An error with id ${action.input.id} is already recorded; reusing it would overwrite an earlier failure.`,\n  );\n}\n\n// Stamped BEFORE the move, or the error would name the tuple after the\n// failing one \u2014 which is the single most misleading thing this document\n// could record.\nstate.errors.push({\n  id: action.input.id,\n  message: action.input.message,\n  data: action.input.data ?? null,\n  cursors: currentTuple(state),\n});\n\nadvance(state);',
               errors: [
                 {
                   id: "err-pwe-not-running",
@@ -430,6 +439,14 @@ export const documentModel: DocumentModelGlobalState = {
                   code: "PROCEED_WITH_ERROR_ID_TAKEN",
                   description:
                     "Another error already has this id. Reusing one would overwrite the record of an earlier failure.",
+                  template: "",
+                },
+                {
+                  id: "err-pwe-stale",
+                  name: "ProceedWithErrorStaleError",
+                  code: "PROCEED_WITH_ERROR_STALE",
+                  description:
+                    "The queue is no longer on the expected tuple, so the failure would be stamped on the wrong one. Nothing is recorded and nothing moves.",
                   template: "",
                 },
               ],

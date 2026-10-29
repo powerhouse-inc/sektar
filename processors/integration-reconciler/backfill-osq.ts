@@ -85,7 +85,14 @@ export function rangeOf(state: QueueState): string {
     : SLICE_RANGE;
 }
 
-/** The for-every trigger's config for a queue. */
+/**
+ * The for-every trigger's config for a queue. The trigger only reads; the
+ * workflow's last step (PROCEED_STEP) moves the queue, so a slice that fails
+ * or is cut off by a stop is fetched again instead of lost.
+ */
 export function forEveryConfig(documentId: string): Record<string, unknown> {
   return { documentId };
 }
+
+/** The key of the step that moves the queue past a slice once it is in. */
+export const PROCEED_STEP = "proceed";

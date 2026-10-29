@@ -8,17 +8,26 @@
 import type { OriginalSourceQueueAdvanceOperations } from "document-models/original-source-queue/v1";
 import {
   ProceedNotInProgressError,
+  ProceedStaleError,
   ProceedWithErrorIdTakenError,
   ProceedWithErrorNotInProgressError,
+  ProceedWithErrorStaleError,
 } from "../../gen/advance/error.js";
-import { advance, currentTuple } from "../machine.js";
+import { advance, currentTuple, isOnTuple } from "../machine.js";
 
 export const originalSourceQueueAdvanceOperations: OriginalSourceQueueAdvanceOperations =
   {
-    proceedOperation(state) {
+    proceedOperation(state, action) {
       if (state.status !== "IN_PROGRESS") {
         throw new ProceedNotInProgressError(
           `Only a walk in progress can advance; this queue is ${state.status}.`,
+        );
+      }
+      // A caller that worked on a tuple moves the queue only from that tuple:
+      // a second run on the same one must not step past the next.
+      if (action.input.expected && !isOnTuple(state, action.input.expected)) {
+        throw new ProceedStaleError(
+          "The queue is no longer on the tuple this caller worked on; moving it again would skip the next one.",
         );
       }
       advance(state);
@@ -28,6 +37,11 @@ export const originalSourceQueueAdvanceOperations: OriginalSourceQueueAdvanceOpe
       if (state.status !== "IN_PROGRESS") {
         throw new ProceedWithErrorNotInProgressError(
           `Only a walk in progress can record a failure and advance; this queue is ${state.status}.`,
+        );
+      }
+      if (action.input.expected && !isOnTuple(state, action.input.expected)) {
+        throw new ProceedWithErrorStaleError(
+          "The queue is no longer on the tuple this caller worked on; the failure would be stamped on the wrong one.",
         );
       }
       if (state.errors.some((error) => error.id === action.input.id)) {

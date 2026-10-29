@@ -239,12 +239,37 @@ export type PauseInput = {
   _?: InputMaybe<Scalars["Boolean"]["input"]>;
 };
 
+/** One cursor's value in the tuple a caller expects the queue to be on. */
+export type ProceedExpectedCursorValueInput = {
+  cursor: Scalars["OID"]["input"];
+  value?: InputMaybe<Scalars["Unknown"]["input"]>;
+};
+
 export type ProceedInput = {
-  _?: InputMaybe<Scalars["Boolean"]["input"]>;
+  /**
+   * The tuple the caller worked on, as the For Every trigger handed it out
+   * (its cursors' ids and values). When given, the queue only moves if it is
+   * still on exactly this tuple, so two runs that worked on one tuple cannot
+   * each move the queue and skip the next one between them.
+   */
+  expected?: InputMaybe<Array<ProceedExpectedCursorValueInput>>;
+};
+
+/** One cursor's value in the tuple a caller expects the queue to be on. */
+export type ProceedWithErrorExpectedCursorValueInput = {
+  cursor: Scalars["OID"]["input"];
+  value?: InputMaybe<Scalars["Unknown"]["input"]>;
 };
 
 export type ProceedWithErrorInput = {
   data?: InputMaybe<Scalars["Unknown"]["input"]>;
+  /**
+   * The tuple the caller worked on, as the For Every trigger handed it out
+   * (its cursors' ids and values). When given, the queue only moves if it is
+   * still on exactly this tuple, so two runs that worked on one tuple cannot
+   * each move the queue and skip the next one between them.
+   */
+  expected?: InputMaybe<Array<ProceedWithErrorExpectedCursorValueInput>>;
   id: Scalars["OID"]["input"];
   message: Scalars["String"]["input"];
 };

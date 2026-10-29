@@ -18,6 +18,8 @@ import { workflowDrift, type WorkflowFacts } from "../workflow-spec.js";
 import { distyra } from "./distyra.js";
 import { gmail, MAIL_DRIVE } from "./gmail.js";
 
+const newId = () => "id-new";
+
 type Action = Parameters<typeof reducer>[1];
 const state = (...list: Action[]) =>
   list.reduce((d, a) => reducer(d, a), utils.createDocument()).state.global;
@@ -104,6 +106,12 @@ describe("Gmail, as the existing mail workflows run", () => {
       has_attachment: false,
       include_spam_trash: false,
     });
+    // The day is only left once it is in.
+    expect(spec.steps.at(-1)).toMatchObject({
+      key: "proceed",
+      actionName: "osq-proceed",
+      config: { documentId: "WICX", position: "{{trigger.payload}}" },
+    });
   });
 
   it("adopting an existing workflow only moves it to the new sign-in", () => {
@@ -132,7 +140,7 @@ describe("Gmail, as the existing mail workflows run", () => {
         >,
       })),
     };
-    const d = workflowDrift(spec, legacy, AT);
+    const d = workflowDrift(spec, legacy, AT, newId);
     expect(d.differences).toEqual(["the workflow used another Google sign-in"]);
     expect(d.actions.map((a) => [a.type, a.input])).toEqual([
       ["UPDATE_STEP", { id: "s1", connectionId: "conn-new" }],
@@ -144,6 +152,7 @@ describe("Gmail, as the existing mail workflows run", () => {
         spec,
         { ...legacy, triggerConfig: { ...legacy.triggerConfig, every: 1 } },
         AT,
+        newId,
       ).differences[0],
     ).toBe("the workflow ran every hour, not every 2 hours");
   });
@@ -281,7 +290,12 @@ describe("a renamed mailbox", () => {
         config: step.config,
       })),
     };
-    const d = workflowDrift(liveWorkflowSpec(gmail, ctx(after)), facts, AT);
+    const d = workflowDrift(
+      liveWorkflowSpec(gmail, ctx(after)),
+      facts,
+      AT,
+      newId,
+    );
     expect(d.differences).toEqual([
       `the workflow's step "Gmail Messages to Emails" was changed`,
     ]);

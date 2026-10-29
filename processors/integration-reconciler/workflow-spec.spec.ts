@@ -52,7 +52,7 @@ describe("the live workflow (Google Calendar)", () => {
     },
   };
   const drift = (patch: Partial<WorkflowFacts>) =>
-    workflowDrift(spec, { ...matching, ...patch }, AT);
+    workflowDrift(spec, { ...matching, ...patch }, AT, ids());
 
   it("polls the primary calendar on the sign-in, maps and upserts into the Calendar drive", () => {
     const list = buildWorkflow(spec, ids(), AT);
@@ -175,15 +175,20 @@ describe("the history workflow (Google Calendar)", () => {
     publishedVersion: 2,
     triggerName: "for-every",
     triggerConnectionId: null,
-    triggerConfig: { pollEverySeconds: 60, documentId: "q-1" },
+    triggerConfig: {
+      pollEverySeconds: 60,
+      documentId: "q-1",
+    },
     triggerReactorConnectionId: "reactor",
     steps: [
       { id: "g", key: "get_events", connectionId: "conn-1" },
       { id: "m", key: "map_events", connectionId: null },
+      { id: "u", key: "upsert_events", connectionId: null },
+      { id: "p", key: "proceed", connectionId: null },
     ],
   };
   const drift = (patch: Partial<WorkflowFacts>, s = spec) =>
-    workflowDrift(s, { ...matching, ...patch }, AT);
+    workflowDrift(s, { ...matching, ...patch }, AT, ids());
 
   it("walks the plugged queue a slice a minute, asks Google for the slice, and maps and upserts like live", () => {
     const list = buildWorkflow(spec, ids(), AT);
@@ -193,6 +198,8 @@ describe("the history workflow (Google Calendar)", () => {
       "ADD_STEP",
       "ADD_STEP",
       "ADD_STEP",
+      "ADD_STEP",
+      "ADD_EDGE",
       "ADD_EDGE",
       "ADD_EDGE",
       "ADD_EDGE",
@@ -226,10 +233,18 @@ describe("the history workflow (Google Calendar)", () => {
       key: "upsert_events",
       reactorConnectionId: "reactor",
     });
-    expect(list.slice(5, 8).map((a) => a.input)).toEqual([
-      { id: "id-5", from: "id-1", to: "id-2", port: "next" },
-      { id: "id-6", from: "id-2", to: "id-3", port: "next" },
-      { id: "id-7", from: "id-3", to: "id-4", port: "next" },
+    // Last, the step that moves the queue, and only from this run's slice
+    expect(list[5]?.input).toMatchObject({
+      key: "proceed",
+      actionName: "osq-proceed",
+      reactorConnectionId: "reactor",
+      config: { documentId: "q-1", position: "{{trigger.payload}}" },
+    });
+    expect(list.slice(6, 10).map((a) => a.input)).toEqual([
+      { id: "id-6", from: "id-1", to: "id-2", port: "next" },
+      { id: "id-7", from: "id-2", to: "id-3", port: "next" },
+      { id: "id-8", from: "id-3", to: "id-4", port: "next" },
+      { id: "id-9", from: "id-4", to: "id-5", port: "next" },
     ]);
   });
 
@@ -249,7 +264,12 @@ describe("the history workflow (Google Calendar)", () => {
     expect(d.actions.map((a) => [a.type, a.input])).toEqual([
       [
         "SET_TRIGGER_CONFIG",
-        { config: { documentId: "q-2", pollEverySeconds: 60 } },
+        {
+          config: {
+            documentId: "q-2",
+            pollEverySeconds: 60,
+          },
+        },
       ],
       ["PUBLISH_WORKFLOW", { publishedAt: AT }],
     ]);
@@ -257,8 +277,12 @@ describe("the history workflow (Google Calendar)", () => {
 
   it("puts back its pace, connections and status", () => {
     expect(
-      drift({ triggerConfig: { documentId: "q-1", pollEverySeconds: 5 } })
-        .differences,
+      drift({
+        triggerConfig: {
+          documentId: "q-1",
+          pollEverySeconds: 5,
+        },
+      }).differences,
     ).toEqual(["the history workflow's pace was changed"]);
     expect(
       drift({ triggerReactorConnectionId: "other" }).actions.map((a) => [
@@ -270,7 +294,10 @@ describe("the history workflow (Google Calendar)", () => {
       ["PUBLISH_WORKFLOW", { publishedAt: AT }],
     ]);
     const signIn = drift({
-      steps: [{ id: "g", key: "get_events", connectionId: "conn-old" }],
+      steps: [
+        { id: "g", key: "get_events", connectionId: "conn-old" },
+        ...(matching.steps ?? []).slice(1),
+      ],
     });
     expect(signIn.differences).toEqual([
       "the history workflow used another Google sign-in",
@@ -290,6 +317,70 @@ describe("the history workflow (Google Calendar)", () => {
       { status: "DISABLED" },
     ]);
     expect(drift({}, off).differences).toEqual(["the history workflow was on"]);
+  });
+
+  it("gives a workflow built before it the step that moves the queue, in the same publish", () => {
+    const before = drift({
+      triggerConfig: { pollEverySeconds: 60, documentId: "q-1" },
+      steps: matching.steps?.slice(0, 3),
+    });
+    expect(before.differences).toEqual([
+      'the history workflow had no step "Move to the next slice"',
+    ]);
+    expect(before.actions.map((a) => a.type)).toEqual([
+      "ADD_STEP",
+      "ADD_EDGE",
+      "PUBLISH_WORKFLOW",
+    ]);
+    expect(before.actions[0]?.input).toMatchObject({
+      id: "id-1",
+      key: "proceed",
+      config: { documentId: "q-1", position: "{{trigger.payload}}" },
+    });
+    // Chained after the slice's last step
+    expect(before.actions[1]?.input).toEqual({
+      id: "id-2",
+      from: "u",
+      to: "id-1",
+      port: "next",
+    });
+  });
+
+  it("drops a trigger setting For Every no longer takes", () => {
+    const interim = drift({
+      triggerConfig: {
+        pollEverySeconds: 60,
+        documentId: "q-1",
+        advance: "at-end",
+      },
+    });
+    expect(interim.differences).toEqual([
+      "the history workflow's trigger had a setting it no longer takes",
+    ]);
+    expect(interim.actions.map((a) => [a.type, a.input])).toEqual([
+      [
+        "SET_TRIGGER_CONFIG",
+        { config: { documentId: "q-1", pollEverySeconds: 60 } },
+      ],
+      ["PUBLISH_WORKFLOW", { publishedAt: AT }],
+    ]);
+  });
+
+  it("leaves the trigger alone while the steps it needs cannot be added", () => {
+    // Steps out of the spec's order: adding one in place could not be right
+    const odd = drift({
+      triggerConfig: { pollEverySeconds: 5, documentId: "q-1" },
+      steps: [
+        { id: "m", key: "map_events", connectionId: null },
+        { id: "g", key: "get_events", connectionId: "conn-1" },
+      ],
+    });
+    expect(odd.differences).toEqual([
+      "the history workflow is missing steps that cannot be added in place",
+    ]);
+    expect(odd.actions).toEqual([]);
+    // Nothing published at all: no first step to chain after
+    expect(drift({ triggerConfig: null, steps: [] }).actions).toEqual([]);
   });
 });
 

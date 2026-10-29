@@ -18,7 +18,9 @@ import type {
   OsqStatus,
   OriginalSourceQueueState,
   PauseInput,
+  ProceedExpectedCursorValueInput,
   ProceedInput,
+  ProceedWithErrorExpectedCursorValueInput,
   ProceedWithErrorInput,
   ReorderCursorsInput,
   ReportErrorInput,
@@ -240,9 +242,29 @@ export function PauseInputSchema(): z.ZodObject<Properties<PauseInput>> {
   });
 }
 
+export function ProceedExpectedCursorValueInputSchema(): z.ZodObject<
+  Properties<ProceedExpectedCursorValueInput>
+> {
+  return z.object({
+    cursor: z.string(),
+    value: z.unknown().nullish(),
+  });
+}
+
 export function ProceedInputSchema(): z.ZodObject<Properties<ProceedInput>> {
   return z.object({
-    _: z.boolean().nullish(),
+    expected: z
+      .array(z.lazy(() => ProceedExpectedCursorValueInputSchema()))
+      .nullish(),
+  });
+}
+
+export function ProceedWithErrorExpectedCursorValueInputSchema(): z.ZodObject<
+  Properties<ProceedWithErrorExpectedCursorValueInput>
+> {
+  return z.object({
+    cursor: z.string(),
+    value: z.unknown().nullish(),
   });
 }
 
@@ -251,6 +273,9 @@ export function ProceedWithErrorInputSchema(): z.ZodObject<
 > {
   return z.object({
     data: z.unknown().nullish(),
+    expected: z
+      .array(z.lazy(() => ProceedWithErrorExpectedCursorValueInputSchema()))
+      .nullish(),
     id: z.string(),
     message: z.string(),
   });

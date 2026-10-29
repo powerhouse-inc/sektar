@@ -123,6 +123,9 @@ describe("the OSQ backfill adapter", () => {
       first: "2026-10-29T00:00:00.000Z",
       last: "2026-10-01T00:00:00.000Z",
     });
-    expect(forEveryConfig("q1")).toEqual({ documentId: "q1" });
+    // Reads only: the workflow's last step moves the queue.
+    expect(forEveryConfig("q1")).toEqual({
+      documentId: "q1",
+    });
   });
 });
