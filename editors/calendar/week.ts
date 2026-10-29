@@ -4,7 +4,11 @@
  * sits in the time grid or the all-day row, and how times read. Pure: the
  * view renders what this returns. Times are the browser's local time.
  */
-import type { CalendarEventState } from "document-models/calendar-event";
+import type {
+  CalendarEventState,
+  CalendarEventStatus,
+} from "document-models/calendar-event";
+import type { CalendarEventListRow } from "processors/calendar-index";
 
 export type WeekStart = 0 | 1 | 6;
 export type HourFormat = "24" | "12";
@@ -25,13 +29,75 @@ export type Occurrence = {
   /** Not settled: the event is tentative, or the person has not said yes */
   tentative: boolean;
   repeats: boolean;
-  state: CalendarEventState;
+  state: EventFacts;
+};
+
+/**
+ * What the week needs of an event: a document's state, or the calendar
+ * index's row for it (which carries `tentative` instead of the attendees).
+ */
+export type EventFacts = Pick<
+  CalendarEventState,
+  | "allDay"
+  | "busy"
+  | "status"
+  | "summary"
+  | "location"
+  | "meetingUrl"
+  | "recurrence"
+  | "recurrenceId"
+  | "uid"
+  | "calendar"
+  | "start"
+  | "end"
+> & {
+  attendees?: CalendarEventState["attendees"];
+  /** Settled already: wins over the attendees */
+  tentative?: boolean;
 };
 
 export type CalendarSource = {
   documentId: string;
-  state: CalendarEventState;
+  state: EventFacts;
 };
+
+const STATUSES: CalendarEventStatus[] = ["CONFIRMED", "TENTATIVE", "CANCELLED"];
+
+/** An index row (processors/calendar-index) as the week reads an event */
+export function sourceFromRow(row: CalendarEventListRow): CalendarSource {
+  const zone = row.timeZone;
+  return {
+    documentId: row.id,
+    state: {
+      allDay: row.allDay,
+      busy: row.busy,
+      status: STATUSES.find((s) => s === row.status) ?? "CONFIRMED",
+      summary: row.title,
+      location: row.location,
+      meetingUrl: row.meetingUrl,
+      recurrence: row.recurrence,
+      recurrenceId: row.recurrenceId,
+      uid: row.uid,
+      calendar:
+        row.calendarId === null &&
+        row.calendarAccount === null &&
+        row.calendarName === null
+          ? null
+          : {
+              id: row.calendarId ?? "",
+              account: row.calendarAccount,
+              name: row.calendarName,
+            },
+      start: row.allDay
+        ? { at: null, date: row.startDate, timeZone: zone }
+        : { at: row.startAt, date: null, timeZone: zone },
+      end: row.allDay
+        ? { at: null, date: row.endDate, timeZone: zone }
+        : { at: row.endAt, date: null, timeZone: zone },
+      tentative: row.tentative,
+    },
+  };
+}
 
 const DAY = 86_400_000;
 
@@ -81,17 +147,17 @@ function parseAt(s: string | null | undefined): Date | null {
 }
 
 /** The calendar an event is on: its account and calendar id */
-export function calendarKey(state: CalendarEventState): string {
+export function calendarKey(state: Pick<EventFacts, "calendar">): string {
   const c = state.calendar;
   return `${c?.account ?? ""}|${c?.id ?? ""}`;
 }
 
-export function calendarLabel(state: CalendarEventState): string {
+export function calendarLabel(state: Pick<EventFacts, "calendar">): string {
   const c = state.calendar;
   return c?.name || c?.account || c?.id || "Calendar";
 }
 
-function bounds(state: CalendarEventState): { start: Date; end: Date } | null {
+function bounds(state: EventFacts): { start: Date; end: Date } | null {
   if (state.allDay) {
     const start = state.start?.date ? parseDate(state.start.date) : null;
     if (!start) return null;
@@ -107,9 +173,10 @@ function bounds(state: CalendarEventState): { start: Date; end: Date } | null {
   };
 }
 
-function tentativeOf(state: CalendarEventState): boolean {
+function tentativeOf(state: EventFacts): boolean {
+  if (state.tentative !== undefined) return state.tentative;
   if (state.status === "TENTATIVE") return true;
-  const self = state.attendees.find((a) => a.self);
+  const self = state.attendees?.find((a) => a.self);
   return (
     !!self &&
     !self.organizer &&
@@ -335,7 +402,7 @@ export function occurrencesIn(
   to: Date,
 ): Occurrence[] {
   const series = new Map<string, { overrides: Set<string> }>();
-  const seriesId = (s: CalendarEventState) =>
+  const seriesId = (s: EventFacts) =>
     `${calendarKey(s)}|${s.uid ?? ""}`;
   for (const { state } of sources) {
     if (!state.recurrenceId || !state.uid) continue;
@@ -596,7 +663,9 @@ export function weekTitle(days: Date[]): {
 }
 
 /** How a series repeats, in words; null when it does not */
-export function describeRepeat(state: CalendarEventState): string | null {
+export function describeRepeat(
+  state: Pick<EventFacts, "recurrence">,
+): string | null {
   const line = state.recurrence.find((l) => /^RRULE:/i.test(l));
   const rule = line ? parseRule(line) : null;
   if (!rule) return null;

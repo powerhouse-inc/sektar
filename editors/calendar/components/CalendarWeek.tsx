@@ -1,4 +1,4 @@
-import { useCalendarEventDocumentsInSelectedDrive } from "document-models/calendar-event";
+import { useSelectedDriveSafe } from "@powerhousedao/reactor-browser";
 import {
   useEffect,
   useLayoutEffect,
@@ -8,11 +8,14 @@ import {
   type CSSProperties,
 } from "react";
 import { useFillHeight } from "../../backfills/components/measure.js";
+import {
+  useCalendarEvents,
+  useCalendarList,
+} from "../../sektar/kit/calendar-index.js";
 import { cx, Icon } from "../../sektar/kit/ui.js";
 import { Pane } from "../../sektar/kit/workspace.js";
 import {
   addDays,
-  calendarKey,
   calendarLabel,
   colourSlot,
   formatHour,
@@ -24,6 +27,7 @@ import {
   layoutDay,
   occurrencesIn,
   sameDay,
+  sourceFromRow,
   startOfDay,
   weekStartOf,
   weekTitle,
@@ -42,48 +46,55 @@ const WEEKDAY = new Intl.DateTimeFormat(undefined, { weekday: "short" });
  * time grid with its all-day row, and the sidebar that holds the view
  * options until an event is picked, then shows that event. Esc, the close
  * button or a click on an empty part of the grid goes back to the options.
+ *
+ * The week reads the calendar index (processors/calendar-index): the events
+ * that can fall in it and the calendars, never the whole drive. The series
+ * among them are expanded here; an event document is loaded only when one
+ * is opened.
  */
 export function CalendarWeek() {
-  const docs = useCalendarEventDocumentsInSelectedDrive();
+  const [drive] = useSelectedDriveSafe();
   const [prefs, setPrefs] = useCalendarPrefs();
   const now = useNow();
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()));
   const [selected, setSelected] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const root = useRef<HTMLDivElement>(null);
-  const height = useFillHeight(root, docs !== undefined);
 
   const weekStart = weekStartOf(anchor, prefs.weekStart);
+  const weekEnd = addDays(weekStart, 7);
   const allDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const days = prefs.weekends ? allDays : allDays.filter((d) => !isWeekend(d));
 
-  // Every calendar in the drive, in a stable order: that order picks the colour
+  const events = useCalendarEvents(drive, weekStart, weekEnd);
+  const list = useCalendarList(drive);
+  const height = useFillHeight(root, events.rows !== undefined);
+
+  // Every calendar in the drive, in a stable order: that order picks the
+  // colour. Until the list has answered, the week's own calendars stand in.
   const calendars = useMemo(() => {
     const seen = new Map<string, string>();
-    for (const d of docs ?? []) {
-      const key = calendarKey(d.state.global);
-      if (!seen.has(key)) seen.set(key, calendarLabel(d.state.global));
-    }
+    if (list) for (const c of list) seen.set(c.key, c.label);
+    else
+      for (const r of events.rows ?? [])
+        if (!seen.has(r.calendarKey)) seen.set(r.calendarKey, r.calendarLabel);
     return [...seen.entries()]
       .sort((a, b) => a[1].localeCompare(b[1]) || a[0].localeCompare(b[0]))
       .map(([key, label], i) => ({ key, label, slot: colourSlot(i) }));
-  }, [docs]);
+  }, [list, events.rows]);
   const slotOf = (key: string) =>
     calendars.find((c) => c.key === key)?.slot ?? "sk-cal-c1";
 
   const week = useMemo(
     () =>
       occurrencesIn(
-        (docs ?? []).map((d) => ({
-          documentId: d.header.id,
-          state: d.state.global,
-        })),
+        (events.rows ?? []).map(sourceFromRow),
         weekStart,
-        addDays(weekStart, 7),
+        weekEnd,
       ),
     // weekStart is a new Date each render: key on its time
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [docs, weekStart.getTime()],
+    [events.rows, weekStart.getTime()],
   );
   const shown = week.filter((o) => !prefs.hidden.includes(o.calendar));
   const counts = new Map<string, number>();
