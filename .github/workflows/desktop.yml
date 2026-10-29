@@ -39,9 +39,15 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libfuse2 file
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec ph-cli run desktop build
+        # Linux bundles the .deb before the AppImage; an AppImage failure
+        # (linuxdeploy on a runner) must not cost the .deb, checked below.
+        continue-on-error: ${{ runner.os == 'Linux' }}
+      - name: Linux installer present
+        if: runner.os == 'Linux'
+        run: ls hosts/desktop/*/target/release/bundle/deb/*.deb
       - name: Attach the installers to the release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
