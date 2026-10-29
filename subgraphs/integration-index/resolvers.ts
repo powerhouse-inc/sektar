@@ -9,6 +9,7 @@
  * query goes through `restrict`.
  */
 import type { IndexQuery } from "@powerhousedao/reactor-api";
+import { onScreenOf, type OnScreen } from "./on-screen.js";
 import {
   cleanIds,
   connectionsQuery,
@@ -68,8 +69,14 @@ export const resolvers = {
   },
 };
 
+/** The person asking, as a bank sees an end user on screen (on-screen.ts). */
+function onScreen({ ctx }: IndexQuery<Db, { driveId: string }>): OnScreen | null {
+  return onScreenOf(ctx.headers);
+}
+
 export const queries = {
   "IntegrationIndexQueries.integrations": integrations,
   "IntegrationIndexQueries.queues": queues,
   "IntegrationIndexQueries.connections": connections,
+  "IntegrationIndexQueries.onScreen": onScreen,
 };

@@ -224,6 +224,9 @@ describe("Distyra, as the existing transaction workflows run", () => {
           enrich: false,
           history: "automatic",
           connectionId: "5f3665c9-a1c1-4c15-95f9-566de0c783b8",
+          // the person on screen, on a manual refresh only (null when scheduled)
+          psuIpAddress: "{{trigger.payload.psu.ipAddress?}}",
+          psuUserAgent: "{{trigger.payload.psu.userAgent?}}",
         },
       ],
       [

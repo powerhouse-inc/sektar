@@ -6,8 +6,11 @@ import { useCallback, useSyncExternalStore } from "react";
 import {
   useIntegrationItems,
   type IntegrationItem,
+  type OnScreen,
+  useOnScreen,
 } from "./integration-index.js";
 import {
+  fireWorkflow,
   pollNow,
   triggerStates,
   useWorkflowRuntimeUrl,
@@ -15,6 +18,8 @@ import {
 } from "./workflow-runtime.js";
 
 const EVERY_MS = 30_000;
+/** The bank aggregator's provider id (processors/integration-reconciler/providers/distyra.ts) */
+const BANK_PROVIDER = "distyra";
 /** How often a sync now looks whether its polls have landed, and for how long */
 const SETTLE_EVERY_MS = 2_000;
 const SETTLE_FOR_MS = 90_000;
@@ -76,6 +81,15 @@ class TriggerStore {
    */
   async syncNow(
     workflowIds: readonly string[],
+    /**
+     * Bank pulls among them: fired with the person on screen, so the bank
+     * counts the fetch as theirs, not as one of the four unattended a day.
+     * Where nobody is known (no public address) they are polled as usual.
+     */
+    attended?: {
+      ids: ReadonlySet<string>;
+      onScreen: () => Promise<OnScreen | null>;
+    },
   ): Promise<{
     synced: string[];
     skipped: string[];
@@ -88,9 +102,30 @@ class TriggerStore {
     const skipped: string[] = [];
     const failed: string[] = [];
     let error: string | undefined;
+    const banks = workflowIds.filter((id) => attended?.ids.has(id));
+    const who = banks.length > 0 && attended ? await attended.onScreen() : null;
+    // A fired pull has ended when its call returns: nothing to wait for after
+    const fired = new Set<string>();
     await Promise.all(
       workflowIds.map(async (id) => {
         try {
+          if (who && banks.includes(id)) {
+            this.setSyncing(new Set([...this.syncing, id]));
+            try {
+              const ok = await fireWorkflow(this.url, id, { psu: who });
+              fired.add(id);
+              if (ok) synced.push(id);
+              else {
+                failed.push(id);
+                error ??= "The bank refresh did not finish; its run says why";
+              }
+            } finally {
+              const left = new Set(this.syncing);
+              left.delete(id);
+              this.setSyncing(left);
+            }
+            return;
+          }
           (await pollNow(this.url, id) ? synced : skipped).push(id);
         } catch (e) {
           failed.push(id);
@@ -106,6 +141,7 @@ class TriggerStore {
         await new Promise((r) => window.setTimeout(r, SETTLE_EVERY_MS));
         const states = await this.load();
         const waiting = synced.filter((id) => {
+          if (fired.has(id)) return false;
           const t = states.get(id);
           return t?.status === "ENABLED" && !((t.lastPollAt ?? "") >= started);
         });
@@ -146,9 +182,21 @@ export function useSyncNow(): {
 } {
   const store = storeFor(useWorkflowRuntimeUrl());
   const syncing = useSyncExternalStore(store.subscribe, () => store.syncing);
+  // The bank integrations' live workflows: refreshed as the person on screen
+  const items = useIntegrations();
+  const bankKey = items
+    .filter((i) => i.state.provider === BANK_PROVIDER)
+    .map((i) => i.state.resources.liveWorkflowId)
+    .filter((id): id is string => !!id)
+    .join(",");
+  const onScreen = useOnScreen();
   const sync = useCallback(
-    (ids: readonly string[]) => store.syncNow(ids),
-    [store],
+    (ids: readonly string[]) =>
+      store.syncNow(ids, {
+        ids: new Set(bankKey ? bankKey.split(",") : []),
+        onScreen,
+      }),
+    [store, bankKey, onScreen],
   );
   return { syncing, sync };
 }

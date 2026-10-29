@@ -455,6 +455,41 @@ export function useQueueProgress(
   );
 }
 
+const ON_SCREEN_QUERY = `query ($d: String!) {
+  integrationIndex { onScreen(driveId: $d) { ipAddress userAgent } }
+}`;
+
+/** The person on screen as a bank sees them: public address and browser. */
+export interface OnScreen {
+  ipAddress: string;
+  userAgent: string;
+}
+
+/**
+ * Asks the switchboard who is on screen (subgraphs/integration-index/on-screen.ts):
+ * the address it sees the request come from. Null where it sees no public
+ * address (localhost, the LAN) or where the tab runs its own reactor.
+ */
+export function useOnScreen(): () => Promise<OnScreen | null> {
+  const hub = useHubDrive("integrations");
+  const mode = useMailIndexMode(hub);
+  const driveId = hub?.header.id ?? null;
+  const base = mode.kind === "remote" ? mode.base : null;
+  return useCallback(async () => {
+    if (!base || !driveId) return null;
+    try {
+      const data = await gql<{ integrationIndex: { onScreen: OnScreen | null } }>(
+        base,
+        ON_SCREEN_QUERY,
+        { d: driveId },
+      );
+      return data.integrationIndex.onScreen;
+    } catch {
+      return null;
+    }
+  }, [base, driveId]);
+}
+
 /** The connections of `ids`, by id, from the "workflows" drive. Undefined until known. */
 export function useConnectionRows(
   ids: readonly string[],

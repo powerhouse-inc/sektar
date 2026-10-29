@@ -6,6 +6,13 @@
  * account; import skips references the account already holds. Distyra
  * keeps its own history, so there is no backfill. The connection is an API
  * key the integration is given, shared with others.
+ *
+ * A scheduled run is unattended and uses one of the connection's four daily
+ * fetches. A manual refresh fires the workflow with the person on screen
+ * (`trigger.payload.psu`: their public address and browser), which the pull
+ * sends to the bank as Psu-Ip-Address and Psu-User-Agent: such a fetch is the
+ * person's own and does not count (200 a day). The `?` makes both null on a
+ * scheduled run, which carries no payload.
  */
 import type { IntegrationState } from "document-models/integration";
 import { DISTYRA_PIECE, DISTYRA_PIECE_VERSION } from "../pieces.js";
@@ -66,6 +73,8 @@ export const distyra: ProviderAdapter = {
             enrich: false,
             history: "automatic",
             connectionId: bankConnectionId,
+            psuIpAddress: "{{trigger.payload.psu.ipAddress?}}",
+            psuUserAgent: "{{trigger.payload.psu.userAgent?}}",
           },
         },
         ...imports,

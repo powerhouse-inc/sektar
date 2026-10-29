@@ -18,6 +18,8 @@ export const IntegrationIndexSubgraph = defineIndexSubgraph({
       "IntegrationIndexQueries.integrations": { rows: "document", column: "document_id" },
       "IntegrationIndexQueries.queues": { rows: "document", column: "document_id" },
       "IntegrationIndexQueries.connections": { rows: "document", column: "document_id" },
+      // the request's own headers, nothing from the index
+      "IntegrationIndexQueries.onScreen": { public: true },
     },
   },
   resolvers,

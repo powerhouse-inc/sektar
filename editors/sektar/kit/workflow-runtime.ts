@@ -349,6 +349,26 @@ export async function pollNow(
   return data.workflowRuntime.pollNow;
 }
 
+/**
+ * Runs a workflow now with `payload` as its trigger payload, and waits for the
+ * run to end. Unlike pollNow, the steps see what this call passes (a manual
+ * bank refresh passes the person on screen). True when the run succeeded.
+ */
+export async function fireWorkflow(
+  url: string,
+  workflowId: string,
+  payload: unknown,
+): Promise<boolean> {
+  const data = await gql<{ workflowRuntime: { fire: { status?: string } | null } }>(
+    url,
+    `mutation Fire($workflowId: String!, $payload: Unknown) {
+      workflowRuntime { fire(workflowId: $workflowId, payload: $payload) { status } }
+    }`,
+    { workflowId, payload },
+  );
+  return data.workflowRuntime.fire?.status === "SUCCEEDED";
+}
+
 /** The latest runs of a workflow with their steps' outputs, newest first (test runs left out). */
 export async function runsWithSteps(
   url: string,

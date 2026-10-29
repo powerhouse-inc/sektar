@@ -81,6 +81,19 @@ export const schema: DocumentNode = gql`
 
     """The connections of \`ids\` in the drive."""
     connections(driveId: String!, ids: [String!]!): [ConnectionIndexRow!]!
+
+    """
+    The person asking, as a bank sees an end user on screen: their public
+    address and browser. Null without a public address (localhost, the LAN).
+    A manual refresh sends it with the bank fetch, which then does not use one
+    of the connection's four unattended fetches a day.
+    """
+    onScreen(driveId: String!): OnScreen
+  }
+
+  type OnScreen {
+    ipAddress: String!
+    userAgent: String!
   }
 
   type Query {
