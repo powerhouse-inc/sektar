@@ -5,16 +5,25 @@
 // a push navigation. The top bar's search filters the list; the status
 // selector is a second top-bar row wide, and the list's title is the switch
 // to the chooser when stacked.
+//
+// The list, its counts and the picked one's head come from the integration
+// index (the queues' rows); only the backfill picked is loaded as a
+// document, for the definition and walk panes that edit it.
 import {
   isFileNodeKind,
+  useDocumentSafe,
   useSelectedDrive,
   useSelectedNode,
 } from "@powerhousedao/reactor-browser";
 import {
-  useOriginalSourceQueueDocumentsInSelectedDrive,
+  isOriginalSourceQueueDocument,
   type OriginalSourceQueueDocument,
 } from "document-models/original-source-queue";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useQueueRows,
+  type QueueListRow,
+} from "../../sektar/kit/integration-index.js";
 import { Menu } from "../../sektar/kit/menu.js";
 import { useSearch } from "../../sektar/kit/search-context.js";
 import {
@@ -42,6 +51,7 @@ import {
   sortQueues,
   STATUS,
   STATUS_ORDER,
+  statusOf,
   type Filter,
 } from "../lib.js";
 import { Definition } from "./Definition.js";
@@ -59,7 +69,7 @@ const ALL_ICON: IconName = "download";
 export function BackfillsWorkspace() {
   const [drive] = useSelectedDrive();
   const node = useSelectedNode();
-  const queues = useOriginalSourceQueueDocumentsInSelectedDrive();
+  const queues = useQueueRows(null, drive);
   const { query } = useSearch();
 
   const [filter, setFilter] = useState<Filter>("all");
@@ -92,29 +102,29 @@ export function BackfillsWorkspace() {
       DRAFT: 0,
       FINISHED: 0,
     };
-    for (const doc of sorted) by[doc.state.global.status] += 1;
+    for (const row of sorted) by[statusOf(row)] += 1;
     return by;
   }, [sorted]);
   const visible = useMemo(
     () =>
       sorted.filter(
-        (doc) =>
-          (filter === "all" || doc.state.global.status === filter) &&
-          matchesQueue(query, doc),
+        (row) =>
+          (filter === "all" || statusOf(row) === filter) &&
+          matchesQueue(query, row),
       ),
     [sorted, filter, query],
   );
 
-  const selected: OriginalSourceQueueDocument | undefined = sorted.find(
-    (d) => d.header.id === selectedId,
+  const selected: QueueListRow | undefined = sorted.find(
+    (r) => r.id === selectedId,
   );
   const dispatch = useMemo(
     () => (selectedId ? dispatcherFor(selectedId) : undefined),
     [selectedId],
   );
 
-  const pick = (doc: OriginalSourceQueueDocument) => {
-    setSelectedId(doc.header.id);
+  const pick = (row: QueueListRow) => {
+    setSelectedId(row.id);
     setLevel(2);
   };
 
@@ -170,7 +180,7 @@ export function BackfillsWorkspace() {
               <Button
                 variant="danger"
                 onClick={() => {
-                  const id = selected.header.id;
+                  const id = selected.id;
                   setConfirmDelete(false);
                   setSelectedId(null);
                   setLevel(1);
@@ -183,7 +193,7 @@ export function BackfillsWorkspace() {
           }
         >
           <p>
-            <strong>{selected.header.name}</strong> and its position, queued
+            <strong>{selected.name}</strong> and its position, queued
             values and failures are removed from the drive. The documents a
             workflow captured while walking it are not touched.
           </p>
@@ -196,6 +206,14 @@ export function BackfillsWorkspace() {
       )}
     </>
   );
+
+  if (!queues) {
+    return (
+      <div className="sk-page" style={{ padding: "var(--sk-space-10) var(--sk-space-6)" }}>
+        <p className="sk-small sk-text-muted">Reading the backfills…</p>
+      </div>
+    );
+  }
 
   if (!hasQueues) {
     return (
@@ -289,12 +307,12 @@ export function BackfillsWorkspace() {
             </div>
           ) : (
             <ul className="sk-list sk-list--rich">
-              {visible.map((doc) => (
-                <li key={doc.header.id}>
+              {visible.map((row) => (
+                <li key={row.id}>
                   <QueueRow
-                    doc={doc}
-                    selected={doc.header.id === selectedId}
-                    onClick={() => pick(doc)}
+                    row={row}
+                    selected={row.id === selectedId}
+                    onClick={() => pick(row)}
                   />
                 </li>
               ))}
@@ -306,13 +324,13 @@ export function BackfillsWorkspace() {
           grow={1.5}
           onBack={() => setLevel(1)}
           backLabel="Back to the list"
-          title={selected?.header.name ?? "Backfill"}
+          title={selected?.name ?? "Backfill"}
           titleDisplay
           header={
             selected && (
               <>
-                <Badge tone={STATUS[selected.state.global.status].tone} dot pill>
-                  {STATUS[selected.state.global.status].label}
+                <Badge tone={STATUS[statusOf(selected)].tone} dot pill>
+                  {STATUS[statusOf(selected)].label}
                 </Badge>
                 <span className="sk-pane__spacer" />
                 <Button
@@ -342,13 +360,20 @@ export function BackfillsWorkspace() {
             )
           }
         >
-          {selected && dispatch ? (
-            <Definition
-              key={selected.header.id}
-              doc={selected}
-              driveId={drive.header.id}
-              dispatch={dispatch}
-            />
+          {selectedId && dispatch ? (
+            <PickedQueue
+              key={selectedId}
+              id={selectedId}
+              fallback={<p className="sk-small sk-text-muted">Opening…</p>}
+            >
+              {(doc) => (
+                <Definition
+                  doc={doc}
+                  driveId={drive.header.id}
+                  dispatch={dispatch}
+                />
+              )}
+            </PickedQueue>
           ) : (
             <EmptyState icon="download" title="Pick a backfill">
               Its loops and queues open here; the walk opens beside it.
@@ -365,8 +390,14 @@ export function BackfillsWorkspace() {
           backLabel="Back to the definition"
           title="Walk"
         >
-          {selected && dispatch ? (
-            <Walk key={selected.header.id} doc={selected} dispatch={dispatch} />
+          {selectedId && dispatch ? (
+            <PickedQueue
+              key={selectedId}
+              id={selectedId}
+              fallback={<p className="sk-small sk-text-muted">Opening…</p>}
+            >
+              {(doc) => <Walk doc={doc} dispatch={dispatch} />}
+            </PickedQueue>
           ) : (
             <p className="sk-small sk-text-muted">
               Position, controls, failures and memory of the backfill picked.
@@ -377,4 +408,24 @@ export function BackfillsWorkspace() {
       {dialogs}
     </div>
   );
+}
+
+/**
+ * The backfill picked, as its document: the one queue the definition and
+ * walk panes edit. Read without suspending, so the list stays on screen
+ * while it loads; a queue that cannot be read (just deleted) shows the
+ * fallback.
+ */
+function PickedQueue({
+  id,
+  fallback,
+  children,
+}: {
+  id: string;
+  fallback: ReactNode;
+  children: (doc: OriginalSourceQueueDocument) => ReactNode;
+}) {
+  const { data } = useDocumentSafe(id);
+  if (!data || !isOriginalSourceQueueDocument(data)) return <>{fallback}</>;
+  return <>{children(data)}</>;
 }

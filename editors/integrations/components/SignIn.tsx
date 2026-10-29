@@ -1,7 +1,8 @@
 import { dispatchActions } from "@powerhousedao/reactor-browser";
-import { actions, type IntegrationDocument } from "document-models/integration";
+import { actions } from "document-models/integration";
 import { generateId } from "document-model";
 import { useEffect, useRef, useState } from "react";
+import type { IntegrationItem } from "../../sektar/kit/integration-index.js";
 import { providerInfo } from "../../sektar/kit/integrations.js";
 import { Button } from "../../sektar/kit/ui.js";
 import {
@@ -29,9 +30,13 @@ type Phase = "idle" | "waiting" | "done" | "stopped";
  * hears of it: the card stops waiting when the window closes, and Try again
  * and Cancel are there all along.
  */
-export function SignIn({ doc }: { doc: IntegrationDocument }) {
+export function SignIn({
+  integration,
+}: {
+  integration: Pick<IntegrationItem, "id" | "state">;
+}) {
   const url = useWorkflowRuntimeUrl();
-  const s = doc.state.global;
+  const s = integration.state;
   const provider = providerInfo(s.provider)?.label ?? "the provider";
   const connectionId = s.resources.connectionId;
   const runner = onRunner();
@@ -96,7 +101,7 @@ export function SignIn({ doc }: { doc: IntegrationDocument }) {
                 requestedBy: "sign-in",
               }),
             ],
-            doc.header.id,
+            integration.id,
           );
           return;
         }

@@ -1,7 +1,8 @@
 // One backfill in the list: what it is, how far it has got, and whether it
 // is moving. The design system's rich row, with the progress bar as the
-// row's extra line once a walk has begun.
-import type { OriginalSourceQueueDocument } from "document-models/original-source-queue";
+// row's extra line once a walk has begun. It reads the queue's index row
+// (kit/integration-index), not the document.
+import type { QueueListRow } from "../../sektar/kit/integration-index.js";
 import {
   Badge,
   IconTile,
@@ -10,31 +11,30 @@ import {
 } from "../../sektar/kit/ui.js";
 import {
   count,
-  iterationOf,
   percentLabel,
   percentOf,
   plural,
   STATUS,
-  totalOf,
+  statusOf,
 } from "../lib.js";
 
 export function QueueRow({
-  doc,
+  row,
   selected,
   onClick,
 }: {
-  doc: OriginalSourceQueueDocument;
+  row: QueueListRow;
   selected: boolean;
   onClick: () => void;
 }) {
-  const s = doc.state.global;
-  const status = STATUS[s.status];
-  const total = totalOf(s);
-  const walking = s.status === "IN_PROGRESS" || s.status === "PAUSED";
+  const s = statusOf(row);
+  const status = STATUS[s];
+  const total = row.total;
+  const walking = s === "IN_PROGRESS" || s === "PAUSED";
   const shape =
-    s.cursors.length === 0
+    row.loops === 0
       ? "No loops yet"
-      : `${plural(s.cursors.length, "loop")} · ${plural(total, "position")}`;
+      : `${plural(row.loops, "loop")} · ${plural(total, "position")}`;
   return (
     <ListItem
       rich
@@ -45,14 +45,14 @@ export function QueueRow({
         <IconTile
           name={status.icon}
           size="sm"
-          variant={s.status === "IN_PROGRESS" ? "forest" : undefined}
+          variant={s === "IN_PROGRESS" ? "forest" : undefined}
         />
       }
-      title={doc.header.name || "Untitled backfill"}
+      title={row.name || "Untitled backfill"}
       sub={[
-        s.description ? (
+        row.description ? (
           <span key="desc" style={{ color: "var(--sk-text)" }}>
-            {s.description}
+            {row.description}
           </span>
         ) : (
           <span key="desc" className="sk-text-muted">
@@ -62,13 +62,13 @@ export function QueueRow({
         shape,
       ]}
       extra={
-        s.status !== "DRAFT" &&
+        s !== "DRAFT" &&
         total > 0 && (
           <div className="sk-mt-1">
             <ProgressRow
-              value={percentOf(s)}
-              label={percentLabel(s)}
-              variant={s.status === "FINISHED" ? "mint" : undefined}
+              value={percentOf(row)}
+              label={percentLabel(row)}
+              variant={s === "FINISHED" ? "mint" : undefined}
             />
           </div>
         )
@@ -80,13 +80,13 @@ export function QueueRow({
           </Badge>
           {walking && total > 0 && (
             <span className="sk-tabular">
-              {count(iterationOf(s))} of {count(total)}
+              {count(row.iteration)} of {count(total)}
             </span>
           )}
-          {s.awaitingValues && <span>waiting for values</span>}
-          {s.errors.length > 0 && (
+          {row.awaitingValues && <span>waiting for values</span>}
+          {row.errorCount > 0 && (
             <span className="sk-text-danger">
-              {plural(s.errors.length, "failure")}
+              {plural(row.errorCount, "failure")}
             </span>
           )}
         </>

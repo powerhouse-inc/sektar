@@ -1,6 +1,6 @@
 import { dispatchActions } from "@powerhousedao/reactor-browser";
 import { generateId } from "document-model";
-import { actions, type IntegrationDocument } from "document-models/integration";
+import { actions } from "document-models/integration";
 import { useState } from "react";
 import {
   fireWith,
@@ -12,6 +12,7 @@ import {
   useWorkflowRuntimeUrl,
 } from "../../sektar/kit/workflow-runtime.js";
 import { Button } from "../../sektar/kit/ui.js";
+import type { IntegrationItem } from "../../sektar/kit/integration-index.js";
 
 /** How long to wait for the runtime to see the switch-off before switching back on */
 const RELEASE_WAIT_MS = 20_000;
@@ -28,10 +29,10 @@ const RELEASE_EVERY_MS = 1_000;
  * park). Then it asks the reconciler to look again so the card catches up.
  */
 export function TryAgain({
-  doc,
+  integration,
   workflowId,
 }: {
-  doc: IntegrationDocument;
+  integration: Pick<IntegrationItem, "id">;
   workflowId: string;
 }) {
   const url = useWorkflowRuntimeUrl();
@@ -78,7 +79,7 @@ export function TryAgain({
             requestedAt: new Date().toISOString(),
           }),
         ],
-        doc.header.id,
+        integration.id,
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

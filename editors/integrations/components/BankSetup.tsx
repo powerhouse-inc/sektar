@@ -1,7 +1,8 @@
-import { useIntegrationDocumentsInSelectedDrive } from "document-models/integration";
+import { useSelectedDrive } from "@powerhousedao/reactor-browser";
 import { useEffect, useMemo, useState } from "react";
 import { useSektarDrive } from "../../sektar/kit/data.js";
 import { useAccountRows } from "../../sektar/kit/finance-index.js";
+import { useIntegrationItems } from "../../sektar/kit/integration-index.js";
 import {
   KIND_COPY,
   type BankAccountChoice,
@@ -52,14 +53,15 @@ export function BankConnect({
   patch: Patch;
 }) {
   const url = useWorkflowRuntimeUrl();
-  // Bank connections another integration already brings in
-  const integrations = useIntegrationDocumentsInSelectedDrive() ?? [];
+  // Bank connections another integration already brings in (the index's rows)
+  const [drive] = useSelectedDrive();
+  const integrations = useIntegrationItems(drive) ?? [];
   const taken = new Set(
     integrations
-      .filter((d) => !d.state.global.intent.archived)
+      .filter((d) => !d.state.intent.archived)
       .map(
         (d) =>
-          (d.state.global.intent.source as { bankConnectionId?: string } | null)
+          (d.state.intent.source as { bankConnectionId?: string } | null)
             ?.bankConnectionId,
       )
       .filter(Boolean),

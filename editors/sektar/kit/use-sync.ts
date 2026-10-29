@@ -1,13 +1,12 @@
 // What the sync status reads, shared by the top bar's chip, the
 // Integrations page and pull to refresh: the runtime's trigger states (one
-// poll for the whole app), the integrations in the Integrations drive, and
-// "sync now".
-import { useDocumentsByIds, useDrives } from "@powerhousedao/reactor-browser";
+// poll for the whole app), the integrations in the Integrations drive (from
+// the integration index), and "sync now".
+import { useCallback, useSyncExternalStore } from "react";
 import {
-  isIntegrationDocument,
-  type IntegrationDocument,
-} from "document-models/integration/v1";
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+  useIntegrationItems,
+  type IntegrationItem,
+} from "./integration-index.js";
 import {
   pollNow,
   triggerStates,
@@ -154,27 +153,14 @@ export function useSyncNow(): {
   return { syncing, sync };
 }
 
-/** The Integrations drive (hosts/switchboard: slug "integrations"). */
-const INTEGRATIONS_DRIVE = "integrations";
-
-/** The integrations in the Integrations drive, wherever the app is. */
-export function useIntegrations(): IntegrationDocument[] {
-  const drives = useDrives();
-  const drive = drives?.find(
-    (d) =>
-      d.header.id === INTEGRATIONS_DRIVE ||
-      d.header.slug === INTEGRATIONS_DRIVE,
-  );
-  const nodes = drive?.state.global.nodes;
-  const ids = useMemo(
-    () =>
-      (nodes ?? [])
-        .filter(
-          (n) => "documentType" in n && n.documentType === "sektar/integration",
-        )
-        .map((n) => n.id),
-    [nodes],
-  );
-  const docs = useDocumentsByIds(ids);
-  return useMemo(() => docs.filter(isIntegrationDocument), [docs]);
+/**
+ * The integrations in the Integrations drive (slug "integrations"), wherever
+ * the app is: index rows (kit/integration-index), never the documents.
+ * Empty until the index has answered.
+ */
+export function useIntegrations(): IntegrationItem[] {
+  const items = useIntegrationItems();
+  return items ?? NO_ITEMS;
 }
+
+const NO_ITEMS: IntegrationItem[] = [];

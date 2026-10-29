@@ -11,9 +11,9 @@ import {
 } from "@powerhousedao/reactor-browser";
 import { generateId } from "document-model";
 import type { QueueState } from "./progress.js";
+import type { QueueListRow } from "../sektar/kit/integration-index.js";
 import type {
   OriginalSourceQueueAction,
-  OriginalSourceQueueDocument,
   OsqCollection,
   OsqCursor,
   OsqError,
@@ -76,15 +76,20 @@ export const STATUS_ORDER: OsqStatus[] = [
 
 export type Filter = "all" | OsqStatus;
 
+/** A row's status as the model names it; an unknown one reads as a draft. */
+export function statusOf(row: Pick<QueueListRow, "status">): OsqStatus {
+  return STATUS_ORDER.find((s) => s === row.status) ?? "DRAFT";
+}
+
 /* ------------------------------------------------------------- reading */
 
 export { iterationOf, totalOf, type QueueState } from "./progress.js";
 /** A percentage for a bar or a ring; sub-percent progress shows one decimal. */
-export function percentOf(state: QueueState): number {
+export function percentOf(state: Pick<QueueState, "progress">): number {
   return Math.max(0, Math.min(100, state.progress * 100));
 }
 
-export function percentLabel(state: QueueState): string {
+export function percentLabel(state: Pick<QueueState, "progress">): string {
   const pct = percentOf(state);
   if (pct > 0 && pct < 1) return `${pct.toFixed(1)}%`;
   return `${String(Math.round(pct))}%`;
@@ -251,36 +256,32 @@ export function plural(n: number, one: string, many = `${one}s`): string {
   return `${count(n)} ${n === 1 ? one : many}`;
 }
 
-/** Free-text match over what a person scans a list of backfills by. */
-export function matchesQueue(query: string, doc: OriginalSourceQueueDocument) {
+/**
+ * Free-text match over what a person scans a list of backfills by: the
+ * name, the description and the loop and queue names (the index row's
+ * search text).
+ */
+export function matchesQueue(
+  query: string,
+  row: Pick<QueueListRow, "searchText">,
+) {
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  const s = doc.state.global;
-  const hay = [
-    doc.header.name,
-    s.description,
-    ...s.cursors.map((c) => c.name ?? ""),
-    ...s.collections.map((c) => c.name),
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  return q.split(/\s+/).every((word) => hay.includes(word));
+  return q.split(/\s+/).every((word) => row.searchText.includes(word));
 }
 
 /**
  * Grouped by status in STATUS_ORDER, alphabetical within a group: case is
  * ignored and numbers compare as numbers, so "Q2" sorts before "Q10".
  */
-export function sortQueues(
-  docs: OriginalSourceQueueDocument[],
-): OriginalSourceQueueDocument[] {
-  return [...docs].sort((a, b) => {
+export function sortQueues<T extends Pick<QueueListRow, "status" | "name">>(
+  rows: readonly T[],
+): T[] {
+  return [...rows].sort((a, b) => {
     const order =
-      STATUS_ORDER.indexOf(a.state.global.status) -
-      STATUS_ORDER.indexOf(b.state.global.status);
+      STATUS_ORDER.indexOf(statusOf(a)) - STATUS_ORDER.indexOf(statusOf(b));
     if (order !== 0) return order;
-    return a.header.name.localeCompare(b.header.name, undefined, {
+    return (a.name ?? "").localeCompare(b.name ?? "", undefined, {
       numeric: true,
       sensitivity: "base",
     });

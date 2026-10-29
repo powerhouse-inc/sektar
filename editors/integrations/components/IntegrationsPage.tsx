@@ -1,10 +1,12 @@
-import {
-  useIntegrationDocumentsInSelectedDrive,
-  type IntegrationDocument,
-} from "document-models/integration";
+import { useSelectedDrive } from "@powerhousedao/reactor-browser";
 import growthDark from "../../sektar/design/shapes/sektar-growth-four-column-combined-dark.svg";
 import growthLight from "../../sektar/design/shapes/sektar-growth-four-column-combined-light.svg";
 import { EndMark } from "../../sektar/kit/endmark.js";
+import {
+  useConnectionRows,
+  useIntegrationItems,
+  useQueueProgress,
+} from "../../sektar/kit/integration-index.js";
 import { KINDS } from "../../sektar/kit/integrations.js";
 import {
   PullHeader,
@@ -18,7 +20,7 @@ import {
 } from "../../sektar/kit/sync-status.js";
 import { Button, EmptyState, PageHeader } from "../../sektar/kit/ui.js";
 import { useSyncNow, useTriggerStates } from "../../sektar/kit/use-sync.js";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { CreateFlow, firstStep, STEPS, type CreateStep } from "./CreateFlow.js";
 import { IntegrationCard } from "./IntegrationCard.js";
 import { IntegrationDetail } from "./IntegrationDetail.js";
@@ -30,26 +32,50 @@ import { useHashStep } from "./use-hash-step.js";
  * step lives in the hash, so the phone's back button walks it back. While the
  * page is empty, the empty state carries the only Add button; the header gets
  * it once cards exist.
+ *
+ * Everything comes from the integration index: the integrations of this
+ * drive, their queues' progress and their connections, each asked once for
+ * the whole page.
  */
 export function IntegrationsPage() {
   const [hash, setHash] = useHashStep();
-  const docs = useIntegrationDocumentsInSelectedDrive() ?? [];
+  const [drive] = useSelectedDrive();
+  const items = useIntegrationItems(drive);
+  const docs = useMemo(() => items ?? [], [items]);
+  const queueIds = useMemo(
+    () =>
+      docs.flatMap((d) =>
+        d.state.intent.backfill.items
+          .map((item) => item.documentId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    [docs],
+  );
+  const progress = useQueueProgress(queueIds);
+  const connectionIds = useMemo(
+    () =>
+      docs
+        .map((d) => d.state.resources.connectionId)
+        .filter((id): id is string => Boolean(id)),
+    [docs],
+  );
+  const connections = useConnectionRows(connectionIds);
   const triggers = useTriggerStates();
   const step = STEPS.find((s) => s === hash);
   // An open integration: #i/<document id>
   const openId = hash?.startsWith("i/") ? hash.slice(2) : null;
-  const opened = openId ? docs.find((d) => d.header.id === openId) : undefined;
+  const opened = openId ? docs.find((d) => d.id === openId) : undefined;
   const open = useCallback((id: string) => setHash(`i/${id}`), [setHash]);
   // Sync now: every live update on the page (a pull, or Sync all now); never a backfill
   const { syncing, sync } = useSyncNow();
   const rows = docs
     .map((d) =>
       syncRow(
-        d.header.id,
-        d.header.name,
-        d.state.global,
-        d.state.global.resources.liveWorkflowId
-          ? triggers.get(d.state.global.resources.liveWorkflowId)
+        d.id,
+        d.name,
+        d.state,
+        d.state.resources.liveWorkflowId
+          ? triggers.get(d.state.resources.liveWorkflowId)
           : undefined,
       ),
     )
@@ -70,7 +96,12 @@ export function IntegrationsPage() {
   if (opened) {
     return (
       <div className="sk-page">
-        <IntegrationDetail doc={opened} onBack={() => setHash(null)} />
+        <IntegrationDetail
+          integration={opened}
+          progress={progress}
+          connections={connections}
+          onBack={() => setHash(null)}
+        />
         <EndMark margin />
       </div>
     );
@@ -121,10 +152,10 @@ export function IntegrationsPage() {
   const groups = KINDS.map((k) => ({
     info: k,
     docs: docs
-      .filter((d) => d.state.global.kind === k.kind)
-      .sort((a, b) => (a.header.name || "").localeCompare(b.header.name || "")),
+      .filter((d) => d.state.kind === k.kind)
+      .sort((a, b) => a.name.localeCompare(b.name)),
   })).filter((g) => g.docs.length > 0);
-  const unset = docs.filter((d: IntegrationDocument) => !d.state.global.kind);
+  const unset = docs.filter((d) => !d.state.kind);
 
   return (
     <div className="sk-page" ref={pageRef}>
@@ -150,7 +181,9 @@ export function IntegrationsPage() {
             ) : undefined
           }
         />
-        {docs.length === 0 ? (
+        {!items ? (
+          <p className="sk-small sk-text-muted">Reading your integrations…</p>
+        ) : docs.length === 0 ? (
           <EmptyState icon="sync" title="Nothing connected yet" action={add}>
             Pick an account and how far back to go. Sektar brings in what is
             there and keeps it up to date.
@@ -171,9 +204,11 @@ export function IntegrationsPage() {
                 <div className="sk-integration-grid">
                   {g.docs.map((d) => (
                     <IntegrationCard
-                      key={d.header.id}
-                      doc={d}
+                      key={d.id}
+                      integration={d}
                       triggers={triggers}
+                      progress={progress}
+                      connections={connections}
                       onOpen={open}
                     />
                   ))}
@@ -191,9 +226,11 @@ export function IntegrationsPage() {
                 <div className="sk-integration-grid">
                   {unset.map((d) => (
                     <IntegrationCard
-                      key={d.header.id}
-                      doc={d}
+                      key={d.id}
+                      integration={d}
                       triggers={triggers}
+                      progress={progress}
+                      connections={connections}
                       onOpen={open}
                     />
                   ))}

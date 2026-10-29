@@ -3,8 +3,14 @@ import {
   dispatchActions,
   useSelectedDrive,
 } from "@powerhousedao/reactor-browser";
-import { actions, type IntegrationDocument } from "document-models/integration";
-import { Suspense, useState } from "react";
+import { actions } from "document-models/integration";
+import { useState } from "react";
+import type { QueueProgress } from "../../backfills/progress.js";
+import {
+  patchIntegration,
+  type ConnectionListRow,
+  type IntegrationItem,
+} from "../../sektar/kit/integration-index.js";
 import {
   cardView,
   kindInfo,
@@ -26,17 +32,23 @@ import { TryAgain } from "./TryAgain.js";
  * removes it, through a confirmation that says what removing does.
  */
 export function IntegrationCard({
-  doc,
+  integration,
   triggers,
+  progress,
+  connections,
   onOpen,
 }: {
-  doc: IntegrationDocument;
+  integration: IntegrationItem;
   /** The runtime's trigger states by workflow id (useTriggerStates) */
   triggers?: ReadonlyMap<string, TriggerState>;
+  /** Its backfill queues' progress by queue id, from the index; undefined while it is read */
+  progress?: ReadonlyMap<string, QueueProgress>;
+  /** The connections by id, from the index */
+  connections?: ReadonlyMap<string, ConnectionListRow>;
   /** Opens its detail page: a tap on the card outside its controls */
   onOpen?: (id: string) => void;
 }) {
-  const s = doc.state.global;
+  const s = integration.state;
   const view = cardView(s);
   const kind = kindInfo(s.kind);
   const provider = providerInfo(s.provider);
@@ -47,7 +59,7 @@ export function IntegrationCard({
       : ([provider?.lead, kind?.label].filter(Boolean)[0] ?? "Not set up");
   // A bank's key names nobody's account: the account count says more
   const [removing, setRemoving] = useState(false);
-  const name = doc.header.name || kind?.label || "Integration";
+  const name = integration.name || kind?.label || "Integration";
   // All well (Live, Paused): the rows below say it, and the badge sits in
   // the head as in the design system; otherwise a Status row says what is up.
   const quiet = view.state === "live" || view.state === "paused";
@@ -72,7 +84,7 @@ export function IntegrationCard({
         ) {
           return;
         }
-        onOpen(doc.header.id);
+        onOpen(integration.id);
       }}
     >
       <header
@@ -89,10 +101,10 @@ export function IntegrationCard({
           <div className="sk-integration__name">
             {onOpen ? (
               <a
-                href={`#i/${doc.header.id}`}
+                href={`#i/${integration.id}`}
                 onClick={(e) => {
                   e.preventDefault();
-                  onOpen(doc.header.id);
+                  onOpen(integration.id);
                 }}
               >
                 {name}
@@ -103,12 +115,10 @@ export function IntegrationCard({
           </div>
           <div className="sk-integration__account">
             {s.resources.connectionId && s.kind !== "TRANSACTIONS" ? (
-              <Suspense fallback={account}>
-                <AccountLabel
-                  connectionId={s.resources.connectionId}
-                  fallback={account}
-                />
-              </Suspense>
+              <AccountLabel
+                connection={connections?.get(s.resources.connectionId)}
+                fallback={account}
+              />
             ) : (
               account
             )}
@@ -157,14 +167,19 @@ export function IntegrationCard({
           </Badge>
         </div>
       )}
-      {view.state === "waiting-for-sign-in" && <SignIn doc={doc} />}
-      {parked?.subject && <TryAgain doc={doc} workflowId={parked.subject} />}
+      {view.state === "waiting-for-sign-in" && (
+        <SignIn integration={integration} />
+      )}
+      {parked?.subject && (
+        <TryAgain integration={integration} workflowId={parked.subject} />
+      )}
       {(view.state === "live" ||
         view.state === "paused" ||
         view.state === "applying" ||
         view.state === "attention") && (
         <CardRows
-          doc={doc}
+          integration={integration}
+          progress={progress}
           liveTrigger={
             s.resources.liveWorkflowId
               ? triggers?.get(s.resources.liveWorkflowId)
@@ -174,7 +189,7 @@ export function IntegrationCard({
       )}
       {removing && (
         <RemoveDialog
-          doc={doc}
+          integration={integration}
           name={name}
           onClose={() => setRemoving(false)}
         />
@@ -190,19 +205,19 @@ export function IntegrationCard({
  * integration that never built anything is deleted right away.
  */
 export function RemoveDialog({
-  doc,
+  integration,
   name,
   onClose,
   onRemoved,
 }: {
-  doc: IntegrationDocument;
+  integration: IntegrationItem;
   name: string;
   onClose: () => void;
   /** After a removal that deletes it right away (the detail page leaves) */
   onRemoved?: () => void;
 }) {
   const [drive] = useSelectedDrive();
-  const plan = removalPlan(doc.state.global);
+  const plan = removalPlan(integration.state);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -212,10 +227,15 @@ export function RemoveDialog({
     try {
       if (plan.immediate) {
         if (!drive) throw new Error("The Integrations drive is not open");
-        await deleteNode(drive.header.id, doc.header.id);
+        await deleteNode(drive.header.id, integration.id);
         onRemoved?.();
       } else {
-        await dispatchActions([actions.archive({})], doc.header.id);
+        await dispatchActions([actions.archive({})], integration.id);
+        // The card says Removing now, not when the index catches up
+        patchIntegration(integration, (s) => ({
+          ...s,
+          intent: { ...s.intent, archived: true },
+        }));
       }
       onClose();
     } catch (e) {

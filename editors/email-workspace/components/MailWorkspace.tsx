@@ -266,14 +266,14 @@ export function MailWorkspace() {
   const { syncing, sync } = useSyncNow();
   const mailbox = single ? (accounts[0]?.address ?? null) : account === ALL ? null : account;
   const pullRows = integrations
-    .filter((d) => bringsMailFor(d.state.global, mailbox))
+    .filter((d) => bringsMailFor(d.state, mailbox))
     .map((d) =>
       syncRow(
-        d.header.id,
-        d.header.name,
-        d.state.global,
-        d.state.global.resources.liveWorkflowId
-          ? triggers.get(d.state.global.resources.liveWorkflowId)
+        d.id,
+        d.name,
+        d.state,
+        d.state.resources.liveWorkflowId
+          ? triggers.get(d.state.resources.liveWorkflowId)
           : undefined,
       ),
     )

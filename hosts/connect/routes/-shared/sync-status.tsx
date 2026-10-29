@@ -40,11 +40,11 @@ export function SyncStatus() {
         docs
           .map((d) =>
             syncRow(
-              d.header.id,
-              d.header.name || "Integration",
-              d.state.global,
-              d.state.global.resources.liveWorkflowId
-                ? triggers.get(d.state.global.resources.liveWorkflowId)
+              d.id,
+              d.name || "Integration",
+              d.state,
+              d.state.resources.liveWorkflowId
+                ? triggers.get(d.state.resources.liveWorkflowId)
                 : undefined,
               now,
             ),

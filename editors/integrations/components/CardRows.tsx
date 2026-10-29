@@ -1,48 +1,62 @@
+import { dispatchActions } from "@powerhousedao/reactor-browser";
+import { actions, type IntegrationState } from "document-models/integration";
+import type { ReactNode } from "react";
+import type { QueueProgress } from "../../backfills/progress.js";
 import {
-  dispatchActions,
-  useDocumentsByIds,
-} from "@powerhousedao/reactor-browser";
-import { actions, type IntegrationDocument } from "document-models/integration";
-import { isOriginalSourceQueueDocument } from "document-models/original-source-queue";
-import { Component, Suspense, useMemo, type ReactNode } from "react";
-import { queueProgress, type QueueProgress } from "../../backfills/progress.js";
+  patchIntegration,
+  type ConnectionListRow,
+  type IntegrationItem,
+} from "../../sektar/kit/integration-index.js";
 import { historyView, liveLine } from "../../sektar/kit/integrations.js";
 import type { TriggerState } from "../../sektar/kit/workflow-runtime.js";
 import { Switch } from "../../sektar/kit/ui.js";
 
 /**
+ * Flips a switch: the wish goes to the document by id, and the card shows
+ * it at once (the index follows a beat later).
+ */
+export function setSwitch(
+  integration: IntegrationItem,
+  action: Parameters<typeof dispatchActions>[0],
+  apply: (s: IntegrationState) => IntegrationState,
+): void {
+  patchIntegration(integration, apply);
+  void dispatchActions(action, integration.id);
+}
+
+/**
  * The card's two rows (design system: Patterns · Integrations · card): Live
  * updates and Backfill, each with its switch. A switch writes the wish; the
  * reconciler on the runner turns the workflow on or off. The Backfill row
- * reads its queues from the Backfills drive.
+ * reads its queues' progress from the integration index (the Backfills
+ * drive's queues), passed in by the page.
  */
 export function CardRows({
-  doc,
+  integration,
   liveTrigger,
+  progress,
 }: {
-  doc: IntegrationDocument;
+  integration: IntegrationItem;
   /** The runtime's state of the live workflow's trigger, once read */
   liveTrigger?: TriggerState;
+  /** The queues' progress by queue id; undefined while the index is read */
+  progress?: ReadonlyMap<string, QueueProgress>;
 }) {
-  const s = doc.state.global;
+  const s = integration.state;
   const live = liveLine(s, liveTrigger);
-  const set = (action: Parameters<typeof dispatchActions>[0]) => {
-    void dispatchActions(action, doc.header.id);
-  };
-  const ids = useMemo(
-    () =>
-      s.intent.backfill.items
-        .map((item) => item.documentId)
-        .filter((id): id is string => Boolean(id)),
-    [s.intent.backfill.items],
-  );
   const switchBackfill = (
     <Switch
       label="Backfill"
       checked={s.intent.backfill.enabled}
-      onChange={(enabled) => set([actions.setBackfillEnabled({ enabled })])}
+      onChange={(enabled) =>
+        setSwitch(integration, [actions.setBackfillEnabled({ enabled })], (x) => ({
+          ...x,
+          intent: { ...x.intent, backfill: { ...x.intent.backfill, enabled } },
+        }))
+      }
     />
   );
+  const view = progress ? historyView(s, progress) : null;
   return (
     <>
       <div className="sk-integration__row">
@@ -58,45 +72,27 @@ export function CardRows({
         <Switch
           label="Live updates"
           checked={s.intent.live.enabled}
-          onChange={(enabled) => set([actions.setLiveEnabled({ enabled })])}
+          onChange={(enabled) =>
+            setSwitch(integration, [actions.setLiveEnabled({ enabled })], (x) => ({
+              ...x,
+              intent: { ...x.intent, live: { ...x.intent.live, enabled } },
+            }))
+          }
         />
       </div>
-      {s.intent.backfill.items.length > 0 && (
-        <LoadBoundary
-          key={ids.join(",")}
-          fallback={<BackfillRow line="Starting" control={switchBackfill} />}
-        >
-          <Suspense
-            fallback={<BackfillRow line="…" control={switchBackfill} />}
-          >
-            <BackfillProgress doc={doc} ids={ids} control={switchBackfill} />
-          </Suspense>
-        </LoadBoundary>
-      )}
+      {s.intent.backfill.items.length > 0 &&
+        (!progress ? (
+          <BackfillRow line="…" control={switchBackfill} />
+        ) : (
+          view && (
+            <BackfillRow
+              line={view.line}
+              control={switchBackfill}
+              percent={view.percent}
+            />
+          )
+        ))}
     </>
-  );
-}
-
-function BackfillProgress({
-  doc,
-  ids,
-  control,
-}: {
-  doc: IntegrationDocument;
-  ids: string[];
-  control: ReactNode;
-}) {
-  const queues = useDocumentsByIds(ids);
-  const progress = new Map<string, QueueProgress>();
-  for (const q of queues) {
-    if (isOriginalSourceQueueDocument(q)) {
-      progress.set(q.header.id, queueProgress(q.state.global));
-    }
-  }
-  const view = historyView(doc.state.global, progress);
-  if (!view) return null;
-  return (
-    <BackfillRow line={view.line} control={control} percent={view.percent} />
   );
 }
 
@@ -133,49 +129,16 @@ function BackfillRow({
 
 /**
  * The account the integration signed in as ("wouter@powerhouse.inc · Google
- * Calendar"), from its connection's label; the fallback until there is one.
+ * Calendar"), from its connection's label in the index; the fallback until
+ * there is one.
  */
 export function AccountLabel({
-  connectionId,
+  connection,
   fallback,
 }: {
-  connectionId: string;
+  connection: ConnectionListRow | undefined;
   fallback: string;
 }) {
-  return (
-    <LoadBoundary fallback={fallback}>
-      <ConnectionLabel connectionId={connectionId} fallback={fallback} />
-    </LoadBoundary>
-  );
-}
-
-function ConnectionLabel({
-  connectionId,
-  fallback,
-}: {
-  connectionId: string;
-  fallback: string;
-}) {
-  const ids = useMemo(() => [connectionId], [connectionId]);
-  const [connection] = useDocumentsByIds(ids);
-  const label = (
-    connection?.state as
-      | { global?: { accountLabel?: string | null } }
-      | undefined
-  )?.global?.accountLabel;
+  const label = connection?.accountLabel;
   return <>{label ? `${label} · ${fallback}` : fallback}</>;
-}
-
-/** A queue that cannot be read (just deleted, not synced yet) shows the row without numbers. */
-class LoadBoundary extends Component<
-  { fallback: ReactNode; children: ReactNode },
-  { failed: boolean }
-> {
-  override state = { failed: false };
-  static getDerivedStateFromError(): { failed: boolean } {
-    return { failed: true };
-  }
-  override render(): ReactNode {
-    return this.state.failed ? this.props.fallback : this.props.children;
-  }
 }

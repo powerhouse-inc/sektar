@@ -1,20 +1,12 @@
-import {
-  dispatchActions,
-  openTarget,
-  useDocumentsByIds,
-} from "@powerhousedao/reactor-browser";
+import { dispatchActions, openTarget } from "@powerhousedao/reactor-browser";
 import { generateId } from "document-model";
-import { actions, type IntegrationDocument } from "document-models/integration";
-import { isOriginalSourceQueueDocument } from "document-models/original-source-queue";
-import {
-  Component,
-  Suspense,
-  useCallback,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
-import { queueProgress, type QueueProgress } from "../../backfills/progress.js";
+import { actions } from "document-models/integration";
+import { useCallback, useState, type ReactNode } from "react";
+import type { QueueProgress } from "../../backfills/progress.js";
+import type {
+  ConnectionListRow,
+  IntegrationItem,
+} from "../../sektar/kit/integration-index.js";
 import {
   aboutDuration,
   backfillPace,
@@ -61,7 +53,7 @@ import {
   runsWithSteps,
   useWorkflowRuntimeUrl,
 } from "../../sektar/kit/workflow-runtime.js";
-import { AccountLabel } from "./CardRows.js";
+import { AccountLabel, setSwitch } from "./CardRows.js";
 import { RemoveDialog } from "./IntegrationCard.js";
 import { TryAgain } from "./TryAgain.js";
 import { useRuns } from "./use-runs.js";
@@ -85,20 +77,28 @@ const history = (url: string, id: string) => runHistory(url, id, HISTORY_RUNS);
  * One integration on its own page (design system: Patterns · Integrations ·
  * Detail): live updates and backfill side by side, and below them what the
  * reconciler found. The switches write the wish, as on the card; Sync now
- * runs the live check; the workflows open in Workflow Studio.
+ * runs the live check; the workflows open in Workflow Studio. Everything on
+ * it comes from the integration index; the switches and Check now write to
+ * the document by id.
  */
 export function IntegrationDetail({
-  doc,
+  integration,
+  progress,
+  connections,
   onBack,
 }: {
-  doc: IntegrationDocument;
+  integration: IntegrationItem;
+  /** Its backfill queues' progress by queue id; undefined while the index is read */
+  progress?: ReadonlyMap<string, QueueProgress>;
+  /** The connections by id, from the index */
+  connections?: ReadonlyMap<string, ConnectionListRow>;
   onBack: () => void;
 }) {
-  const s = doc.state.global;
+  const s = integration.state;
   const view = cardView(s);
   const kind = kindInfo(s.kind);
   const provider = providerInfo(s.provider);
-  const name = doc.header.name || kind?.label || "Integration";
+  const name = integration.name || kind?.label || "Integration";
   const triggers = useTriggerStates();
   const { syncing, sync } = useSyncNow();
   const liveId = s.resources.liveWorkflowId;
@@ -134,12 +134,10 @@ export function IntegrationDetail({
         name={name}
         sub={
           s.resources.connectionId && s.kind !== "TRANSACTIONS" ? (
-            <Suspense fallback={account}>
-              <AccountLabel
-                connectionId={s.resources.connectionId}
-                fallback={account}
-              />
-            </Suspense>
+            <AccountLabel
+              connection={connections?.get(s.resources.connectionId)}
+              fallback={account}
+            />
           ) : (
             account
           )
@@ -195,16 +193,17 @@ export function IntegrationDetail({
       )}
       <div className="sk-grid sk-grid--2 sk-intg-detail__grid">
         <LiveCard
-          doc={doc}
+          integration={integration}
+          connections={connections}
           runs={live.runs}
           trigger={liveId ? triggers.get(liveId) : undefined}
         />
-        <BackfillCard doc={doc} />
+        <BackfillCard integration={integration} progress={progress} />
       </div>
-      <SetupCard doc={doc} />
+      <SetupCard integration={integration} />
       {removing && (
         <RemoveDialog
-          doc={doc}
+          integration={integration}
           name={name}
           onClose={() => setRemoving(false)}
           onRemoved={onBack}
@@ -278,15 +277,17 @@ function RunsFeed({ rows }: { rows: FeedRow[] }) {
 }
 
 function LiveCard({
-  doc,
+  integration,
+  connections,
   runs,
   trigger,
 }: {
-  doc: IntegrationDocument;
+  integration: IntegrationItem;
+  connections?: ReadonlyMap<string, ConnectionListRow>;
   runs: RunRecord[] | null;
   trigger: ReturnType<ReturnType<typeof useTriggerStates>["get"]>;
 }) {
-  const s = doc.state.global;
+  const s = integration.state;
   const liveId = s.resources.liveWorkflowId;
   const line = liveLine(s, trigger);
   const stuck = runs ? stuckSince(runs) : null;
@@ -355,12 +356,12 @@ function LiveCard({
       ? [
           {
             label: "Connection",
-            value: (
-              <LoadBoundary fallback="Signed in">
-                <Suspense fallback="…">
-                  <ConnectionFacts connectionId={s.resources.connectionId} />
-                </Suspense>
-              </LoadBoundary>
+            value: connections ? (
+              <ConnectionFacts
+                connection={connections.get(s.resources.connectionId)}
+              />
+            ) : (
+              "…"
             ),
           },
         ]
@@ -376,9 +377,13 @@ function LiveCard({
             label="Live updates"
             checked={s.intent.live.enabled}
             onChange={(enabled) =>
-              void dispatchActions(
+              setSwitch(
+                integration,
                 [actions.setLiveEnabled({ enabled })],
-                doc.header.id,
+                (x) => ({
+                  ...x,
+                  intent: { ...x.intent, live: { ...x.intent.live, enabled } },
+                }),
               )
             }
           />
@@ -387,7 +392,7 @@ function LiveCard({
       <Dl rows={rows} />
       {parked?.subject && (
         <div className="sk-mt-4">
-          <TryAgain doc={doc} workflowId={parked.subject} />
+          <TryAgain integration={integration} workflowId={parked.subject} />
         </div>
       )}
       {liveId && (
@@ -407,21 +412,11 @@ function LiveCard({
 }
 
 /** "wouter@… · works, checked 14:04", or what went wrong */
-function ConnectionFacts({ connectionId }: { connectionId: string }) {
-  const ids = useMemo(() => [connectionId], [connectionId]);
-  const [connection] = useDocumentsByIds(ids);
-  const g = (
-    connection?.state as
-      | {
-          global?: {
-            accountLabel?: string | null;
-            status?: string;
-            lastCheckedAt?: string | null;
-            lastError?: string | null;
-          };
-        }
-      | undefined
-  )?.global;
+function ConnectionFacts({
+  connection: g,
+}: {
+  connection: ConnectionListRow | undefined;
+}) {
   if (!g) return <>Signed in</>;
   const who = g.accountLabel ?? "Signed in";
   if (g.lastError) {
@@ -444,24 +439,30 @@ function ConnectionFacts({ connectionId }: { connectionId: string }) {
   );
 }
 
-function BackfillCard({ doc }: { doc: IntegrationDocument }) {
-  const s = doc.state.global;
+function BackfillCard({
+  integration,
+  progress,
+}: {
+  integration: IntegrationItem;
+  progress?: ReadonlyMap<string, QueueProgress>;
+}) {
+  const s = integration.state;
   const items = s.intent.backfill.items;
-  const ids = useMemo(
-    () =>
-      items
-        .map((item) => item.documentId)
-        .filter((id): id is string => Boolean(id)),
-    [items],
-  );
   const control = (
     <Switch
       label="Backfill"
       checked={s.intent.backfill.enabled}
       onChange={(enabled) =>
-        void dispatchActions(
+        setSwitch(
+          integration,
           [actions.setBackfillEnabled({ enabled })],
-          doc.header.id,
+          (x) => ({
+            ...x,
+            intent: {
+              ...x.intent,
+              backfill: { ...x.intent.backfill, enabled },
+            },
+          }),
         )
       }
     />
@@ -481,33 +482,23 @@ function BackfillCard({ doc }: { doc: IntegrationDocument }) {
   return (
     <section className="sk-card">
       <CardHead title="Backfill" lead={lead} control={control} />
-      <LoadBoundary
-        key={ids.join(",")}
-        fallback={<p className="sk-small sk-text-muted">Starting</p>}
-      >
-        <Suspense fallback={<p className="sk-small sk-text-muted">…</p>}>
-          <BackfillBody doc={doc} ids={ids} />
-        </Suspense>
-      </LoadBoundary>
+      {progress ? (
+        <BackfillBody integration={integration} progress={progress} />
+      ) : (
+        <p className="sk-small sk-text-muted">…</p>
+      )}
     </section>
   );
 }
 
 function BackfillBody({
-  doc,
-  ids,
+  integration,
+  progress,
 }: {
-  doc: IntegrationDocument;
-  ids: string[];
+  integration: IntegrationItem;
+  progress: ReadonlyMap<string, QueueProgress>;
 }) {
-  const s = doc.state.global;
-  const queues = useDocumentsByIds(ids);
-  const progress = new Map<string, QueueProgress>();
-  for (const q of queues) {
-    if (isOriginalSourceQueueDocument(q)) {
-      progress.set(q.header.id, queueProgress(q.state.global));
-    }
-  }
+  const s = integration.state;
   const workflowId = s.resources.backfillWorkflowId;
   const { runs, reload } = useRuns(workflowId, history, HISTORY_EVERY_MS);
   const summary = historyView(s, progress);
@@ -562,7 +553,7 @@ function BackfillBody({
       </div>
       {parked?.subject && (
         <div className="sk-mb-4">
-          <TryAgain doc={doc} workflowId={parked.subject} />
+          <TryAgain integration={integration} workflowId={parked.subject} />
         </div>
       )}
       {missed.length > 0 && (
@@ -696,8 +687,8 @@ function MissedSlices({
   );
 }
 
-function SetupCard({ doc }: { doc: IntegrationDocument }) {
-  const s = doc.state.global;
+function SetupCard({ integration }: { integration: IntegrationItem }) {
+  const s = integration.state;
   const [asked, setAsked] = useState<string | null>(null);
   const waiting = asked !== null && s.check?.request !== asked;
   const rows = setupRows(s);
@@ -727,7 +718,7 @@ function SetupCard({ doc }: { doc: IntegrationDocument }) {
                     requestedAt: new Date().toISOString(),
                   }),
                 ],
-                doc.header.id,
+                integration.id,
               );
             }}
           >
@@ -742,18 +733,4 @@ function SetupCard({ doc }: { doc: IntegrationDocument }) {
       )}
     </section>
   );
-}
-
-/** A queue or connection that cannot be read (just deleted, not synced yet) */
-class LoadBoundary extends Component<
-  { fallback: ReactNode; children: ReactNode },
-  { failed: boolean }
-> {
-  override state = { failed: false };
-  static getDerivedStateFromError(): { failed: boolean } {
-    return { failed: true };
-  }
-  override render(): ReactNode {
-    return this.state.failed ? this.props.fallback : this.props.children;
-  }
 }
