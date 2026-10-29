@@ -13,9 +13,15 @@ export async function indexGql<T>(
   base: string,
   query: string,
   variables: Record<string, unknown>,
+  /**
+   * The endpoint: the switchboard's gateway by default, or one subgraph's own
+   * (`/graphql/<name>`) for a field that reads the request's headers, which
+   * the gateway does not pass on.
+   */
+  path = "/graphql",
 ): Promise<T> {
   const token = await ambientRenownTokenProvider();
-  const response = await fetch(`${base}/graphql`, {
+  const response = await fetch(`${base}${path}`, {
     method: "POST",
     headers: {
       "content-type": "application/json",

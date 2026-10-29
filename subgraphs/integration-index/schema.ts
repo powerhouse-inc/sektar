@@ -86,7 +86,9 @@ export const schema: DocumentNode = gql`
     The person asking, as a bank sees an end user on screen: their public
     address and browser. Null without a public address (localhost, the LAN).
     A manual refresh sends it with the bank fetch, which then does not use one
-    of the connection's four unattended fetches a day.
+    of the connection's four unattended fetches a day. Ask it at this
+    subgraph's own endpoint (/graphql/integration-index): the gateway at
+    /graphql does not pass the request's headers on, and answers null.
     """
     onScreen(driveId: String!): OnScreen
   }

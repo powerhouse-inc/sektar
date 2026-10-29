@@ -478,10 +478,13 @@ export function useOnScreen(): () => Promise<OnScreen | null> {
   return useCallback(async () => {
     if (!base || !driveId) return null;
     try {
+      // The subgraph's own endpoint: the gateway does not pass the
+      // request's X-Forwarded-For and User-Agent on to a subgraph
       const data = await gql<{ integrationIndex: { onScreen: OnScreen | null } }>(
         base,
         ON_SCREEN_QUERY,
         { d: driveId },
+        "/graphql/integration-index",
       );
       return data.integrationIndex.onScreen;
     } catch {
