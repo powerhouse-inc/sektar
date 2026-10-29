@@ -5,6 +5,7 @@ import type {
   ProcessorFilter,
 } from "@powerhousedao/reactor-browser";
 import type { PHDocumentHeader } from "document-model";
+import { bindsTo } from "processors/drive-ids";
 import {
   DRIVE_DOCUMENT_TYPES,
   FILE_DOCUMENT_TYPE,
@@ -15,15 +16,17 @@ import {
 
 /** The drive app whose drives are indexed: a listing is only ever asked of these. */
 const FILES_APP = "files";
+/** The drive the host files declare for them. */
+const FILES_DRIVE = "files";
 
 export const filesIndexFactoryBuilder: ProcessorFactoryBuilder =
   (module: IProcessorHostModule) =>
   async (driveHeader: PHDocumentHeader, _processorApp?: ProcessorApp) => {
-    // Only drives the Files app opens. Every other drive (Mail with its
-    // thousands of messages, the studio's) would replay its whole history
+    // Only the drive the Files app opens (the converted one where there is
+    // one). Every other drive (Mail with its thousands of messages, the
+    // studio's, the frozen legacy Files drive) would replay its whole history
     // through this processor for nothing.
-    const meta = driveHeader.meta as { preferredEditor?: string } | undefined;
-    if (meta?.preferredEditor !== FILES_APP && driveHeader.slug !== "files") return [];
+    if (!(await bindsTo(module.read, driveHeader, FILES_DRIVE, FILES_APP))) return [];
 
     const namespace = FilesIndex.getNamespace(driveHeader.id);
     const store = await module.relationalDb.createNamespace<FilesIndex>(namespace);

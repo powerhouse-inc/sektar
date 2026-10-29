@@ -3,6 +3,7 @@
 // share one vocabulary. Lists, counts and pickers do not read documents:
 // they come from the finance index (kit/finance-index.ts); the write store
 // is read only for the one document that is open.
+import { findDrive } from "../../../processors/drive-ids/index.js";
 import {
   addDocument,
   addFolder,
@@ -77,10 +78,8 @@ const now = () => new Date().toISOString();
 
 export function useSektarDrive(): DocumentDriveDocument | undefined {
   const drives = useDrives();
-  return drives?.find(
-    (d) =>
-      d.header.slug === SEKTAR_DRIVE_SLUG || d.header.id === SEKTAR_DRIVE_SLUG,
-  );
+  // The converted drive where this store has it, else the one under the slug
+  return findDrive(drives, SEKTAR_DRIVE_SLUG);
 }
 
 /**

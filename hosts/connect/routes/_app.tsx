@@ -28,6 +28,7 @@ import {
   Skeleton,
   Sprite,
 } from "../../../editors/sektar/kit/ui.js";
+import { findDrive } from "../../../processors/drive-ids/index.js";
 import { ProductSwitch } from "./-shared/product-switch.js";
 import {
   driveFor,
@@ -80,9 +81,7 @@ function useBindDriveApps() {
     ])) {
       if (!item.app || !item.to.startsWith("/d/")) continue;
       const slug = item.to.slice(3);
-      const drive = drives?.find(
-        (d) => d.header.slug === slug || d.header.id === slug,
-      );
+      const drive = findDrive(drives, slug);
       if (!drive || drive.header.meta?.preferredEditor) continue;
       if (tried.current.has(drive.header.id)) continue;
       tried.current.add(drive.header.id);

@@ -61,6 +61,12 @@ export type ConnectionFacts = {
 export type { ConnectionSpec } from "./providers/index.js";
 export { GOOGLE_APP } from "./providers/google-calendar.js";
 
+/** Why a provider's drive blocks the live workflow, in the user's words. */
+const DRIVE_MISSING: Record<"mail" | "calendar", string> = {
+  mail: "The Mail drive the messages go into is not on this computer yet",
+  calendar: "The Calendar drive the events go into is not on this computer yet",
+};
+
 export interface ReconcileIO {
   me: Host;
   now(): string;
@@ -82,8 +88,8 @@ export interface ReconcileIO {
   newId(): string;
   /** The switchboard's own reactor connection, for steps that write documents */
   findReactorConnection(): Promise<string | null>;
-  /** The Mail drive's id: the pinned drive, else the one under the "mail" slug; null while neither is there */
-  mailDrive(): Promise<string | null>;
+  /** A drive's id by slug: the converted drive where pinned (processors/drive-ids), else the one under the slug; null while neither is there */
+  drive(slug: string): Promise<string | null>;
   /** Null when the workflow document is gone */
   readWorkflow(id: string): Promise<WorkflowFacts | null>;
   /** Creates a workflow document in the Workflows drive and applies the actions; returns its id */
@@ -253,16 +259,16 @@ async function reconcileLiveWorkflow(
     });
     return false;
   }
-  const mailDriveId = provider.needsMailDrive ? await io.mailDrive() : "";
-  if (mailDriveId === null) {
+  const driveId = provider.drive ? await io.drive(provider.drive) : "";
+  if (driveId === null) {
+    const code = `NO_${(provider.drive ?? "").toUpperCase()}_DRIVE`;
     issues.push({
-      code: "NO_MAIL_DRIVE",
+      code,
       severity: "BLOCKING",
       subject: null,
-      message:
-        "The Mail drive the messages go into is not on this computer yet",
+      message: DRIVE_MISSING[provider.drive ?? "mail"],
       fixable: false,
-      since: since("NO_MAIL_DRIVE"),
+      since: since(code),
     });
     return false;
   }
@@ -272,7 +278,7 @@ async function reconcileLiveWorkflow(
     connectionId: connection.connectionId,
     accountLabel: connection.accountLabel,
     reactorConnectionId,
-    mailDriveId,
+    driveId,
   };
   const spec = liveWorkflowSpec(provider, ctx);
   const id = s.resources.liveWorkflowId;
@@ -345,16 +351,16 @@ async function reconcileBackfill(
   const items = s.intent.backfill.items;
   // A provider without backfills (an aggregator that keeps its own history)
   if (provider.backfillPollSeconds === undefined) return true;
-  const mailDriveId = provider.needsMailDrive ? await io.mailDrive() : "";
+  const driveId = provider.drive ? await io.drive(provider.drive) : "";
   // The live pass has said so already
-  if (mailDriveId === null) return false;
+  if (driveId === null) return false;
   const ctx: ProviderContext = {
     name: doc.name,
     state: s,
     connectionId: connection.connectionId,
     accountLabel: connection.accountLabel,
     reactorConnectionId,
-    mailDriveId,
+    driveId,
   };
 
   const queues = new Map<string, { id: string; state: QueueState }>();

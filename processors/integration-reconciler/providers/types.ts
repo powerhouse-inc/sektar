@@ -25,8 +25,8 @@ export type ProviderContext = {
   accountLabel: string | null;
   /** The switchboard's own connection, for steps that write documents */
   reactorConnectionId: string;
-  /** The Mail drive's id, for a provider that files mail (needsMailDrive); "" otherwise */
-  mailDriveId: string;
+  /** The id of the drive the provider files into (`drive`); "" for a provider without one */
+  driveId: string;
 };
 
 export interface ProviderAdapter {
@@ -48,8 +48,12 @@ export interface ProviderAdapter {
    * data never lands in another's place.
    */
   expectedAccount?(state: IntegrationState): string | null;
-  /** Files mail into the Mail drive: no workflow is built while it is missing */
-  needsMailDrive?: boolean;
+  /**
+   * The slug of the drive it files documents into ("mail", "calendar"),
+   * resolved to the converted drive where the store has one
+   * (processors/drive-ids): no workflow is built while it is missing
+   */
+  drive?: "mail" | "calendar";
   /** Seconds between backfill slices; absent: no backfill */
   backfillPollSeconds?: number;
   /** One backfill slice, for backfills the reconciler adds (a gap) */

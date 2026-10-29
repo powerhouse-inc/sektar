@@ -2,6 +2,7 @@
 // labels the overview speaks in, and the writes the forms make. Reads are
 // hooks over the drive; writes go through dispatchActions so the drive app,
 // the trip editor and the travel dashboard share one way of saying things.
+import { findDrive } from "../../../processors/drive-ids/index.js";
 import {
   addDocument,
   dispatchActions,
@@ -32,7 +33,8 @@ export const TRIP_TYPE = "sektar/trip";
 
 export function useTripsDrive(): DocumentDriveDocument | undefined {
   const drives = useDrives();
-  return drives?.find((d) => d.header.slug === TRIPS_DRIVE_SLUG || d.header.id === TRIPS_DRIVE_SLUG);
+  // The converted drive where this store has it, else the one under the slug
+  return findDrive(drives, TRIPS_DRIVE_SLUG);
 }
 
 export const byStartDesc = (a: TripDocument, b: TripDocument) =>

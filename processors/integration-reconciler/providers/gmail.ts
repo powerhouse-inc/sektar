@@ -5,6 +5,7 @@
  * Upsert Documents into the Mail drive, keyed gmail:<id>, a folder per
  * account. The sign-in is the publisher's Google app with read-only mail.
  */
+import { pinnedDriveId } from "processors/drive-ids";
 import type { IntegrationState } from "document-models/integration";
 import { DISTYRA_PIECE, DISTYRA_PIECE_VERSION } from "../pieces.js";
 import type { StepSpec } from "../workflow-spec.js";
@@ -15,14 +16,12 @@ import type { ProviderAdapter, ProviderContext } from "./types.js";
 export const GMAIL_PIECE = "@activepieces/piece-gmail";
 export const GMAIL_PIECE_VERSION = "0.18.1";
 /**
- * The Mail drive. Where it was converted from the legacy drive (2026-10-26)
- * it is this pinned id, whose slug is the id itself (hosts/vetra pins it); a
- * store made since has it under the slug "mail" (hosts/switchboard). The reconciler
- * looks it up in that order (io.mailDrive) and files mail under the id it
- * finds. Same pair as hosts/connect/routes/-shared/products.ts.
+ * The Mail drive: the converted drive pinned in hosts/drive-ids.json where the
+ * store has it, else the drive under the slug "mail" (hosts/switchboard). The
+ * reconciler resolves it (io.drive) and files mail under the id it finds.
  */
-export const MAIL_DRIVE_ID = "HRsIHuMMTdmjgCdy9QGWyx96zOFByPo787oBQcEt9f4";
 export const MAIL_DRIVE_SLUG = "mail";
+export const MAIL_DRIVE_ID = pinnedDriveId(MAIL_DRIVE_SLUG) ?? MAIL_DRIVE_SLUG;
 export const EMAIL_TYPE = "sektar/email";
 
 const IDENTITY = ["openid", "https://www.googleapis.com/auth/userinfo.email"];
@@ -86,7 +85,7 @@ function tail(ctx: ProviderContext): StepSpec[] {
         name: "$item.name",
         items: "{{steps.map_emails.output.items}}",
         limit: 500,
-        driveId: ctx.mailDriveId,
+        driveId: ctx.driveId,
         folderName: "$item.folder",
         itemKeyPath: "key",
         stopOnError: false,
@@ -103,7 +102,7 @@ export const gmail: ProviderAdapter = {
   id: "gmail",
   label: "Google",
   auth: "oauth",
-  needsMailDrive: true,
+  drive: MAIL_DRIVE_SLUG,
   // A day of mail a minute, as the largest existing backfill walks
   backfillPollSeconds: 60,
   backfillSliceSeconds: 86_400,

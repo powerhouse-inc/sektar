@@ -5,18 +5,22 @@ import type {
   ProcessorFilter,
 } from "@powerhousedao/reactor-browser";
 import type { PHDocumentHeader } from "document-model";
+import { bindsTo } from "processors/drive-ids";
 import { DRIVE_TYPES, FILE_TYPE, FolderSync, SYNC_TYPE } from "./processor.js";
 
 /** The drive app whose drives have folder syncs: the menu that makes them is the Files app's. */
 const FILES_APP = "files";
+/** The drive the host files declare for them. */
+const FILES_DRIVE = "files";
 
 export const folderSyncFactoryBuilder: ProcessorFactoryBuilder =
   (module: IProcessorHostModule) =>
   async (driveHeader: PHDocumentHeader, _processorApp?: ProcessorApp) => {
-    // Only drives the Files app opens: every other drive (Mail with its
-    // thousands of messages) would replay its whole history through here.
-    const meta = driveHeader.meta as { preferredEditor?: string } | undefined;
-    if (meta?.preferredEditor !== FILES_APP && driveHeader.slug !== "files") return [];
+    // Only the drive the Files app opens: every other drive (Mail with its
+    // thousands of messages) would replay its whole history through here. And
+    // only the converted Files drive where there is one: the legacy drive
+    // holds the same mappings, and two runners would sync each one twice.
+    if (!(await bindsTo(module.read, driveHeader, FILES_DRIVE, FILES_APP))) return [];
 
     const namespace = FolderSync.getNamespace(driveHeader.id);
     const store = await module.relationalDb.createNamespace<FolderSync>(namespace);

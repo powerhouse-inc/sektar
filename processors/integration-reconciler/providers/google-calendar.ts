@@ -17,6 +17,7 @@ export const GOOGLE_CALENDAR_PIECE = "@activepieces/piece-google-calendar";
 export const GOOGLE_CALENDAR_PIECE_VERSION = "0.13.3";
 /** The calendar the pilot watches: the account's main calendar. */
 export const PRIMARY_CALENDAR = "primary";
+/** The Calendar drive's slug; the reconciler resolves it to the drive's id (ctx.driveId). */
 export const CALENDAR_DRIVE = "calendar";
 export const CALENDAR_EVENT_TYPE = "sektar/calendar-event";
 export const GET_EVENTS_STEP = "get_events";
@@ -45,7 +46,7 @@ export function mapEventsStep(events: string, calendarName: string): StepSpec {
 }
 
 /** The step that writes the events into the Calendar drive, keyed so nothing doubles. */
-export function upsertEventsStep(reactorConnectionId: string): StepSpec {
+export function upsertEventsStep(reactorConnectionId: string, driveId: string): StepSpec {
   return {
     key: "upsert_events",
     name: "Upsert Documents",
@@ -56,7 +57,7 @@ export function upsertEventsStep(reactorConnectionId: string): StepSpec {
     config: {
       items: "{{steps.map_events.output.items}}",
       documentType: CALENDAR_EVENT_TYPE,
-      driveId: CALENDAR_DRIVE,
+      driveId,
       folderName: "$item.folder",
       itemKeyPath: "key",
       documentKeyPath: "externalId",
@@ -75,6 +76,7 @@ const slice = (range: string, end: "from" | "to") =>
 export const googleCalendar: ProviderAdapter = {
   id: "google-calendar",
   label: "Google",
+  drive: CALENDAR_DRIVE,
   auth: "oauth",
   backfillPollSeconds: 60,
   backfillSliceSeconds: 7 * 86_400,
@@ -110,7 +112,7 @@ export const googleCalendar: ProviderAdapter = {
       },
       steps: [
         mapEventsStep("{{trigger.payload}}", ctx.name),
-        upsertEventsStep(ctx.reactorConnectionId),
+        upsertEventsStep(ctx.reactorConnectionId, ctx.driveId),
       ],
       config(actual, wanted) {
         const was = actual?.pollEverySeconds;
@@ -146,7 +148,7 @@ export const googleCalendar: ProviderAdapter = {
       },
       // The whole answer, so the mapping can refuse a window with a second page
       mapEventsStep(`{{steps.${GET_EVENTS_STEP}.output.body}}`, ctx.name),
-      upsertEventsStep(ctx.reactorConnectionId),
+      upsertEventsStep(ctx.reactorConnectionId, ctx.driveId),
     ];
   },
 };

@@ -32,7 +32,7 @@ import {
   type ConnectionFacts,
   type ReconcileIO,
 } from "./reconcile.js";
-import { MAIL_DRIVE_ID, MAIL_DRIVE_SLUG } from "./providers/gmail.js";
+import { resolveDriveId } from "processors/drive-ids";
 
 export const INTEGRATION_TYPE = "sektar/integration";
 /** The switchboard's own reactor connection: steps that write documents use it. */
@@ -213,17 +213,8 @@ export class IntegrationReconciler implements IProcessor {
         await dispatch.deleteDocument(integrationId);
       },
       newId: () => generateId(),
-      mailDrive: async () => {
-        // The converted drive where it exists, else the one made under the slug
-        for (const key of [MAIL_DRIVE_ID, MAIL_DRIVE_SLUG]) {
-          try {
-            return (await read.get(key)).header.id;
-          } catch {
-            // not here: try the next
-          }
-        }
-        return null;
-      },
+      // The converted drive where it exists, else the one made under the slug
+      drive: (slug) => resolveDriveId(read, slug),
       findReactorConnection: async () => {
         const page = await read.find({ type: "powerhouse/connection" });
         const found = page.results.find((doc) => {
@@ -306,11 +297,12 @@ export class IntegrationReconciler implements IProcessor {
         await dispatch.execute(id, "main", list);
       },
       createQueue: async (name, list) => {
-        const backfills = await read.get(BACKFILLS_DRIVE);
+        const backfills = await resolveDriveId(read, BACKFILLS_DRIVE);
+        if (!backfills) throw new Error("The Backfills drive is not on this computer yet");
         const document = queueUtils.createDocument();
         document.header.name = name;
         const created = await dispatch.createInDrive(
-          backfills.header.id,
+          backfills,
           document,
         );
         const id = created.documentId || document.header.id;

@@ -1,3 +1,4 @@
+import { useDrives } from "@powerhousedao/reactor-browser";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, cx, Icon } from "../../../../editors/sektar/kit/ui.js";
@@ -12,6 +13,7 @@ import {
   useSyncNow,
   useTriggerStates,
 } from "../../../../editors/sektar/kit/use-sync.js";
+import { findDrive } from "../../../../processors/drive-ids/index.js";
 
 /**
  * The top bar's sync status (design system: Patterns · Integrations · Sync
@@ -27,6 +29,7 @@ export function SyncStatus() {
   const [open, setOpen] = useState(false);
   const host = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const drives = useDrives();
   // "4 min ago" moves on between trigger reads
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -80,7 +83,8 @@ export function SyncStatus() {
     setOpen(false);
     void navigate({
       to: "/d/$driveSlug/{-$nodeSlug}",
-      params: { driveSlug: "integrations" },
+      // The converted Integrations drive where this store has it
+      params: { driveSlug: findDrive(drives, "integrations")?.header.id ?? "integrations" },
       hash: id ? `i/${id}` : undefined,
     }).then(() => {
       // The page follows the hash (useHashStep); a push does not announce it

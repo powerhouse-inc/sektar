@@ -9,6 +9,7 @@
 // first publish — link the workspace package meanwhile; added to the
 // versioned scaffold deps at that publish event, same as host-core/clint).
 import config from "../../powerhouse.config.json" with { type: "json" };
+import driveIds from "../drive-ids.json" with { type: "json" };
 import switchboard from "../switchboard/host.js";
 import connect from "../connect/host.js";
 
@@ -18,19 +19,21 @@ import connect from "../connect/host.js";
 const servedDrives = switchboard.reactor.drives ?? [];
 
 // COMPAT, remove once Sektar depends on a monorepo release with powerhouse
-// e7be6688f0 (6.2.3-dev.81 or later): then move this id back onto the Mail
-// declaration in hosts/switchboard/host.js and serve servedDrives as they are.
+// 39aff95981 (6.2.3-dev.81 or later): then move these ids onto the drive
+// declarations in hosts/switchboard/host.js and serve servedDrives as they are.
 //
-// The Mail drive converted on 2026-10-26 lives under this id (its slug is the
-// id itself), so the studio switchboard, which serves that store, pins it:
-// seeding by the "mail" slug alone would find nothing and make a second, empty
-// Mail drive. The pin stays out of the shared switchboard host because a
-// monorepo up to 6.2.3-dev.80 cannot seed a fresh store with it (a legacy
-// create may not take a content-addressed id) and stops the server; later
-// releases make the drive anew under its slug instead.
-const MAIL_DRIVE_ID = "HRsIHuMMTdmjgCdy9QGWyx96zOFByPo787oBQcEt9f4";
+// The drives converted to reactor-drives (Mail on 2026-10-26, the others on
+// 2026-10-29) live under the ids in hosts/drive-ids.json (each one's slug is its
+// id), so the studio switchboard, which serves that store, pins them: seeding
+// by slug alone would find the legacy drive, which is no longer written. The
+// pins stay out of the shared switchboard host because a monorepo up to
+// 6.2.3-dev.80 cannot seed a fresh store with them (a legacy create may not
+// take a content-addressed id) and stops the server; later releases make the
+// drive anew under its slug instead.
 const studioDrives = servedDrives.map((d) =>
-  d.slug === "mail" ? { ...d, id: MAIL_DRIVE_ID } : d,
+  d.slug in driveIds
+    ? { ...d, id: driveIds[/** @type {keyof typeof driveIds} */ (d.slug)] }
+    : d,
 );
 
 /** @satisfies {PHHost} */

@@ -8,6 +8,7 @@
 // The three types live in three drives, found by slug from the drive
 // headers: "integrations", "backfills" and "workflows". A drive's nodes are
 // never read, so a legacy drive and a reactor-drive read the same.
+import { findDrive } from "../../../processors/drive-ids/index.js";
 import {
   useDrives,
   useReactorClient,
@@ -66,14 +67,13 @@ const TYPES = [
   CONNECTION_DOCUMENT_TYPE,
 ] as const;
 
-/** A hub drive by slug (or an id equal to it), from the drive headers alone. */
+/**
+ * A hub drive by slug, from the drive headers alone: the converted drive where
+ * this store has it, else the one under the slug (or an id equal to it).
+ */
 export function useHubDrive(slug: HubSlug): DocumentDriveDocument | undefined {
   const drives = useDrives();
-  return useMemo(
-    () =>
-      drives?.find((d) => d.header.id === slug || d.header.slug === slug),
-    [drives, slug],
-  );
+  return useMemo(() => findDrive(drives, slug), [drives, slug]);
 }
 
 /* ------------------------------------------------------------ changes */

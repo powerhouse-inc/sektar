@@ -39,7 +39,7 @@ describe("Gmail, as the existing mail workflows run", () => {
     connectionId: "conn-new",
     accountLabel: "wkampmann@gmail.com",
     reactorConnectionId: REACTOR,
-    mailDriveId: MAIL_DRIVE_ID,
+    driveId: MAIL_DRIVE_ID,
   };
 
   it("checks for new mail on the same schedule, with the same search, mapping and upsert", () => {
@@ -198,7 +198,7 @@ describe("Distyra, as the existing transaction workflows run", () => {
       connectionId: "WSEf1HivUP",
       accountLabel: null,
       reactorConnectionId: REACTOR,
-      mailDriveId: "",
+      driveId: "",
     });
     expect(spec.trigger.config).toEqual({
       mode: "interval",
@@ -276,7 +276,7 @@ describe("a renamed mailbox", () => {
       connectionId: "c",
       accountLabel: "wkampmann@gmail.com",
       reactorConnectionId: REACTOR,
-      mailDriveId: MAIL_DRIVE_ID,
+      driveId: MAIL_DRIVE_ID,
     });
     const built = liveWorkflowSpec(gmail, ctx(before));
     const facts: WorkflowFacts = {

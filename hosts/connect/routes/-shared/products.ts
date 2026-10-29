@@ -5,6 +5,7 @@ import iconMintLight from "../../../../editors/sektar/design/app-icons/sektar-ap
 import iconSageDark from "../../../../editors/sektar/design/app-icons/sektar-app-icon-sage-dark.svg";
 import iconSageLight from "../../../../editors/sektar/design/app-icons/sektar-app-icon-sage-light.svg";
 import type { IconName } from "../../../../editors/sektar/kit/ui.js";
+import { findDrive, pinnedDriveId } from "../../../../processors/drive-ids/index.js";
 
 // The Sektar products this app ships, in the design system's order. One
 // account, one shell: the lockup in the sidebar switches between them and the
@@ -16,8 +17,9 @@ export type NavItem = {
   label: string;
   icon: IconName;
   /**
-   * For a drive item: the id of the drive in stores that made it before its
-   * slug (`to` names the slug). The item opens that drive while it exists.
+   * For a drive item: the id of the drive converted to a reactor-drive in
+   * stores that hold one (hosts/drive-ids.json; `to` names the slug). The
+   * item opens that drive while it exists.
    */
   pinnedId?: string;
   /**
@@ -59,24 +61,24 @@ export const PRODUCTS: readonly Product[] = [
     icon: { light: iconSageLight, dark: iconSageDark },
     nav: [
       { to: "/productivity", label: "Welcome", icon: "dashboard" },
-      // The Mail drive (hosts/*: reactor-drive, drive app email-workspace):
-      // the converted drive by its id where it exists, else the "mail" slug.
-      // Same pair as processors/integration-reconciler/providers/gmail.ts.
+      // The Mail drive (hosts/*: drive app email-workspace): the converted
+      // drive by its id where it exists, else the "mail" slug.
       {
         to: "/d/mail",
-        pinnedId: "HRsIHuMMTdmjgCdy9QGWyx96zOFByPo787oBQcEt9f4",
+        pinnedId: pinnedDriveId("mail"),
         label: "Mail",
         icon: "mail",
       },
       // The Calendar drive (hosts/switchboard: slug "calendar", drive app calendar)
       {
         to: "/d/calendar",
+        pinnedId: pinnedDriveId("calendar"),
         label: "Calendar",
         icon: "calendar",
         app: "calendar",
       },
       // The Files drive (hosts/*: slug "files", drive app files)
-      { to: "/d/files", label: "Files", icon: "folder" },
+      { to: "/d/files", pinnedId: pinnedDriveId("files"), label: "Files", icon: "folder" },
     ],
     drive: {
       slug: "workflows",
@@ -85,11 +87,21 @@ export const PRODUCTS: readonly Product[] = [
     },
     beforeDrive: [
       // The Integrations drive (hosts/switchboard: slug "integrations", drive app integrations)
-      { to: "/d/integrations", label: "Integrations", icon: "sync" },
+      {
+        to: "/d/integrations",
+        pinnedId: pinnedDriveId("integrations"),
+        label: "Integrations",
+        icon: "sync",
+      },
     ],
     afterDrive: [
       // The Backfills drive (hosts/*: slug "backfills", drive app backfills)
-      { to: "/d/backfills", label: "Backfills", icon: "download" },
+      {
+        to: "/d/backfills",
+        pinnedId: pinnedDriveId("backfills"),
+        label: "Backfills",
+        icon: "download",
+      },
     ],
   },
   {
@@ -162,6 +174,12 @@ export function driveFor<D extends DriveLike>(
   product: Product,
 ): { drive: D; param: string } | undefined {
   const { slug, editor } = product.drive;
+  // The converted drive where this store has it: opened by its id
+  const pinned = pinnedDriveId(slug);
+  const converted = pinned ? findDrive(drives, slug) : undefined;
+  if (converted && converted.header.id === pinned) {
+    return { drive: converted, param: converted.header.id };
+  }
   const candidates = (drives ?? []).filter(
     (d) => d.header.slug === slug || d.header.id === slug,
   );

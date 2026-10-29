@@ -1,6 +1,7 @@
 // Seeing what a File holds: its source of truth (a stored file, or another
 // document) and each of its renditions. Shared by the File editor's preview
 // pane and the Files drive app's preview pane.
+import { findDrive } from "../../../processors/drive-ids/index.js";
 import {
   makeNodeSlug,
   openTarget,
@@ -370,9 +371,7 @@ export function useDocumentLocation(
   driveSlugOrId?: string,
 ) {
   const drives = useDrives();
-  const known = driveSlugOrId
-    ? drives?.find((d) => d.header.slug === driveSlugOrId || d.header.id === driveSlugOrId)
-    : undefined;
+  const known = driveSlugOrId ? findDrive(drives, driveSlugOrId) : undefined;
   const driveId = useParentDriveId(documentId, known?.header.id);
   const node = useDriveNode(driveId, documentId);
   return useMemo(() => {

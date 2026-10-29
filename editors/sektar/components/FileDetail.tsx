@@ -1,6 +1,7 @@
 // The File document, edited: its title and description, tags, the source of
 // truth (a stored file or another document), and the content extracted from
 // or rendered for it, beside a preview of whichever of those is picked.
+import { findDrive, supersededDrive } from "../../../processors/drive-ids/index.js";
 import {
   renameDriveNode,
   useAttachments,
@@ -843,13 +844,14 @@ function DocumentPicker({
   const drives = useMemo(
     () =>
       (allDrives ?? [])
-        .filter((d) => !/^(vetra|preview)/.test(d.header.slug))
+        // nor a legacy drive whose converted drive is here
+        .filter((d) => !/^(vetra|preview)/.test(d.header.slug) && !supersededDrive(allDrives, d))
         .map((d) => ({ id: d.header.id, slug: d.header.slug, name: d.header.name || d.state.global.name || d.header.slug })),
     [allDrives],
   );
   const [chosen, setChosen] = useState<string | null>(null);
   // The business records first: the sektar drive, when there is one.
-  const driveId = chosen ?? drives.find((d) => d.slug === "sektar")?.id ?? drives.at(0)?.id ?? null;
+  const driveId = chosen ?? findDrive(allDrives, "sektar")?.header.id ?? drives.at(0)?.id ?? null;
   const drive = drives.find((d) => d.id === driveId);
   const { nodes, loading, error, more } = usePickerNodes(driveId, drive?.name ?? "");
 

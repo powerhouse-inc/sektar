@@ -176,7 +176,7 @@ function world(
     },
     newId: () => `id-${++n}`,
     findReactorConnection: () => Promise.resolve(reactorConnection),
-    mailDrive: () => Promise.resolve(mailDrive),
+    drive: (slug: string) => Promise.resolve(slug === "mail" ? mailDrive : slug),
     readWorkflow: (id) => {
       const w = workflows.get(id);
       return Promise.resolve(w ? { ...w } : null);
@@ -1057,7 +1057,7 @@ describe("a reconcile pass", () => {
         deleteIntegration: () => Promise.resolve(),
         newId: () => "x",
         findReactorConnection: () => Promise.resolve(null),
-        mailDrive: () => Promise.resolve(null),
+        drive: () => Promise.resolve(null),
         readWorkflow: () => Promise.resolve(null),
         createWorkflow: () => Promise.reject(new Error("no")),
         updateWorkflow: () => Promise.resolve(),
