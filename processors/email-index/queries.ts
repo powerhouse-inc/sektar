@@ -2,6 +2,9 @@
 // subgraph (the switchboard answers Connect over GraphQL) and by a tab whose
 // own reactor runs the processor (standalone Connect, a live query), so the
 // two never disagree on what "unread" or "a match" means.
+// The declarations name kysely's builder types (these queries return them):
+// importing the package lets tsc refer to "kysely", not to a path into .pnpm.
+import type {} from "kysely";
 import type { IRelationalDb } from "@powerhousedao/reactor-browser";
 import type { DB, EmailRow } from "./schema.js";
 

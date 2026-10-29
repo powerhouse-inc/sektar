@@ -1,6 +1,9 @@
 // The questions a Files listing asks, as queries over the index. Shared by
 // the subgraph (the switchboard answers Connect) and a tab whose own reactor
 // runs the processor (live queries), so both list a folder the same way.
+// The declarations name kysely's builder types (these queries return them):
+// importing the package lets tsc refer to "kysely", not to a path into .pnpm.
+import type {} from "kysely";
 import type { IRelationalDb } from "@powerhousedao/reactor-browser";
 import type { DB, FileDocRow, FileNodeRow } from "./schema.js";
 

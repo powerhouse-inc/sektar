@@ -55,6 +55,9 @@ importers:
       '@powerhousedao/reactor-browser':
         specifier: link:../powerhouse/packages/reactor-browser
         version: link:../powerhouse/packages/reactor-browser
+      '@powerhousedao/workflow':
+        specifier: link:../powerhouse/packages/workflow
+        version: link:../powerhouse/packages/workflow
       document-model:
         specifier: link:../powerhouse/packages/document-model
         version: link:../powerhouse/packages/document-model
@@ -107,9 +110,6 @@ importers:
       '@powerhousedao/vetra-studio':
         specifier: link:../powerhouse/packages/vetra-studio
         version: link:../powerhouse/packages/vetra-studio
-      '@powerhousedao/workflow':
-        specifier: link:../powerhouse/packages/workflow
-        version: link:../powerhouse/packages/workflow
       '@tailwindcss/cli':
         specifier: ^4.1.18
         version: 4.3.3
@@ -143,6 +143,9 @@ importers:
       graphql-tag:
         specifier: 2.12.6
         version: 2.12.6(graphql@16.12.0)
+      kysely:
+        specifier: 0.28.16
+        version: 0.28.16
       oxfmt:
         specifier: 0.68.0
         version: 0.68.0
@@ -1778,6 +1781,10 @@ packages:
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
+
+  kysely@0.28.16:
+    resolution: {integrity: sha512-3i5pmOiZvMDj00qhrIVbH0AnioVTx22DMP7Vn5At4yJO46iy+FM8Y/g61ltenLVSo3fiO8h8Q3QOFgf/gQ72ww==}
+    engines: {node: '>=20.0.0'}
 
   libphonenumber-js@1.13.15:
     resolution: {integrity: sha512-AHdhEQeDFEJ4GKDAQ9AwxChy+v2kUILUB3TGQRpkXMkWePjXTU/WQEzWVQoIx/Gz8fE73Wr5SEuZCy2vk8jrMQ==}
@@ -3776,6 +3783,8 @@ snapshots:
   js-tokens@10.0.0: {}
 
   js-tokens@4.0.0: {}
+
+  kysely@0.28.16: {}
 
   libphonenumber-js@1.13.15: {}
 
