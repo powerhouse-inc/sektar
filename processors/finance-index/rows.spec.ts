@@ -305,6 +305,13 @@ describe("an account's rows", () => {
     expect(transactions[0].search_text).toContain("250.5");
   });
 
+  it("lists a pending transaction without counting it in the balance or the review", () => {
+    const state = account([tx("t1", { amount: -40 }), tx("p1", { amount: -12.5, status: "PENDING" })]);
+    const { account: row, transactions } = accountRows("acc-1", state, AT);
+    expect(row).toMatchObject({ balance: 1000 - 40, tx_count: 2, new_count: 1 });
+    expect(transactions.find((t) => t.id === "p1")?.status).toBe("PENDING");
+  });
+
   it("is not built from a state that is no account", () => {
     expect(accountState({ lines: [] })).toBeNull();
     expect(accountState({ transactions: [] })).not.toBeNull();
@@ -368,7 +375,7 @@ describe("queries' folds", () => {
     expect(counts.incoming).toBe(0);
     expect(counts.byView).toContainEqual({ direction: "OUTGOING", view: "open", count: 2 });
     expect(counts.byView).toContainEqual({ direction: "INCOMING", view: "all", count: 0 });
-    expect(toTransactionCounts(undefined)).toEqual({ all: 0, new: 0, categorised: 0, matched: 0, excluded: 0 });
+    expect(toTransactionCounts(undefined)).toEqual({ all: 0, new: 0, categorised: 0, matched: 0, excluded: 0, pending: 0 });
   });
 
   it("buckets six months as the dashboard does", () => {

@@ -104,6 +104,7 @@ function TransactionsPage() {
     categorised: 0,
     matched: 0,
     excluded: 0,
+    pending: 0,
   };
 
   // The table grows a page at a time as its end scrolls into view; a row
@@ -218,6 +219,10 @@ function TransactionsPage() {
               },
               { value: "MATCHED", label: "Matched", count: counts.matched },
               { value: "EXCLUDED", label: "Excluded", count: counts.excluded },
+              // only while the bank reports some: they come and go
+              ...(counts.pending > 0
+                ? [{ value: "PENDING" as const, label: "Pending", count: counts.pending }]
+                : []),
             ]}
           />
         </div>
@@ -340,7 +345,7 @@ function TransactionTableRow({
       onClick={onOpen}
       style={{
         cursor: "pointer",
-        opacity: status === "EXCLUDED" ? 0.55 : 1,
+        opacity: status === "EXCLUDED" ? 0.55 : status === "PENDING" ? 0.75 : 1,
       }}
     >
       <td className="is-muted sk-nowrap" title={fmtDate(tx.bookedAt)}>
@@ -352,7 +357,7 @@ function TransactionTableRow({
           {[tx.description, accountName, contactName]
             .filter(Boolean)
             .join(" · ")}
-          {(status === "MATCHED" || status === "EXCLUDED") && (
+          {(status === "MATCHED" || status === "EXCLUDED" || status === "PENDING") && (
             <>
               {" "}
               <TransactionStatusBadge status={status} />

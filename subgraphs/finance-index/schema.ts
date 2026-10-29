@@ -128,6 +128,8 @@ export const schema: DocumentNode = gql`
     categorised: Int!
     matched: Int!
     excluded: Int!
+    """Reported by the bank, not booked yet."""
+    pending: Int!
   }
 
   type FinanceMonth {

@@ -34,6 +34,7 @@ export const INVOICE_VIEWS: readonly InvoiceView[] = [
 ];
 
 export type TransactionStatusFilter =
+  | "PENDING"
   | "NEW"
   | "CATEGORIZED"
   | "MATCHED"
@@ -420,6 +421,10 @@ export function transactionCountsQuery(
       .countAll<number>()
       .filterWhere("status", "=", "EXCLUDED")
       .as("excluded"),
+    eb.fn
+      .countAll<number>()
+      .filterWhere("status", "=", "PENDING")
+      .as("pending"),
   ]);
 }
 
@@ -429,6 +434,8 @@ export interface TransactionCounts {
   categorised: number;
   matched: number;
   excluded: number;
+  /** Reported by the bank, not booked yet. */
+  pending: number;
 }
 
 export function toTransactionCounts(
@@ -439,6 +446,7 @@ export function toTransactionCounts(
         categorised: number | string;
         matched: number | string;
         excluded: number | string;
+        pending?: number | string;
       }
     | undefined,
 ): TransactionCounts {
@@ -448,6 +456,7 @@ export function toTransactionCounts(
     categorised: Number(r?.categorised ?? 0),
     matched: Number(r?.matched ?? 0),
     excluded: Number(r?.excluded ?? 0),
+    pending: Number(r?.pending ?? 0),
   };
 }
 
@@ -593,7 +602,8 @@ export function dashboardQueries(db: FinanceQueryBuilder, nowMs: number) {
         eb.fn.sum<number>("amount").filterWhere("amount", ">", 0).as("in"),
         eb.fn.sum<number>("amount").filterWhere("amount", "<", 0).as("out"),
       ])
-      .where("status", "!=", "EXCLUDED")
+      // pending rows are not booked yet
+      .where("status", "not in", ["EXCLUDED", "PENDING"])
       .where("category", "!=", "TRANSFER")
       .where("booked_at", ">=", months[0])
       .where("booked_at", "<", nextMonth(months[months.length - 1]))
@@ -606,7 +616,7 @@ export function dashboardQueries(db: FinanceQueryBuilder, nowMs: number) {
       .select("category")
       .select((eb) => eb.fn.sum<number>("amount").as("spent"))
       .where("amount", "<", 0)
-      .where("status", "!=", "EXCLUDED")
+      .where("status", "not in", ["EXCLUDED", "PENDING"])
       .where("category", "not in", ["TRANSFER", "PAYROLL", "TAX"])
       .where("booked_at", ">=", since)
       .groupBy("category")

@@ -117,7 +117,7 @@ export function fileIds(
 export function accountBalance(account: BankAccountDocument): number {
   const s = account.state.global;
   return s.transactions
-    .filter((t) => t.status !== "EXCLUDED")
+    .filter((t) => t.status !== "EXCLUDED" && t.status !== "PENDING")
     .reduce((sum, t) => sum + t.amount, s.openingBalance);
 }
 

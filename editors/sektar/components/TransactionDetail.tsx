@@ -122,7 +122,10 @@ export function TransactionDetail({
   // Candidates: open invoices in the same direction as the money, approved
   // or submitted claims for outflows, closest amount first (the index
   // sorts them); asked only while there is something to match.
-  const matchable = tx.status !== "MATCHED" && tx.status !== "EXCLUDED";
+  // A pending transaction is reviewed once the bank books it
+  const pending = tx.status === "PENDING";
+  const matchable =
+    !pending && tx.status !== "MATCHED" && tx.status !== "EXCLUDED";
   const candidates = useMatchCandidates(matchable ? tx.amount : null) ?? [];
 
   const matched = tx.matchedDocumentId
@@ -150,6 +153,7 @@ export function TransactionDetail({
             </Badge>
           </div>
         </div>
+        {!pending && (
         <Button
           variant="ghost"
           size="sm"
@@ -165,11 +169,19 @@ export function TransactionDetail({
         >
           {tx.status === "EXCLUDED" ? "Include again" : "Exclude"}
         </Button>
+        )}
       </div>
+
+      {pending && (
+        <p className="sk-small sk-text-muted">
+          The bank has not booked this payment yet. It is not counted in the
+          balance, and it can be categorised and matched once it is booked.
+        </p>
+      )}
 
       <Dl
         rows={[
-          { label: "Booked", value: fmtDate(tx.bookedAt) },
+          { label: pending ? "Date" : "Booked", value: fmtDate(tx.bookedAt) },
           { label: "Counterparty", value: tx.counterparty },
           { label: "Description", value: tx.description ?? "—" },
           { label: "Account", value: account.name ?? "—" },
@@ -184,7 +196,7 @@ export function TransactionDetail({
         ]}
       />
 
-      {tx.status !== "EXCLUDED" && (
+      {!pending && tx.status !== "EXCLUDED" && (
         <div className="sk-grid sk-grid--2">
           <Field label="Category">
             <Select
@@ -262,7 +274,7 @@ export function TransactionDetail({
         </div>
       )}
 
-      {tx.status !== "MATCHED" && tx.status !== "EXCLUDED" && (
+      {matchable && (
         <section className="sk-stack sk-stack--2">
           <div className="sk-eyebrow">Match to</div>
           {candidates.length === 0 ? (

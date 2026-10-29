@@ -313,7 +313,7 @@ export function applyAction(
         r.title = str(t.counterparty) ?? "Transaction";
         r.subtitle = str(t.description) ?? doc.title;
         r.amount = num(t.amount);
-        r.status = "NEW";
+        r.status = t.pending === true ? "PENDING" : "NEW";
         r.at = str(t.bookedAt);
         r.body = text(
           t.counterparty,
@@ -323,6 +323,13 @@ export function applyAction(
           doc.title,
         );
         others.push(r);
+      }
+      break;
+    }
+    case "REMOVE_PENDING_TRANSACTIONS": {
+      const gone = new Set(((input.ids ?? []) as unknown[]).map(String));
+      for (let i = others.length - 1; i >= 0; i--) {
+        if (gone.has(others[i].entity_id)) others.splice(i, 1);
       }
       break;
     }

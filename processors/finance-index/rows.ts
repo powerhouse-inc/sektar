@@ -271,10 +271,10 @@ export function accountRows(
   const transactions = state.transactions
     .filter((tx) => typeof tx?.id === "string" && tx.id !== "")
     .map((tx) => transactionRow(documentId, currency, tx));
-  // `accountBalance`: the opening balance plus every transaction not excluded,
-  // added in the document's order.
+  // `accountBalance`: the opening balance plus every booked transaction not
+  // excluded (pending ones are not booked yet), added in the document's order.
   const balance = state.transactions
-    .filter((t) => t.status !== "EXCLUDED")
+    .filter((t) => t.status !== "EXCLUDED" && t.status !== "PENDING")
     .reduce((sum, t) => sum + num(t.amount), num(state.openingBalance));
   const iban = str(state.iban)?.replace(/\s+/g, "") ?? null;
   return {

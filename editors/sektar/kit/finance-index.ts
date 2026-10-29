@@ -209,7 +209,7 @@ const TRANSACTIONS_QUERY = `query ($d: String!, $a: String, $s: String, $q: Stri
 }`;
 
 const TRANSACTION_COUNTS_QUERY = `query ($d: String!, $a: String) {
-  financeIndex { transactionCounts(driveId: $d, accountId: $a) { all new categorised matched excluded } }
+  financeIndex { transactionCounts(driveId: $d, accountId: $a) { all new categorised matched excluded pending } }
 }`;
 
 const DASHBOARD_QUERY = `query ($d: String!, $n: String!) {

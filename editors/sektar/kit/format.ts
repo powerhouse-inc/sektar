@@ -181,6 +181,7 @@ export const TX_STATUS: Record<
   TransactionStatus,
   { label: string; tone: BadgeTone }
 > = {
+  PENDING: { label: "Pending", tone: "outline" },
   NEW: { label: "To review", tone: "warning" },
   CATEGORIZED: { label: "Categorised", tone: "outline" },
   MATCHED: { label: "Matched", tone: "success" },
