@@ -488,7 +488,7 @@ function Dashboard() {
           onClose={() => setPanel(null)}
           onCreated={() => {
             setPanel(null);
-            void navigate({ to: "/finops/contacts" });
+            void navigate({ to: "/contacts" });
           }}
         />
       )}

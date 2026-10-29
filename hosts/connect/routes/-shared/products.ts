@@ -77,6 +77,8 @@ export const PRODUCTS: readonly Product[] = [
         icon: "calendar",
         app: "calendar",
       },
+      // Everyone the business deals with
+      { to: "/contacts", label: "Contacts", icon: "customers" },
       // The Files drive (hosts/*: slug "files", drive app files)
       { to: "/d/files", pinnedId: pinnedDriveId("files"), label: "Files", icon: "folder" },
     ],
@@ -119,7 +121,6 @@ export const PRODUCTS: readonly Product[] = [
       },
       { to: "/finops/invoices", label: "Invoices", icon: "invoice" },
       { to: "/finops/expenses", label: "Expenses", icon: "wallet" },
-      { to: "/finops/contacts", label: "Contacts", icon: "customers" },
     ],
     drive: { slug: "sektar", label: "Business drive", editor: "sektar" },
   },
@@ -233,9 +234,10 @@ export function productFor(
 ): Product {
   const own = PRODUCTS.find(
     (p) =>
-      p.nav.some((n) => navMatches(pathname, n.to)) ||
-      (p.beforeDrive ?? []).some((n) => navMatches(pathname, n.to)) ||
-      (p.afterDrive ?? []).some((n) => navMatches(pathname, n.to)) ||
+      [...p.nav, ...(p.beforeDrive ?? []), ...(p.afterDrive ?? [])].some(
+        // a drive item's page is also its pinned drive's address
+        (n) => navTargets(n).some((to) => navMatches(pathname, to)),
+      ) ||
       isProductDrive(pathname, p),
   );
   return (

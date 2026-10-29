@@ -29,7 +29,7 @@ export function hitTarget(hit: SearchHit): {
     case "expense":
       return { to: "/finops/expenses", search: { open: hit.document_id } };
     case "contact":
-      return { to: "/finops/contacts", search: { open: hit.document_id } };
+      return { to: "/contacts", search: { open: hit.document_id } };
     case "transaction":
       // the account (the hit's document) is the one document the detail loads
       return {

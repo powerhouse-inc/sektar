@@ -5,11 +5,11 @@ import { useEffect, useRef, useState } from "react";
 import {
   ContactDetail,
   ContactKindBadge,
-} from "../../../../../editors/sektar/components/ContactDetail.js";
+} from "../../../../editors/sektar/components/ContactDetail.js";
 import {
   InvoiceDetail,
-} from "../../../../../editors/sektar/components/InvoiceDetail.js";
-import { useSektarDrive } from "../../../../../editors/sektar/kit/data.js";
+} from "../../../../editors/sektar/components/InvoiceDetail.js";
+import { useSektarDrive } from "../../../../editors/sektar/kit/data.js";
 import {
   contactKindOf,
   FINANCE_PAGE,
@@ -17,8 +17,8 @@ import {
   useContactList,
   type ContactRow,
   type ContactView,
-} from "../../../../../editors/sektar/kit/finance-index.js";
-import { money, plural } from "../../../../../editors/sektar/kit/format.js";
+} from "../../../../editors/sektar/kit/finance-index.js";
+import { money, plural } from "../../../../editors/sektar/kit/format.js";
 import {
   Avatar,
   Badge,
@@ -29,14 +29,14 @@ import {
   PageHeader,
   Pills,
   SidePanel,
-} from "../../../../../editors/sektar/kit/ui.js";
-import artDark from "../../../../../editors/sektar/design/shapes/sektar-growth-four-column-combined-dark.svg";
-import artLight from "../../../../../editors/sektar/design/shapes/sektar-growth-four-column-combined-light.svg";
-import { NewContactPanel } from "../../-shared/forms.js";
-import { useSearch } from "../../-shared/search.js";
-import { SetupState } from "../../-shared/setup.js";
+} from "../../../../editors/sektar/kit/ui.js";
+import artDark from "../../../../editors/sektar/design/shapes/sektar-growth-four-column-combined-dark.svg";
+import artLight from "../../../../editors/sektar/design/shapes/sektar-growth-four-column-combined-light.svg";
+import { NewContactPanel } from "../-shared/forms.js";
+import { useSearch } from "../-shared/search.js";
+import { SetupState } from "../-shared/setup.js";
 
-export const Route = createFileRoute("/_app/finops/contacts")({
+export const Route = createFileRoute("/_app/contacts")({
   validateSearch: (raw: Record<string, unknown>): { open?: string } => ({
     ...(typeof raw.open === "string" ? { open: raw.open } : {}),
   }),
