@@ -23,6 +23,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       FEATURE_UNIFORM_RUNNERS_ENABLED: "1"
+      # linuxdeploy (the AppImage bundler) is itself an AppImage: runners have
+      # no FUSE to mount it, so it extracts itself instead; its bundled strip
+      # also fails on current system libraries.
+      APPIMAGE_EXTRACT_AND_RUN: "1"
+      NO_STRIP: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
