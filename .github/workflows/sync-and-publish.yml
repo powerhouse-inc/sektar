@@ -77,7 +77,8 @@ jobs:
 
           # Determine branch from channel
           case "$CHANNEL" in
-            dev) BRANCH="dev" ;;
+            # Sektar has no dev branch: main is what the dev channel publishes
+            dev) BRANCH="main" ;;
             staging) BRANCH="staging" ;;
             latest|main) BRANCH="main" ;;
             *) BRANCH="staging" ;;
