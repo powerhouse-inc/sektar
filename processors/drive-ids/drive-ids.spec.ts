@@ -59,7 +59,8 @@ describe("the vetra host's pins", () => {
     };
     const served = vetra.children["vetra-switchboard"].reactor.drives;
     for (const [slug, id] of Object.entries(pins)) {
-      expect(served.find((d) => d.slug === slug)?.id, slug).toBe(id);
+      // declared as it exists: the converted drive's slug is its id
+      expect(served.find((d) => d.id === id)?.slug, slug).toBe(id);
     }
   });
 });

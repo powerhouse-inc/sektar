@@ -42,9 +42,16 @@ const CONVERTED_DRIVE_IDS = {
   integrations: "pL3TbPK1kE2qRC8DcqrW5-Ng2BYb0gAzjjOVfmEH3tk",
   backfills: "bxyXzS9OEFouLyHF11E56xEed7asuaQA-QNLjUsQ_TU",
 };
-const studioDrives = servedDrives.map((d) =>
-  CONVERTED_DRIVE_IDS[d.slug] ? { ...d, id: CONVERTED_DRIVE_IDS[d.slug] } : d,
-);
+/** The address a served drive answers at: a converted drive's id, else its slug. */
+const driveAddress = (/** @type {string} */ slug) =>
+  CONVERTED_DRIVE_IDS[slug] ?? slug;
+// Declared as they exist: a converted drive's slug is its id. The switchboard
+// runner (6.2.3-dev.80) also waits for the first declared drive at
+// /d/<slug> before Connect starts, which only a converted drive's id answers.
+const studioDrives = servedDrives.map((d) => {
+  const id = CONVERTED_DRIVE_IDS[d.slug];
+  return id ? { ...d, id, slug: id } : d;
+});
 
 /** @satisfies {PHHost} */
 export default {
@@ -107,18 +114,19 @@ export default {
       // The studio drives (vetra, preview) are attached by the studio plugin.
       // ${origin}: the page's own origin (see runner.proxy above). A remote
       // backend is named by one of the switchboard's drives (the GraphQL
-      // endpoint names no drive): ${origin}/d/sektar is the switchboard at
-      // ${origin}, its GraphQL at ${origin}/graphql.
+      // endpoint names no drive): ${origin}/d/<the business drive> is the
+      // switchboard at ${origin}, its GraphQL at ${origin}/graphql. Converted
+      // drives answer at their ids (driveAddress): their slugs name nothing.
       reactor: {
         backends: {
           sb: {
             kind: "remote",
-            remote: { url: "${origin}/d/sektar" },
+            remote: { url: "${origin}/d/" + driveAddress("sektar") },
           },
         },
         drives: servedDrives.map((d) => ({
           slug: d.slug,
-          remote: { url: "${origin}/d/" + d.slug },
+          remote: { url: "${origin}/d/" + driveAddress(d.slug) },
         })),
       },
     },
