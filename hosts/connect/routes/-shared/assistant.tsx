@@ -7,6 +7,7 @@ import {
   type UseAiGatewayResult,
 } from "@powerhousedao/reactor-browser/ai";
 import { useState, type FormEvent } from "react";
+import { assistantInstructions } from "../../../../ai/instructions.js";
 import {
   Alert,
   Badge,
@@ -17,14 +18,11 @@ import {
   Modal,
 } from "../../../../editors/sektar/kit/ui.js";
 
-const INSTRUCTIONS = [
-  "You are the assistant inside Sektar, a business suite for small companies: finance, mail, calendar, files and workflows.",
-  "Sektar keeps each of these in its own drive, so look through the drives to find what the user means.",
-  "When the user attaches a photo of a receipt or an invoice, read it: name the merchant, the date and the total, and say so if a figure is unreadable.",
-  "Answer in the user's language, in a few plain sentences.",
-].join(" ");
-
-const SUGGESTIONS = ["Which drives do I have?", "What can you do for me?"];
+const SUGGESTIONS = [
+  "Which invoices are overdue?",
+  "Which invoices are still drafts?",
+  "What is on my calendar this week?",
+];
 
 /**
  * The assistant on the welcome page. The page only mounts this for an admin;
@@ -61,7 +59,7 @@ function Conversation({
 }) {
   const chat = useReactorChat(getHostAiTools, {
     connection,
-    instructions: INSTRUCTIONS,
+    instructions: assistantInstructions(new Date()),
   });
   return (
     <Card
@@ -90,8 +88,8 @@ function Conversation({
         suggestions={SUGGESTIONS}
         emptyState={
           <p>
-            Ask about your drives and documents, or attach a photo of a receipt.
-            Anything that changes your data asks you first.
+            Ask about your invoices, mail, calendar, files or trips, or attach a
+            photo of a receipt. Anything that changes your data asks you first.
           </p>
         }
       />

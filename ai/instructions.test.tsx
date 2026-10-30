@@ -1,0 +1,245 @@
+import type * as ReactorChat from "@powerhousedao/reactor-browser/ai";
+import {
+  getHostAiTools,
+  ReactorChatAgent,
+  type AiConnection,
+  type AiSettings,
+  type UseAiGatewayResult,
+} from "@powerhousedao/reactor-browser/ai";
+import { renderToStaticMarkup } from "react-dom/server";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AssistantPanel } from "../hosts/connect/routes/-shared/assistant.js";
+import { assistantInstructions } from "./instructions.js";
+import { BASE, installStore, serve, unreachable } from "./test-index.js";
+import { aiTools } from "./tools.js";
+
+const chat = vi.hoisted(() => ({
+  useReactorChat: vi.fn((..._args: unknown[]) => ({
+    messages: [],
+    clear: () => {},
+  })),
+}));
+
+vi.mock("@powerhousedao/reactor-browser/ai", async (original) => ({
+  ...(await original<typeof ReactorChat>()),
+  ChatPanel: () => null,
+  useReactorChat: chat.useReactorChat,
+}));
+
+const connection: AiConnection = { baseUrl: `${BASE}/ai/v1`, model: "a-model" };
+
+const adminGateway = {
+  connection,
+  gateway: {
+    access: "admin",
+    status: { configured: true, model: "a-model", keyHint: "sk-…abcd" },
+  },
+} as unknown as UseAiGatewayResult;
+
+/** The instruction the panel passed to the chat. */
+function renderedInstruction(): string {
+  renderToStaticMarkup(<AssistantPanel gateway={adminGateway} />);
+  const [, options] = chat.useReactorChat.mock.calls.at(-1) as [
+    unknown,
+    { instructions: string },
+  ];
+  return options.instructions;
+}
+
+const sseEvent = (delta: object, finish: string | null = null) =>
+  `data: ${JSON.stringify({
+    id: "reply",
+    created: 1,
+    model: "a-model",
+    choices: [{ index: 0, delta, finish_reason: finish }],
+  })}\n\n`;
+
+const sse = (...events: string[]) =>
+  new Response(`${events.join("")}data: [DONE]\n\n`, {
+    headers: { "content-type": "text/event-stream" },
+  });
+
+const toolCall = (name: string, args: object) =>
+  sse(
+    sseEvent({
+      role: "assistant",
+      tool_calls: [
+        {
+          index: 0,
+          id: "call-1",
+          type: "function",
+          function: { name, arguments: JSON.stringify(args) },
+        },
+      ],
+    }),
+    sseEvent({}, "tool_calls"),
+  );
+
+const text = (reply: string) =>
+  sse(sseEvent({ role: "assistant", content: reply }), sseEvent({}, "stop"));
+
+interface ModelRequest {
+  messages: { role: string; content: unknown }[];
+  tools: {
+    function: {
+      name: string;
+      description: string;
+      parameters: { properties: Record<string, { description?: string }> };
+    };
+  }[];
+}
+
+/** One turn against a scripted model; what it was sent, in order. */
+async function turn(replies: Response[], instructions: string) {
+  const requests: ModelRequest[] = [];
+  const events: { type: string; state?: string; error?: string }[] = [];
+  const agent = new ReactorChatAgent({
+    settings: {} as AiSettings,
+    connection: {
+      ...connection,
+      fetch: ((_url: string, init: RequestInit) => {
+        requests.push(JSON.parse(init.body as string) as ModelRequest);
+        return Promise.resolve(replies.shift() ?? text("Done."));
+      }) as typeof fetch,
+    },
+    instructions,
+    tools: aiTools,
+    context: {},
+    onEvent: (event) => events.push(event),
+  });
+  await agent.send("Is my October invoice for Powerhouse already drafted?");
+  return { requests, events };
+}
+
+const NOW = new Date(2026, 9, 30, 14, 0);
+
+beforeEach(() => {
+  installStore();
+  chat.useReactorChat.mockClear();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("assistantInstructions", () => {
+  const instructions = assistantInstructions(NOW);
+
+  it("sends the model to the read models first", () => {
+    expect(instructions).toContain(
+      "ALWAYS use the Sektar read-model tools first",
+    );
+    expect(instructions).toContain(
+      "built-in document and drive tools only to write something, or to get details the read models don't hold",
+    );
+  });
+
+  it("says the built-in listing says nothing about business data", () => {
+    expect(instructions).toContain(
+      "getDrives, getDrive and getDocuments do not list Sektar's business data",
+    );
+    expect(instructions).toContain(
+      "whether an invoice, email, event or contact exists",
+    );
+  });
+
+  it("forbids claiming something does not exist on no evidence", () => {
+    expect(instructions).toContain(
+      "Never say something doesn't exist unless the relevant read-model tool was called and found nothing",
+    );
+    expect(instructions).toContain(
+      "If a tool fails or is unavailable, say the answer is unknown",
+    );
+  });
+
+  it("gives today's date", () => {
+    expect(instructions).toContain("30 October 2026 (2026-10-30)");
+    expect(assistantInstructions(new Date(2027, 0, 2))).toContain("2027-01-02");
+  });
+
+  it("asks for short answers", () => {
+    expect(instructions).toContain("in a few plain sentences");
+  });
+
+  it("no longer sends the model through the drives", () => {
+    expect(instructions).not.toContain("look through the drives");
+  });
+});
+
+describe("the assistant panel", () => {
+  it("passes the instruction and the host's tools to the chat", () => {
+    const instructions = renderedInstruction();
+    expect(instructions).toBe(assistantInstructions(new Date()));
+    const [provider, options] = chat.useReactorChat.mock.calls[0] as [
+      unknown,
+      { connection: AiConnection },
+    ];
+    expect(provider).toBe(getHostAiTools);
+    expect(options.connection).toBe(connection);
+  });
+});
+
+describe("the agent", () => {
+  it("gets the instruction in its system prompt, and the tools as functions", async () => {
+    const instructions = renderedInstruction();
+    const { requests } = await turn([text("Yes.")], instructions);
+    const [system] = requests[0].messages;
+    expect(system.role).toBe("system");
+    expect(system.content).toContain(instructions);
+    expect(requests[0].tools.map((t) => t.function.name).sort()).toEqual(
+      aiTools.map((t) => t.name).sort(),
+    );
+    const invoices = requests[0].tools.find(
+      (t) => t.function.name === "sektarFindInvoices",
+    );
+    expect(invoices?.function.description).toContain("drafts included");
+    expect(invoices?.function.parameters.properties.view.description).toContain(
+      "SETTLED",
+    );
+  });
+
+  it("runs a read tool without asking, and hands the model its result", async () => {
+    const calls = serve({
+      financeIndex: {
+        invoices: {
+          total: 0,
+          hasMore: false,
+          items: [],
+        },
+      },
+    });
+    const { requests, events } = await turn(
+      [
+        toolCall("sektarFindInvoices", { query: "Powerhouse" }),
+        text("There is no draft yet."),
+      ],
+      assistantInstructions(NOW),
+    );
+    expect(calls).toHaveLength(1);
+    expect(events.some((e) => e.type === "approval-request")).toBe(false);
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "tool-result", state: "done" }),
+    );
+    const answer = requests[1].messages.at(-1);
+    expect(answer?.role).toBe("tool");
+    expect(JSON.stringify(answer)).toContain("was read and holds no invoices");
+  });
+
+  it("hands the model a failed read as an error, not as an empty result", async () => {
+    unreachable();
+    const { requests, events } = await turn(
+      [
+        toolCall("sektarFindInvoices", { query: "Powerhouse" }),
+        text("I could not tell."),
+      ],
+      assistantInstructions(NOW),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "tool-result", state: "error" }),
+    );
+    const answer = JSON.stringify(requests[1].messages.at(-1));
+    expect(answer).toContain("could not be read");
+    expect(answer).toContain("unknown");
+    expect(answer).not.toContain('"found"');
+  });
+});
