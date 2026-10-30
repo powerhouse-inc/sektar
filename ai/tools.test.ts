@@ -497,17 +497,31 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** They go through the stored files, not an index: see attachments.test.ts. */
+const ATTACHMENT_TOOLS = [
+  "sektarListAttachments",
+  "sektarReadAttachment",
+  "sektarSaveChatImage",
+];
+
 describe("the tool set", () => {
-  it("offers every tool under a name of its own, read-only and described", () => {
+  it("offers every tool under a name of its own, described", () => {
     expect(aiTools.map((t) => t.name).sort()).toEqual(
-      everyTool.map((t) => t.name).sort(),
+      [...everyTool.map((t) => t.name), ...ATTACHMENT_TOOLS].sort(),
     );
     for (const descriptor of aiTools) {
       expect(descriptor.name).toMatch(/^sektar/);
-      expect(descriptor.annotations?.readOnlyHint).toBe(true);
       expect(descriptor.annotations?.destructiveHint).toBe(false);
       expect(descriptor.description?.length).toBeGreaterThan(80);
     }
+  });
+
+  it("asks for approval only to store a chat image", () => {
+    expect(
+      aiTools
+        .filter((t) => t.annotations?.readOnlyHint !== true)
+        .map((t) => t.name),
+    ).toEqual(["sektarSaveChatImage"]);
   });
 
   it("stops under the agent's own limit, so it never cuts an answer mid-JSON", () => {
@@ -843,6 +857,29 @@ describe("sektarSearchMail", () => {
     expect(result).toMatchObject({ found: 1 });
   });
 
+  it("gives a row's references, and leaves them out of a row with none", async () => {
+    serve(
+      mailRoot(
+        [
+          message(1, {
+            attachmentCount: 7,
+            attachmentRefs: Array.from({ length: 7 }, (_, i) => `ref-${i}`),
+          }),
+          message(2, { attachmentCount: 0, attachmentRefs: [] }),
+        ],
+        [],
+      ),
+    );
+    const { items } = (await call("sektarSearchMail", {
+      view: "INBOX",
+    })) as { items: Record<string, unknown>[] };
+    expect(items[0]).toMatchObject({
+      attachments: 7,
+      attachmentRefs: ["ref-0", "ref-1", "ref-2", "ref-3", "ref-4"],
+    });
+    expect(items[1]).not.toHaveProperty("attachmentRefs");
+  });
+
   it("reads on through the merged list", async () => {
     const inbox = Array.from({ length: 4 }, (_, i) =>
       message(i, { when: `2026-10-0${String(i + 1)}T08:00:00.000Z` }),
@@ -979,6 +1016,16 @@ describe("sektarFindFiles", () => {
     expect(result).toMatchObject({
       items: [{ id: "file-1", tags: ["Legal"], sourceMime: "application/pdf" }],
     });
+  });
+
+  it("names the drive createDocument needs, the pinned one over the legacy", async () => {
+    const pinned = "wpoqSWDrc0GNFL_BJd15L9R5rtvezJsH7mZFqGYSVA0";
+    installStore({}, [
+      { header: { id: "legacy", slug: "files" } },
+      { header: { id: pinned, slug: pinned } },
+    ]);
+    serve(root);
+    expect(await call("sektarFindFiles")).toMatchObject({ driveId: pinned });
   });
 });
 
