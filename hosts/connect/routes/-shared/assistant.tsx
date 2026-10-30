@@ -17,6 +17,7 @@ import {
   Input,
   Modal,
 } from "../../../../editors/sektar/kit/ui.js";
+import { useUserName } from "../../../../editors/sektar/kit/user-name.js";
 
 const SUGGESTIONS = [
   "Which invoices are overdue?",
@@ -57,9 +58,10 @@ function Conversation({
   connection: AiConnection;
   model: string;
 }) {
+  const userName = useUserName();
   const chat = useReactorChat(getHostAiTools, {
     connection,
-    instructions: assistantInstructions(new Date()),
+    instructions: assistantInstructions(new Date(), userName),
   });
   return (
     <Card
@@ -88,6 +90,7 @@ function Conversation({
         suggestions={SUGGESTIONS}
         emptyState={
           <p>
+            {userName && `Hi ${userName}. `}
             Ask about your invoices, mail, calendar, files or trips, or attach a
             photo of a receipt. Anything that changes your data asks you first.
           </p>
