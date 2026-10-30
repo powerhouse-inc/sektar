@@ -9,16 +9,13 @@
 // queries on its database. The document itself is loaded only for the
 // message that is open.
 import {
-  DriveCollectionId,
-  getPHStore,
-  getSwitchboardBaseFromChannelUrl,
   useAttachmentService,
   useReactorClientModule,
   useRelationalQuery,
   useSwitchboardUrl,
   useSyncList,
 } from "@powerhousedao/reactor-browser";
-import { indexGql as gql } from "./index-gql.js";
+import { indexGql as gql, indexModeOf, type IndexMode } from "./index-gql.js";
 import type { DocumentDriveDocument } from "@powerhousedao/shared/document-drive";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -79,55 +76,20 @@ export interface MailList {
 
 /* ---------------------------------------------------------------- mode */
 
-type Mode =
-  | { kind: "remote"; base: string }
-  | { kind: "local" }
-  | { kind: "unknown" };
-
-/**
- * Where the index for this drive is answered from. A synchronized remote
- * drive's channel URL names its switchboard (the way the framework builds
- * its own switchboard links); a tab with its own reactor and no remote for
- * the drive queries locally. A pure remote client (the studio and cli
- * Connect) has neither a sync list nor a GraphQL client in the store: its
- * switchboard is the one the attachment service talks to, which is the
- * origin every read and write already goes to.
- */
-export function useMailIndexMode(drive: DocumentDriveDocument | undefined): Mode {
+/** Where the index for this drive is answered from; see `indexModeOf`. */
+export function useMailIndexMode(drive: DocumentDriveDocument | undefined): IndexMode {
   const remotes = useSyncList();
   const switchboardUrl = useSwitchboardUrl();
   const module = useReactorClientModule();
   const attachments = useAttachmentService();
   const driveId = drive?.header.id;
-  return useMemo<Mode>(() => {
-    if (!driveId) return { kind: "unknown" };
-    const remote = remotes.find((r) =>
-      r.meta.collectionId.equals(DriveCollectionId.forDrive(driveId)),
-    );
-    const channelUrl = (
-      remote?.channel as { config?: { url?: unknown } } | undefined
-    )?.config?.url;
-    if (typeof channelUrl === "string" && channelUrl) {
-      return { kind: "remote", base: getSwitchboardBaseFromChannelUrl(channelUrl) };
-    }
-    if (module?.kind === "browser") return { kind: "local" };
-    const gql = (getPHStore()?.reactorGraphQLClient as { url?: unknown } | undefined)
-      ?.url;
-    const store = (attachments as { store?: { remoteUrl?: unknown } } | undefined)
-      ?.store?.remoteUrl;
-    const fallback =
-      typeof gql === "string" && gql
-        ? gql
-        : typeof store === "string" && store
-          ? store
-          : typeof switchboardUrl === "string"
-            ? switchboardUrl
-            : "";
-    if (fallback) {
-      return { kind: "remote", base: fallback.replace(/\/graphql(\/.*)?$/, "") };
-    }
-    return { kind: "unknown" };
-  }, [driveId, remotes, module, attachments, switchboardUrl]);
+  return useMemo<IndexMode>(
+    () =>
+      driveId
+        ? indexModeOf(driveId, { remotes, module, attachments, switchboardUrl })
+        : { kind: "unknown" },
+    [driveId, remotes, module, attachments, switchboardUrl],
+  );
 }
 
 /* -------------------------------------------------------------- remote */
@@ -607,7 +569,7 @@ function useLocalAccounts(enabled: boolean, driveId: string | null): MailAccount
 export function useMailList(
   drive: DocumentDriveDocument | undefined,
   filter: MailListFilter,
-): MailList & { mode: Mode["kind"] } {
+): MailList & { mode: IndexMode["kind"] } {
   const mode = useMailIndexMode(drive);
   const driveId = drive?.header.id ?? null;
   const words = useMemo(() => searchWords(filter.query), [filter.query]);
