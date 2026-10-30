@@ -130,7 +130,6 @@ export const PRODUCTS: readonly Product[] = [
         icon: "transactions",
       },
       { to: "/finops/invoices", label: "Invoices", icon: "invoice" },
-      { to: "/finops/expenses", label: "Expenses", icon: "wallet" },
     ],
     drive: { slug: "sektar", label: "Business drive", editor: "sektar" },
   },

@@ -235,7 +235,7 @@ const SUMMARY_QUERY = `query ($d: String!, $n: String!) {
     }
     invoiceCounts(driveId: $d, now: $n) { byView { direction view count } }
     accounts(driveId: $d) { id name kind institution ibanLast4 currency balance txCount newCount lastBookedAt }
-    counts(driveId: $d) { accounts invoices expenses contacts }
+    counts(driveId: $d) { accounts invoices contacts }
   }
 }`;
 
@@ -271,7 +271,6 @@ interface SummaryData {
     counts: {
       accounts: number;
       invoices: number;
-      expenses: number;
       contacts: number;
     };
   };
@@ -399,107 +398,6 @@ const findTransactionsTool: PhAiToolDescriptor = {
       offset,
       query: args.query,
     });
-  },
-};
-
-/* ------------------------------------------------------------- expenses */
-
-const EXPENSES_QUERY = `query ($d: String!, $st: [String!], $q: String, $o: Int, $l: Int) {
-  financeIndex {
-    expenses(driveId: $d, statuses: $st, query: $q, offset: $o, limit: $l) {
-      total
-      items { id title submitterName status currency total reimbursable vatTotal itemCount categories firstSpentAt submittedAt decidedAt reimbursedAt updatedAt }
-    }
-    expenseCounts(driveId: $d, query: $q) { byStatus { status count total reimbursable } }
-  }
-}`;
-
-interface ExpenseRow {
-  id: string;
-  title: string | null;
-  submitterName: string | null;
-  status: string;
-  currency: string;
-  total: number;
-  reimbursable: number;
-  vatTotal: number;
-  itemCount: number;
-  categories: string[];
-  firstSpentAt: string | null;
-  submittedAt: string | null;
-  decidedAt: string | null;
-  reimbursedAt: string | null;
-  updatedAt: string;
-}
-
-const findExpensesTool: PhAiToolDescriptor = {
-  name: "sektarFindExpenses",
-  description:
-    "Finds expense claims, the latest changed first, with how many sit in each status and what they add up to. Use it for what was claimed, by whom, what awaits approval, and what is still owed back.",
-  inputSchema: {
-    query: wordsParam("the title, submitter and merchants"),
-    statuses: z
-      .array(z.enum(["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "REIMBURSED"]))
-      .optional()
-      .describe("Only these statuses. SUBMITTED means awaiting approval."),
-    limit: limitParam,
-    offset: offsetParam,
-  },
-  annotations: { title: "Find expense claims", ...READ_ONLY },
-  callback: async (args: {
-    query?: string;
-    statuses?: string[];
-    limit?: number;
-    offset?: number;
-  }) => {
-    const offset = args.offset ?? 0;
-    const data = await readIndex<{
-      financeIndex: {
-        expenses: { total: number; items: ExpenseRow[] };
-        expenseCounts: {
-          byStatus: {
-            status: string;
-            count: number;
-            total: number;
-            reimbursable: number;
-          }[];
-        };
-      };
-    }>("sektar", EXPENSES_QUERY, {
-      st: args.statuses ?? null,
-      q: args.query ?? null,
-      o: offset,
-      l: args.limit ?? DEFAULT_LIMIT,
-    });
-    const { expenses, expenseCounts } = data.financeIndex;
-    return listing(
-      "expense claims",
-      expenses.items.map((row) =>
-        compact({
-          id: row.id,
-          title: clip(row.title, 100),
-          submitter: clip(row.submitterName, 60),
-          status: row.status,
-          currency: row.currency,
-          total: row.total,
-          reimbursable: row.reimbursable,
-          vat: row.vatTotal,
-          receipts: row.itemCount,
-          categories: row.categories,
-          firstSpentAt: day(row.firstSpentAt),
-          submittedAt: day(row.submittedAt),
-          decidedAt: day(row.decidedAt),
-          reimbursedAt: day(row.reimbursedAt),
-          updatedAt: day(row.updatedAt),
-        }),
-      ),
-      expenses.total,
-      {
-        offset,
-        query: args.query,
-        beside: { byStatus: expenseCounts.byStatus },
-      },
-    );
   },
 };
 
@@ -1275,7 +1173,8 @@ async function searchFinance(query: string) {
   const data = await readIndex<{
     searchIndex: { search: SearchHit[] };
   }>("sektar", SEARCH_QUERY, { q: query, l: SEARCH_HITS });
-  return data.searchIndex.search.map((hit) =>
+  const hits = data.searchIndex.search.filter((hit) => hit.kind !== "expense");
+  return hits.map((hit) =>
     compact({
       id: hit.kind === "transaction" ? hit.entityId : hit.documentId,
       kind: hit.kind,
@@ -1320,7 +1219,7 @@ async function searchTrips(query: string) {
 const searchTool: PhAiToolDescriptor = {
   name: "sektarSearch",
   description:
-    "Searches finance (invoices, contacts, expense claims, accounts, transactions), mail, files and trips at once. Use it when you don't know where something is, or to find everything about a name or a number. It returns the top hits of each subject; an empty list means that subject was read and holds nothing. It does not search the calendar: use sektarCalendarEvents for that.",
+    "Searches finance (invoices, contacts, accounts, transactions), mail, files and trips at once. Use it when you don't know where something is, or to find everything about a name or a number. It returns the top hits of each subject; an empty list means that subject was read and holds nothing. It does not search the calendar: use sektarCalendarEvents for that.",
   inputSchema: {
     query: z
       .string()
@@ -1368,7 +1267,6 @@ export const aiTools: PhAiToolDescriptor[] = [
   findInvoicesTool,
   financeSummaryTool,
   findTransactionsTool,
-  findExpensesTool,
   findContactsTool,
   searchMailTool,
   calendarEventsTool,

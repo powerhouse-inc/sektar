@@ -73,27 +73,6 @@ const transaction = (i: number, over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-const expense = (i: number, over: Record<string, unknown> = {}) => ({
-  id: `expense-${i}`,
-  title: "Trip to Ghent",
-  submitterName: "Jo",
-  submitterEmail: "jo@example.test",
-  status: "SUBMITTED",
-  currency: "EUR",
-  total: 120.5,
-  reimbursable: 80,
-  vatTotal: 10,
-  itemCount: 2,
-  categories: ["TRAVEL"],
-  firstSpentAt: "2026-10-02T00:00:00.000Z",
-  submittedAt: "2026-10-03T00:00:00.000Z",
-  decidedAt: null,
-  reimbursedAt: null,
-  createdAt: "2026-10-03T00:00:00.000Z",
-  updatedAt: "2026-10-03T00:00:00.000Z",
-  ...over,
-});
-
 const contact = (i: number, over: Record<string, unknown> = {}) => ({
   id: `contact-${i}`,
   name: "Powerhouse Inc",
@@ -365,10 +344,9 @@ const summaryRoot = (over: Record<string, unknown> = {}) =>
         updatedAt: "2026-10-20T00:00:00.000Z",
       },
     ],
-    counts: { accounts: 1, invoices: 8, expenses: 2, contacts: 3 },
+    counts: { accounts: 1, invoices: 8, contacts: 3 },
   });
 
-const expenseCounts = { all: 0, byStatus: [] };
 
 /**
  * The tools that list rows: their arguments, an index with `rows` rows of
@@ -401,17 +379,6 @@ const LISTS: {
             transaction(i, { description: LONG, counterparty: LONG }),
           ),
         ),
-      }),
-  },
-  {
-    name: "sektarFindExpenses",
-    args: {},
-    root: (count) =>
-      finance({
-        expenses: page(
-          Array.from({ length: count }, (_, i) => expense(i, { title: LONG })),
-        ),
-        expenseCounts,
       }),
   },
   {
@@ -760,26 +727,6 @@ describe("sektarFindTransactions", () => {
       s: "NEW",
       cat: "SOFTWARE",
       c: "contact-1",
-    });
-  });
-});
-
-describe("sektarFindExpenses", () => {
-  it("adds what each status holds", async () => {
-    const calls = serve(
-      finance({
-        expenses: page([expense(1)]),
-        expenseCounts: {
-          all: 1,
-          byStatus: [{ status: "SUBMITTED", count: 1, total: 120.5, reimbursable: 80 }],
-        },
-      }),
-    );
-    const result = await call("sektarFindExpenses", { statuses: ["SUBMITTED"] });
-    expect(calls[0].variables.st).toEqual(["SUBMITTED"]);
-    expect(result).toMatchObject({
-      byStatus: [{ status: "SUBMITTED", count: 1 }],
-      items: [{ id: "expense-1", submitter: "Jo", reimbursable: 80 }],
     });
   });
 });
@@ -1212,5 +1159,12 @@ describe("sektarSearch", () => {
     await expect(call("sektarSearch", { query: "  " })).rejects.toThrow(
       /at least one word/,
     );
+  });
+});
+
+describe("expenses", () => {
+  it("are not the assistant's to read", async () => {
+    expect(aiTools.map((tool) => tool.name)).not.toContain("sektarFindExpenses");
+    expect(aiTools.some((tool) => /expense/i.test(tool.description ?? ""))).toBe(false);
   });
 });
