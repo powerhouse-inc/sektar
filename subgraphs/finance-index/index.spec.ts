@@ -11,5 +11,6 @@ describe("the finance index subgraph", () => {
   it("is fully declared", async () => {
     const { FinanceIndexSubgraph } = await import("./index.js");
     expect(typeof FinanceIndexSubgraph).toBe("function");
-  });
+    // importing it loads reactor-api, slow from a linked monorepo checkout
+  }, 30_000);
 });
