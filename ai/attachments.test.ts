@@ -10,6 +10,7 @@ import {
   utils as emailUtils,
 } from "document-models/email";
 import {
+  actions as fileActions,
   addRendition,
   reducer as fileReducer,
   setAttachmentSource,
@@ -18,6 +19,7 @@ import {
 } from "document-models/file";
 import {
   addAttachment as addInvoiceAttachment,
+  actions as invoiceActions,
   addLine,
   reducer as invoiceReducer,
   utils as invoiceUtils,
@@ -25,6 +27,12 @@ import {
 } from "document-models/invoice";
 import { Buffer } from "node:buffer";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  fileForHandle,
+  forgetHandles,
+  handleFor,
+  type HandledFile,
+} from "./handles.js";
 import { installStore } from "./test-index.js";
 import { aiTools } from "./tools.js";
 
@@ -36,7 +44,7 @@ type IAttachmentService = NonNullable<
 >;
 
 const hash = (char: string) => char.repeat(64);
-const refOf = (char: string) => `attachment://v1:${hash(char)}`;
+const refOf = (char: string) => `attachment://v${1}:${hash(char)}` as const;
 const RECEIPT = refOf("a");
 const LOGO = refOf("b");
 const AT = "2026-10-30T12:00:00.000Z";
@@ -168,7 +176,6 @@ const invoiceWithLine = () =>
     }),
   );
 
-/** The input the instructions spell out for ADD_ATTACHMENT. */
 const attachmentInput = (over: Record<string, unknown> = {}) => ({
   id: "4ae1d2b8-5d0a-4d51-a6a9-3a6d8ad1e001",
   role: "SUPPORTING" as const,
@@ -180,66 +187,129 @@ const attachmentInput = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+/** A stored file on a mail, as the tools would have handed it out. */
+const handleOf = (ref: string, over: Partial<HandledFile> = {}) =>
+  handleFor({
+    documentId: "mail-1",
+    ref: ref as HandledFile["ref"],
+    fileName: "receipt.pdf",
+    mimeType: "application/pdf",
+    sizeBytes: 1200,
+    ...over,
+  });
+
+/** A built-in tool's answer, as the host's MCP wrapper shapes it. */
+interface ToolAnswer {
+  isError?: boolean;
+  content: { type: string; text: string }[];
+  structuredContent?: object;
+}
+
+const answered = (value: object): ToolAnswer => ({
+  content: [{ type: "text", text: JSON.stringify(value) }],
+  structuredContent: value,
+});
+
+const toolError = (message: string): ToolAnswer => ({
+  isError: true,
+  content: [{ type: "text", text: `Error: ${message}` }],
+});
+
+const CREATORS: Record<string, (input: never) => never> = {
+  ADD_ATTACHMENT: invoiceActions.addAttachment as never,
+  SET_ATTACHMENT_SOURCE: fileActions.setAttachmentSource as never,
+};
+
+/**
+ * The host's built-in writes over the real reducers, answering as the real
+ * tools do: addActions reports what each action did, and a rejected action is
+ * stored as an operation with an error that changed nothing.
+ */
+function reactor(...documents: { header: { id: string } }[]) {
+  type Doc = ReturnType<typeof invoiceUtils.createDocument>;
+  const docs = new Map(
+    (documents as Doc[]).map((document) => [document.header.id, document]),
+  );
+  const calls = {
+    created: [] as Record<string, unknown>[],
+    applied: [] as { documentId: string; actions: unknown[] }[],
+    deleted: [] as string[],
+  };
+  const reducerFor = (document: Doc) =>
+    (document.header.documentType === "sektar/file"
+      ? fileReducer
+      : invoiceReducer) as typeof invoiceReducer;
+  const builtIns = {
+    createDocument: (args: Record<string, unknown>): Promise<ToolAnswer> => {
+      calls.created.push(args);
+      const document = fileUtils.createDocument() as unknown as Doc;
+      docs.set(document.header.id, document);
+      return Promise.resolve(answered({ documentId: document.header.id }));
+    },
+    addActions: (args: {
+      documentId: string;
+      actions: { type: string; input: never }[];
+    }): Promise<ToolAnswer> => {
+      calls.applied.push(args);
+      const document = docs.get(args.documentId);
+      if (!document) return Promise.resolve(toolError("NOT_FOUND"));
+      const results = args.actions.map(({ type, input }, index) => {
+        const next = reducerFor(document)(document, CREATORS[type](input));
+        docs.set(args.documentId, next);
+        const error = next.operations.global.at(-1)?.error;
+        return {
+          index,
+          type,
+          scope: "global",
+          ...(error ? { error: { kind: "reducer-error", message: error } } : {}),
+        };
+      });
+      return Promise.resolve(
+        answered({
+          documentId: args.documentId,
+          success: results.every((result) => !result.error),
+          results,
+        }),
+      );
+    },
+    deleteDocument: (args: { documentId: string }): Promise<ToolAnswer> => {
+      calls.deleted.push(args.documentId);
+      docs.delete(args.documentId);
+      return Promise.resolve(answered({ documentId: args.documentId }));
+    },
+  };
+  return {
+    docs,
+    calls,
+    builtIns,
+    store: {
+      reactorClient: {
+        get: (id: string) => {
+          const found = docs.get(id);
+          return found
+            ? Promise.resolve(found)
+            : Promise.reject(new Error(`Document not found: ${id}`));
+        },
+      },
+      aiTools: () =>
+        Promise.resolve(
+          Object.entries(builtIns).map(([name, callback]) => ({
+            name,
+            callback: (args: never) => callback(args),
+          })),
+        ),
+    },
+  };
+}
+
 beforeEach(() => {
+  forgetHandles();
   pdf.renderPdfPages.mockReset();
   vi.stubGlobal("FileReader", StubFileReader);
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
-});
-
-describe("the attach recipes the instructions give", () => {
-  it("puts a stored file on an invoice", () => {
-    const document = invoiceReducer(
-      invoiceUtils.createDocument(),
-      addInvoiceAttachment(attachmentInput()),
-    );
-    expect(document.operations.global.at(-1)?.error).toBeUndefined();
-    expect(document.state.global.attachments).toMatchObject([
-      { ref: RECEIPT, role: "SUPPORTING" },
-    ]);
-  });
-
-  it("puts a stored file on a line, not on the invoice", () => {
-    const document = invoiceReducer(
-      invoiceWithLine(),
-      addInvoiceAttachment(
-        attachmentInput({ lineId: "line-1", role: "RECEIPT" }),
-      ),
-    );
-    expect(document.operations.global.at(-1)?.error).toBeUndefined();
-    expect(document.state.global.attachments).toEqual([]);
-    expect(document.state.global.lines[0].attachments).toMatchObject([
-      { ref: RECEIPT, role: "RECEIPT" },
-    ]);
-  });
-
-  it("refuses a line the invoice does not have", () => {
-    const document = invoiceReducer(
-      invoiceWithLine(),
-      addInvoiceAttachment(attachmentInput({ lineId: "no-such-line" })),
-    );
-    expect(document.operations.global.at(-1)?.error).toBeTruthy();
-  });
-
-  it("makes a stored file a File's source", () => {
-    const document = fileReducer(
-      fileUtils.createDocument(),
-      setAttachmentSource({
-        ref: RECEIPT as `attachment://v${number}:${string}`,
-        fileName: "receipt.pdf",
-        mimeType: "application/pdf",
-        sizeBytes: 1200,
-        setAt: AT,
-      }),
-    );
-    expect(document.operations.global.at(-1)?.error).toBeUndefined();
-    expect(document.state.global).toMatchObject({
-      title: "receipt.pdf",
-      source: { kind: "ATTACHMENT", ref: RECEIPT },
-    });
-  });
 });
 
 describe("sektarListAttachments", () => {
@@ -264,26 +334,64 @@ describe("sektarListAttachments", () => {
       ),
     ].reduce((doc, action) => invoiceReducer(doc, action), invoiceWithLine());
 
-    expect(await list(document)).toMatchObject({
+    const result = await list(document);
+    expect(result).toMatchObject({
       document: { id: document.header.id, type: document.header.documentType },
       found: 2,
       items: expect.arrayContaining([
         {
-          ref: RECEIPT,
+          handle: expect.stringMatching(/^file-\d+$/) as string,
           fileName: "receipt.pdf",
           mimeType: "application/pdf",
           sizeBytes: 1200,
           at: "attachments.0",
         },
         {
-          ref: LOGO,
+          handle: expect.stringMatching(/^file-\d+$/) as string,
           fileName: "ticket.png",
           mimeType: "image/png",
           sizeBytes: 90,
           at: "lines.0.attachments.0",
         },
-      ]),
+      ]) as unknown,
     });
+    expect(JSON.stringify(result)).not.toContain("attachment://");
+  });
+
+  it("gives the lines of an invoice, so a file can go on one", async () => {
+    expect(await list(invoiceWithLine())).toMatchObject({
+      found: 0,
+      lines: [{ id: "line-1", description: "Train to Ghent" }],
+    });
+  });
+
+  it("gives no lines for anything else", async () => {
+    const answer = await list(fileUtils.createDocument());
+    expect(answer).not.toHaveProperty("lines");
+  });
+
+  it("keeps a file's handle when it is listed again", async () => {
+    const document = invoiceReducer(
+      invoiceUtils.createDocument(),
+      addInvoiceAttachment(attachmentInput()),
+    );
+    expect(await list(document)).toEqual(await list(document));
+  });
+
+  it("shows a damaged reference as damaged, without a handle", async () => {
+    const document = invoiceReducer(
+      invoiceUtils.createDocument(),
+      addInvoiceAttachment(
+        attachmentInput({ ref: `attachment://v1:${"a".repeat(78)}` }),
+      ),
+    );
+    const result = await list(document);
+    expect(result).toMatchObject({
+      found: 1,
+      items: [{ fileName: "receipt.pdf", damaged: true }],
+    });
+    expect((result.items as object[])[0]).not.toHaveProperty("handle");
+    expect(JSON.stringify(result)).not.toContain("attachment://");
   });
 
   it("gives a message's files once each, under their real names", async () => {
@@ -309,11 +417,13 @@ describe("sektarListAttachments", () => {
     expect(result).toMatchObject({
       found: 2,
       items: [
-        { ref: RECEIPT, fileName: "invoice.pdf" },
-        { ref: LOGO, fileName: "logo.png", inline: true },
+        { handle: "file-1", fileName: "invoice.pdf" },
+        { handle: "file-2", fileName: "logo.png", inline: true },
       ],
     });
     expect((result.items as object[])[0]).not.toHaveProperty("inline");
+    expect(fileForHandle("file-1").ref).toBe(RECEIPT);
+    expect(fileForHandle("file-2").ref).toBe(LOGO);
   });
 
   it("gives a File's source and renditions", async () => {
@@ -341,8 +451,8 @@ describe("sektarListAttachments", () => {
     expect(await list(document)).toMatchObject({
       found: 2,
       items: [
-        { ref: RECEIPT, at: "source" },
-        { ref: LOGO, at: "renditions.0" },
+        { handle: "file-1", at: "source" },
+        { handle: "file-2", at: "renditions.0" },
       ],
     });
   });
@@ -381,16 +491,18 @@ describe("sektarListAttachments", () => {
 describe("sektarReadAttachment", () => {
   const read = (
     files: Record<string, StoredFile>,
-    args: Record<string, unknown> = {},
+    over: Partial<HandledFile> = {},
   ) => {
     const { service, calls } = storage(files);
     installStore({ attachmentService: service });
     return {
       calls,
       result: call("sektarReadAttachment", {
-        documentId: "mail-1",
-        ref: RECEIPT,
-        ...args,
+        handle: handleOf(RECEIPT, {
+          fileName: (files[RECEIPT] as StoredFile | undefined)?.fileName ?? "file",
+          mimeType: null,
+          ...over,
+        }),
       }),
     };
   };
@@ -502,8 +614,7 @@ describe("sektarReadAttachment", () => {
     } as unknown as IAttachmentService;
     installStore({ attachmentService: service });
     const answer = await call("sektarReadAttachment", {
-      documentId: "mail-1",
-      ref: RECEIPT,
+      handle: handleOf(RECEIPT, { fileName: "lines.csv", mimeType: null }),
     });
     expect(answer).toMatchObject({
       fileName: "lines.csv",
@@ -566,7 +677,12 @@ describe("sektarReadAttachment", () => {
     } as unknown as IAttachmentService;
     installStore({ attachmentService: service });
     await expect(
-      call("sektarReadAttachment", { documentId: "mail-1", ref: RECEIPT }),
+      call("sektarReadAttachment", {
+        handle: handleOf(RECEIPT, {
+          fileName: "photo.png",
+          mimeType: "image/png",
+        }),
+      }),
     ).rejects.toThrow(/could not be loaded: socket closed/);
   });
 
@@ -580,15 +696,99 @@ describe("sektarReadAttachment", () => {
     );
   });
 
-  it("refuses something that is not a reference", async () => {
-    const { result } = read({}, { ref: "invoice.pdf" });
-    await expect(result).rejects.toThrow(/not a file reference/);
+  it("refuses a handle it never gave, and sends the model back to the list", async () => {
+    const { service, calls } = storage({
+      [RECEIPT]: stored("image/png", "photo.png"),
+    });
+    installStore({ attachmentService: service });
+    await expect(
+      call("sektarReadAttachment", { handle: "file-99" }),
+    ).rejects.toThrow(/file-99 is not a file handle.*list the document's files/);
+    expect(calls.get).toEqual([]);
+  });
+
+  it("refuses a reference typed in place of a handle, without repeating it", async () => {
+    const garbled = `${RECEIPT}deadbeefdeadbeefdeadbeef`;
+    const { service, calls } = storage({
+      [RECEIPT]: stored("image/png", "photo.png"),
+    });
+    installStore({ attachmentService: service });
+    const failure = await call("sektarReadAttachment", {
+      handle: garbled,
+    }).catch((error: unknown) => (error as Error).message);
+    expect(failure).toMatch(/not a file handle/);
+    expect(failure).not.toContain("attachment://");
+    expect(calls.get).toEqual([]);
+  });
+
+  it("takes a mail row's handle, with the name and type the message gives", async () => {
+    const message = emailReducer(
+      emailUtils.createDocument(),
+      addEmailAttachment({
+        id: "a1",
+        ref: RECEIPT,
+        fileName: "photo.webp",
+        mimeType: "image/webp",
+        sizeBytes: 500,
+      }),
+    );
+    const { service, calls } = storage({
+      [RECEIPT]: stored("application/octet-stream", "attachment"),
+    });
+    installStore({
+      attachmentService: service,
+      reactorClient: openDocuments(message),
+    });
+    const handle = handleOf(RECEIPT, {
+      documentId: message.header.id,
+      fileName: null,
+      mimeType: null,
+      sizeBytes: null,
+    });
+    expect(await call("sektarReadAttachment", { handle })).toMatchObject({
+      structuredContent: { fileName: "photo.webp" },
+      content: [{ type: "text" }, { type: "image", mimeType: "image/webp" }],
+    });
+    expect(calls.get).toEqual([{ ref: RECEIPT, documentId: message.header.id }]);
+  });
+
+  it("says when a mail row's file has left its message", async () => {
+    const message = emailUtils.createDocument();
+    installStore({ reactorClient: openDocuments(message) });
+    const handle = handleOf(RECEIPT, {
+      documentId: message.header.id,
+      fileName: null,
+    });
+    await expect(call("sektarReadAttachment", { handle })).rejects.toThrow(
+      /no longer on its document.*list the document's files again/,
+    );
+  });
+
+  it("says a saved image on no document cannot be loaded back", async () => {
+    installStore({ attachmentService: storage({}).service });
+    await expect(
+      call("sektarReadAttachment", {
+        handle: handleOf(RECEIPT, { documentId: null }),
+      }),
+    ).rejects.toThrow(/on no document yet/);
+  });
+
+  it("keeps a reference out of a failure's text", async () => {
+    const service = {
+      get: () => Promise.reject(new Error(`Forbidden: ${RECEIPT}`)),
+    } as unknown as IAttachmentService;
+    installStore({ attachmentService: service });
+    const failure = await call("sektarReadAttachment", {
+      handle: handleOf(RECEIPT),
+    }).catch((error: unknown) => (error as Error).message);
+    expect(failure).toMatch(/could not be loaded: Forbidden/);
+    expect(failure).not.toContain("attachment://");
   });
 
   it("reports a session without stored files as an error", async () => {
     installStore();
     await expect(
-      call("sektarReadAttachment", { documentId: "mail-1", ref: RECEIPT }),
+      call("sektarReadAttachment", { handle: handleOf(RECEIPT) }),
     ).rejects.toThrow(/not available/);
   });
 
@@ -606,7 +806,7 @@ describe("sektarReadAttachment", () => {
     const { signal } = new AbortController();
     await call(
       "sektarReadAttachment",
-      { documentId: "mail-1", ref: RECEIPT },
+      { handle: handleOf(RECEIPT, { fileName: "photo.png", mimeType: null }) },
       { signal },
     );
     expect(seen).toEqual([signal]);
@@ -626,7 +826,7 @@ describe("sektarSaveChatImage", () => {
     expect(tool("sektarSaveChatImage").annotations?.readOnlyHint).toBe(false);
   });
 
-  it("uploads the chat's image and returns its reference", async () => {
+  it("uploads the chat's image and returns a handle, not its reference", async () => {
     const { service, calls } = storage({});
     installStore({ attachmentService: service });
     const answer = await call(
@@ -635,12 +835,20 @@ describe("sektarSaveChatImage", () => {
       { chatImages: [image("image-1", "a.png"), image("image-2", "b.png")] },
     );
 
-    expect(answer.ref).toMatch(/^attachment:\/\/v1:[0-9a-f]{64}$/);
     expect(answer).toMatchObject({
+      handle: "file-1",
       fileName: "b.png",
       mimeType: "image/png",
       sizeBytes: PNG.length,
     });
+    expect(JSON.stringify(answer)).not.toContain("attachment://");
+    expect(fileForHandle("file-1")).toMatchObject({
+      documentId: "invoice-1",
+      fileName: "b.png",
+    });
+    expect(fileForHandle("file-1").ref).toMatch(
+      /^attachment:\/\/v1:[0-9a-f]{64}$/,
+    );
     expect(calls.reserved).toMatchObject([
       { fileName: "b.png", mimeType: "image/png", sizeBytes: PNG.length },
     ]);
@@ -733,16 +941,423 @@ describe("sektarSaveChatImage", () => {
   });
 });
 
-describe("a void invoice", () => {
-  it("takes no attachments, so the model hears why", () => {
+describe("sektarAttachToInvoice", () => {
+  const PNG = Buffer.from("png bytes");
+  const image = {
+    handle: "image-1",
+    dataUrl: `data:image/png;base64,${PNG.toString("base64")}`,
+    mediaType: "image/png",
+    name: "ticket.png",
+  };
+
+  const attach = (world: ReturnType<typeof reactor>, args: object) => {
+    installStore({ ...world.store, attachmentService: storage({}).service });
+    return call("sektarAttachToInvoice", args);
+  };
+
+  const invoiceIn = (world: ReturnType<typeof reactor>, id: string) =>
+    world.docs.get(id)?.state.global;
+
+  it("asks for approval, as a write", () => {
+    expect(tool("sektarAttachToInvoice").annotations?.readOnlyHint).toBe(false);
+  });
+
+  it("puts the real file on the invoice through the built-in addActions", async () => {
+    const invoice = invoiceWithLine();
+    const world = reactor(invoice);
+    const answer = await attach(world, {
+      handle: handleOf(RECEIPT),
+      invoiceId: invoice.header.id,
+      role: "SUPPORTING",
+    });
+
+    expect(answer).toMatchObject({
+      attached: true,
+      invoiceId: invoice.header.id,
+      role: "SUPPORTING",
+      fileName: "receipt.pdf",
+    });
+    expect(JSON.stringify(answer)).not.toContain("attachment://");
+    expect(world.calls.applied).toMatchObject([
+      {
+        documentId: invoice.header.id,
+        actions: [{ type: "ADD_ATTACHMENT" }],
+      },
+    ]);
+    expect(invoiceIn(world, invoice.header.id)?.attachments).toMatchObject([
+      {
+        ref: RECEIPT,
+        role: "SUPPORTING",
+        fileName: "receipt.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 1200,
+      },
+    ]);
+  });
+
+  it("puts it on a line, not on the invoice", async () => {
+    const invoice = invoiceWithLine();
+    const world = reactor(invoice);
+    await attach(world, {
+      handle: handleOf(RECEIPT),
+      invoiceId: invoice.header.id,
+      role: "RECEIPT",
+      lineId: "line-1",
+    });
+    const state = invoiceIn(world, invoice.header.id);
+    expect(state?.attachments).toEqual([]);
+    expect(state?.lines[0].attachments).toMatchObject([
+      { ref: RECEIPT, role: "RECEIPT" },
+    ]);
+  });
+
+  it("takes a mail row's handle, with the name and type the message gives", async () => {
+    const message = emailReducer(
+      emailUtils.createDocument(),
+      addEmailAttachment({
+        id: "a1",
+        ref: RECEIPT,
+        fileName: "bill.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 500,
+      }),
+    );
+    const invoice = invoiceWithLine();
+    const world = reactor(invoice, message);
+    await attach(world, {
+      handle: handleOf(RECEIPT, {
+        documentId: message.header.id,
+        fileName: null,
+        mimeType: null,
+        sizeBytes: null,
+      }),
+      invoiceId: invoice.header.id,
+      role: "SUPPORTING",
+    });
+    expect(invoiceIn(world, invoice.header.id)?.attachments).toMatchObject([
+      {
+        ref: RECEIPT,
+        fileName: "bill.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 500,
+      },
+    ]);
+  });
+
+  it("stores a file of unknown type as an octet stream", async () => {
+    const invoice = invoiceWithLine();
+    const world = reactor(invoice);
+    await attach(world, {
+      handle: handleOf(RECEIPT, { mimeType: null, sizeBytes: null }),
+      invoiceId: invoice.header.id,
+      role: "OTHER",
+    });
+    expect(invoiceIn(world, invoice.header.id)?.attachments).toMatchObject([
+      { mimeType: "application/octet-stream", sizeBytes: null },
+    ]);
+  });
+
+  it("stores a chat image and attaches it in the one call", async () => {
+    const invoice = invoiceWithLine();
+    const world = reactor(invoice);
+    const { service, calls } = storage({});
+    installStore({ ...world.store, attachmentService: service });
+    const answer = await call(
+      "sektarAttachToInvoice",
+      { handle: "image-1", invoiceId: invoice.header.id, role: "RECEIPT" },
+      { chatImages: [image] },
+    );
+    expect(answer).toMatchObject({ attached: true, fileName: "ticket.png" });
+    expect(calls.reserved).toMatchObject([{ documentId: invoice.header.id }]);
+    expect(world.calls.applied).toHaveLength(1);
+    expect(invoiceIn(world, invoice.header.id)?.attachments).toMatchObject([
+      {
+        ref: expect.stringMatching(/^attachment:\/\/v1:[0-9a-f]{64}$/) as string,
+        fileName: "ticket.png",
+        mimeType: "image/png",
+      },
+    ]);
+  });
+
+  it("says a void invoice took nothing, and why", async () => {
     const voided = invoiceReducer(
       invoiceWithLine(),
       voidInvoice({ reason: "Billed twice" }),
     );
-    const document = invoiceReducer(
-      voided,
-      addInvoiceAttachment(attachmentInput()),
+    const world = reactor(voided);
+    await expect(
+      attach(world, {
+        handle: handleOf(RECEIPT),
+        invoiceId: voided.header.id,
+        role: "SUPPORTING",
+      }),
+    ).rejects.toThrow(
+      /receipt\.pdf was not attached: A void invoice takes no attachments\. It is not on the invoice/,
     );
-    expect(document.operations.global.at(-1)?.error).toBeTruthy();
+    expect(invoiceIn(world, voided.header.id)?.attachments).toEqual([]);
+  });
+
+  it("says a line the invoice does not have took nothing", async () => {
+    const invoice = invoiceWithLine();
+    const world = reactor(invoice);
+    await expect(
+      attach(world, {
+        handle: handleOf(RECEIPT),
+        invoiceId: invoice.header.id,
+        role: "RECEIPT",
+        lineId: "no-such-line",
+      }),
+    ).rejects.toThrow(/was not attached: No such line/);
+  });
+
+  it("reports an action a policy refused as failed", async () => {
+    const invoice = invoiceWithLine();
+    const world = reactor(invoice);
+    world.builtIns.addActions = () =>
+      Promise.resolve(
+        answered({
+          success: false,
+          results: [{ error: { kind: "denied", message: "Not your invoice" } }],
+        }),
+      );
+    await expect(
+      attach(world, {
+        handle: handleOf(RECEIPT),
+        invoiceId: invoice.header.id,
+        role: "SUPPORTING",
+      }),
+    ).rejects.toThrow(/was not attached: Not your invoice/);
+  });
+
+  it("does not take a missing success for one", async () => {
+    const invoice = invoiceWithLine();
+    const world = reactor(invoice);
+    world.builtIns.addActions = () => Promise.resolve(answered({}));
+    await expect(
+      attach(world, {
+        handle: handleOf(RECEIPT),
+        invoiceId: invoice.header.id,
+        role: "SUPPORTING",
+      }),
+    ).rejects.toThrow(/was not attached: the document did not apply it/);
+  });
+
+  it("reports a built-in's error without repeating a reference", async () => {
+    const invoice = invoiceWithLine();
+    const world = reactor(invoice);
+    world.builtIns.addActions = () =>
+      Promise.resolve(toolError(`INVALID_ACTION: bad ref ${RECEIPT}`));
+    const failure = await attach(world, {
+      handle: handleOf(RECEIPT),
+      invoiceId: invoice.header.id,
+      role: "SUPPORTING",
+    }).catch((error: unknown) => (error as Error).message);
+    expect(failure).toMatch(/was not attached: Error: INVALID_ACTION/);
+    expect(failure).not.toContain("attachment://");
+  });
+
+  it("refuses a document that is not an invoice", async () => {
+    const message = emailUtils.createDocument();
+    const world = reactor(message);
+    await expect(
+      attach(world, {
+        handle: handleOf(RECEIPT),
+        invoiceId: message.header.id,
+        role: "SUPPORTING",
+      }),
+    ).rejects.toThrow(/not an invoice\. Nothing was attached/);
+    expect(world.calls.applied).toEqual([]);
+  });
+
+  it("refuses an unknown handle before it touches the invoice", async () => {
+    const invoice = invoiceWithLine();
+    const world = reactor(invoice);
+    await expect(
+      attach(world, {
+        handle: "file-99",
+        invoiceId: invoice.header.id,
+        role: "SUPPORTING",
+      }),
+    ).rejects.toThrow(/file-99 is not a file handle/);
+    expect(world.calls.applied).toEqual([]);
+  });
+
+  it("says so when the host offers no built-in tools", async () => {
+    const invoice = invoiceWithLine();
+    installStore({ reactorClient: openDocuments(invoice) });
+    await expect(
+      call("sektarAttachToInvoice", {
+        handle: handleOf(RECEIPT),
+        invoiceId: invoice.header.id,
+        role: "SUPPORTING",
+      }),
+    ).rejects.toThrow(/addActions is not available/);
+  });
+});
+
+describe("sektarAddToFiles", () => {
+  const PNG = Buffer.from("png bytes");
+  const image = {
+    handle: "image-1",
+    dataUrl: `data:image/png;base64,${PNG.toString("base64")}`,
+    mediaType: "image/png",
+    name: "ticket.png",
+  };
+
+  const add = (
+    world: ReturnType<typeof reactor>,
+    args: object,
+    service: IAttachmentService = storage({}).service,
+  ) => {
+    installStore({ ...world.store, attachmentService: service });
+    return call("sektarAddToFiles", args, { chatImages: [image] });
+  };
+
+  const fileIn = (world: ReturnType<typeof reactor>, id: unknown) =>
+    world.docs.get(id as string)?.state.global as unknown;
+
+  it("asks for approval, as a write", () => {
+    expect(tool("sektarAddToFiles").annotations?.readOnlyHint).toBe(false);
+  });
+
+  it("creates the File with the real file as its source, in the one call", async () => {
+    const world = reactor();
+    const answer = await add(world, { handle: handleOf(RECEIPT) });
+
+    expect(world.calls.created).toEqual([
+      {
+        documentType: "sektar/file",
+        driveId: "id-of-files",
+        name: "receipt.pdf",
+      },
+    ]);
+    expect(answer).toMatchObject({ added: true, name: "receipt.pdf" });
+    expect(JSON.stringify(answer)).not.toContain("attachment://");
+    expect(fileIn(world, answer.documentId)).toMatchObject({
+      title: "receipt.pdf",
+      source: {
+        kind: "ATTACHMENT",
+        ref: RECEIPT,
+        fileName: "receipt.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 1200,
+      },
+    });
+  });
+
+  it("goes in the pinned drive, over the legacy one", async () => {
+    const pinned = "wpoqSWDrc0GNFL_BJd15L9R5rtvezJsH7mZFqGYSVA0";
+    const world = reactor();
+    installStore(
+      { ...world.store, attachmentService: storage({}).service },
+      [
+        { header: { id: "legacy", slug: "files" } },
+        { header: { id: pinned, slug: pinned } },
+      ],
+    );
+    await call("sektarAddToFiles", { handle: handleOf(RECEIPT) });
+    expect(world.calls.created).toMatchObject([{ driveId: pinned }]);
+  });
+
+  it("goes in the folder, under the name it is given", async () => {
+    const world = reactor();
+    const answer = await add(world, {
+      handle: handleOf(RECEIPT),
+      folderId: "folder-1",
+      name: "Train ticket.pdf",
+    });
+    expect(world.calls.created).toMatchObject([
+      { parentFolder: "folder-1", name: "Train ticket.pdf" },
+    ]);
+    expect(fileIn(world, answer.documentId)).toMatchObject({
+      source: { fileName: "Train ticket.pdf", ref: RECEIPT },
+    });
+  });
+
+  it("takes a chat image in the one call, stored under the new document", async () => {
+    const world = reactor();
+    const { service, calls } = storage({});
+    const answer = await add(world, { handle: "image-1" }, service);
+
+    expect(world.calls.created).toMatchObject([{ name: "ticket.png" }]);
+    expect(calls.reserved).toMatchObject([
+      { documentId: answer.documentId, fileName: "ticket.png" },
+    ]);
+    expect(world.calls.applied).toHaveLength(1);
+    expect(fileIn(world, answer.documentId)).toMatchObject({
+      source: {
+        ref: expect.stringMatching(/^attachment:\/\/v1:[0-9a-f]{64}$/) as string,
+        mimeType: "image/png",
+        sizeBytes: PNG.length,
+      },
+    });
+  });
+
+  it("gives a handle for the file in its new place", async () => {
+    const world = reactor();
+    const answer = await add(world, { handle: handleOf(RECEIPT) });
+    expect(fileForHandle(answer.handle as string)).toMatchObject({
+      documentId: answer.documentId,
+      ref: RECEIPT,
+    });
+  });
+
+  it("refuses an unknown handle before it creates anything", async () => {
+    const world = reactor();
+    await expect(add(world, { handle: "file-99" })).rejects.toThrow(
+      /file-99 is not a file handle/,
+    );
+    await expect(add(world, { handle: "image-9" })).rejects.toThrow(
+      /no image image-9/,
+    );
+    expect(world.calls.created).toEqual([]);
+  });
+
+  it("says so when the document could not be created", async () => {
+    const world = reactor();
+    world.builtIns.createDocument = () =>
+      Promise.resolve(toolError("FORBIDDEN: not allowed"));
+    await expect(add(world, { handle: handleOf(RECEIPT) })).rejects.toThrow(
+      /receipt\.pdf was not added to Files: Error: FORBIDDEN: not allowed\. Nothing was created/,
+    );
+    expect(world.calls.applied).toEqual([]);
+  });
+
+  it("takes the document back when the source was not set, and says so", async () => {
+    const world = reactor();
+    const { addActions } = world.builtIns;
+    world.builtIns.addActions = (args) =>
+      addActions(args).then(() =>
+        answered({
+          success: false,
+          results: [{ error: { kind: "denied", message: "Not allowed" } }],
+        }),
+      );
+    await expect(add(world, { handle: handleOf(RECEIPT) })).rejects.toThrow(
+      /was not added to Files: Not allowed\. The new document was removed again/,
+    );
+    expect(world.calls.deleted).toHaveLength(1);
+    expect(world.docs.size).toBe(0);
+  });
+
+  it("takes the document back when a chat image could not be stored", async () => {
+    const world = reactor();
+    const { service } = storage({});
+    service.reserve = (() =>
+      Promise.reject(new Error("Unauthorized"))) as never;
+    await expect(add(world, { handle: "image-1" }, service)).rejects.toThrow(
+      /was not added to Files: The image was not saved: Unauthorized\..*The new document was removed again/,
+    );
+    expect(world.calls.applied).toEqual([]);
+    expect(world.calls.deleted).toHaveLength(1);
+  });
+
+  it("says what is left behind when it cannot take the document back", async () => {
+    const world = reactor();
+    world.builtIns.addActions = () => Promise.resolve(toolError("Offline"));
+    world.builtIns.deleteDocument = () => Promise.resolve(toolError("Offline"));
+    await expect(add(world, { handle: handleOf(RECEIPT) })).rejects.toThrow(
+      /could not be removed.*an empty file is left in Files: tell the user/,
+    );
   });
 });

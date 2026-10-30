@@ -12,6 +12,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatSlots } from "../hosts/connect/routes/-shared/assistant-chat.js";
 import { HeldChat } from "../hosts/connect/routes/-shared/assistant.js";
+import { forgetHandles, handleFor } from "./handles.js";
 import { assistantInstructions } from "./instructions.js";
 import { BASE, installStore, serve, unreachable } from "./test-index.js";
 import { aiTools } from "./tools.js";
@@ -190,24 +191,45 @@ describe("assistantInstructions", () => {
     expect(instructions).toContain("never guess from its name");
   });
 
-  it("gives the recipe for an invoice and for one of its lines", () => {
-    expect(instructions).toContain(
-      "addActions on the invoice with ADD_ATTACHMENT",
-    );
+  it("says a file reference is never typed or guessed", () => {
+    expect(instructions).toContain("short handle such as file-3");
+    expect(instructions).toContain("A file reference is never typed or guessed");
+    expect(instructions).toContain("list the document's files again");
+    expect(instructions).not.toMatch(/attachment:\/\/|[0-9a-f]{64}/i);
+  });
+
+  it("sends an invoice's files through the tool, with the role and the line", () => {
+    expect(instructions).toContain("call sektarAttachToInvoice with its handle");
     expect(instructions).toContain("add lineId");
-    expect(instructions).toContain("getDocument with filter $.global.lines");
-    expect(instructions).toContain("addedAt (2026-10-30T12:00:00.000Z)");
+    expect(instructions).toContain(
+      "sektarListAttachments on the invoice gives the lines' ids",
+    );
+    expect(instructions).not.toContain("addActions on the invoice");
+    expect(instructions).not.toContain("$.global.lines");
   });
 
-  it("gives the recipe for Files, on the drive the tool names", () => {
-    expect(instructions).toContain("take driveId from sektarFindFiles");
-    expect(instructions).toContain("documentType sektar/file");
-    expect(instructions).toContain("SET_ATTACHMENT_SOURCE");
+  it("sends Files through the tool", () => {
+    expect(instructions).toContain("call sektarAddToFiles with its handle");
+    expect(instructions).not.toContain("take driveId from sektarFindFiles");
+    expect(instructions).not.toContain("documentType sektar/file");
   });
 
-  it("tells the model to finish after storing a chat image", () => {
-    expect(instructions).toContain("sektarSaveChatImage with its handle");
+  it("steers attachments away from the built-in writes", () => {
+    expect(instructions).toContain(
+      "Never use addActions or createDocument for attachments",
+    );
+  });
+
+  it("takes a chat image straight to the document", () => {
+    expect(instructions).toContain("pass that straight to sektarAttachToInvoice");
+    expect(instructions).toContain("in one approved step");
     expect(instructions).toContain("puts the image on no document");
+  });
+
+  it("tells the model to report a write that failed", () => {
+    expect(instructions).toContain(
+      "say it failed, and why, rather than that it is done",
+    );
   });
 
   it("names only tools that exist", () => {
@@ -296,7 +318,7 @@ describe("the agent", () => {
   });
 
   describe("with a stored file", () => {
-    const REF = `attachment://v1:${"a".repeat(64)}`;
+    const REF = `attachment://v${1}:${"a".repeat(64)}` as const;
     const BASE64 = "dGhlIGZpbGUncyBieXRlcw==";
     const bytes = () => Uint8Array.from(atob(BASE64), (c) => c.charCodeAt(0));
 
@@ -326,14 +348,22 @@ describe("the agent", () => {
     });
 
     beforeEach(() => {
+      forgetHandles();
       vi.stubGlobal("FileReader", Reader);
       installStore({ attachmentService: storage() });
     });
 
     it("reaches the model on the wire as an image, not as text in the tool's answer", async () => {
+      const handle = handleFor({
+        documentId: "mail-1",
+        ref: REF,
+        fileName: "receipt.png",
+        mimeType: "image/png",
+        sizeBytes: bytes().length,
+      });
       const { requests } = await turn(
         [
-          toolCall("sektarReadAttachment", { documentId: "mail-1", ref: REF }),
+          toolCall("sektarReadAttachment", { handle }),
           text("It is a receipt."),
         ],
         assistantInstructions(NOW),
@@ -357,7 +387,7 @@ describe("the agent", () => {
       );
     });
 
-    it("asks before storing a chat image, then hands the model its reference", async () => {
+    it("asks before storing a chat image, then hands the model a handle", async () => {
       const { requests, events } = await turn(
         [
           toolCall("sektarSaveChatImage", { handle: "image-1" }),
@@ -376,11 +406,125 @@ describe("the agent", () => {
         "[Attached image image-1: receipt.png]",
       );
       expect(events.some((e) => e.type === "approval-request")).toBe(true);
-      expect(
-        JSON.stringify(
-          requests[1].messages.find((message) => message.role === "tool"),
-        ),
-      ).toContain(REF);
+      const answer = JSON.stringify(
+        requests[1].messages.find((message) => message.role === "tool"),
+      );
+      expect(answer).toContain("file-1");
+      expect(answer).not.toContain("attachment://");
+    });
+
+    it("takes a chat image into Files on one approval, and the model sees no reference", async () => {
+      const applied: object[] = [];
+      const answered = (value: object) => ({
+        content: [{ type: "text", text: JSON.stringify(value) }],
+        structuredContent: value,
+      });
+      installStore({
+        attachmentService: storage(),
+        aiTools: () =>
+          Promise.resolve([
+            {
+              name: "createDocument",
+              callback: () =>
+                Promise.resolve(answered({ documentId: "new-file" })),
+            },
+            {
+              name: "addActions",
+              callback: (args: object) => {
+                applied.push(args);
+                return Promise.resolve(
+                  answered({ success: true, results: [{ index: 0 }] }),
+                );
+              },
+            },
+          ]),
+      });
+      const { requests, events } = await turn(
+        [toolCall("sektarAddToFiles", { handle: "image-1" }), text("Added.")],
+        assistantInstructions(NOW),
+        [
+          {
+            dataUrl: `data:image/png;base64,${BASE64}`,
+            mediaType: "image/png",
+            name: "receipt.png",
+          },
+        ],
+      );
+      expect(events.filter((e) => e.type === "approval-request")).toHaveLength(
+        1,
+      );
+      expect(applied).toMatchObject([
+        {
+          documentId: "new-file",
+          actions: [
+            {
+              type: "SET_ATTACHMENT_SOURCE",
+              input: { ref: REF, fileName: "receipt.png" },
+            },
+          ],
+        },
+      ]);
+      const answer = JSON.stringify(
+        requests[1].messages.find((message) => message.role === "tool"),
+      );
+      expect(answer).toContain('\\"added\\":true');
+      expect(answer).not.toContain("attachment://");
+    });
+
+    it("hands the model a failed write as an error, not as done", async () => {
+      installStore({
+        reactorClient: {
+          get: () =>
+            Promise.resolve({
+              header: { id: "invoice-1", documentType: "sektar/invoice" },
+            }),
+        },
+        attachmentService: storage(),
+        aiTools: () =>
+          Promise.resolve([
+            {
+              name: "addActions",
+              callback: () =>
+                Promise.resolve({
+                  structuredContent: {
+                    success: false,
+                    results: [
+                      {
+                        error: {
+                          kind: "reducer-error",
+                          message: "A void invoice takes no attachments",
+                        },
+                      },
+                    ],
+                  },
+                }),
+            },
+          ]),
+      });
+      const handle = handleFor({
+        documentId: "mail-1",
+        ref: REF,
+        fileName: "receipt.png",
+        mimeType: "image/png",
+        sizeBytes: 9,
+      });
+      const { requests, events } = await turn(
+        [
+          toolCall("sektarAttachToInvoice", {
+            handle,
+            invoiceId: "invoice-1",
+            role: "RECEIPT",
+          }),
+          text("It failed."),
+        ],
+        assistantInstructions(NOW),
+      );
+      expect(events).toContainEqual(
+        expect.objectContaining({ type: "tool-result", state: "error" }),
+      );
+      expect(JSON.stringify(requests[1].messages.at(-1))).toContain(
+        "A void invoice takes no attachments",
+      );
     });
   });
 });
