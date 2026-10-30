@@ -1,3 +1,4 @@
+import { useUser } from "@powerhousedao/reactor-browser";
 import {
   ChatPanel,
   getHostAiTools,
@@ -6,7 +7,14 @@ import {
   type AiGatewayStatus,
   type UseAiGatewayResult,
 } from "@powerhousedao/reactor-browser/ai";
-import { useState, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
 import { assistantInstructions } from "../../../../ai/instructions.js";
 import {
   Alert,
@@ -19,6 +27,7 @@ import {
 } from "../../../../editors/sektar/kit/ui.js";
 import { useUserName } from "../../../../editors/sektar/kit/user-name.js";
 import { Pane } from "../../../../editors/sektar/kit/workspace.js";
+import { useHeldChat, type ChatSlots } from "./assistant-chat.js";
 
 const SUGGESTIONS = [
   "Which invoices are overdue?",
@@ -37,6 +46,91 @@ export function AssistantUnavailable({ message }: { message: string }) {
   );
 }
 
+/**
+ * Today, following the local date: a tab can outlive it, and the instruction
+ * states it. Checked each minute, so the first minute of a day can lag.
+ */
+function useToday(): Date {
+  const [today, setToday] = useState(() => new Date());
+  useEffect(() => {
+    const tick = setInterval(() => {
+      const now = new Date();
+      setToday((day) =>
+        day.toDateString() === now.toDateString() ? day : now,
+      );
+    }, 60_000);
+    return () => clearInterval(tick);
+  }, []);
+  return today;
+}
+
+/**
+ * The tab's one conversation (assistant-chat.tsx holds it), rendered into the
+ * page's slots whether or not the page is there.
+ */
+export function HeldChat({
+  connection,
+  slots,
+  release,
+}: {
+  connection: AiConnection;
+  slots: ChatSlots;
+  /** Drops this component: the conversation has ended for good */
+  release: () => void;
+}) {
+  const userName = useUserName();
+  const today = useToday();
+  const chat = useReactorChat(getHostAiTools, {
+    connection,
+    instructions: assistantInstructions(today, userName),
+  });
+
+  // It is one user's: signing out or switching ends it, answer in flight too.
+  // The sign-in can load after the gateway has answered, so the first address
+  // seen is the owner.
+  const { clear } = chat;
+  const address = useUser()?.address;
+  const owner = useRef(address);
+  useEffect(() => {
+    owner.current ??= address;
+    if (address === owner.current) return;
+    clear();
+    release();
+  }, [address, clear, release]);
+
+  return (
+    <>
+      {createPortal(
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={clear}
+          disabled={chat.messages.length === 0}
+        >
+          Clear
+        </Button>,
+        slots.clear,
+      )}
+      {createPortal(
+        <ChatPanel
+          chat={chat}
+          allowImages
+          suggestions={SUGGESTIONS}
+          emptyState={
+            <p>
+              {userName && `Hi ${userName}. `}
+              Ask about your invoices, mail, calendar, files or trips, or attach
+              a photo of a receipt. Anything that changes your data asks you
+              first.
+            </p>
+          }
+        />,
+        slots.panel,
+      )}
+    </>
+  );
+}
+
 /** The conversation as a pane: its input stays put, only the messages scroll. */
 export function Conversation({
   connection,
@@ -48,11 +142,7 @@ export function Conversation({
   /** After Clear in the pane's header */
   trailing?: ReactNode;
 }) {
-  const userName = useUserName();
-  const chat = useReactorChat(getHostAiTools, {
-    connection,
-    instructions: assistantInstructions(new Date(), userName),
-  });
+  const held = useHeldChat(connection);
   return (
     <Pane
       className="sk-assistant sk-assistant__conversation"
@@ -69,30 +159,12 @@ export function Conversation({
       }
       trailing={
         <>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={chat.clear}
-            disabled={chat.messages.length === 0}
-          >
-            Clear
-          </Button>
+          {held.clear}
           {trailing}
         </>
       }
     >
-      <ChatPanel
-        chat={chat}
-        allowImages
-        suggestions={SUGGESTIONS}
-        emptyState={
-          <p>
-            {userName && `Hi ${userName}. `}
-            Ask about your invoices, mail, calendar, files or trips, or attach a
-            photo of a receipt. Anything that changes your data asks you first.
-          </p>
-        }
-      />
+      {held.panel}
     </Pane>
   );
 }

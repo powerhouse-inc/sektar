@@ -1,9 +1,11 @@
 import type * as ReactorChat from "@powerhousedao/reactor-browser/ai";
 import type { AiConnection } from "@powerhousedao/reactor-browser/ai";
 import type { ReactNode } from "react";
+import type * as ReactDom from "react-dom";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Conversation } from "../hosts/connect/routes/-shared/assistant.js";
+import type { ChatSlots } from "../hosts/connect/routes/-shared/assistant-chat.js";
+import { HeldChat } from "../hosts/connect/routes/-shared/assistant.js";
 import { assistantInstructions } from "./instructions.js";
 
 const chat = vi.hoisted(() => ({
@@ -18,6 +20,13 @@ vi.mock("@powerhousedao/reactor-browser/ai", async (original) => ({
   ChatPanel: ({ emptyState }: { emptyState: ReactNode }) => emptyState,
   useReactorChat: chat.useReactorChat,
 }));
+
+vi.mock("react-dom", async (original) => ({
+  ...(await original<typeof ReactDom>()),
+  createPortal: (node: ReactNode) => node,
+}));
+
+const slots = {} as ChatSlots;
 
 const connection: AiConnection = {
   baseUrl: "http://localhost/ai/v1",
@@ -35,7 +44,7 @@ function stubName(name?: string) {
 /** The panel's text, and the instruction it passed to the chat. */
 function renderPanel() {
   const text = renderToStaticMarkup(
-    <Conversation connection={connection} model="a-model" />,
+    <HeldChat connection={connection} slots={slots} release={() => {}} />,
   );
   const [, options] = chat.useReactorChat.mock.calls.at(-1) as [
     unknown,

@@ -2772,6 +2772,11 @@ html { touch-action: manipulation; }
   flex-direction: column;
   overflow: hidden;
 }
+/* The shell holds the conversation (assistant-chat.tsx); its wrappers around
+   the Clear button and the panel leave them to the pane's own layout. */
+.sk-assistant__held {
+  display: contents;
+}
 .sk-assistant__conversation > .sk-pane__body > .sk-empty {
   max-width: calc(100% - 2 * var(--sk-space-4));
   margin: auto;
