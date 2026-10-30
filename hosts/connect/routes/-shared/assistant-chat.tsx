@@ -66,6 +66,19 @@ export function AssistantChatHolder({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * For a conversation that must find a holder: the shell's, or, in another
+ * Connect that mounts this package's routes under its own layout, one of its
+ * own, which ends with the page.
+ */
+export function WithChatHolder({ children }: { children: ReactNode }) {
+  return useContext(HolderContext) ? (
+    children
+  ) : (
+    <AssistantChatHolder>{children}</AssistantChatHolder>
+  );
+}
+
 /** Shows a held element here; it lives on when this unmounts. */
 function Slot({ element }: { element: HTMLElement }) {
   const place = useRef<HTMLDivElement>(null);
@@ -82,7 +95,7 @@ function Slot({ element }: { element: HTMLElement }) {
 /** Starts the conversation on first use, and shows it wherever this is called. */
 export function useHeldChat(connection: AiConnection) {
   const holder = useContext(HolderContext);
-  if (!holder) throw new Error("useHeldChat needs an AssistantChatHolder");
+  if (!holder) throw new Error("useHeldChat needs a WithChatHolder");
   const { slots, hold } = holder;
   useLayoutEffect(() => hold(connection), [hold, connection]);
   return {

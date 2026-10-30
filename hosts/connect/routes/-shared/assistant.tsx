@@ -27,7 +27,11 @@ import {
 } from "../../../../editors/sektar/kit/ui.js";
 import { useUserName } from "../../../../editors/sektar/kit/user-name.js";
 import { Pane } from "../../../../editors/sektar/kit/workspace.js";
-import { useHeldChat, type ChatSlots } from "./assistant-chat.js";
+import {
+  useHeldChat,
+  WithChatHolder,
+  type ChatSlots,
+} from "./assistant-chat.js";
 
 const SUGGESTIONS = [
   "Which invoices are overdue?",
@@ -131,17 +135,23 @@ export function HeldChat({
   );
 }
 
-/** The conversation as a pane: its input stays put, only the messages scroll. */
-export function Conversation({
-  connection,
-  model,
-  trailing,
-}: {
+interface ConversationProps {
   connection: AiConnection;
   model: string;
   /** After Clear in the pane's header */
   trailing?: ReactNode;
-}) {
+}
+
+/** The conversation as a pane: its input stays put, only the messages scroll. */
+export function Conversation(props: ConversationProps) {
+  return (
+    <WithChatHolder>
+      <ConversationPane {...props} />
+    </WithChatHolder>
+  );
+}
+
+function ConversationPane({ connection, model, trailing }: ConversationProps) {
   const held = useHeldChat(connection);
   return (
     <Pane

@@ -165,14 +165,14 @@ function model(...replies: Reply[]) {
 }
 
 /** Lets the chat's stream, timers and lazy chunk catch up. */
-async function settle() {
-  await act(async () => {
-    await vi.waitFor(() => new Promise((resolve) => setTimeout(resolve, 20)));
-  });
-}
+const settle = () =>
+  act(() => new Promise<void>((resolve) => setTimeout(resolve, 20)));
 
 let root: Root;
-const render = (node: ReactNode) => act(async () => root.render(node));
+/** Runs `work` and lets React finish what it set off. */
+const during = (work: () => void) => act(() => Promise.resolve().then(work));
+
+const render = (node: ReactNode) => during(() => root.render(node));
 
 /** The app: the shell's holder always, the page only when `page` is given. */
 const shell = (page?: ReactNode) => (
@@ -202,12 +202,12 @@ function buttonNamed(name: string) {
 }
 
 function type(text: string) {
-  const setValue = Object.getOwnPropertyDescriptor(
+  const value = Object.getOwnPropertyDescriptor(
     Object.getPrototypeOf(textarea()),
     "value",
-  )!.set!;
+  );
   act(() => {
-    setValue.call(textarea(), text);
+    value?.set?.call(textarea(), text);
     textarea().dispatchEvent(new Event("input", { bubbles: true }));
   });
 }
@@ -238,7 +238,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   vi.useRealTimers();
-  await act(async () => root.unmount());
+  await during(() => root.unmount());
   vi.unstubAllGlobals();
 });
 
@@ -251,7 +251,7 @@ describe("the held conversation", () => {
 
     sendTyped("Which invoices are overdue?");
     await settle();
-    await act(async () => {
+    await during(() => {
       answer.write(content("Two invoices."));
       answer.end();
     });
@@ -275,11 +275,11 @@ describe("the held conversation", () => {
 
     sendTyped("Which invoices are overdue?");
     await settle();
-    await act(async () => answer.write(content("Two ")));
+    await during(() => answer.write(content("Two ")));
     await settle();
 
     await render(shell());
-    await act(async () => {
+    await during(() => {
       answer.write(content("invoices."));
       answer.end();
     });
@@ -301,7 +301,7 @@ describe("the held conversation", () => {
 
     sendTyped("Change it");
     await settle();
-    await act(async () => {
+    await during(() => {
       ask.write(toolCall("aWrite"));
       ask.end("tool_calls");
     });
@@ -317,7 +317,7 @@ describe("the held conversation", () => {
     click(buttonNamed("Approve"));
     await settle();
     expect(requests).toHaveLength(2);
-    await act(async () => {
+    await during(() => {
       done.write(content("Changed."));
       done.end();
     });
@@ -343,7 +343,7 @@ describe("the held conversation", () => {
     await settle();
     sendTyped("Which invoices are overdue?");
     await settle();
-    await act(async () => {
+    await during(() => {
       answer.write(content("Two invoices."));
       answer.end();
     });
@@ -390,12 +390,32 @@ describe("the held conversation", () => {
     await settle();
 
     await render(shell());
-    await act(async () => vi.advanceTimersByTime(2 * 60_000));
+    await during(() => vi.advanceTimersByTime(2 * 60_000));
     await render(shell(welcome(connection)));
 
     sendTyped("What is today?");
     await settle();
     expect(requests[0].system).toContain("Today is Saturday, 31 October 2026");
+  });
+
+  it("lives and ends with the page under another Connect's layout", async () => {
+    const answer = reply();
+    const { connection } = model(answer);
+    await render(welcome(connection));
+    await settle();
+    sendTyped("Which invoices are overdue?");
+    await settle();
+    await during(() => {
+      answer.write(content("Two invoices."));
+      answer.end();
+    });
+    await settle();
+    expect(document.body.textContent).toContain("Two invoices.");
+
+    await render(null);
+    await render(welcome(connection));
+    await settle();
+    expect(document.body.textContent).not.toContain("Two invoices.");
   });
 
   it("ends when the user signs out, answer in flight too", async () => {
@@ -405,11 +425,11 @@ describe("the held conversation", () => {
     await settle();
     sendTyped("Which invoices are overdue?");
     await settle();
-    await act(async () => answer.write(content("Two invoices.")));
+    await during(() => answer.write(content("Two invoices.")));
     await settle();
 
     await render(shell());
-    await act(async () => signIn(undefined));
+    await during(() => signIn(undefined));
     await settle();
     expect(requests[0].signal?.aborted).toBe(true);
 
@@ -429,7 +449,7 @@ describe("the held conversation", () => {
     await settle();
     type("Half a question");
 
-    await act(async () => signIn("0xadmin"));
+    await during(() => signIn("0xadmin"));
     await settle();
     expect(textarea().value).toBe("Half a question");
   });
