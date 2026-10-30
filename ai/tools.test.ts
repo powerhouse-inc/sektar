@@ -1,6 +1,12 @@
 import { MAX_TOOL_RESULT_CHARS } from "@powerhousedao/reactor-browser/ai";
 import type { PhAiToolDescriptor } from "@powerhousedao/shared/document-model";
+import {
+  addAttachment,
+  reducer as invoiceReducer,
+  utils as invoiceUtils,
+} from "document-models/invoice";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { forgetHandles } from "./handles.js";
 import { RESULT_BUDGET } from "./read.js";
 import {
   answerWith,
@@ -13,6 +19,9 @@ import {
 import { aiTools } from "./tools.js";
 
 const LONG = "a long stretch of text ".repeat(40);
+
+const refOf = (i: number) =>
+  `attachment://v1:${String(i).repeat(64).slice(0, 64)}` as const;
 
 function tool(name: string): PhAiToolDescriptor {
   const found = aiTools.find((candidate) => candidate.name === name);
@@ -110,7 +119,7 @@ const message = (i: number, over: Record<string, unknown> = {}) => ({
   flagged: false,
   status: "INBOX",
   attachmentCount: 1,
-  attachmentRefs: ["ref-1"],
+  attachmentRefs: [refOf(1)],
   labels: [],
   threadId: "thread-1",
   ...over,
@@ -457,6 +466,7 @@ const everyTool: { name: string; args: Record<string, unknown> }[] = [
 ];
 
 beforeEach(() => {
+  forgetHandles();
   installStore();
 });
 
@@ -469,6 +479,8 @@ const ATTACHMENT_TOOLS = [
   "sektarListAttachments",
   "sektarReadAttachment",
   "sektarSaveChatImage",
+  "sektarAttachToInvoice",
+  "sektarAddToFiles",
 ];
 
 describe("the tool set", () => {
@@ -483,12 +495,16 @@ describe("the tool set", () => {
     }
   });
 
-  it("asks for approval only to store a chat image", () => {
+  it("asks for approval only for what writes", () => {
     expect(
       aiTools
         .filter((t) => t.annotations?.readOnlyHint !== true)
         .map((t) => t.name),
-    ).toEqual(["sektarSaveChatImage"]);
+    ).toEqual([
+      "sektarSaveChatImage",
+      "sektarAttachToInvoice",
+      "sektarAddToFiles",
+    ]);
   });
 
   it("stops under the agent's own limit, so it never cuts an answer mid-JSON", () => {
@@ -804,13 +820,13 @@ describe("sektarSearchMail", () => {
     expect(result).toMatchObject({ found: 1 });
   });
 
-  it("gives a row's references, and leaves them out of a row with none", async () => {
+  it("gives handles for a row's files, and none for a row without", async () => {
     serve(
       mailRoot(
         [
           message(1, {
             attachmentCount: 7,
-            attachmentRefs: Array.from({ length: 7 }, (_, i) => `ref-${i}`),
+            attachmentRefs: Array.from({ length: 7 }, (_, i) => refOf(i)),
           }),
           message(2, { attachmentCount: 0, attachmentRefs: [] }),
         ],
@@ -822,9 +838,24 @@ describe("sektarSearchMail", () => {
     })) as { items: Record<string, unknown>[] };
     expect(items[0]).toMatchObject({
       attachments: 7,
-      attachmentRefs: ["ref-0", "ref-1", "ref-2", "ref-3", "ref-4"],
+      attachmentHandles: ["file-1", "file-2", "file-3", "file-4", "file-5"],
     });
-    expect(items[1]).not.toHaveProperty("attachmentRefs");
+    expect(items[0]).not.toHaveProperty("attachmentRefs");
+    expect(items[1]).not.toHaveProperty("attachmentHandles");
+  });
+
+  it("keeps a row's handles when the same search runs again", async () => {
+    serve(mailRoot([message(1)], []));
+    const first = await call("sektarSearchMail", { view: "INBOX" });
+    expect(await call("sektarSearchMail", { view: "INBOX" })).toEqual(first);
+  });
+
+  it("gives no handle for a damaged reference", async () => {
+    const damaged = `attachment://v1:${"a".repeat(78)}`;
+    serve(mailRoot([message(1, { attachmentRefs: [damaged] })], []));
+    const result = await call("sektarSearchMail", { view: "INBOX" });
+    expect(result).toMatchObject({ items: [{ attachments: 1 }] });
+    expect(JSON.stringify(result)).not.toContain("attachment://");
   });
 
   it("reads on through the merged list", async () => {
@@ -965,7 +996,7 @@ describe("sektarFindFiles", () => {
     });
   });
 
-  it("names the drive createDocument needs, the pinned one over the legacy", async () => {
+  it("names the drive, the pinned one over the legacy", async () => {
     const pinned = "wpoqSWDrc0GNFL_BJd15L9R5rtvezJsH7mZFqGYSVA0";
     installStore({}, [
       { header: { id: "legacy", slug: "files" } },
@@ -1206,6 +1237,155 @@ describe("sektarSearch", () => {
     await expect(call("sektarSearch", { query: "  " })).rejects.toThrow(
       /at least one word/,
     );
+  });
+});
+
+describe("a file reference", () => {
+  const RAW = /attachment:\/\/|[0-9a-f]{64}/i;
+  const STORED = refOf(7);
+  const PNG = "cG5nIGJ5dGVz";
+
+  const held = () =>
+    invoiceReducer(
+      invoiceUtils.createDocument(),
+      addAttachment({
+        id: "attachment-1",
+        role: "SUPPORTING",
+        fileName: "receipt.png",
+        mimeType: "image/png",
+        ref: STORED,
+        sizeBytes: 9,
+        addedAt: "2026-10-30T12:00:00.000Z",
+      }),
+    );
+
+  /** Every index holding references, wherever a row can carry one. */
+  const everyIndex = () => ({
+    ...summaryRoot(),
+    financeIndex: {
+      ...summaryRoot().financeIndex,
+      invoices: page([invoice(1, { issuedCopyRef: STORED })]),
+      transactions: page([transaction(1)]),
+      contacts: page([contact(1)]),
+    },
+    emailIndex: {
+      messages: mailPage([message(1, { attachmentRefs: [STORED] })]),
+      accounts: [],
+    },
+    calendarIndex: { events: [event(1)], calendars: [] },
+    filesIndex: {
+      listing: page([fileEntry(1, { thumbRef: STORED })]),
+      syncMappings: [],
+    },
+    tripIndex: { trips: page([trip(1)]), years: [], places: [] },
+    integrationIndex: { integrations: [], connections: [], queues: [] },
+    searchIndex: { search: [hit(1)] },
+  });
+
+  const answered = (value: object) => ({
+    content: [{ type: "text", text: JSON.stringify(value) }],
+    structuredContent: value,
+  });
+
+  const installEverything = () => {
+    const document = held();
+    installStore({
+      reactorClient: { get: () => Promise.resolve(document) },
+      attachmentService: {
+        get: () =>
+          Promise.resolve({
+            header: {
+              mimeType: "image/png",
+              fileName: "receipt.png",
+              sizeBytes: 9,
+            },
+            body: new Blob(["png bytes"]).stream(),
+          }),
+        reserve: () =>
+          Promise.resolve({
+            send: () => Promise.resolve({ ref: STORED, header: {} }),
+          }),
+      },
+      aiTools: () =>
+        Promise.resolve(
+          ["createDocument", "addActions"].map((name) => ({
+            name,
+            callback: () =>
+              Promise.resolve(
+                answered({ documentId: "new-file", success: true, results: [] }),
+              ),
+          })),
+        ),
+    });
+    serve(everyIndex());
+    return document.header.id;
+  };
+
+  /** Each tool's arguments, given a handle from the list. */
+  const calls = (invoiceId: string, handle: string) =>
+    ({
+      ...Object.fromEntries(everyTool.map(({ name, args }) => [name, args])),
+      sektarListAttachments: { documentId: invoiceId },
+      sektarReadAttachment: { handle },
+      sektarSaveChatImage: { handle: "image-1" },
+      sektarAttachToInvoice: { handle, invoiceId, role: "SUPPORTING" },
+      sektarAddToFiles: { handle },
+    }) as Record<string, unknown>;
+
+  const listed = async (invoiceId: string) => {
+    const { items } = (await call("sektarListAttachments", {
+      documentId: invoiceId,
+    })) as { items: { handle: string }[] };
+    return items[0].handle;
+  };
+
+  const chat = {
+    chatImages: [
+      {
+        handle: "image-1",
+        dataUrl: `data:image/png;base64,${PNG}`,
+        mediaType: "image/png",
+      },
+    ],
+  };
+
+  it("is covered here for every tool", () => {
+    expect(Object.keys(calls("invoice", "file-1")).sort()).toEqual(
+      aiTools.map((t) => t.name).sort(),
+    );
+  });
+
+  it.each(aiTools.map((t) => t.name))(
+    "is never in what %s answers",
+    async (name) => {
+      vi.stubGlobal("FileReader", class {
+        result: string | null = `data:image/png;base64,${PNG}`;
+        onload: (() => void) | null = null;
+        readAsDataURL() {
+          queueMicrotask(() => this.onload?.());
+        }
+      });
+      const invoiceId = installEverything();
+      const handle = await listed(invoiceId);
+      const answer = await tool(name).callback(
+        calls(invoiceId, handle)[name] as never,
+        chat,
+      );
+      expect(JSON.stringify(answer)).not.toMatch(RAW);
+      expect(handle).toMatch(/^file-\d+$/);
+    },
+  );
+
+  it("is never what a tool's description or parameters ask for", () => {
+    const told = aiTools.map((t) => ({
+      description: t.description,
+      parameters: Object.entries(t.inputSchema).map(
+        ([key, schema]) =>
+          `${key}: ${(schema as { description?: string }).description}`,
+      ),
+    }));
+    expect(JSON.stringify(told)).not.toMatch(RAW);
+    expect(JSON.stringify(told)).not.toContain('"ref:');
   });
 });
 
