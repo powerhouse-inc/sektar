@@ -56,6 +56,11 @@ function indexSource(slug: IndexedDrive): { base: string; driveId: string } {
   );
 }
 
+/** The id of a drive, as the drive-level built-in tools need it. */
+export function driveIdOf(slug: IndexedDrive): string {
+  return indexSource(slug).driveId;
+}
+
 /**
  * One query to the index of a drive, as the screens send it. The drive's id
  * is passed as `$d`.

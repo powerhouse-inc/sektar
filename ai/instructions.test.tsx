@@ -4,6 +4,7 @@ import {
   ReactorChatAgent,
   type AiConnection,
   type AiSettings,
+  type ChatImage,
   type UseAiGatewayResult,
 } from "@powerhousedao/reactor-browser/ai";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -89,11 +90,18 @@ interface ModelRequest {
   }[];
 }
 
-/** One turn against a scripted model; what it was sent, in order. */
-async function turn(replies: Response[], instructions: string) {
+/**
+ * One turn against a scripted model; what it was sent, in order. The user
+ * approves any write it asks for.
+ */
+async function turn(
+  replies: Response[],
+  instructions: string,
+  images: ChatImage[] = [],
+) {
   const requests: ModelRequest[] = [];
   const events: { type: string; state?: string; error?: string }[] = [];
-  const agent = new ReactorChatAgent({
+  const agent: ReactorChatAgent = new ReactorChatAgent({
     settings: {} as AiSettings,
     connection: {
       ...connection,
@@ -105,9 +113,17 @@ async function turn(replies: Response[], instructions: string) {
     instructions,
     tools: aiTools,
     context: {},
-    onEvent: (event) => events.push(event),
+    onEvent: (event) => {
+      events.push(event);
+      if (event.type === "approval-request") {
+        queueMicrotask(() => agent.approve(event.toolCallId));
+      }
+    },
   });
-  await agent.send("Is my October invoice for Powerhouse already drafted?");
+  await agent.send(
+    "Is my October invoice for Powerhouse already drafted?",
+    images,
+  );
   return { requests, events };
 }
 
@@ -163,6 +179,37 @@ describe("assistantInstructions", () => {
 
   it("no longer sends the model through the drives", () => {
     expect(instructions).not.toContain("look through the drives");
+  });
+
+  it("tells the model how to read a stored file", () => {
+    expect(instructions).toContain("sektarListAttachments");
+    expect(instructions).toContain("sektarReadAttachment");
+    expect(instructions).toContain("never guess from its name");
+  });
+
+  it("gives the recipe for an invoice and for one of its lines", () => {
+    expect(instructions).toContain("addActions on the invoice with ADD_ATTACHMENT");
+    expect(instructions).toContain("add lineId");
+    expect(instructions).toContain("getDocument with filter $.global.lines");
+    expect(instructions).toContain("addedAt (2026-10-30T12:00:00.000Z)");
+  });
+
+  it("gives the recipe for Files, on the drive the tool names", () => {
+    expect(instructions).toContain("take driveId from sektarFindFiles");
+    expect(instructions).toContain("documentType sektar/file");
+    expect(instructions).toContain("SET_ATTACHMENT_SOURCE");
+  });
+
+  it("tells the model to finish after storing a chat image", () => {
+    expect(instructions).toContain("sektarSaveChatImage with its handle");
+    expect(instructions).toContain("puts the image on no document");
+  });
+
+  it("names only tools that exist", () => {
+    const named = instructions.match(/\bsektar[A-Z]\w+/g) ?? [];
+    expect(named.length).toBeGreaterThan(0);
+    const known = aiTools.map((tool) => tool.name);
+    expect(known).toEqual(expect.arrayContaining([...new Set(named)]));
   });
 });
 
@@ -241,5 +288,92 @@ describe("the agent", () => {
     expect(answer).toContain("could not be read");
     expect(answer).toContain("unknown");
     expect(answer).not.toContain('"found"');
+  });
+
+  describe("with a stored file", () => {
+    const REF = `attachment://v1:${"a".repeat(64)}`;
+    const BASE64 = "dGhlIGZpbGUncyBieXRlcw==";
+    const bytes = () => Uint8Array.from(atob(BASE64), (c) => c.charCodeAt(0));
+
+    class Reader {
+      result: string | null = null;
+      onload: (() => void) | null = null;
+      readAsDataURL(blob: Blob) {
+        this.result = `data:${blob.type};base64,${BASE64}`;
+        queueMicrotask(() => this.onload?.());
+      }
+    }
+
+    const storage = () => ({
+      get: () =>
+        Promise.resolve({
+          header: {
+            mimeType: "image/png",
+            fileName: "receipt.png",
+            sizeBytes: bytes().length,
+          },
+          body: new Blob([bytes()]).stream(),
+        }),
+      reserve: () =>
+        Promise.resolve({
+          send: () => Promise.resolve({ ref: REF, header: {} }),
+        }),
+    });
+
+    beforeEach(() => {
+      vi.stubGlobal("FileReader", Reader);
+      installStore({ attachmentService: storage() });
+    });
+
+    it("reaches the model on the wire as an image, not as text in the tool's answer", async () => {
+      const { requests } = await turn(
+        [
+          toolCall("sektarReadAttachment", { documentId: "mail-1", ref: REF }),
+          text("It is a receipt."),
+        ],
+        assistantInstructions(NOW),
+      );
+      const sent = requests[1].messages;
+      const tool = sent.find((message) => message.role === "tool");
+      expect(JSON.stringify(tool)).toContain("receipt.png");
+      expect(JSON.stringify(tool)).not.toContain(BASE64);
+
+      const shown = sent.at(-1);
+      expect(shown?.role).toBe("user");
+      expect(shown?.content).toMatchObject([
+        { type: "text" },
+        {
+          type: "image_url",
+          image_url: { url: `data:image/png;base64,${BASE64}` },
+        },
+      ]);
+      expect(sent.indexOf(shown as never)).toBe(sent.indexOf(tool as never) + 1);
+    });
+
+    it("asks before storing a chat image, then hands the model its reference", async () => {
+      const { requests, events } = await turn(
+        [
+          toolCall("sektarSaveChatImage", { handle: "image-1" }),
+          text("Saved."),
+        ],
+        assistantInstructions(NOW),
+        [
+          {
+            dataUrl: `data:image/png;base64,${BASE64}`,
+            mediaType: "image/png",
+            name: "receipt.png",
+          },
+        ],
+      );
+      expect(JSON.stringify(requests[0].messages.at(-1))).toContain(
+        "[Attached image image-1: receipt.png]",
+      );
+      expect(events.some((e) => e.type === "approval-request")).toBe(true);
+      expect(
+        JSON.stringify(
+          requests[1].messages.find((message) => message.role === "tool"),
+        ),
+      ).toContain(REF);
+    });
   });
 });
