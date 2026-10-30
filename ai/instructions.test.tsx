@@ -179,22 +179,45 @@ describe("assistantInstructions", () => {
     expect(instructions).toContain("never guess from its name");
   });
 
-  it("gives the recipe for an invoice and for one of its lines", () => {
-    expect(instructions).toContain("addActions on the invoice with ADD_ATTACHMENT");
+  it("says a file reference is never typed or guessed", () => {
+    expect(instructions).toContain("short handle such as file-3");
+    expect(instructions).toContain("A file reference is never typed or guessed");
+    expect(instructions).toContain("list the document's files again");
+    expect(instructions).not.toMatch(/attachment:\/\/|[0-9a-f]{64}/i);
+  });
+
+  it("sends an invoice's files through the tool, with the role and the line", () => {
+    expect(instructions).toContain("call sektarAttachToInvoice with its handle");
     expect(instructions).toContain("add lineId");
-    expect(instructions).toContain("getDocument with filter $.global.lines");
-    expect(instructions).toContain("addedAt (2026-10-30T12:00:00.000Z)");
+    expect(instructions).toContain(
+      "sektarListAttachments on the invoice gives the lines' ids",
+    );
+    expect(instructions).not.toContain("addActions on the invoice");
+    expect(instructions).not.toContain("$.global.lines");
   });
 
-  it("gives the recipe for Files, on the drive the tool names", () => {
-    expect(instructions).toContain("take driveId from sektarFindFiles");
-    expect(instructions).toContain("documentType sektar/file");
-    expect(instructions).toContain("SET_ATTACHMENT_SOURCE");
+  it("sends Files through the tool", () => {
+    expect(instructions).toContain("call sektarAddToFiles with its handle");
+    expect(instructions).not.toContain("take driveId from sektarFindFiles");
+    expect(instructions).not.toContain("documentType sektar/file");
   });
 
-  it("tells the model to finish after storing a chat image", () => {
-    expect(instructions).toContain("sektarSaveChatImage with its handle");
+  it("steers attachments away from the built-in writes", () => {
+    expect(instructions).toContain(
+      "Never use addActions or createDocument for attachments",
+    );
+  });
+
+  it("takes a chat image straight to the document", () => {
+    expect(instructions).toContain("pass that straight to sektarAttachToInvoice");
+    expect(instructions).toContain("in one approved step");
     expect(instructions).toContain("puts the image on no document");
+  });
+
+  it("tells the model to report a write that failed", () => {
+    expect(instructions).toContain(
+      "say it failed, and why, rather than that it is done",
+    );
   });
 
   it("names only tools that exist", () => {
