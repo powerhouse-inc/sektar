@@ -20,6 +20,10 @@ import {
 } from "../../../../../editors/sektar/kit/format.js";
 import { COMPANY } from "../../../../../editors/sektar/kit/seed.js";
 import {
+  greeting,
+  useUserName,
+} from "../../../../../editors/sektar/kit/user-name.js";
+import {
   ActionTile,
   Badge,
   Bars,
@@ -53,13 +57,9 @@ export const Route = createFileRoute("/_app/finops/dashboard")({
   component: Dashboard,
 });
 
-function greeting() {
-  const h = new Date().getHours();
-  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-}
-
 function Dashboard() {
   const drive = useSektarDrive();
+  const userName = useUserName();
   // The dashboard's instant: fixed for the visit, so the numbers do not re-ask per render.
   const [now] = useState(() => Date.now());
   const index = useDashboardStats(drive, now);
@@ -167,7 +167,7 @@ function Dashboard() {
     <div className="sk-page sk-stack sk-stack--6">
       <PageHeader
         display
-        title={`${greeting()}, ${COMPANY.owner.split(" ")[0]}.`}
+        title={greeting(new Date(now).getHours(), userName)}
         lead={`Here's what's happening with ${COMPANY.name} today.`}
         art={{ light: artLight, dark: artDark }}
         actions={
