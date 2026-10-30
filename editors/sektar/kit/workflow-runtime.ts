@@ -107,6 +107,38 @@ export async function startSignIn(
   return data.workflowRuntime.startOAuth;
 }
 
+/**
+ * How a sign-in to an OAuth app would go from this switchboard, as
+ * startOAuth decides it: DESKTOP (the provider sends it back to this
+ * machine), WEB (the host's own web client), RELAY (through the publisher's
+ * relay), NONE (no client for it here). UNKNOWN when the switchboard cannot
+ * say: a framework without the query, or any other failure.
+ */
+export type SignInMode = "DESKTOP" | "WEB" | "RELAY" | "NONE" | "UNKNOWN";
+
+const SIGN_IN_MODES = new Set<string>(["DESKTOP", "WEB", "RELAY", "NONE"]);
+
+export async function signInMode(
+  url: string,
+  appId: string,
+): Promise<SignInMode> {
+  try {
+    const data = await gql<{
+      workflowRuntime: { oauthSignIn: string | null } | null;
+    }>(
+      url,
+      `query OAuthSignIn($appId: String!) {
+        workflowRuntime { oauthSignIn(appId: $appId) }
+      }`,
+      { appId },
+    );
+    const mode = data.workflowRuntime?.oauthSignIn;
+    return mode && SIGN_IN_MODES.has(mode) ? (mode as SignInMode) : "UNKNOWN";
+  } catch {
+    return "UNKNOWN";
+  }
+}
+
 /** How a sign-in stands; null when the switchboard no longer knows it. */
 export async function signInStatus(
   url: string,

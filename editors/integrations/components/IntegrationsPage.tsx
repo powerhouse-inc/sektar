@@ -18,6 +18,7 @@ import {
   syncSummary,
   type SyncRow,
 } from "../../sektar/kit/sync-status.js";
+import { useSignInPlace } from "../../sektar/kit/sign-in-place.js";
 import { Button, EmptyState, PageHeader } from "../../sektar/kit/ui.js";
 import { useSyncNow, useTriggerStates } from "../../sektar/kit/use-sync.js";
 import { useCallback, useMemo, useState } from "react";
@@ -39,6 +40,8 @@ import { useHashStep } from "./use-hash-step.js";
  */
 export function IntegrationsPage() {
   const [hash, setHash] = useHashStep();
+  // Asked once, as the page opens: Add integration starts where it finishes
+  const { place } = useSignInPlace();
   const [drive] = useSelectedDrive();
   const items = useIntegrationItems(drive);
   const docs = useMemo(() => items ?? [], [items]);
@@ -136,7 +139,7 @@ export function IntegrationsPage() {
   }
 
   const add = (
-    <Button variant="primary" icon="plus" onClick={() => setHash(firstStep())}>
+    <Button variant="primary" icon="plus" onClick={() => setHash(firstStep(place))}>
       Add integration
     </Button>
   );

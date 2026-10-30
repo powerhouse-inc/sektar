@@ -38,13 +38,19 @@ import {
   Switch,
 } from "../../sektar/kit/ui.js";
 import { createAccount, useSektarDrive } from "../../sektar/kit/data.js";
+import {
+  useSignInPlace,
+  type SignInPlace,
+} from "../../sektar/kit/sign-in-place.js";
 import { BankAccounts, BankConnect } from "./BankSetup.js";
 
 /**
  * The flow's steps, as they appear in the hash (`#add/before`, `#add`, …).
- * `add/before` is shown only away from the computer that runs Sektar: the
- * user acknowledges, before configuring anything, that the sign-in finishes
- * there.
+ * `add/before` is shown only where the sign-in is handed over to the
+ * computer that runs Sektar: the user acknowledges, before configuring
+ * anything, that the sign-in finishes there. On that computer, and in an
+ * environment where the sign-in finishes in this browser (the cloud flow),
+ * the flow starts at `add`.
  */
 export const STEPS = [
   "add/before",
@@ -58,19 +64,14 @@ export type CreateStep = (typeof STEPS)[number];
 const CONFIGURE: readonly CreateStep[] = STEPS.slice(1);
 const TITLES = ["What to bring in", "Connect", "How much", "Name and create"];
 
-/** Where Add integration starts: the handoff notice first, unless this is the runner. */
-export function firstStep(): CreateStep {
-  return onRunner() ? "add" : "add/before";
-}
-
 /**
- * Whether this browser runs on the computer that fetches (the runner): only
- * there can the provider's sign-in come back (to 127.0.0.1). A loopback page
- * is the runner's own; anything else (the phone, the tunnel) hands the
- * sign-in over. Step 3 of the pilot asks the switchboard instead.
+ * Where Add integration starts: the handoff notice first, unless the
+ * sign-in finishes in this browser (sign-in-place.ts: a loopback page is
+ * the runner's own; elsewhere the switchboard says whether it can finish
+ * here).
  */
-export function onRunner(): boolean {
-  return ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+export function firstStep(place: SignInPlace): CreateStep {
+  return place === "handoff" ? "add/before" : "add";
 }
 
 /**
@@ -78,7 +79,10 @@ export function onRunner(): boolean {
  * Integrations · Create): what to bring in; connecting the account, with what
  * Sektar may do there chosen first, so nobody wonders about their data in the
  * steps after; how much; a name. Create writes only the integration document:
- * the reconciler on the runner does the rest, after the sign-in there.
+ * the reconciler on the runner does the rest, after the sign-in there. In the
+ * cloud flow the sign-in finishes in this environment: no handoff notice
+ * before, no "continue on your computer" after; Create lands on the card,
+ * whose Sign in with Google finishes it.
  */
 export function CreateFlow({
   step,
@@ -92,24 +96,30 @@ export function CreateFlow({
   onCancel: () => void;
 }) {
   const now = useMemo(() => new Date(), []);
-  const runner = useMemo(onRunner, []);
+  const { place } = useSignInPlace();
+  // On the runner (a loopback page) the sign-in comes back to this machine
+  const runner = place === "local";
+  // In an environment whose switchboard finishes the sign-in itself
+  const cloud = place === "cloud";
+  const direct = runner || cloud;
   const [drive] = useSelectedDrive();
   const sektarDrive = useSektarDrive();
   const [kind, setKind] = useState<IntegrationKind | null>(null);
   const [choices, setChoices] = useState<CreateChoices | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Away from the runner, nothing is configured before the handoff is acknowledged.
+  // Where the sign-in is handed over, nothing is configured before the
+  // handoff is acknowledged.
   const [acknowledged, setAcknowledged] = useState(runner);
   const [finished, setFinished] = useState<string | null>(null);
 
-  const flow = runner ? CONFIGURE : STEPS;
-  const titles = runner ? TITLES : ["Before you start", ...TITLES];
-  const base = runner ? 0 : 1;
+  const flow = direct ? CONFIGURE : STEPS;
+  const titles = direct ? TITLES : ["Before you start", ...TITLES];
+  const base = direct ? 0 : 1;
   // A reload or a deep link past a step without its choice starts over.
   const wanted = Math.max(0, CONFIGURE.indexOf(step));
   const conf = choices ? wanted : kind ? Math.min(wanted, 1) : 0;
-  const before = !acknowledged || step === "add/before";
+  const before = !cloud && (!acknowledged || step === "add/before");
   const at = before ? 0 : base + conf;
   const patch = (p: Partial<CreateChoices>) =>
     setChoices((c) => (c ? { ...c, ...p } : c));
@@ -156,8 +166,9 @@ export function CreateFlow({
       }
       const node = await addDocument(drive.header.id, name, INTEGRATION_TYPE);
       await dispatchActions(createActions(ready, now, generateId), node.id);
-      // Nothing to sign in to for a bank on a key this computer holds
-      if (runner || choices.kind === "TRANSACTIONS") onDone();
+      // Nothing to sign in to for a bank on a key this computer holds; in
+      // the cloud flow the card's Sign in finishes it, here
+      if (direct || choices.kind === "TRANSACTIONS") onDone();
       else {
         setFinished(name);
         setBusy(false);
@@ -245,7 +256,7 @@ export function CreateFlow({
       <Panel
         title="What do you want to bring in?"
         lead="You can add more later."
-        back={runner ? undefined : () => go("add/before")}
+        back={direct ? undefined : () => go("add/before")}
       >
         <div className="sk-intg-tiles">
           {KINDS.map((k) => (

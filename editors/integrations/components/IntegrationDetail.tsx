@@ -37,6 +37,10 @@ import {
 } from "../../sektar/kit/integrations.js";
 import { Menu } from "../../sektar/kit/menu.js";
 import {
+  speaksOfEnvironment,
+  useSignInPlace,
+} from "../../sektar/kit/sign-in-place.js";
+import {
   Badge,
   Button,
   DetailHeader,
@@ -55,6 +59,7 @@ import {
 } from "../../sektar/kit/workflow-runtime.js";
 import { AccountLabel, setSwitch } from "./CardRows.js";
 import { RemoveDialog } from "./IntegrationCard.js";
+import { SignIn } from "./SignIn.js";
 import { TryAgain } from "./TryAgain.js";
 import { useRuns } from "./use-runs.js";
 
@@ -76,7 +81,8 @@ const history = (url: string, id: string) => runHistory(url, id, HISTORY_RUNS);
 /**
  * One integration on its own page (design system: Patterns · Integrations ·
  * Detail): live updates and backfill side by side, and below them what the
- * reconciler found. The switches write the wish, as on the card; Sync now
+ * reconciler found. While it waits for a sign-in, the same sign-in as on the
+ * card sits under the header. The switches write the wish, as on the card; Sync now
  * runs the live check; the workflows open in Workflow Studio. Everything on
  * it comes from the integration index; the switches and Check now write to
  * the document by id.
@@ -95,7 +101,10 @@ export function IntegrationDetail({
   onBack: () => void;
 }) {
   const s = integration.state;
-  const view = cardView(s);
+  const { place, hostname } = useSignInPlace();
+  const view = cardView(s, {
+    environment: speaksOfEnvironment(place, s.runner?.label, hostname),
+  });
   const kind = kindInfo(s.kind);
   const provider = providerInfo(s.provider);
   const name = integration.name || kind?.label || "Integration";
@@ -190,6 +199,16 @@ export function IntegrationDetail({
         <p className="sk-small sk-text-danger" style={{ margin: 0 }}>
           {view.line}
         </p>
+      )}
+      {/* The sign-in it waits for, as on the card: a first one, lost
+          tokens, more access, another account */}
+      {view.state === "waiting-for-sign-in" && (
+        <div className="sk-stack sk-stack--2">
+          <p className="sk-small" style={{ margin: 0 }}>
+            {view.line}
+          </p>
+          <SignIn integration={integration} />
+        </div>
       )}
       <div className="sk-grid sk-grid--2 sk-intg-detail__grid">
         <LiveCard
