@@ -29,6 +29,7 @@ import {
   Sprite,
 } from "../../../editors/sektar/kit/ui.js";
 import { findDrive } from "../../../processors/drive-ids/index.js";
+import { AssistantChatHolder } from "./-shared/assistant-chat.js";
 import { ProductSwitch } from "./-shared/product-switch.js";
 import {
   driveFor,
@@ -175,40 +176,45 @@ function Shell() {
 
   return (
     <SearchContext.Provider value={search}>
-      <div
-        className={cx(
-          "sk-app sk-shell",
-          rail && "sk-shell--rail",
-          drawer && "is-drawer-open",
-        )}
-      >
-        <Sprite />
-        <Sidebar product={product} />
-        <div className="sk-shell__main">
-          <TopBar
-            title={pageTitle(pathname, product)}
-            product={product}
-            onMenu={toggleMenu}
-          />
-          {/* Flush: the content area carries no padding of its own. Routed
-              pages (.sk-page) bring the design system's page padding; drive
-              apps, Workflow Studio and Connect's settings fill edge to edge. */}
-          <main className="sk-shell__content sk-shell__content--flush">
-            <Suspense fallback={<PageSkeleton />}>
-              <Outlet />
-            </Suspense>
-          </main>
+      <AssistantChatHolder>
+        <div
+          className={cx(
+            "sk-app sk-shell",
+            rail && "sk-shell--rail",
+            drawer && "is-drawer-open",
+          )}
+        >
+          <Sprite />
+          <Sidebar product={product} />
+          <div className="sk-shell__main">
+            <TopBar
+              title={pageTitle(pathname, product)}
+              product={product}
+              onMenu={toggleMenu}
+            />
+            {/* Flush: the content area carries no padding of its own. Routed
+                pages (.sk-page) bring the design system's page padding; drive
+                apps, Workflow Studio and Connect's settings fill edge to edge. */}
+            <main className="sk-shell__content sk-shell__content--flush">
+              <Suspense fallback={<PageSkeleton />}>
+                <Outlet />
+              </Suspense>
+            </main>
+          </div>
+          <div className="sk-drawer" aria-hidden={!drawer}>
+            <div
+              className="sk-drawer__scrim"
+              onClick={() => setDrawer(false)}
+            />
+            <Sidebar
+              product={product}
+              inDrawer
+              onNavigate={() => setDrawer(false)}
+            />
+          </div>
+          <UserNamePrompt />
         </div>
-        <div className="sk-drawer" aria-hidden={!drawer}>
-          <div className="sk-drawer__scrim" onClick={() => setDrawer(false)} />
-          <Sidebar
-            product={product}
-            inDrawer
-            onNavigate={() => setDrawer(false)}
-          />
-        </div>
-        <UserNamePrompt />
-      </div>
+      </AssistantChatHolder>
     </SearchContext.Provider>
   );
 }

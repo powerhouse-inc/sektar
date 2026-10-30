@@ -6,9 +6,12 @@ import {
   type AiSettings,
   type ChatImage,
 } from "@powerhousedao/reactor-browser/ai";
+import type { ReactNode } from "react";
+import type * as ReactDom from "react-dom";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Conversation } from "../hosts/connect/routes/-shared/assistant.js";
+import type { ChatSlots } from "../hosts/connect/routes/-shared/assistant-chat.js";
+import { HeldChat } from "../hosts/connect/routes/-shared/assistant.js";
 import { assistantInstructions } from "./instructions.js";
 import { BASE, installStore, serve, unreachable } from "./test-index.js";
 import { aiTools } from "./tools.js";
@@ -26,11 +29,20 @@ vi.mock("@powerhousedao/reactor-browser/ai", async (original) => ({
   useReactorChat: chat.useReactorChat,
 }));
 
+vi.mock("react-dom", async (original) => ({
+  ...(await original<typeof ReactDom>()),
+  createPortal: (node: ReactNode) => node,
+}));
+
+const slots = {} as ChatSlots;
+
 const connection: AiConnection = { baseUrl: `${BASE}/ai/v1`, model: "a-model" };
 
 /** The instruction the conversation passed to the chat. */
 function renderedInstruction(): string {
-  renderToStaticMarkup(<Conversation connection={connection} model="a-model" />);
+  renderToStaticMarkup(
+    <HeldChat connection={connection} slots={slots} release={() => {}} />,
+  );
   const [, options] = chat.useReactorChat.mock.calls.at(-1) as [
     unknown,
     { instructions: string },
@@ -179,7 +191,9 @@ describe("assistantInstructions", () => {
   });
 
   it("gives the recipe for an invoice and for one of its lines", () => {
-    expect(instructions).toContain("addActions on the invoice with ADD_ATTACHMENT");
+    expect(instructions).toContain(
+      "addActions on the invoice with ADD_ATTACHMENT",
+    );
     expect(instructions).toContain("add lineId");
     expect(instructions).toContain("getDocument with filter $.global.lines");
     expect(instructions).toContain("addedAt (2026-10-30T12:00:00.000Z)");
@@ -338,7 +352,9 @@ describe("the agent", () => {
           image_url: { url: `data:image/png;base64,${BASE64}` },
         },
       ]);
-      expect(sent.indexOf(shown as never)).toBe(sent.indexOf(tool as never) + 1);
+      expect(sent.indexOf(shown as never)).toBe(
+        sent.indexOf(tool as never) + 1,
+      );
     });
 
     it("asks before storing a chat image, then hands the model its reference", async () => {
