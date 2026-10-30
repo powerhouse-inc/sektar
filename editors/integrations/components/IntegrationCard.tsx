@@ -18,6 +18,10 @@ import {
   removalPlan,
 } from "../../sektar/kit/integrations.js";
 import { Menu } from "../../sektar/kit/menu.js";
+import {
+  speaksOfEnvironment,
+  useSignInPlace,
+} from "../../sektar/kit/sign-in-place.js";
 import { Alert, Badge, Button, cx, Icon, Modal } from "../../sektar/kit/ui.js";
 import { AccountLabel, CardRows } from "./CardRows.js";
 import type { TriggerState } from "../../sektar/kit/workflow-runtime.js";
@@ -49,7 +53,10 @@ export function IntegrationCard({
   onOpen?: (id: string) => void;
 }) {
   const s = integration.state;
-  const view = cardView(s);
+  const { place, hostname } = useSignInPlace();
+  const view = cardView(s, {
+    environment: speaksOfEnvironment(place, s.runner?.label, hostname),
+  });
   const kind = kindInfo(s.kind);
   const provider = providerInfo(s.provider);
   const linked = (s.intent.source as { accounts?: unknown[] } | null)?.accounts;
@@ -217,7 +224,14 @@ export function RemoveDialog({
   onRemoved?: () => void;
 }) {
   const [drive] = useSelectedDrive();
-  const plan = removalPlan(integration.state);
+  const { place, hostname } = useSignInPlace();
+  const plan = removalPlan(integration.state, {
+    environment: speaksOfEnvironment(
+      place,
+      integration.state.runner?.label,
+      hostname,
+    ),
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

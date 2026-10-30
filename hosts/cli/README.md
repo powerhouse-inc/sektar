@@ -7,6 +7,7 @@ Files here:
 | File | What |
 |---|---|
 | `host.js` | The `cli` host: what runs, and how the two parts talk |
+| `oauth-relay.js` | Switchboard plugin of the `cli` host: Google sign-in through the sektar.io relay in the cloud (below) |
 | `Dockerfile` | The image. Generic: builds any Powerhouse project's host (`PH_HOST`) from source |
 | `docker-entrypoint.sh` | Checks the database setting, then runs `ph run $PH_HOST serve` |
 | `docker-compose.yml` | Postgres + the cli container, for local use and as the deployment reference |
@@ -70,12 +71,39 @@ Set as environment variables (Compose: `cli.env`, plus the database URL in `dock
 
 | Path in the container | What |
 |---|---|
-| `/client_secret_sektar-web-app.json` | The Google OAuth **web** client of the publisher app `sektar-google`. `powerhouse.config.json` (`workflows.oauthApps`) names it relative to `/app`, which is why it sits at the root. Sign-ins of the Gmail and Calendar integrations use it. |
+| `/client_secret_sektar-web-app.json` | Optional. Your own Google OAuth **web** client for the publisher app `sektar-google`. `powerhouse.config.json` (`workflows.oauthApps`) names it relative to `/app`, which is why it sits at the root. Mounted, sign-ins of the Gmail and Calendar integrations use it, always: it takes precedence over the relay. |
 | `/client_secret_sektar_desktop-app.json` | The **desktop** client; only used when the switchboard runs on the user's own machine. Mount it, or leave it out. |
 | `/data` (volume) | See Storage above. |
 
-The web client needs this **authorized redirect URI** in the Google Cloud console:
+A web client you mount needs this **authorized redirect URI** in the Google Cloud console:
 `<PUBLIC_URL>/api/@powerhousedao/workflow/oauth/callback`
+
+### Google sign-in: own client or the relay
+
+How the Gmail and Calendar integrations sign in to Google depends on where
+the container runs. `oauth-relay.js` decides it once at start and logs one
+`[sektar:oauth-relay]` line saying which way it went.
+
+- **Your own web client mounted** (self-hosting): sign-in goes straight to
+  Google with your client, as configured. Register the redirect URI above.
+  The relay is never asked.
+- **No web client mounted, `PUBLIC_URL` public** (Vetra cloud, `*.vetra.io`):
+  the host asks `GET <relay base>/api/oauth/hosts/<PUBLIC_URL host>` (3 s
+  timeout, 3 attempts). Only on `{"accepted": true}` does `sektar-google`
+  sign in through the relay: Google sends the person back through
+  `<relay base>/api/oauth/callback`, which forwards the sign-in to this
+  environment, and the code exchange and every refresh go through
+  `<relay base>/api/oauth/token`, which adds the publisher's client secret.
+  sektar.io keeps neither codes nor tokens; the tokens stay in this
+  environment's database. Nothing to configure: it is automatic on Vetra
+  cloud hosts. A host the relay does not accept (a custom domain, a
+  self-hosted one) keeps the hand-off to the computer that runs Sektar.
+- **`PUBLIC_URL` unset or loopback** (your own machine): as configured
+  (the desktop client); nothing is asked.
+
+| Variable | Default | What |
+|---|---|---|
+| `SEKTAR_OAUTH_RELAY_BASE` | `https://sektar.vetra.io` | The relay's origin; set it to a staging deployment of sektar.io to test. |
 
 ### Tuning and optional
 

@@ -146,6 +146,17 @@ describe("removal", () => {
     expect(hasBuiltAnything(backfillOnly)).toBe(true);
   });
 
+  it("forgets the sign-in in this environment when it runs as one", () => {
+    const s = structuredClone(created().state.global);
+    s.resources.liveWorkflowId = "wf";
+    expect(removalPlan(s).steps[2]).toBe(
+      "Sektar signs out of Google and forgets the sign-in on the computer that runs it.",
+    );
+    expect(removalPlan(s, { environment: true }).steps[2]).toBe(
+      "Sektar signs out of Google and forgets the sign-in in this environment.",
+    );
+  });
+
   it("names the kind and account generically when they are unknown", () => {
     const plan = removalPlan(utils.createDocument().state.global);
     expect(plan.keeps).toBe(
@@ -245,6 +256,20 @@ describe("cardView", () => {
       }),
     );
     expect(named.line).toBe("Sign in on Wouter's PC to finish");
+  });
+
+  it("asks for the sign-in here, naming no computer, in an environment", () => {
+    const view = cardView(
+      withState(created(), (s) => {
+        s.runner = {
+          reactorId: "switchboard@acme.vetra.io",
+          label: "acme.vetra.io",
+        };
+      }),
+      { environment: true },
+    );
+    expect(view.state).toBe("waiting-for-sign-in");
+    expect(view.line).toBe("Sign in with Google to finish");
   });
 
   it("keeps waiting while the runner reports that a sign-in is needed", () => {

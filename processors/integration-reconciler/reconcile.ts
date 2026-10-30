@@ -67,8 +67,21 @@ const DRIVE_MISSING: Record<"mail" | "calendar", string> = {
   calendar: "The Calendar drive the events go into is not on this computer yet",
 };
 
+/** The same, said by a runner that is an environment rather than a computer. */
+const DRIVE_MISSING_HERE: Record<"mail" | "calendar", string> = {
+  mail: "The Mail drive the messages go into is not in this environment yet",
+  calendar:
+    "The Calendar drive the events go into is not in this environment yet",
+};
+
 export interface ReconcileIO {
   me: Host;
+  /**
+   * The runner is an environment at a public address (runner.ts), not
+   * someone's computer: the texts say "in this environment", and a sign-in
+   * finishes with the card's button wherever the person is.
+   */
+  environment?: boolean;
   now(): string;
   /** Null when the document is gone */
   readConnection(id: string): Promise<ConnectionFacts | null>;
@@ -174,7 +187,7 @@ export async function reconcileIntegration(
       code: "PROVIDER_UNSUPPORTED",
       severity: "BLOCKING",
       subject: null,
-      message: `${s.provider ?? "This provider"} is not supported on this computer yet`,
+      message: `${s.provider ?? "This provider"} is not supported ${io.environment ? "in this environment" : "on this computer"} yet`,
       fixable: false,
       since: since("PROVIDER_UNSUPPORTED"),
     });
@@ -252,8 +265,7 @@ async function reconcileLiveWorkflow(
       code: "NO_REACTOR_CONNECTION",
       severity: "BLOCKING",
       subject: null,
-      message:
-        "This computer has no connection for workflows to write documents with",
+      message: `${io.environment ? "This environment" : "This computer"} has no connection for workflows to write documents with`,
       fixable: false,
       since: since("NO_REACTOR_CONNECTION"),
     });
@@ -266,7 +278,9 @@ async function reconcileLiveWorkflow(
       code,
       severity: "BLOCKING",
       subject: null,
-      message: DRIVE_MISSING[provider.drive ?? "mail"],
+      message: (io.environment ? DRIVE_MISSING_HERE : DRIVE_MISSING)[
+        provider.drive ?? "mail"
+      ],
       fixable: false,
       since: since(code),
     });
@@ -553,7 +567,9 @@ async function readyConnection(
         code: "NO_CONNECTION",
         severity: "BLOCKING",
         subject: connectionId ?? null,
-        message: `Pick the ${provider.label} connection to use on ${io.me.label}`,
+        message: io.environment
+          ? `Pick the ${provider.label} connection to use in this environment`
+          : `Pick the ${provider.label} connection to use on ${io.me.label}`,
         fixable: false,
         since: since("NO_CONNECTION"),
       });
@@ -564,7 +580,7 @@ async function readyConnection(
         code: "CONNECTION_NOT_WORKING",
         severity: "BLOCKING",
         subject: connectionId,
-        message: `The ${provider.label} connection on ${io.me.label} is not working; check it in Workflows`,
+        message: `The ${provider.label} connection ${io.environment ? "in this environment" : `on ${io.me.label}`} is not working; check it in Workflows`,
         fixable: false,
         since: since("CONNECTION_NOT_WORKING"),
       });
@@ -582,7 +598,7 @@ async function readyConnection(
       code: "PROVIDER_UNSUPPORTED",
       severity: "BLOCKING",
       subject: null,
-      message: `${s.provider ?? "This provider"} is not supported on this computer yet`,
+      message: `${s.provider ?? "This provider"} is not supported ${io.environment ? "in this environment" : "on this computer"} yet`,
       fixable: false,
       since: since("PROVIDER_UNSUPPORTED"),
     });
@@ -616,8 +632,13 @@ async function readyConnection(
       code: "NEEDS_SIGN_IN",
       severity: "BLOCKING",
       subject: connectionId,
-      message:
-        facts.signedIn && facts.status === "OK"
+      // In an environment the card's button signs in from wherever the
+      // person is; on a computer, only there.
+      message: io.environment
+        ? facts.signedIn && facts.status === "OK"
+          ? `Sign in with ${provider.label} again to finish: it needs more access`
+          : `Sign in with ${provider.label} to finish`
+        : facts.signedIn && facts.status === "OK"
           ? `Sign in to ${provider.label} again on ${io.me.label}: it needs more access`
           : `Sign in to ${provider.label} on ${io.me.label} to finish`,
       fixable: false,
@@ -634,7 +655,9 @@ async function readyConnection(
       code: "NEEDS_SIGN_IN",
       severity: "BLOCKING",
       subject: connectionId,
-      message: `Signed in to ${provider.label} as ${facts.accountLabel}; sign in again on ${io.me.label} as ${expected}`,
+      message: io.environment
+        ? `Signed in to ${provider.label} as ${facts.accountLabel}; sign in with ${provider.label} again as ${expected}`
+        : `Signed in to ${provider.label} as ${facts.accountLabel}; sign in again on ${io.me.label} as ${expected}`,
       fixable: false,
       since: since("NEEDS_SIGN_IN"),
     });

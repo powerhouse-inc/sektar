@@ -533,11 +533,21 @@ export type CardView = {
 };
 
 /**
+ * How the texts speak of where Sektar runs. environment: an environment at a
+ * public address, where the sign-in finishes with the card's button
+ * (sign-in-place.ts); otherwise someone's computer, named by the runner.
+ */
+export type WhereOptions = { environment?: boolean };
+
+/**
  * What a card shows, from the document alone. Later steps add the live facts
  * (last sync, runs, backfill progress) read from the workflows; this is the
  * part the document can answer.
  */
-export function cardView(state: IntegrationState): CardView {
+export function cardView(
+  state: IntegrationState,
+  options: WhereOptions = {},
+): CardView {
   const where = state.runner?.label
     ? state.runner.label
     : "the computer that runs Sektar";
@@ -572,7 +582,9 @@ export function cardView(state: IntegrationState): CardView {
     return {
       state: "waiting-for-sign-in",
       badge: { label: "Waiting for sign-in", tone: "warning", dot: true },
-      line: `Sign in on ${where} to finish`,
+      line: options.environment
+        ? `Sign in with ${providerInfo(state.provider)?.label ?? "the provider"} to finish`
+        : `Sign in on ${where} to finish`,
     };
   }
   if ((state.applied?.generation ?? -1) < state.intent.generation) {
@@ -621,7 +633,10 @@ export type RemovalPlan = {
  * reconciler on the runner (it holds the token and the workflows), so the app
  * only records the wish (ARCHIVE) and the card says Removing until it is done.
  */
-export function removalPlan(state: IntegrationState): RemovalPlan {
+export function removalPlan(
+  state: IntegrationState,
+  options: WhereOptions = {},
+): RemovalPlan {
   const kind = kindInfo(state.kind)?.label.toLowerCase() ?? "integration";
   const known = providerInfo(state.provider)?.label;
   const provider = known ?? "the account";
@@ -640,7 +655,9 @@ export function removalPlan(state: IntegrationState): RemovalPlan {
     steps: [
       "Live updates and the history import stop.",
       `The workflows Sektar made for this ${kind} are archived.`,
-      `Sektar signs out of ${provider} and forgets the sign-in on the computer that runs it.`,
+      options.environment
+        ? `Sektar signs out of ${provider} and forgets the sign-in in this environment.`
+        : `Sektar signs out of ${provider} and forgets the sign-in on the computer that runs it.`,
       "Then the integration disappears from this page.",
     ],
     keeps,
