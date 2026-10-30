@@ -25,8 +25,11 @@ function attachmentRecipes(timestamp: string): string[] {
   ];
 }
 
-/** The instruction for a conversation held on `now`'s day, in local time. */
-export function assistantInstructions(now: Date): string {
+/**
+ * The instruction for a conversation held on `now`'s day, in local time, with
+ * the user's name when we have one.
+ */
+export function assistantInstructions(now: Date, userName = ""): string {
   const today = now.toLocaleDateString("en-GB", {
     weekday: "long",
     day: "numeric",
@@ -43,5 +46,8 @@ export function assistantInstructions(now: Date): string {
     "When the user attaches a photo of a receipt or an invoice, read it: name the merchant, the date and the total, and say so if a figure is unreadable.",
     ...attachmentRecipes(`${isoDay(now)}T12:00:00.000Z`),
     "Answer in the user's language, in a few plain sentences.",
+    ...(userName
+      ? [`The user's name is ${userName}; address them by it.`]
+      : []),
   ].join(" ");
 }

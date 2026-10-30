@@ -1,0 +1,62 @@
+/* The name dialog (kit/user-name-dialog.tsx). Wide: the design system's sign-in
+   dialog, .site-dialog in its site.css. Phone: the same content on the whole
+   screen, at the top so the keyboard does not cover it. */
+.sk-name-dialog {
+  margin: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  width: min(520px, calc(100vw - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 32px);
+  overflow: visible;
+}
+.sk-name-dialog::backdrop {
+  background: var(--sk-overlay);
+}
+.sk-name-dialog .sk-modal {
+  display: grid;
+  gap: var(--sk-space-4);
+  width: 100%;
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+}
+.sk-name-dialog .sk-modal__title,
+.sk-name-dialog .sk-modal__body,
+.sk-name-dialog .sk-caption {
+  margin: 0;
+}
+.sk-name-dialog .sk-modal__footer {
+  margin-top: 0;
+}
+@media (min-width: 560px) {
+  .sk-name-dialog__brand {
+    display: none;
+  }
+}
+
+@media (max-width: 559px) {
+  .sk-name-dialog {
+    margin: 0;
+    width: 100%;
+    height: 100dvh;
+    max-height: none;
+  }
+  .sk-name-dialog .sk-modal {
+    align-content: start;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: calc(var(--sk-space-8) + env(safe-area-inset-top))
+      var(--sk-space-6) calc(var(--sk-space-6) + env(safe-area-inset-bottom));
+  }
+  .sk-name-dialog .sk-modal__footer .sk-btn {
+    flex: 1;
+  }
+  .sk-name-dialog__brand {
+    justify-self: start;
+    margin-bottom: var(--sk-space-6);
+  }
+}

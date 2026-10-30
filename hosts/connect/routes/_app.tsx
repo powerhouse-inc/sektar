@@ -45,6 +45,7 @@ import { SearchBar } from "./-shared/search-bar.js";
 import { SearchContext } from "./-shared/search.js";
 import { SyncStatus } from "./-shared/sync-status.js";
 import { UserMenu } from "./-shared/user-menu.js";
+import { UserNamePrompt } from "./-shared/user-name-prompt.js";
 
 // Sektar replaces Connect's layout with the design system's app shell: the
 // sidebar (the product switch on the brand lockup, the product's work
@@ -206,6 +207,7 @@ function Shell() {
             onNavigate={() => setDrawer(false)}
           />
         </div>
+        <UserNamePrompt />
       </div>
     </SearchContext.Provider>
   );
