@@ -116,6 +116,7 @@
     "document-model": "link:../powerhouse/packages/document-model",
     "graphql": "16.12.0",
     "graphql-tag": "2.12.6",
+    "happy-dom": "20.9.0",
     "kysely": "0.28.16",
     "oxfmt": "0.68.0",
     "oxlint": "1.70.0",

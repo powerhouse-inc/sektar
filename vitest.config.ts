@@ -15,5 +15,8 @@ export default defineConfig({
       },
     },
   },
+  // A linked package resolves React from its own node_modules; its hooks need
+  // the one copy that react-dom renders with.
+  resolve: { dedupe: ["react", "react-dom"] },
   plugins: [tsconfigPaths()],
 });
