@@ -12,6 +12,7 @@ import type {} from "@powerhousedao/switchboard/plugins/mcp";
 import type {} from "@powerhousedao/switchboard/plugins/attachments";
 import type {} from "@powerhousedao/switchboard/plugins/privacy";
 import type {} from "@powerhousedao/switchboard/plugins/workflows";
+import type {} from "@powerhousedao/switchboard/plugins/ai";
 import type {} from "@powerhousedao/connect/plugin-configs";
 import type { PHHost as HostDefinitionByRunner } from "@powerhousedao/host-core/schema";
 

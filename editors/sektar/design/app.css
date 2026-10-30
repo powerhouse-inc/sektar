@@ -2662,3 +2662,320 @@ html { touch-action: manipulation; }
    lone card on a wide screen keeps its proportions. Phones: one, full width. */
 .sk-app .sk-integration-grid { grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr)); }
 .sk-app .sk-integration-grid > .sk-integration { max-width: 630px; }
+
+/* --------------------------------------------------------------------------
+   Assistant (welcome page): the design system has no chat pattern yet, so this
+   dresses reactor-browser's ChatPanel, through its ph-chat-* hooks, in the
+   tokens the rest of the app uses. Two classes on purpose: they outrank the
+   Tailwind utilities the panel carries for Connect.
+   -------------------------------------------------------------------------- */
+.sk-assistant {
+  width: 100%;
+  max-width: 760px;
+  text-align: left;
+}
+.sk-assistant__model {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sk-assistant__conversation {
+  display: flex;
+  flex-direction: column;
+  height: min(64vh, 620px);
+  min-height: 420px;
+  padding: 0;
+  overflow: hidden;
+}
+.sk-assistant__conversation > .sk-card__header {
+  margin: 0;
+  padding: var(--sk-space-4) var(--sk-space-5);
+  border-bottom: 1px solid var(--sk-border-subtle);
+}
+.sk-assistant__conversation .sk-card__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sk-space-2);
+  min-width: 0;
+}
+.sk-assistant .ph-chat {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  font-size: var(--sk-text-md);
+  color: var(--sk-text);
+}
+.sk-assistant .ph-chat-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--sk-space-3);
+  padding: var(--sk-space-4) var(--sk-space-5);
+  overflow-y: auto;
+}
+.sk-assistant .ph-chat-empty {
+  margin: auto;
+  padding: 0;
+  max-width: 420px;
+  text-align: center;
+  color: var(--sk-text-muted);
+}
+.sk-assistant .ph-chat-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sk-space-2);
+  margin-top: var(--sk-space-3);
+}
+.sk-assistant .ph-chat-suggestion {
+  padding: var(--sk-space-1) var(--sk-space-3);
+  border: 1px solid var(--sk-border);
+  border-radius: var(--sk-radius-full);
+  background: var(--sk-surface);
+  color: var(--sk-text);
+  font-size: var(--sk-text-sm);
+}
+.sk-assistant .ph-chat-suggestion:hover {
+  border-color: var(--sk-border-strong);
+  background: var(--sk-surface-2);
+}
+.sk-assistant .ph-chat-user {
+  display: flex;
+  justify-content: flex-end;
+}
+.sk-assistant .ph-chat-bubble {
+  max-width: 85%;
+  padding: var(--sk-space-2) var(--sk-space-3);
+  border-radius: var(--sk-radius-lg);
+  background: var(--sk-accent-subtle);
+  color: var(--sk-on-accent);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.sk-assistant .ph-chat-image {
+  max-height: 200px;
+  margin-bottom: var(--sk-space-2);
+  border-radius: var(--sk-radius-md);
+}
+.sk-assistant .ph-chat-assistant {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sk-space-2);
+  overflow-wrap: anywhere;
+}
+.sk-assistant .ph-chat-assistant ul,
+.sk-assistant .ph-chat-assistant ol {
+  margin: var(--sk-space-1) 0;
+  padding-left: var(--sk-space-5);
+  list-style: disc;
+}
+.sk-assistant .ph-chat-assistant ol {
+  list-style: decimal;
+}
+.sk-assistant .ph-chat-assistant p + p {
+  margin-top: var(--sk-space-2);
+}
+.sk-assistant .ph-chat-assistant a {
+  color: var(--sk-text-link);
+  text-decoration: underline;
+}
+.sk-assistant .ph-chat-assistant table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--sk-text-sm);
+}
+.sk-assistant .ph-chat-assistant th,
+.sk-assistant .ph-chat-assistant td {
+  padding: var(--sk-space-1) var(--sk-space-2);
+  border: 1px solid var(--sk-border);
+  text-align: left;
+}
+.sk-assistant .ph-chat-thinking {
+  color: var(--sk-text-muted);
+}
+.sk-assistant .ph-chat-tool {
+  padding: var(--sk-space-2);
+  border: 1px solid var(--sk-border);
+  border-radius: var(--sk-radius-md);
+  background: var(--sk-bg-subtle);
+  font-size: var(--sk-text-sm);
+  color: var(--sk-text-muted);
+}
+.sk-assistant .ph-chat-tool button {
+  display: flex;
+  align-items: center;
+  gap: var(--sk-space-2);
+  width: 100%;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.sk-assistant .ph-chat-tool pre,
+.sk-assistant .ph-chat-approval pre {
+  max-height: 160px;
+  margin: var(--sk-space-2) 0;
+  padding: var(--sk-space-2);
+  overflow: auto;
+  border-radius: var(--sk-radius-sm);
+  background: var(--sk-surface-2);
+  font-size: var(--sk-text-sm);
+  color: var(--sk-text);
+}
+.sk-assistant .ph-chat-approval {
+  padding: var(--sk-space-3);
+  border: 1px solid var(--sk-warning);
+  border-radius: var(--sk-radius-md);
+  background: var(--sk-warning-bg);
+  color: var(--sk-text);
+}
+.sk-assistant .ph-chat-approval > p {
+  font-size: var(--sk-text-sm);
+  font-weight: var(--sk-weight-medium);
+}
+.sk-assistant .ph-chat-approval > div {
+  display: flex;
+  gap: var(--sk-space-2);
+}
+.sk-assistant .ph-chat-approve,
+.sk-assistant .ph-chat-reject {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sk-space-1);
+  min-height: 32px;
+  padding: 0 var(--sk-space-3);
+  border: 1px solid var(--sk-border);
+  border-radius: var(--sk-radius-sm);
+  background: var(--sk-surface);
+  font-size: var(--sk-text-sm);
+  font-weight: var(--sk-weight-medium);
+  color: var(--sk-text);
+}
+.sk-assistant .ph-chat-approve {
+  border-color: var(--sk-primary);
+  background: var(--sk-primary);
+  color: var(--sk-on-primary);
+}
+.sk-assistant .ph-chat-error {
+  padding: var(--sk-space-2) var(--sk-space-3);
+  border-radius: var(--sk-radius-md);
+  background: var(--sk-danger-bg);
+  font-size: var(--sk-text-sm);
+  color: var(--sk-danger-text);
+}
+.sk-assistant .ph-chat-composer {
+  padding: var(--sk-space-3) var(--sk-space-5);
+  border-top: 1px solid var(--sk-border-subtle);
+}
+.sk-assistant .ph-chat-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sk-space-2);
+  margin-bottom: var(--sk-space-2);
+}
+.sk-assistant .ph-chat-attachment {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  overflow: hidden;
+  border: 1px solid var(--sk-border);
+  border-radius: var(--sk-radius-md);
+}
+.sk-assistant .ph-chat-attachment img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sk-assistant .ph-chat-attachment-remove {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 2px;
+  border-bottom-left-radius: var(--sk-radius-sm);
+  background: var(--sk-surface);
+  color: var(--sk-text);
+}
+.sk-assistant .ph-chat-compose-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sk-space-2);
+}
+.sk-assistant .ph-chat-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  max-height: 128px;
+  padding: var(--sk-space-2) var(--sk-space-3);
+  border: 1px solid var(--sk-input-border);
+  border-radius: var(--sk-radius-md);
+  background: var(--sk-input-bg);
+  font-size: var(--sk-text-md);
+  color: var(--sk-text);
+  resize: none;
+}
+.sk-assistant .ph-chat-input::placeholder {
+  color: var(--sk-input-placeholder);
+}
+.sk-assistant .ph-chat-input:focus {
+  outline: none;
+  border-color: var(--sk-sage-500);
+  box-shadow: var(--sk-shadow-focus);
+}
+.sk-assistant .ph-chat-attach,
+.sk-assistant .ph-chat-send {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--sk-border);
+  border-radius: var(--sk-radius-md);
+  background: var(--sk-surface);
+  color: var(--sk-text-secondary);
+}
+.sk-assistant .ph-chat-attach:hover {
+  background: var(--sk-surface-2);
+}
+.sk-assistant .ph-chat-send {
+  border-color: var(--sk-primary);
+  background: var(--sk-primary);
+  color: var(--sk-on-primary);
+}
+.sk-assistant .ph-chat-send:hover:not(:disabled) {
+  border-color: var(--sk-primary-hover);
+  background: var(--sk-primary-hover);
+}
+.sk-assistant .ph-chat-send:disabled,
+.sk-assistant .ph-chat-attach:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.sk-assistant__key-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sk-space-3);
+}
+.sk-assistant__key-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sk-space-2);
+}
+.sk-assistant__key > * + * {
+  margin-top: var(--sk-space-3);
+}
+@media (max-width: 720px) {
+  .sk-assistant__conversation {
+    height: calc(100dvh - 160px);
+  }
+  .sk-assistant__conversation > .sk-card__header {
+    padding: var(--sk-space-3) var(--sk-space-4);
+  }
+  .sk-assistant .ph-chat-list,
+  .sk-assistant .ph-chat-composer {
+    padding-inline: var(--sk-space-4);
+  }
+  .sk-assistant__model {
+    display: none;
+  }
+}
