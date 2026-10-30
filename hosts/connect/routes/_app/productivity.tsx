@@ -1,9 +1,11 @@
 import { getPHStore, useDrives } from "@powerhousedao/reactor-browser";
+import { useAiGateway } from "@powerhousedao/reactor-browser/ai";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 import artDark from "../../../../editors/sektar/design/shapes/sektar-growth-four-column-combined-dark.svg";
 import artLight from "../../../../editors/sektar/design/shapes/sektar-growth-four-column-combined-light.svg";
 import { Button } from "../../../../editors/sektar/kit/ui.js";
+import { AssistantPanel } from "../-shared/assistant.js";
 import { driveFor, PRODUCTS } from "../-shared/products.js";
 
 export const Route = createFileRoute("/_app/productivity")({
@@ -23,6 +25,11 @@ function Welcome() {
   const found = driveFor(drives, product);
   const ready = found?.drive.header.meta?.preferredEditor === product.drive.editor;
   useRetirePlaceholder(drives, ready);
+  // Admins get the assistant below the welcome; the gateway answers nobody
+  // else, and they see the page as it was.
+  const gateway = useAiGateway();
+  const assistant =
+    gateway.gateway !== undefined && gateway.gateway.access !== "none";
 
   const openDrive = () => {
     if (!found) return;
@@ -39,10 +46,14 @@ function Welcome() {
         alignItems: "center",
         textAlign: "center",
         // the sides come from the page rule; only the vertical room is ours
-        paddingBlock: "var(--sk-space-12)",
+        paddingBlock: assistant ? "var(--sk-space-6)" : "var(--sk-space-12)",
       }}
     >
-      <div className="sk-logo-swap" aria-hidden="true" style={{ width: "100%", maxWidth: 420 }}>
+      <div
+        className="sk-logo-swap"
+        aria-hidden="true"
+        style={{ width: "100%", maxWidth: assistant ? 240 : 420 }}
+      >
         <img className="sk-logo-swap__light" src={artLight} alt="" style={{ width: "100%" }} />
         <img className="sk-logo-swap__dark" src={artDark} alt="" style={{ width: "100%" }} />
       </div>
@@ -70,6 +81,7 @@ function Welcome() {
           answers.
         </p>
       )}
+      {assistant && <AssistantPanel gateway={gateway} />}
     </div>
   );
 }

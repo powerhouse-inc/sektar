@@ -32,6 +32,20 @@ export default {
           drive: { slug: "workflows", name: "Workflows", id: "workflows-36baa6c1" },
         },
       },
+      // The assistant's gateway: holds the OpenRouter key as a host secret and
+      // serves the welcome page's chat, for admins. It needs sign-in (it does
+      // not mount without AUTH_ENABLED and ADMINS) and the workflows runtime
+      // above, whose encrypted store holds the key.
+      // defaultModel: the newest Qwen on OpenRouter with image input and tool
+      // calling, picked on 2026-10-30; admins can change it on a running host.
+      {
+        module: "@powerhousedao/switchboard/plugins/ai",
+        config: {
+          defaultModel: "qwen/qwen3.8-max-prime",
+          appTitle: "Sektar",
+          appUrl: "https://sektar.io",
+        },
+      },
     ],
   },
 
