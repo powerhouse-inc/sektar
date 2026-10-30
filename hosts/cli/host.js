@@ -35,6 +35,9 @@ const SERVED_DRIVES = /** @type {Exclude<keyof typeof switchboard.drives, "$item
     .sort()
 );
 
+/** The cli host's own switchboard plugin, resolved from the project root. */
+const OAUTH_RELAY = "./hosts/cli/oauth-relay.js";
+
 /** Every interface: in a container, Docker publishes the ports from outside. */
 const ALL_INTERFACES = "0.0.0.0";
 
@@ -55,12 +58,19 @@ export default {
       host: "switchboard",
       runner: {
         host: ALL_INTERFACES,
-        plugins: switchboardHost.runner.plugins.filter(
-          (entry) =>
-            !NOT_IN_PRODUCTION.has(
-              typeof entry === "string" ? entry : entry.module,
-            ),
-        ),
+        plugins: [
+          ...switchboardHost.runner.plugins.filter(
+            (entry) =>
+              !NOT_IN_PRODUCTION.has(
+                typeof entry === "string" ? entry : entry.module,
+              ),
+          ),
+          // Google sign-in in the cloud: at start, on a public PUBLIC_URL
+          // without a mounted web client, asks sektar.io whether it relays
+          // for this host and only then gives sektar-google its relay
+          // (oauth-relay.js). Locally and with own client files: no change.
+          OAUTH_RELAY,
+        ],
       },
       reactor: {
         ...switchboardHost.reactor,
