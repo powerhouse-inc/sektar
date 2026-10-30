@@ -137,6 +137,7 @@ export class IntegrationReconciler implements IProcessor {
     const { read, dispatch } = this.module;
     return {
       me: this.identity.me,
+      environment: this.identity.environment,
       now: () => new Date().toISOString(),
       readConnection: async (id) => {
         let doc;
@@ -297,7 +298,13 @@ export class IntegrationReconciler implements IProcessor {
       },
       createQueue: async (name, list) => {
         const backfills = await resolveDriveId(read, BACKFILLS_DRIVE);
-        if (!backfills) throw new Error("The Backfills drive is not on this computer yet");
+        if (!backfills) {
+          throw new Error(
+            this.identity.environment
+              ? "The Backfills drive is not in this environment yet"
+              : "The Backfills drive is not on this computer yet",
+          );
+        }
         const document = queueUtils.createDocument();
         document.header.name = name;
         const created = await dispatch.createInDrive(

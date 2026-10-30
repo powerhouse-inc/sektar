@@ -31,6 +31,11 @@ import type {
 
 const NOW = new Date(2026, 9, 28, 9, 30);
 const PC = { reactorId: "switchboard@pc", label: "pc" };
+/** A runner that is an environment at a public address (runner.ts) */
+const CLOUD = {
+  reactorId: "switchboard@acme.vetra.io",
+  label: "acme.vetra.io",
+};
 const READ = "https://www.googleapis.com/auth/calendar.readonly";
 const EVENTS = "https://www.googleapis.com/auth/calendar.events";
 const IDENTITY = ["openid", "https://www.googleapis.com/auth/userinfo.email"];
@@ -138,8 +143,9 @@ function world(
       }
     }
   };
-  const io = (me = PC): ReconcileIO => ({
+  const io = (me = PC, environment = false): ReconcileIO => ({
     me,
+    environment,
     now: () => "2026-10-28T10:00:00.000Z",
     readConnection: (id) => Promise.resolve(connections.get(id) ?? null),
     createConnection: (spec) => {
@@ -222,14 +228,14 @@ function world(
       return Promise.resolve();
     },
   });
-  const pass = (me = PC) =>
+  const pass = (me = PC, environment = false) =>
     reconcileIntegration(
       {
         id: doc.header.id,
         name: "Personal Google Calendar",
         state: doc.state.global,
       },
-      io(me),
+      io(me, environment),
     );
   return {
     pass,
@@ -793,6 +799,28 @@ describe("a mail integration's sign-in", () => {
     expect(w.doc.state.global.resources.liveWorkflowId).toBeNull();
   });
 
+  it("asks for the right account without naming a computer in an environment", async () => {
+    const { actions } = await import("document-models/integration/v1");
+    const w = world("READ", [
+      actions.initialize({ kind: "EMAIL", provider: "gmail" }),
+      actions.setEmailSource({
+        mailbox: "Pre-KSDC",
+        address: "wouter@ksdc.be",
+        folders: [],
+      }),
+    ]);
+    await w.pass(CLOUD, true);
+    signInAs(w, "wkampmann@gmail.com");
+    await w.pass(CLOUD, true);
+    expect(w.doc.state.global.check?.issues).toEqual([
+      expect.objectContaining({
+        code: "NEEDS_SIGN_IN",
+        message:
+          "Signed in to Google as wkampmann@gmail.com; sign in with Google again as wouter@ksdc.be",
+      }),
+    ]);
+  });
+
   it("takes the account a +tag address belongs to", async () => {
     const w = await mail("wouter+imported@ksdc.be");
     signInAs(w, "Wouter@KSDC.be");
@@ -898,6 +926,42 @@ describe("a reconcile pass", () => {
       "create conn-1 @activepieces/piece-google-calendar#google-calendar",
       "RECORD_RESOURCES",
       "RECORD_CHECK",
+    ]);
+  });
+
+  it("asks for the sign-in in this environment, not on a computer, when it runs as one", async () => {
+    const w = world();
+    await w.pass(CLOUD, true);
+    expect(w.doc.state.global.runner).toEqual(CLOUD);
+    expect(w.doc.state.global.check?.issues).toEqual([
+      expect.objectContaining({
+        code: "NEEDS_SIGN_IN",
+        message: "Sign in with Google to finish",
+      }),
+    ]);
+    const c = w.connections.get("conn-1")!;
+    w.connections.set("conn-1", { ...c, status: "OK", signedIn: true, granted: null });
+    await w.pass(CLOUD, true);
+    expect(w.doc.state.global.check?.issues).toEqual([
+      expect.objectContaining({
+        code: "NEEDS_SIGN_IN",
+        message: "Sign in with Google again to finish: it needs more access",
+      }),
+    ]);
+  });
+
+  it("says this environment when it has no connection to write documents with", async () => {
+    const w = world();
+    w.noReactorConnection();
+    await w.pass(CLOUD, true);
+    w.signIn();
+    await w.pass(CLOUD, true);
+    expect(w.doc.state.global.check?.issues).toEqual([
+      expect.objectContaining({
+        code: "NO_REACTOR_CONNECTION",
+        message:
+          "This environment has no connection for workflows to write documents with",
+      }),
     ]);
   });
 
