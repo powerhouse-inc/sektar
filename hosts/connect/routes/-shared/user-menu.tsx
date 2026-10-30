@@ -6,6 +6,11 @@ import {
   Icon,
   type IconName,
 } from "../../../../editors/sektar/kit/ui.js";
+import { UserNameDialog } from "../../../../editors/sektar/kit/user-name-dialog.js";
+import {
+  setUserName,
+  useUserName,
+} from "../../../../editors/sektar/kit/user-name.js";
 
 // Who is signed in, via Renown — the same hook Connect's own sidebar uses.
 // Signed out: a "Sign in" button. With no wallet adapters configured (this
@@ -17,6 +22,8 @@ export function UserMenu() {
   const auth = useRenownAuth();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [naming, setNaming] = useState(false);
+  const userName = useUserName();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -126,6 +133,19 @@ export function UserMenu() {
               <Icon name="copy" mono /> {copied ? "Copied" : "Copy address"}
             </button>
           </li>
+          <li>
+            <button
+              type="button"
+              role="menuitem"
+              className="sk-menu__item"
+              onClick={() => {
+                setNaming(true);
+                setOpen(false);
+              }}
+            >
+              <Icon name="customers" mono /> Change your name
+            </button>
+          </li>
           <li className="sk-menu__sep" role="separator" />
           <li className="sk-user-menu__theme">
             <span className="sk-caption sk-text-muted">Theme</span>
@@ -146,6 +166,16 @@ export function UserMenu() {
             </button>
           </li>
         </ul>
+      )}
+      {naming && (
+        <UserNameDialog
+          name={userName}
+          onSave={(name) => {
+            setUserName(name);
+            setNaming(false);
+          }}
+          onCancel={() => setNaming(false)}
+        />
       )}
     </div>
   );
