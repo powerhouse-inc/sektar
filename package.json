@@ -143,5 +143,8 @@
     "**/date-fns": "4.3.0",
     "**/rolldown": "1.0.2",
     "**/vite": "8.0.14"
+  },
+  "dependencies": {
+    "pdfjs-dist": "6.4.299"
   }
 }
