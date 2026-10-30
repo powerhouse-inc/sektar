@@ -5,7 +5,8 @@ import { useEffect, useRef } from "react";
 import artDark from "../../../../editors/sektar/design/shapes/sektar-growth-four-column-combined-dark.svg";
 import artLight from "../../../../editors/sektar/design/shapes/sektar-growth-four-column-combined-light.svg";
 import { Button } from "../../../../editors/sektar/kit/ui.js";
-import { AssistantPanel } from "../-shared/assistant.js";
+import { AssistantPage, useShowsAssistant } from "../-shared/assistant-page.js";
+import { AssistantUnavailable } from "../-shared/assistant.js";
 import { driveFor, PRODUCTS } from "../-shared/products.js";
 
 export const Route = createFileRoute("/_app/productivity")({
@@ -15,7 +16,11 @@ export const Route = createFileRoute("/_app/productivity")({
 
 const product = PRODUCTS.find((p) => p.id === "productivity")!;
 
-/** Productivity Center, first run: nothing here yet but the way in. */
+/**
+ * Productivity Center. An admin gets the assistant as the whole page; the
+ * gateway answers nobody else, and they see the first-run welcome: nothing
+ * here yet but the way in.
+ */
 function Welcome() {
   const drives = useDrives();
   const navigate = useNavigate();
@@ -25,11 +30,11 @@ function Welcome() {
   const found = driveFor(drives, product);
   const ready = found?.drive.header.meta?.preferredEditor === product.drive.editor;
   useRetirePlaceholder(drives, ready);
-  // Admins get the assistant below the welcome; the gateway answers nobody
-  // else, and they see the page as it was.
   const gateway = useAiGateway();
-  const assistant =
-    gateway.gateway !== undefined && gateway.gateway.access !== "none";
+  const assistant = useShowsAssistant(gateway.gateway);
+  // Only the gateway's failure stays on the welcome, as a note under it
+  const unavailable =
+    gateway.gateway?.access === "error" ? gateway.gateway.message : undefined;
 
   const openDrive = () => {
     if (!found) return;
@@ -39,6 +44,8 @@ function Welcome() {
     });
   };
 
+  if (assistant) return <AssistantPage gateway={gateway} />;
+
   return (
     <div
       className="sk-page sk-stack sk-stack--6"
@@ -46,13 +53,19 @@ function Welcome() {
         alignItems: "center",
         textAlign: "center",
         // the sides come from the page rule; only the vertical room is ours
-        paddingBlock: assistant ? "var(--sk-space-6)" : "var(--sk-space-12)",
+        paddingBlock:
+          unavailable === undefined
+            ? "var(--sk-space-12)"
+            : "var(--sk-space-6)",
       }}
     >
       <div
         className="sk-logo-swap"
         aria-hidden="true"
-        style={{ width: "100%", maxWidth: assistant ? 240 : 420 }}
+        style={{
+          width: "100%",
+          maxWidth: unavailable === undefined ? 420 : 240,
+        }}
       >
         <img className="sk-logo-swap__light" src={artLight} alt="" style={{ width: "100%" }} />
         <img className="sk-logo-swap__dark" src={artDark} alt="" style={{ width: "100%" }} />
@@ -81,7 +94,9 @@ function Welcome() {
           answers.
         </p>
       )}
-      {assistant && <AssistantPanel gateway={gateway} />}
+      {unavailable !== undefined && (
+        <AssistantUnavailable message={unavailable} />
+      )}
     </div>
   );
 }
