@@ -27,7 +27,7 @@ type Phase = "idle" | "waiting" | "done" | "stopped";
  * switchboard finishes the sign-in itself (the cloud flow, sign-in-place.ts)
  * it is the button too, and says that the sign-in finishes in this
  * environment (through the relay: that the provider sends the person back
- * through sektar.io, which passes it on and keeps nothing). Anywhere else a
+ * through Sektar's website, which passes it on and keeps nothing). Anywhere else a
  * small "sign in here" for someone who is on that computer through another
  * address (the provider sends the sign-in back to that computer, so from any
  * other device it cannot finish). The provider's page opens in a window;
@@ -210,7 +210,7 @@ export function SignIn({
         <span className="sk-small sk-text-muted">
           The sign-in finishes here, in this environment.
           {mode === "RELAY" &&
-            ` ${provider} sends you back through sektar.io, which passes the sign-in on and keeps nothing.`}
+            ` ${provider} sends you back through Sektar's website, which passes the sign-in on and keeps nothing.`}
         </span>
       )}
     </div>

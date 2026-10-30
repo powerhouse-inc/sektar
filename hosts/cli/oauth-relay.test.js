@@ -86,7 +86,7 @@ describe("relayFor and withRelay", () => {
       tokenUrl: "https://staging.sektar.io/api/oauth/token",
     });
     expect(relayFor(undefined).redirectUri).toBe(
-      "https://sektar.io/api/oauth/callback",
+      "https://sektar.vetra.io/api/oauth/callback",
     );
     const apps = withRelay(APPS, r);
     expect(apps[0]).toEqual({ ...APPS[0], relay: r });
@@ -103,7 +103,7 @@ describe("askRelay", () => {
       askRelay("acme.vetra.io", { ...fast, fetchImpl: yes.fetchImpl }),
     ).resolves.toBe("accepted");
     expect(yes.calls).toEqual([
-      "https://sektar.io/api/oauth/hosts/acme.vetra.io",
+      "https://sektar.vetra.io/api/oauth/hosts/acme.vetra.io",
     ]);
     const no = relay({ status: 200, body: { accepted: false } });
     await expect(

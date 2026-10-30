@@ -103,7 +103,7 @@ the container runs. `oauth-relay.js` decides it once at start and logs one
 
 | Variable | Default | What |
 |---|---|---|
-| `SEKTAR_OAUTH_RELAY_BASE` | `https://sektar.io` | The relay's origin; set it to a staging deployment of sektar.io to test. |
+| `SEKTAR_OAUTH_RELAY_BASE` | `https://sektar.vetra.io` | The relay's origin; set it to a staging deployment of sektar.io to test. |
 
 ### Tuning and optional
 

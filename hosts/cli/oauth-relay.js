@@ -18,7 +18,7 @@
 //
 // It logs one line saying which way it went. The relay values are public
 // (a client id and two URLs; the secret stays on sektar.io), and the base is
-// SEKTAR_OAUTH_RELAY_BASE (default https://sektar.io) for staging.
+// SEKTAR_OAUTH_RELAY_BASE (default https://sektar.vetra.io) for staging.
 //
 // Why a plugin: a host file is declarative (it cannot read the environment
 // or wait on the network), and the switchboard's config has no
@@ -33,7 +33,9 @@ export const RELAY_APP = "sektar-google";
 /** The relay's Google web client id: public, as in every authorization URL. */
 export const RELAY_CLIENT_ID =
   "1081260940232-drh7cdlpoafbjt3f4mqj4bcp349hn5nb.apps.googleusercontent.com";
-export const DEFAULT_RELAY_BASE = "https://sektar.io";
+// sektar.io is not live yet; the site runs at sektar.vetra.io, a fixed domain
+// that is registered on the Google client. Switch once sektar.io points there.
+export const DEFAULT_RELAY_BASE = "https://sektar.vetra.io";
 
 const LOG = "[sektar:oauth-relay]";
 
