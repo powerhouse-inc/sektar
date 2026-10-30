@@ -33,6 +33,7 @@ import {
   type ReconcileIO,
 } from "./reconcile.js";
 import { resolveDriveId } from "processors/drive-ids";
+import { runnerIdentity } from "./runner.js";
 
 export const INTEGRATION_TYPE = "sektar/integration";
 /** The switchboard's own reactor connection: steps that write documents use it. */
@@ -55,10 +56,8 @@ export class IntegrationReconciler implements IProcessor {
   private readonly waiting = new Set<string>();
   private timers: ReturnType<typeof setTimeout>[] = [];
   private stopped = false;
-  private readonly me = {
-    reactorId: `switchboard@${hostname()}`,
-    label: hostname(),
-  };
+  // The machine locally; the PUBLIC_URL host in an environment (runner.ts)
+  private readonly identity = runnerIdentity(process.env.PUBLIC_URL, hostname());
 
   constructor(
     private readonly driveId: string,
@@ -137,7 +136,7 @@ export class IntegrationReconciler implements IProcessor {
   private io(integrationId: string): ReconcileIO {
     const { read, dispatch } = this.module;
     return {
-      me: this.me,
+      me: this.identity.me,
       now: () => new Date().toISOString(),
       readConnection: async (id) => {
         let doc;
