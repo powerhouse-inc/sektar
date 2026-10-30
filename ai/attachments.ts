@@ -9,7 +9,10 @@ import {
   getPHStore,
 } from "@powerhousedao/reactor-browser";
 import type { PhAiChatImage } from "@powerhousedao/shared/document-model";
-import { fileKind, type AttachmentRefString } from "../editors/sektar/kit/files.js";
+import {
+  fileKind,
+  type AttachmentRefString,
+} from "../editors/sektar/kit/files.js";
 import { uniqueAttachments } from "../editors/sektar/kit/mail.js";
 import { clip, compact } from "./read.js";
 
@@ -61,7 +64,9 @@ export function attachmentsIn(state: unknown): HeldAttachment[] {
   const found: HeldAttachment[] = [];
   const walk = (value: unknown, at: string) => {
     if (Array.isArray(value)) {
-      value.forEach((item, index) => walk(item, at ? `${at}.${index}` : `${index}`));
+      value.forEach((item, index) =>
+        walk(item, at ? `${at}.${index}` : `${index}`),
+      );
       return;
     }
     if (!value || typeof value !== "object") return;
@@ -227,13 +232,16 @@ export async function readAttachment(
   const file = { fileName, mimeType, sizeBytes: header.sizeBytes };
   const unread = (reason: string) => {
     void body.cancel().catch(() => undefined);
-    return { ...file, read: false, note: `${reason} Say so; do not guess what it holds.` };
+    return {
+      ...file,
+      read: false,
+      note: `${reason} Say so; do not guess what it holds.`,
+    };
   };
 
   const kind = fileKind(mimeType, fileName);
-  const { CHAT_IMAGE_TYPES, readChatImage } = await import(
-    "@powerhousedao/reactor-browser/ai"
-  );
+  const { CHAT_IMAGE_TYPES, readChatImage } =
+    await import("@powerhousedao/reactor-browser/ai");
   const imageType =
     kind === "img"
       ? chatImageType(mimeType, fileName, CHAT_IMAGE_TYPES)
@@ -267,9 +275,12 @@ export async function readAttachment(
   try {
     rendered = await renderPdfPages(blob, PDF_PAGES_SHOWN, signal);
   } catch (error) {
-    throw new Error(`The PDF could not be read: ${messageOf(error)}. ${UNKNOWN}`, {
-      cause: error,
-    });
+    throw new Error(
+      `The PDF could not be read: ${messageOf(error)}. ${UNKNOWN}`,
+      {
+        cause: error,
+      },
+    );
   }
   const { total, pages } = rendered;
   return withImages(
