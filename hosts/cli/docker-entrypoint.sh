@@ -13,4 +13,30 @@ if [ -z "${PH_SWITCHBOARD_DATABASE_URL:-}" ] \
   exit 64
 fi
 
+# Secrets the instance keeps for itself when none is set (an explicit value
+# wins): generated on first start next to its data (PH_USER_DATA_DIR is the
+# kept volume) and never regenerated. The switchboard refuses a different
+# workflows key later, and signed attachment links must stay valid.
+#   PH_WORKFLOWS_SECRETS_MASTER_KEY  workflow connections' secrets (OAuth tokens)
+#   PH_ATTACHMENT_URL_SIGNING_SECRET attachment download links
+kept_secret() {
+  name="$1"
+  eval "current=\${$name:-}"
+  [ -n "$current" ] && return 0
+  file="${PH_USER_DATA_DIR:-/data}/$2"
+  if [ ! -s "$file" ]; then
+    (umask 077 && node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))' > "$file")
+    echo "[entrypoint] generated $name in $file" >&2
+  fi
+  eval "$name=\$(cat \"\$file\")"
+  export "$name"
+}
+kept_secret PH_WORKFLOWS_SECRETS_MASTER_KEY workflows-master-key
+kept_secret PH_ATTACHMENT_URL_SIGNING_SECRET attachment-url-signing-secret
+
+# Run records (pids) on the kept volume are from a container that is gone: in
+# a fresh container nothing of this host runs yet, and a stale record makes
+# `ph run` refuse to start ("already running") after every restart.
+rm -rf "${PH_USER_DATA_DIR:-/data}/.ph/run"
+
 exec node_modules/.bin/ph-cli run "${PH_HOST:-cli}" "${PH_VERB:-serve}"

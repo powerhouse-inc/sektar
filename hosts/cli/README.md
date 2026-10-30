@@ -110,9 +110,34 @@ PH_SWITCHBOARD_DATABASE_URL=postgres://sektar:sektar@localhost:5434/sektar \
   ph run cli build && ph run cli serve
 ```
 
-## Known issues (2026-10-29, monorepo 6.2.3-dev.80)
+## On Vetra
 
-- **Connect's server does not proxy under `serve` in 6.2.3-dev.80.** A served Connect answers `/graphql`, `/d/*` and `/api/*` with its app page, so the app cannot reach the switchboard. Fixed in powerhouse `915e618996`; it needs the dev release after it (Sektar then depends on it). Until then the image builds and starts, but the app shows nothing past the sign-in.
-- **`ph run cli build` fails on a `$map` over the switchboard's outputs** (6.2.3-dev.80). `host.js` lists Connect's drives as output tokens instead.
-- **Size:** the image is ~6 GB, almost all of it `node_modules` (the runtime keeps the full install because `ph-cli` and Connect's server are dev tools). Slimming it is a follow-up.
+`.github/workflows/vetra.yml` builds this image as the App's FUSION image on
+every deploy. Vetra runs it as a host when the environment's FUSION env sets
+`PH_HOST=cli` (the variable the entrypoint reads): it then gets the
+environment's Postgres as `PH_SWITCHBOARD_DATABASE_URL`, a kept `/data`
+volume, `PUBLIC_URL`, port 6540 and a heap that follows the size, and the
+platform switchboard and Connect are not run beside it. Set
+`PH_WORKFLOWS_SECRETS_MASTER_KEY` as a secret, `ADMINS` and the access
+settings above as plain env.
+
+The image takes care of the rest itself:
+
+- **Secrets it keeps.** Without `PH_WORKFLOWS_SECRETS_MASTER_KEY` or
+  `PH_ATTACHMENT_URL_SIGNING_SECRET`, the entrypoint generates each once and
+  keeps it on the volume (`/data/workflows-master-key`,
+  `/data/attachment-url-signing-secret`, mode 600). An explicit value wins.
+  Moving the instance means moving `/data` with its database.
+- **Access.** `AUTH_ENABLED`, `REQUIRE_AUTHENTICATED_CALLER` and
+  `RESOLVE_CALLER_IDENTITY` default to `true`; set `ADMINS`.
+- **Restarts.** Stale `ph run` records on the volume are cleared at start.
+
+Releases (`v*` tags) build this image as the App's `host` artifact on the
+LATEST channel; a Sektar cloud licence on Vetra runs the latest release with the
+holder as `ADMINS`. Main pushes do not build it.
+
+## Known issues (2026-10-29, monorepo 6.2.3-dev.81)
+
+- **`ph run cli build` fails on a `$map` over the switchboard's outputs** (seen on 6.2.3-dev.80). `host.js` lists Connect's drives as output tokens instead.
+- **Size:** the image is ~2.8 GB, almost all of it `node_modules` (the runtime keeps the full install because `ph-cli` and Connect's server are dev tools). Slimming it is a follow-up.
 - **The Gmail add-on** comes from npm at run time. A hand-edited copy of it adds rate-limit retries on the developer machine, but that copy is not part of the image.

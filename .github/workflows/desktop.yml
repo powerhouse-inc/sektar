@@ -1,0 +1,70 @@
+name: Desktop
+# The Sektar desktop app (hosts/desktop: switchboard + Connect in a Tauri
+# window) for macOS, Windows and Linux, attached to the release of a v* tag.
+# Unsigned: the OS asks the user to confirm the first launch.
+on:
+  push:
+    tags: ["v*"]
+  # A change to the desktop host or this workflow proves the build before a tag.
+  pull_request:
+    paths: ["hosts/desktop/**", ".github/workflows/desktop.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    env:
+      FEATURE_UNIFORM_RUNNERS_ENABLED: "1"
+      # linuxdeploy (the AppImage bundler) is itself an AppImage: runners have
+      # no FUSE to mount it, so it extracts itself instead; its bundled strip
+      # also fails on current system libraries.
+      APPIMAGE_EXTRACT_AND_RUN: "1"
+      NO_STRIP: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 12.10.1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libfuse2 file
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec ph-cli run desktop build
+        # Linux bundles the .deb before the AppImage; an AppImage failure
+        # (linuxdeploy on a runner) must not cost the .deb, checked below.
+        continue-on-error: ${{ runner.os == 'Linux' }}
+      - name: Linux installer present
+        if: runner.os == 'Linux'
+        run: ls hosts/desktop/*/target/release/bundle/deb/*.deb
+      - name: Attach the installers to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            hosts/desktop/**/release/bundle/dmg/*.dmg
+            hosts/desktop/**/release/bundle/nsis/*.exe
+            hosts/desktop/**/release/bundle/deb/*.deb
+            hosts/desktop/**/release/bundle/appimage/*.AppImage
+      - name: Keep the installers of a manual run
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        uses: actions/upload-artifact@v4
+        with:
+          name: sektar-desktop-${{ matrix.os }}
+          path: |
+            hosts/desktop/**/release/bundle/dmg/*.dmg
+            hosts/desktop/**/release/bundle/nsis/*.exe
+            hosts/desktop/**/release/bundle/deb/*.deb
+            hosts/desktop/**/release/bundle/appimage/*.AppImage
+          if-no-files-found: warn
