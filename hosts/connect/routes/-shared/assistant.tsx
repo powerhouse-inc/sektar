@@ -6,7 +6,7 @@ import {
   type AiGatewayStatus,
   type UseAiGatewayResult,
 } from "@powerhousedao/reactor-browser/ai";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { assistantInstructions } from "../../../../ai/instructions.js";
 import {
   Alert,
@@ -18,6 +18,7 @@ import {
   Modal,
 } from "../../../../editors/sektar/kit/ui.js";
 import { useUserName } from "../../../../editors/sektar/kit/user-name.js";
+import { Pane } from "../../../../editors/sektar/kit/workspace.js";
 
 const SUGGESTIONS = [
   "Which invoices are overdue?",
@@ -25,38 +26,27 @@ const SUGGESTIONS = [
   "What is on my calendar this week?",
 ];
 
-/**
- * The assistant on the welcome page. The page only mounts this for an admin;
- * the gateway refuses everyone else, so there is nothing to show them.
- */
-export function AssistantPanel({ gateway }: { gateway: UseAiGatewayResult }) {
-  const { gateway: state, connection } = gateway;
-  if (state?.access === "error") {
-    return (
-      <div className="sk-assistant">
-        <Alert tone="warning" title="The assistant is not available">
-          {state.message}
-        </Alert>
-      </div>
-    );
-  }
-  if (state?.access !== "admin") return null;
+/** Under the welcome, when the gateway could not say who is asking. */
+export function AssistantUnavailable({ message }: { message: string }) {
   return (
-    <div className="sk-assistant sk-stack sk-stack--4">
-      {connection && (
-        <Conversation connection={connection} model={state.status.model} />
-      )}
-      <KeyCard status={state.status} gateway={gateway} />
+    <div className="sk-assistant">
+      <Alert tone="warning" title="The assistant is not available">
+        {message}
+      </Alert>
     </div>
   );
 }
 
-function Conversation({
+/** The conversation as a pane: its input stays put, only the messages scroll. */
+export function Conversation({
   connection,
   model,
+  trailing,
 }: {
   connection: AiConnection;
   model: string;
+  /** After Clear in the pane's header */
+  trailing?: ReactNode;
 }) {
   const userName = useUserName();
   const chat = useReactorChat(getHostAiTools, {
@@ -64,15 +54,21 @@ function Conversation({
     instructions: assistantInstructions(new Date(), userName),
   });
   return (
-    <Card
-      className="sk-assistant__conversation"
+    <Pane
+      className="sk-assistant sk-assistant__conversation"
       title="Assistant"
-      actions={
+      titleDisplay
+      flush
+      header={
         <>
           <Badge tone="success" dot>
             Ready
           </Badge>
           <span className="sk-caption sk-assistant__model">{model}</span>
+        </>
+      }
+      trailing={
+        <>
           <Button
             variant="ghost"
             size="sm"
@@ -81,6 +77,7 @@ function Conversation({
           >
             Clear
           </Button>
+          {trailing}
         </>
       }
     >
@@ -96,11 +93,11 @@ function Conversation({
           </p>
         }
       />
-    </Card>
+    </Pane>
   );
 }
 
-function KeyCard({
+export function KeyCard({
   status,
   gateway,
 }: {

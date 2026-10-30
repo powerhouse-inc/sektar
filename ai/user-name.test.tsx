@@ -1,9 +1,9 @@
 import type * as ReactorChat from "@powerhousedao/reactor-browser/ai";
-import type { UseAiGatewayResult } from "@powerhousedao/reactor-browser/ai";
+import type { AiConnection } from "@powerhousedao/reactor-browser/ai";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AssistantPanel } from "../hosts/connect/routes/-shared/assistant.js";
+import { Conversation } from "../hosts/connect/routes/-shared/assistant.js";
 import { assistantInstructions } from "./instructions.js";
 
 const chat = vi.hoisted(() => ({
@@ -19,13 +19,10 @@ vi.mock("@powerhousedao/reactor-browser/ai", async (original) => ({
   useReactorChat: chat.useReactorChat,
 }));
 
-const gateway = {
-  connection: { baseUrl: "http://localhost/ai/v1", model: "a-model" },
-  gateway: {
-    access: "admin",
-    status: { configured: true, model: "a-model", keyHint: "sk-…abcd" },
-  },
-} as unknown as UseAiGatewayResult;
+const connection: AiConnection = {
+  baseUrl: "http://localhost/ai/v1",
+  model: "a-model",
+};
 
 const NOW = new Date(2026, 9, 30);
 
@@ -37,7 +34,9 @@ function stubName(name?: string) {
 
 /** The panel's text, and the instruction it passed to the chat. */
 function renderPanel() {
-  const text = renderToStaticMarkup(<AssistantPanel gateway={gateway} />);
+  const text = renderToStaticMarkup(
+    <Conversation connection={connection} model="a-model" />,
+  );
   const [, options] = chat.useReactorChat.mock.calls.at(-1) as [
     unknown,
     { instructions: string },

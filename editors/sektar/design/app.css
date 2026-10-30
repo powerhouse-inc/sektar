@@ -783,6 +783,9 @@ html:has(.sk-app.sk-shell) body {
 .sk-app a.sk-btn--secondary {
   color: var(--sk-on-secondary);
 }
+.sk-app a.sk-btn--link {
+  color: var(--sk-text-link);
+}
 
 /* --------------------------------------------------------------------------
    Inspection fit-ups (2026-10-18)
@@ -2664,6 +2667,84 @@ html { touch-action: manipulation; }
 .sk-app .sk-integration-grid > .sk-integration { max-width: 630px; }
 
 /* --------------------------------------------------------------------------
+   Welcome page, for an admin: the design system's panes filling what the top
+   bar leaves. The shell takes the visible height (100dvh, which follows a
+   phone's URL bar and keyboard) rather than growing with its content, so the
+   page has nothing to scroll: only the messages and the side pane do. No
+   measuring, and no minimum height: a keyboard on a short phone must shrink
+   the list, not push the input off the screen.
+   -------------------------------------------------------------------------- */
+.sk-app .sk-shell__main:has(.sk-assistant-page) {
+  height: 100dvh;
+  min-height: 0;
+}
+.sk-app .sk-shell__content--flush:has(> .sk-assistant-page) {
+  min-height: 0;
+}
+.sk-app .sk-shell__content--flush > .sk-assistant-page {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.sk-app .sk-assistant-page > .sk-pane {
+  min-height: 0;
+  /* a column under 960px, but only ever one pane: no hairline under the top bar */
+  border-top: 0;
+}
+.sk-app .sk-assistant-page > .sk-assistant-page__side {
+  flex: 0 0 360px;
+  border-left: 1px solid var(--sk-border-subtle);
+}
+.sk-app .sk-assistant-page__side > .sk-pane__body {
+  padding: var(--sk-space-4);
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sk-border-strong) transparent;
+}
+/* The same sidebar as a sheet: the side pane's width, leaving the backdrop in
+   view as the design system's drawer does (a full-width panel has none to
+   tap). Its last box clears the home indicator. */
+.sk-app .sk-panel:has(.sk-assistant-side) {
+  width: min(84%, 360px);
+}
+.sk-app .sk-panel:has(.sk-assistant-side) > .sk-panel__header {
+  padding: var(--sk-space-4);
+}
+.sk-app .sk-panel:has(.sk-assistant-side) > .sk-panel__body {
+  padding: var(--sk-space-4);
+}
+.sk-app .sk-panel .sk-assistant-side {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.sk-app .sk-panel:focus {
+  outline: none;
+}
+/* Under the pane's title: a size smaller, and a compact card's closer header */
+.sk-app .sk-assistant-side .sk-card__title {
+  font-size: var(--sk-text-lg);
+}
+.sk-app .sk-assistant-side .sk-card__header {
+  margin-bottom: var(--sk-space-3);
+}
+.sk-app .sk-assistant-side__kinds {
+  margin-top: var(--sk-space-1);
+}
+.sk-app .sk-assistant-side .sk-integration__row:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+.sk-app .sk-assistant-side .sk-integration__row + .sk-integration__row {
+  margin-top: var(--sk-space-3);
+}
+.sk-app .sk-assistant-side .sk-integration__label {
+  overflow-wrap: anywhere;
+}
+.sk-app .sk-assistant-side .sk-progress-row__value {
+  min-width: 5ch;
+}
+
+/* --------------------------------------------------------------------------
    Assistant (welcome page): the design system has no chat pattern yet, so this
    dresses reactor-browser's ChatPanel, through its ph-chat-* hooks, in the
    tokens the rest of the app uses. Two classes on purpose: they outrank the
@@ -2675,28 +2756,25 @@ html { touch-action: manipulation; }
   text-align: left;
 }
 .sk-assistant__model {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.sk-assistant__conversation {
+.sk-assistant.sk-assistant__conversation {
+  /* Messages and input keep a reading width however wide the pane gets */
+  --sk-assistant-gutter: max(var(--sk-space-5), calc((100% - 800px) / 2));
+  width: auto;
+  max-width: none;
+}
+.sk-assistant__conversation > .sk-pane__body {
   display: flex;
   flex-direction: column;
-  height: min(64vh, 620px);
-  min-height: 420px;
-  padding: 0;
   overflow: hidden;
 }
-.sk-assistant__conversation > .sk-card__header {
-  margin: 0;
-  padding: var(--sk-space-4) var(--sk-space-5);
-  border-bottom: 1px solid var(--sk-border-subtle);
-}
-.sk-assistant__conversation .sk-card__actions {
-  display: flex;
-  align-items: center;
-  gap: var(--sk-space-2);
-  min-width: 0;
+.sk-assistant__conversation > .sk-pane__body > .sk-empty {
+  max-width: calc(100% - 2 * var(--sk-space-4));
+  margin: auto;
 }
 .sk-assistant .ph-chat {
   display: flex;
@@ -2712,8 +2790,15 @@ html { touch-action: manipulation; }
   flex: 1;
   flex-direction: column;
   gap: var(--sk-space-3);
-  padding: var(--sk-space-4) var(--sk-space-5);
+  min-height: 0;
+  padding: var(--sk-space-4) var(--sk-assistant-gutter);
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sk-border-strong) transparent;
 }
 .sk-assistant .ph-chat-empty {
   margin: auto;
@@ -2776,6 +2861,14 @@ html { touch-action: manipulation; }
 }
 .sk-assistant .ph-chat-assistant p + p {
   margin-top: var(--sk-space-2);
+}
+.sk-assistant .ph-chat-assistant pre {
+  max-width: 100%;
+  padding: var(--sk-space-2);
+  overflow-x: auto;
+  border-radius: var(--sk-radius-sm);
+  background: var(--sk-surface-2);
+  font-size: var(--sk-text-sm);
 }
 .sk-assistant .ph-chat-assistant a {
   color: var(--sk-text-link);
@@ -2864,7 +2957,9 @@ html { touch-action: manipulation; }
   color: var(--sk-danger-text);
 }
 .sk-assistant .ph-chat-composer {
-  padding: var(--sk-space-3) var(--sk-space-5);
+  flex: none;
+  padding: var(--sk-space-3) var(--sk-assistant-gutter)
+    calc(var(--sk-space-3) + env(safe-area-inset-bottom));
   border-top: 1px solid var(--sk-border-subtle);
 }
 .sk-assistant .ph-chat-attachments {
@@ -2961,19 +3056,18 @@ html { touch-action: manipulation; }
   flex-wrap: wrap;
   gap: var(--sk-space-2);
 }
-.sk-assistant__key > * + * {
+.sk-assistant__key > * + *:not(.sk-overlay, .sk-modal) {
   margin-top: var(--sk-space-3);
 }
-@media (max-width: 720px) {
-  .sk-assistant__conversation {
-    height: calc(100dvh - 160px);
+/* The 16px rule for touch screens (above) loses to the panel's own size here */
+@media (pointer: coarse) {
+  .sk-assistant .ph-chat-input {
+    font-size: 16px;
   }
-  .sk-assistant__conversation > .sk-card__header {
-    padding: var(--sk-space-3) var(--sk-space-4);
-  }
-  .sk-assistant .ph-chat-list,
-  .sk-assistant .ph-chat-composer {
-    padding-inline: var(--sk-space-4);
+}
+@container dash (max-width: 640px) {
+  .sk-assistant.sk-assistant__conversation {
+    --sk-assistant-gutter: var(--sk-space-4);
   }
   .sk-assistant__model {
     display: none;

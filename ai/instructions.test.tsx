@@ -5,11 +5,10 @@ import {
   type AiConnection,
   type AiSettings,
   type ChatImage,
-  type UseAiGatewayResult,
 } from "@powerhousedao/reactor-browser/ai";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AssistantPanel } from "../hosts/connect/routes/-shared/assistant.js";
+import { Conversation } from "../hosts/connect/routes/-shared/assistant.js";
 import { assistantInstructions } from "./instructions.js";
 import { BASE, installStore, serve, unreachable } from "./test-index.js";
 import { aiTools } from "./tools.js";
@@ -29,17 +28,9 @@ vi.mock("@powerhousedao/reactor-browser/ai", async (original) => ({
 
 const connection: AiConnection = { baseUrl: `${BASE}/ai/v1`, model: "a-model" };
 
-const adminGateway = {
-  connection,
-  gateway: {
-    access: "admin",
-    status: { configured: true, model: "a-model", keyHint: "sk-…abcd" },
-  },
-} as unknown as UseAiGatewayResult;
-
-/** The instruction the panel passed to the chat. */
+/** The instruction the conversation passed to the chat. */
 function renderedInstruction(): string {
-  renderToStaticMarkup(<AssistantPanel gateway={adminGateway} />);
+  renderToStaticMarkup(<Conversation connection={connection} model="a-model" />);
   const [, options] = chat.useReactorChat.mock.calls.at(-1) as [
     unknown,
     { instructions: string },
