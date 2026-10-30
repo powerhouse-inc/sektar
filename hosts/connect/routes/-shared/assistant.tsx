@@ -1,6 +1,6 @@
-import { getConnectReactorTools } from "@powerhousedao/connect/ai-tools";
 import {
   ChatPanel,
+  getHostAiTools,
   useReactorChat,
   type AiConnection,
   type AiGatewayStatus,
@@ -59,7 +59,7 @@ function Conversation({
   connection: AiConnection;
   model: string;
 }) {
-  const chat = useReactorChat(getConnectReactorTools, {
+  const chat = useReactorChat(getHostAiTools, {
     connection,
     instructions: INSTRUCTIONS,
   });
