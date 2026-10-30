@@ -39,7 +39,10 @@ ARG PH_HOST=cli
 # `build` produces what each member serves and starts nothing: the
 # switchboard member builds the project package (dist/, which it loads the
 # project's models from), the Connect member the app (.ph/connect-build).
-RUN node_modules/.bin/ph-cli run "${PH_HOST}" build
+# NODE_ENV=production for the build only (the install above needs the dev
+# dependencies): Connect's app-shell prerender otherwise loads React's dev JSX
+# runtime next to the production server renderer and fails (getOwner).
+RUN NODE_ENV=production node_modules/.bin/ph-cli run "${PH_HOST}" build
 
 FROM base AS runtime
 RUN apt-get update \
