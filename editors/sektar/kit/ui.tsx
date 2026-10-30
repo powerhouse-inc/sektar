@@ -7,11 +7,20 @@ import type {
   CSSProperties,
   ButtonHTMLAttributes,
   InputHTMLAttributes,
+  KeyboardEvent as ReactKeyboardEvent,
   ReactNode,
+  RefObject,
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  Fragment,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { sprite } from "../design/icons.js";
 import { marks } from "../design/marks.js";
 import type { BadgeTone } from "./format.js";
@@ -1517,17 +1526,66 @@ export function Skeleton({
 
 /* --------------------------------------------------------------- overlays */
 
+/** The open overlays, oldest first; the last one is on top. */
+const overlays: object[] = [];
+
 /** Escape closes the topmost overlay. Captured on the document so a host
  * shortcut handler further down cannot swallow the key first. */
 function useEscape(onClose: () => void) {
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
+    const overlay = {};
+    overlays.push(overlay);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && overlays.at(-1) === overlay) close.current();
     };
     document.addEventListener("keydown", onKey, { capture: true });
-    return () =>
+    return () => {
+      overlays.splice(overlays.indexOf(overlay), 1);
       document.removeEventListener("keydown", onKey, { capture: true });
-  }, [onClose]);
+    };
+  }, []);
+}
+
+const FOCUSABLE =
+  "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])";
+
+/**
+ * A modal panel holds the keyboard while it is open: focus moves in (unless
+ * something inside already took it), Tab stays inside, and closing gives
+ * focus back to what opened it.
+ */
+function useFocusHeld(panel: RefObject<HTMLElement | null>) {
+  // Read while rendering: an autoFocus inside has moved it by the first effect.
+  const opener = useRef(
+    typeof document === "undefined" ? null : document.activeElement,
+  );
+  useEffect(() => {
+    const el = panel.current;
+    const back = opener.current;
+    if (el && !el.contains(document.activeElement)) el.focus();
+    return () => {
+      if (back instanceof HTMLElement && back.isConnected) back.focus();
+    };
+  }, [panel]);
+  return (e: ReactKeyboardEvent<HTMLElement>) => {
+    if (e.key !== "Tab" || !panel.current) return;
+    const stops = [
+      ...panel.current.querySelectorAll<HTMLElement>(FOCUSABLE),
+    ].filter((el) => el.offsetParent !== null);
+    const first = stops.at(0);
+    const last = stops.at(-1);
+    if (!first || !last) return;
+    const at = document.activeElement;
+    if (e.shiftKey && (at === first || at === panel.current)) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && at === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
 }
 
 /** Right-hand drawer for detail and creation flows. */
@@ -1551,6 +1609,9 @@ export function SidePanel({
   footer?: ReactNode;
 }) {
   useEscape(onClose);
+  const panel = useRef<HTMLElement>(null);
+  const onKeyDown = useFocusHeld(panel);
+  const heading = useId();
   return (
     <>
       <button
@@ -1560,7 +1621,16 @@ export function SidePanel({
         onClick={onClose}
         style={{ border: 0, padding: 0 }}
       />
-      <aside className="sk-panel sk-page" role="dialog" aria-modal="true">
+      <aside
+        ref={panel}
+        className="sk-panel sk-page"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title ? undefined : eyebrow}
+        aria-labelledby={title ? heading : undefined}
+        tabIndex={-1}
+        onKeyDown={onKeyDown}
+      >
         <header
           className={cx(
             "sk-panel__header",
@@ -1574,6 +1644,7 @@ export function SidePanel({
               {eyebrow && <div className="sk-eyebrow">{eyebrow}</div>}
               <div className="sk-row sk-row--2">
                 <h3
+                  id={heading}
                   className="sk-h3"
                   style={{ fontSize: "var(--sk-text-2xl)" }}
                 >
