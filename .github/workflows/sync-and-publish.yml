@@ -159,6 +159,12 @@ jobs:
 
       - name: Install ph-cli
         run: |
+          # pnpm refuses a global install while its global bin dir is not on
+          # PATH (ERR_PNPM_GLOBAL_BIN_DIR_NOT_IN_PATH); later steps run `ph`.
+          export PNPM_HOME="$HOME/.local/share/pnpm"
+          export PATH="$PNPM_HOME:$PATH"
+          echo "PNPM_HOME=$PNPM_HOME" >> "$GITHUB_ENV"
+          echo "$PNPM_HOME" >> "$GITHUB_PATH"
           CHANNEL="${{ needs.prepare.outputs.channel }}"
           case "$CHANNEL" in
             dev) pnpm add -g @powerhousedao/ph-cli@dev ;;
