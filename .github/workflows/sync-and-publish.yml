@@ -167,7 +167,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Install ph-cli
+      - name: Install ph
         run: |
           # pnpm refuses a global install while its global bin dir is not on
           # PATH (ERR_PNPM_GLOBAL_BIN_DIR_NOT_IN_PATH); later steps run `ph`.
@@ -177,15 +177,31 @@ jobs:
           echo "PNPM_HOME=$PNPM_HOME" >> "$GITHUB_ENV"
           echo "$PNPM_HOME/bin" >> "$GITHUB_PATH"
           echo "$PNPM_HOME" >> "$GITHUB_PATH"
+          # `ph` (use, update) is ph-cmd's binary; @powerhousedao/ph-cli only
+          # installs `ph-cli`, which has neither command.
           CHANNEL="${{ needs.prepare.outputs.channel }}"
           case "$CHANNEL" in
-            dev) pnpm add -g @powerhousedao/ph-cli@dev ;;
-            staging) pnpm add -g @powerhousedao/ph-cli@staging ;;
-            *) pnpm add -g @powerhousedao/ph-cli@latest ;;
+            dev) pnpm add -g ph-cmd@dev ;;
+            staging) pnpm add -g ph-cmd@staging ;;
+            *) pnpm add -g ph-cmd@latest ;;
           esac
 
+      # Pin every Powerhouse dependency to the channel's release, or to the
+      # exact version the run was given. `ph update` would move them to their
+      # "latest", not to the channel's.
       - name: Update Powerhouse dependencies
-        run: ph update
+        env:
+          CHANNEL: ${{ needs.prepare.outputs.channel }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          if [ -n "$VERSION" ]; then
+            ph use --version "$VERSION" --skip-install
+          else
+            case "$CHANNEL" in
+              dev|staging) ph use --tag "$CHANNEL" --skip-install ;;
+              *) ph use --tag latest --skip-install ;;
+            esac
+          fi
 
       - name: Install dependencies
         run: pnpm install
