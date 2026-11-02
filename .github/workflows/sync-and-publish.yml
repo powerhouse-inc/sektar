@@ -31,6 +31,11 @@ on:
         required: false
         type: boolean
         default: false
+      deploy-cloud:
+        description: "Deploy to every Sektar cloud (the release tag becomes Vetra's LATEST host image)"
+        required: false
+        type: boolean
+        default: false
 
 env:
   NODE_VERSION: "24"
@@ -52,6 +57,7 @@ jobs:
       project_name: ${{ steps.params.outputs.project_name }}
       dry_run: ${{ steps.params.outputs.dry_run }}
       skip_docker: ${{ steps.params.outputs.skip_docker }}
+      deploy_cloud: ${{ steps.params.outputs.deploy_cloud }}
       # Secrets cannot be read in an if condition, so the jobs that need them read these.
       npm_token_set: ${{ steps.params.outputs.npm_token_set }}
       docker_credentials_set: ${{ steps.params.outputs.docker_credentials_set }}
@@ -65,11 +71,14 @@ jobs:
             VERSION="${{ github.event.client_payload.version }}"
             DRY_RUN="false"
             SKIP_DOCKER="false"
+            # An automatic sync never replaces the cloud host: a person decides.
+            DEPLOY_CLOUD="false"
           else
             CHANNEL="${{ inputs.channel }}"
             VERSION="${{ inputs.version }}"
             DRY_RUN="${{ inputs.dry-run }}"
             SKIP_DOCKER="${{ inputs.skip-docker }}"
+            DEPLOY_CLOUD="${{ inputs.deploy-cloud }}"
           fi
 
           # Default channel to staging if not set
@@ -79,7 +88,8 @@ jobs:
           case "$CHANNEL" in
             # Sektar has no dev branch: main is what the dev channel publishes
             dev) BRANCH="main" ;;
-            staging) BRANCH="staging" ;;
+            # Nor a staging branch: main is what staging publishes too
+            staging) BRANCH="main" ;;
             latest|main) BRANCH="main" ;;
             *) BRANCH="staging" ;;
           esac
@@ -109,6 +119,7 @@ jobs:
           echo "project_name=$PROJECT_NAME" >> $GITHUB_OUTPUT
           echo "dry_run=$DRY_RUN" >> $GITHUB_OUTPUT
           echo "skip_docker=$SKIP_DOCKER" >> $GITHUB_OUTPUT
+          echo "deploy_cloud=$DEPLOY_CLOUD" >> $GITHUB_OUTPUT
           echo "npm_token_set=$NPM_TOKEN_SET" >> $GITHUB_OUTPUT
           echo "docker_credentials_set=$DOCKER_CREDENTIALS_SET" >> $GITHUB_OUTPUT
 
@@ -162,8 +173,10 @@ jobs:
           # pnpm refuses a global install while its global bin dir is not on
           # PATH (ERR_PNPM_GLOBAL_BIN_DIR_NOT_IN_PATH); later steps run `ph`.
           export PNPM_HOME="$HOME/.local/share/pnpm"
-          export PATH="$PNPM_HOME:$PATH"
+          # pnpm 12 keeps global binaries in $PNPM_HOME/bin
+          export PATH="$PNPM_HOME/bin:$PNPM_HOME:$PATH"
           echo "PNPM_HOME=$PNPM_HOME" >> "$GITHUB_ENV"
+          echo "$PNPM_HOME/bin" >> "$GITHUB_PATH"
           echo "$PNPM_HOME" >> "$GITHUB_PATH"
           CHANNEL="${{ needs.prepare.outputs.channel }}"
           case "$CHANNEL" in
@@ -245,8 +258,12 @@ jobs:
       # The tag above was pushed with GITHUB_TOKEN, which triggers no workflow,
       # so the Vetra deploy (vetra.yml, which builds the cloud host image on
       # tags) would never run for it. A dispatch is the exception GitHub makes.
+      # Any v* tag is a release to vetra-deploy-action, recorded as the LATEST
+      # host that every cloud licence runs, whatever the channel: so only when
+      # the person who started the run asked for it (deploy-cloud). If this
+      # step fails after the tag, deploy by hand: gh workflow run vetra.yml --ref v<version>
       - name: Deploy the release on Vetra
-        if: needs.prepare.outputs.dry_run != 'true'
+        if: needs.prepare.outputs.dry_run != 'true' && needs.prepare.outputs.deploy_cloud == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run vetra.yml --ref "v${{ steps.version.outputs.new_version }}"
