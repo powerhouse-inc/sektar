@@ -129,6 +129,8 @@ jobs:
     permissions:
       contents: write
       id-token: write
+      # starts vetra.yml for the release tag (step "Deploy the release on Vetra")
+      actions: write
     outputs:
       new_version: ${{ steps.version.outputs.new_version }}
     steps:
@@ -233,6 +235,15 @@ jobs:
         run: |
           git tag "v${{ steps.version.outputs.new_version }}"
           git push origin "v${{ steps.version.outputs.new_version }}"
+
+      # The tag above was pushed with GITHUB_TOKEN, which triggers no workflow,
+      # so the Vetra deploy (vetra.yml, which builds the cloud host image on
+      # tags) would never run for it. A dispatch is the exception GitHub makes.
+      - name: Deploy the release on Vetra
+        if: needs.prepare.outputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run vetra.yml --ref "v${{ steps.version.outputs.new_version }}"
 
   # ==========================================================================
   # Build and push Docker images
