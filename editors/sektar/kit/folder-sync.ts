@@ -15,6 +15,31 @@ export const SYNC_TYPE = "sektar/folder-sync";
 /** The root folder the mappings are kept in. */
 export const SYNC_FOLDER = ".sync";
 
+/** Where a mapping's folder on disk could be, as the path field shows it. */
+export interface FolderPathExample {
+  placeholder: string;
+  example: string;
+}
+
+const WINDOWS_EXAMPLE: FolderPathExample = {
+  placeholder: String.raw`D:\Dropbox\KSDC\kwartaalaangiftes\2026-Q3`,
+  example: String.raw`D:\Dropbox\KSDC\2026-Q3 or /home/me/ksdc`,
+};
+const MAC_EXAMPLE: FolderPathExample = {
+  placeholder: "/Users/me/Dropbox/KSDC/kwartaalaangiftes/2026-Q3",
+  example: "/Users/me/Dropbox/KSDC/2026-Q3",
+};
+
+/**
+ * The example paths for the folder field. The folder is on the Switchboard's
+ * machine, which only the Desktop App knows to be this one: there, a Mac
+ * shows Mac paths. Anywhere else (a browser on a remote Switchboard) the
+ * examples stay as they were.
+ */
+export function folderPathExample(onDesktop: boolean, platform: string): FolderPathExample {
+  return onDesktop && /^Mac/.test(platform) ? MAC_EXAMPLE : WINDOWS_EXAMPLE;
+}
+
 /**
  * Creates a mapping for a drive folder (null: the drive's root) and returns
  * its id. The mapping is filed in the `.sync` folder, made when the drive

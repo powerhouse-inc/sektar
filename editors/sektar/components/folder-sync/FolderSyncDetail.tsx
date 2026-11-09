@@ -1,7 +1,7 @@
 // A folder sync as a document: which drive folder goes where on disk, how,
 // and how the Switchboard's runs went. The mapping and the options are edited
 // here; the runs and the issues are what the Switchboard reported.
-import { useSelectedDrive } from "@powerhousedao/reactor-browser";
+import { desktopShell, useSelectedDrive } from "@powerhousedao/reactor-browser";
 import {
   actions,
   type FolderSyncAction,
@@ -15,7 +15,7 @@ import {
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { bytes } from "../../kit/files.js";
 import { folderPaths, useFolderTree, type FolderRow } from "../../kit/files-index.js";
-import { ago, isRunnable, mappingStatus, requestPull, requestSync, statusInfo } from "../../kit/folder-sync.js";
+import { ago, folderPathExample, isRunnable, mappingStatus, requestPull, requestSync, statusInfo } from "../../kit/folder-sync.js";
 import { Menu } from "../../kit/menu.js";
 import { SyncGlyph } from "../../kit/sync-glyphs.js";
 import { Badge, Button, Card, cx, EmptyState, Field, Icon, Input, MetaStrip, Select, Table, type IconName } from "../../kit/ui.js";
@@ -194,6 +194,8 @@ function MappingForm({ doc, dispatch }: { doc: FolderSyncDocument; dispatch: Dis
   useEffect(() => setPath(s.localPath ?? ""), [s.localPath]);
   const trimmed = path.trim();
   const invalid = trimmed !== "" && !ABSOLUTE.test(trimmed);
+  // The folder is on the Switchboard's machine; in the Desktop App, this one.
+  const pathExample = useMemo(() => folderPathExample(desktopShell() !== undefined, navigator.platform), []);
   const save = () => {
     if (trimmed && !invalid && trimmed !== s.localPath) dispatch(actions.setLocalPath({ localPath: trimmed }));
   };
@@ -233,12 +235,12 @@ function MappingForm({ doc, dispatch }: { doc: FolderSyncDocument; dispatch: Dis
         <Field
           label="Folder on disk"
           required
-          error={invalid ? "Use an absolute path, e.g. D:\\Dropbox\\KSDC\\2026-Q3 or /home/me/ksdc" : undefined}
+          error={invalid ? `Use an absolute path, e.g. ${pathExample.example}` : undefined}
           hint="On the machine the Switchboard runs on. Created when missing."
         >
           <Input
             value={path}
-            placeholder={String.raw`D:\Dropbox\KSDC\kwartaalaangiftes\2026-Q3`}
+            placeholder={pathExample.placeholder}
             spellCheck={false}
             onChange={(e) => setPath(e.target.value)}
             onBlur={save}
