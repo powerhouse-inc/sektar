@@ -41,23 +41,38 @@ const OWN_FILES = /(^|[\\/])(\.sektar-sync\.json|[^\\/]*\.sektar-tmp)$/;
 /** How long after start-up the sweep looks for requests that are still waiting. */
 const SWEEP_DELAY_MS = 5_000;
 
+/** Where the list of folders a sync may write into is kept, in the order looked at. */
+export function allowedRootsFiles(env: NodeJS.ProcessEnv = process.env, cwd = process.cwd()): string[] {
+  const beside = join(cwd, ".ph", "folder-sync-roots.txt");
+  // A Desktop App runs from inside the installed app, where nobody can put a
+  // file and an update would remove it: there the list lives with the
+  // identity's data (PH_USER_DATA_DIR), as in a container's /data volume.
+  const dataDir = env.PH_USER_DATA_DIR?.trim();
+  const withData = dataDir ? join(dataDir, ".ph", "folder-sync-roots.txt") : null;
+  return withData && withData !== beside ? [withData, beside] : [beside];
+}
+
 /**
  * The folders this Switchboard may write into, one per line in
- * `.ph/folder-sync-roots.txt` beside the project (blank lines and # comments
- * ignored). Read before every run, so the list changes without a restart.
+ * `.ph/folder-sync-roots.txt` under PH_USER_DATA_DIR, or else beside the
+ * project (blank lines and # comments ignored). The first file that exists
+ * wins. Read before every run, so the list changes without a restart.
  * No file: every absolute path is allowed.
  */
-export async function readAllowedRoots(file = join(process.cwd(), ".ph", "folder-sync-roots.txt")): Promise<string[] | null> {
-  let text: string;
-  try {
-    text = await readFile(file, "utf8");
-  } catch {
-    return null;
+export async function readAllowedRoots(files: string | readonly string[] = allowedRootsFiles()): Promise<string[] | null> {
+  for (const file of typeof files === "string" ? [files] : files) {
+    let text: string;
+    try {
+      text = await readFile(file, "utf8");
+    } catch {
+      continue;
+    }
+    return text
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith("#"));
   }
-  return text
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l && !l.startsWith("#"));
+  return null;
 }
 
 /** Nodes per page when a drive's nodes are read. */

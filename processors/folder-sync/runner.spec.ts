@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { decide, fileNameFor, keepBothName, MANIFEST_NAME, refHash, renditionName, safeName, type Manifest } from "./plan.js";
-import { listAllNodes, readAllowedRoots } from "./processor.js";
+import { allowedRootsFiles, listAllNodes, readAllowedRoots } from "./processor.js";
 import { isAllowed, runSync, type RunnerDeps } from "./runner.js";
 
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -597,6 +597,24 @@ describe("where a Switchboard may write", () => {
     expect(await readAllowedRoots(file)).toBeNull();
     await writeFile(file, "# where syncs may write\r\nD:\\Dropbox\\KSDC\n\n  /data/ksdc  \n");
     expect(await readAllowedRoots(file)).toEqual(["D:\\Dropbox\\KSDC", "/data/ksdc"]);
+  });
+
+  it("looks with the identity's data first, then beside the project", async () => {
+    const data = join(root, "identity");
+    const project = join(root, "project");
+    expect(allowedRootsFiles({}, project)).toEqual([join(project, ".ph", "folder-sync-roots.txt")]);
+    expect(allowedRootsFiles({ PH_USER_DATA_DIR: " " }, project)).toEqual([join(project, ".ph", "folder-sync-roots.txt")]);
+    expect(allowedRootsFiles({ PH_USER_DATA_DIR: project }, project)).toEqual([join(project, ".ph", "folder-sync-roots.txt")]);
+    const files = allowedRootsFiles({ PH_USER_DATA_DIR: data }, project);
+    expect(files).toEqual([join(data, ".ph", "folder-sync-roots.txt"), join(project, ".ph", "folder-sync-roots.txt")]);
+
+    expect(await readAllowedRoots(files)).toBeNull();
+    await mkdir(join(project, ".ph"), { recursive: true });
+    await writeFile(files[1], "/beside/project\n");
+    expect(await readAllowedRoots(files)).toEqual(["/beside/project"]);
+    await mkdir(join(data, ".ph"), { recursive: true });
+    await writeFile(files[0], "/Users/me/Dropbox/KSDC\n");
+    expect(await readAllowedRoots(files)).toEqual(["/Users/me/Dropbox/KSDC"]);
   });
 });
 
