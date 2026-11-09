@@ -60,11 +60,35 @@ jobs:
         if: runner.os == 'Linux'
         run: ls hosts/desktop/*/target/release/bundle/deb/*.deb
 
-      # The app as it ships starts with no environment, and its stack runs.
-      - name: The app starts (macOS)
+      # Tauri always writes a zlib (UDZO) disk image; LZMA (ULMO) makes the
+      # download about a fifth smaller and opens on the macOS Sektar needs.
+      - name: Compress the disk image (macOS)
         if: runner.os == 'macOS'
         run: |
-          app=hosts/desktop/tauri-shell/target/release/bundle/macos/Sektar.app
+          for dmg in hosts/desktop/tauri-shell/target/release/bundle/dmg/*.dmg; do
+            hdiutil convert "$dmg" -format ULMO -o "$dmg.ulmo.dmg"
+            mv -f "$dmg.ulmo.dmg" "$dmg"
+            hdiutil verify "$dmg"
+            ls -l "$dmg"
+          done
+
+      # The app as it ships starts with no environment, and its stack runs:
+      # on macOS, the copy inside the disk image people download, dragged out
+      # as Finder would.
+      - name: The app starts (macOS, from the disk image)
+        if: runner.os == 'macOS'
+        run: |
+          dmg=$(ls hosts/desktop/tauri-shell/target/release/bundle/dmg/*.dmg | head -1)
+          mnt="$RUNNER_TEMP/dmg"
+          hdiutil attach "$dmg" -nobrowse -readonly -mountpoint "$mnt"
+          ditto "$mnt/Sektar.app" "$RUNNER_TEMP/Applications/Sektar.app"
+          hdiutil detach "$mnt"
+          app="$RUNNER_TEMP/Applications/Sektar.app"
+          # The minimum macOS is the one the bundled Node needs.
+          node_min=$(otool -l "$app/Contents/MacOS/node" | awk '/LC_BUILD_VERSION/{f=1} f&&/minos/{print $2; exit}')
+          plist_min=$(plutil -extract LSMinimumSystemVersion raw "$app/Contents/Info.plist")
+          echo "LSMinimumSystemVersion $plist_min, bundled Node needs $node_min"
+          [ "$(printf '%s\n%s\n' "$node_min" "$plist_min" | sort -V | tail -1)" = "$plist_min" ]
           node qa/desktop/smoke.mjs --app "$app/Contents/MacOS/sektar" \
             --node "$app/Contents/MacOS/node" --stack "$app/Contents/Resources/stack"
           # After the run: a file the stack wrote into the bundle breaks this too.
