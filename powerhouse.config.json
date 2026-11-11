@@ -76,7 +76,10 @@
     }
   },
   "vetra": {
-    "connectPort": 2540
+    "connectPort": 2540,
+    "prerelease": {
+      "vetra-next": "beta"
+    }
   },
   "assistant": {
     "port": 4910

@@ -1,36 +1,29 @@
+# Test branch only (prerelease branch `vetra-next`): runs powerhouse-inc/vetra-publish@v1
+# as Vetra's generated workflow does. No tag trigger and no desktop workflow here, so the
+# v* tag the release cuts on this branch starts nothing; main keeps Sektar's real workflows.
 name: Vetra
 on:
   push:
-    branches: [main]
-    tags: ["v*"]
-  pull_request:
-    types: [opened, synchronize, reopened]
-permissions:
-  id-token: write
-  contents: read
+    branches: [vetra-next]
+permissions: {}
 concurrency:
-  group: vetra-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: vetra-${{ github.sha }}
+  cancel-in-progress: false
 jobs:
-  deploy:
-    # Skip pull requests opened from another repository: they must not reach the
-    # OIDC token. Compare full names rather than asking whether the head repo is
-    # a fork, which is true for every PR when this repository is itself a fork.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+  publish:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: read
+      attestations: write
     steps:
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
       - uses: pnpm/action-setup@v4
         with: { version: 12.10.1 }
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: pnpm }
-      - uses: powerhouse-inc/vetra-deploy-action@v1
+      - uses: powerhouse-inc/vetra-publish@v1
         with:
           app-id: 43622402-be06-435a-bbfa-bb649b0d6244
-          # Sektar's production stack (switchboard + Connect) as one container,
-          # built on release tags only and recorded as the App's `host` image
-          # on the LATEST channel: Vetra runs it as a host for each cloud
-          # licence (hosts/cli/README.md). Main pushes keep deploying the
-          # package alone, as before.
-          fusion-dockerfile: ${{ startsWith(github.ref, 'refs/tags/v') && 'hosts/cli/Dockerfile' || '' }}
-          fusion-image-name: host
