@@ -262,28 +262,6 @@ export function invoiceTotals(state: InvoiceState): InvoiceTotals {
   };
 }
 
-/** The currency the books are kept in: what the boards add up in. */
-export const BOOK_CURRENCY = "EUR";
-
-/**
- * An invoice's totals in the book currency, at the invoice's own rate (the
- * one its VAT is reported at). Without a rate the amounts stay as they are:
- * close enough for a board, never for the books.
- */
-export function bookTotals(state: InvoiceState): InvoiceTotals {
-  const t = invoiceTotals(state);
-  if (state.currency === BOOK_CURRENCY) return t;
-  const rate = findRate(state.exchangeRates, state.currency, BOOK_CURRENCY);
-  if (rate === null) return t;
-  return {
-    net: round2(t.net * rate),
-    vat: round2(t.vat * rate),
-    gross: round2(t.gross * rate),
-    paid: round2(t.paid * rate),
-    outstanding: round2(t.outstanding * rate),
-  };
-}
-
 /** The other party: the buyer of a sales invoice, the seller of a bill. */
 export function counterparty(state: InvoiceState): InvoiceParty {
   return state.direction === "OUTGOING" ? state.buyer : state.seller;

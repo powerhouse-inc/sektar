@@ -34,5 +34,20 @@ export const financeIndexFactoryBuilder: ProcessorFactoryBuilder =
     // a database with no tables.
     await processor.initAndUpgrade();
 
+    // After an update from an index that did not keep the invoices' own
+    // rates: read them off the invoices, once, behind the start.
+    void processor
+      .refillInvoiceRates(module.read)
+      .then((filled) => {
+        if (filled > 0) {
+          console.info(
+            `[finance-index] read the exchange rates of ${String(filled)} invoices from before the update`,
+          );
+        }
+      })
+      .catch((error: unknown) =>
+        console.warn(`[finance-index] refill failed: ${String(error)}`),
+      );
+
     return [{ processor, filter }];
   };

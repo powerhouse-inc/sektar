@@ -20,9 +20,10 @@ import {
   type QueryResult,
   sql,
 } from "kysely";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { nextNumber } from "../../editors/sektar/kit/invoice.js";
 import { up } from "./migrations.js";
+import { FinanceIndex } from "./processor.js";
 import {
   contactCountQuery,
   contactNamesQuery,
@@ -32,6 +33,12 @@ import {
   expenseSpendQuery,
   expensesQuery,
   expenseStatusQuery,
+  loadCurrenciesInUse,
+  loadDashboard,
+  loadFx,
+  loadOpenByContact,
+  loadPairs,
+  loadSettings,
   invoiceNumbersQuery,
   latestOurPartyQuery,
   loadCounts,
@@ -43,6 +50,7 @@ import {
   toContactCounts,
   toContactRow,
   toExpenseCounts,
+  toExpenseSpend,
   toExpenseRow,
   toOurParty,
   transactionsQuery,
@@ -127,9 +135,7 @@ function invoice(id: string, over: Partial<InvoiceRow>): InvoiceRow {
     created_at: AT,
     gross: 0,
     outstanding: 0,
-    book_gross: 0,
-    book_outstanding: 0,
-    book_rate_known: true,
+    rates: "[]",
     issued_copy_id: null,
     issued_copy_ref: null,
     line_count: 0,
@@ -224,7 +230,6 @@ beforeAll(async () => {
         counterparty_name: "Acme",
         counterparty_contact_id: "c-acme",
         outstanding: 500,
-        book_outstanding: 500,
         issued_at: "2026-10-01T00:00:00.000Z",
         our_party: JSON.stringify({ name: "Juniper", city: "Amsterdam" }),
       }),
@@ -232,8 +237,10 @@ beforeAll(async () => {
         number: "INV-2026-0012",
         counterparty_name: "Acme",
         counterparty_contact_id: "c-acme",
+        // in dollars, with its own rate: 120 USD is 110 EUR
+        currency: "USD",
         outstanding: 120,
-        book_outstanding: 110,
+        rates: JSON.stringify([{ base: "USD", quote: "EUR", rate: 11 / 12 }]),
         issued_at: "2026-10-10T00:00:00.000Z",
         our_party: JSON.stringify({ name: "Juniper BV", city: "Amsterdam" }),
       }),
@@ -256,7 +263,6 @@ beforeAll(async () => {
         counterparty_name: "Paper Co",
         counterparty_contact_id: "c-paper",
         outstanding: 80,
-        book_outstanding: 80,
       }),
     ])
     .execute();
@@ -340,6 +346,8 @@ describe("claims", () => {
 
   it("count and add up per status", async () => {
     const counts = toExpenseCounts(await expenseStatusQuery(db).execute());
+    expect(counts.bookCurrency).toBe("EUR");
+    expect(counts.unconverted).toEqual([]);
     expect(counts.all).toBe(3);
     expect(counts.byStatus.map((s) => s.status)).toEqual(["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "REIMBURSED"]);
     expect(counts.byStatus.find((s) => s.status === "SUBMITTED")).toEqual({ status: "SUBMITTED", count: 1, total: 75, reimbursable: 75 });
@@ -349,16 +357,18 @@ describe("claims", () => {
   });
 
   it("spend over the last 90 days counts receipts, not claims", async () => {
-    const row = await expenseSpendQuery(db, spendSince(NOW)).executeTakeFirst();
-    expect(Number(row?.spent)).toBe(100);
-    const narrowed = await only(["exp-b"])(expenseSpendQuery(db, spendSince(NOW)), "report_id").executeTakeFirst();
-    expect(narrowed?.spent ?? null).toBeNull();
+    const rows = await expenseSpendQuery(db, spendSince(NOW)).execute();
+    expect(toExpenseSpend(rows)).toBe(100);
+    const narrowed = await only(["exp-b"])(expenseSpendQuery(db, spendSince(NOW)), "report_id").execute();
+    expect(toExpenseSpend(narrowed)).toBe(0);
   });
 });
 
 describe("contacts", () => {
   it("list by name with their open invoices and bank activity", async () => {
-    const rows = (await contactsQuery(db, { view: "all" }, { limit: 10 }).execute()).map(toContactRow);
+    const found = await contactsQuery(db, { view: "all" }, { limit: 10 }).execute();
+    const open = await loadOpenByContact(db, found.map((r) => r.document_id), await loadFx(db));
+    const rows = found.map((r) => toContactRow(r, open));
     expect(rows.map((r) => r.name)).toEqual(["acme", "Beta", "Paper Co"]);
     expect(rows[0]).toMatchObject({
       id: "c-acme",
@@ -396,7 +406,10 @@ describe("contacts", () => {
       "contact_index.document_id",
     ).execute();
     // inv-2 and the account are not readable: one open invoice, no activity.
-    expect(toContactRow(rows[0])).toMatchObject({ openInvoiceCount: 1, openBookOutstanding: 500, transactionCount: 0 });
+    const open = await loadOpenByContact(db, ["c-acme"], await loadFx(db, restrict), restrict);
+    expect(toContactRow(rows[0], open)).toMatchObject({ openInvoiceCount: 1, openBookOutstanding: 500, transactionCount: 0 });
+    // without a page of contacts there is nothing to ask
+    expect(await loadOpenByContact(db, [], await loadFx(db))).toEqual(new Map());
   });
 
   it("name the ones asked for, and none for no ids", async () => {
@@ -492,5 +505,356 @@ describe("counts", () => {
   it("count each kind of document, for what the caller may read", async () => {
     expect(await loadCounts(db)).toEqual({ accounts: 1, invoices: 5, expenses: 3, contacts: 4 });
     expect(await loadCounts(db, only(["inv-1", "c-acme"]))).toEqual({ accounts: 0, invoices: 1, expenses: 0, contacts: 1 });
+  });
+});
+
+/**
+ * Books that hold more than one currency, in a drive of their own: every
+ * total is converted once, on reading, into the books' main currency.
+ */
+describe("currency conversion", () => {
+  const fxDb = base.withSchema("fx_ns");
+  const account = (id: string, kind: string, currency: string, balance: number) => ({
+    document_id: id,
+    name: id,
+    kind,
+    institution: null,
+    iban_last4: null,
+    currency,
+    opening_balance: 0,
+    balance,
+    tx_count: 0,
+    new_count: 0,
+    last_imported_at: null,
+    updated_at: AT,
+  });
+  const tx = (id: string, accountId: string, currency: string, bookedAt: string, amount: number, category = "SALES") => ({
+    id,
+    account_id: accountId,
+    booked_at: bookedAt,
+    counterparty: id,
+    description: null,
+    reference: null,
+    category,
+    status: "CATEGORIZED",
+    amount,
+    currency,
+    contact_id: null,
+    matched_document_id: null,
+    matched_kind: null,
+    import_batch: null,
+    search_text: id,
+  });
+  const rate = (pair: string, baseCurrency: string, quote: string, day: string, value: number) => ({
+    pair_id: pair,
+    base: baseCurrency,
+    quote,
+    day,
+    rate: value,
+  });
+
+  beforeAll(async () => {
+    await base.schema.createSchema("fx_ns").execute();
+    // A store made before amounts were converted on reading.
+    await sql`create table fx_ns.invoice_index (
+      document_id varchar(255) primary key, direction varchar(16) not null, kind varchar(16) not null,
+      status varchar(16) not null, number varchar(255), is_draft boolean not null default true,
+      list_key text not null default '', counterparty_name text, counterparty_contact_id varchar(255),
+      subject text, first_line text, currency varchar(8) not null, issued_at varchar(64), due_at varchar(64),
+      delivered_at varchar(64), period_start varchar(64), period_end varchar(64), created_at varchar(64) not null,
+      gross double precision not null default 0, outstanding double precision not null default 0,
+      book_gross double precision not null default 0, book_outstanding double precision not null default 0,
+      book_rate_known boolean not null default true, issued_copy_id varchar(255), issued_copy_ref text,
+      line_count integer not null default 0, lines_missing_attachments integer not null default 0,
+      last_paid_at varchar(64), our_party text, search_text text not null default '', updated_at varchar(64) not null
+    )`.execute(base);
+    await up(fxDb);
+    await up(fxDb);
+
+    await fxDb
+      .insertInto("account_index")
+      .values([
+        account("acc-eur", "CURRENT", "EUR", 1000),
+        account("acc-usd", "CURRENT", "USD", 1000),
+        account("acc-chf", "SAVINGS", "CHF", 500),
+        account("card-usd", "CREDIT_CARD", "USD", -200),
+      ])
+      .execute();
+    await fxDb
+      .insertInto("transaction_index")
+      .values([
+        tx("t1", "acc-usd", "USD", "2026-10-02T00:00:00.000Z", 100),
+        tx("t2", "acc-usd", "USD", "2026-10-12T00:00:00.000Z", 100),
+        tx("t3", "acc-usd", "USD", "2026-10-12T00:00:00.000Z", -50, "SOFTWARE"),
+        tx("t4", "acc-eur", "EUR", "2026-10-12T00:00:00.000Z", -30, "SOFTWARE"),
+        tx("t5", "acc-chf", "CHF", "2026-10-12T00:00:00.000Z", -999, "RENT"),
+      ])
+      .execute();
+    await fxDb
+      .insertInto("invoice_index")
+      .values([
+        invoice("fx-inv-1", { currency: "USD", outstanding: 100, counterparty_contact_id: "c-x" }),
+        invoice("fx-inv-2", {
+          currency: "USD",
+          outstanding: 100,
+          counterparty_contact_id: "c-x",
+          rates: JSON.stringify([{ base: "USD", quote: "EUR", rate: 0.9 }]),
+        }),
+        invoice("fx-inv-3", { currency: "JPY", outstanding: 5000, counterparty_contact_id: "c-x" }),
+        invoice("fx-bill", { direction: "INCOMING", currency: "EUR", outstanding: 40 }),
+      ])
+      .execute();
+    const claims = [
+      { ...claim("fx-exp", "SUBMITTED", [item("f1", "2026-10-02T00:00:00.000Z", 100, "PERSONAL"), item("f2", "2026-10-12T00:00:00.000Z", 100, "COMPANY_CARD")], AT) },
+    ];
+    await fxDb
+      .insertInto("expense_index")
+      .values(claims.map((c) => ({ ...c.report, currency: "USD" })))
+      .execute();
+    await fxDb.insertInto("expense_item_index").values(claims.flatMap((c) => c.items)).execute();
+    const pair = (id: string, baseCurrency: string | null, quote: string | null, createdAt: string) => ({
+      document_id: id,
+      base: baseCurrency,
+      quote,
+      rate_count: 1,
+      first_day: "2026-10-01",
+      last_day: "2026-10-10",
+      last_rate: 0.8,
+      last_source: "ECB",
+      last_fetched_at: AT,
+      created_at: createdAt,
+      updated_at: AT,
+    });
+    await fxDb
+      .insertInto("pair_index")
+      .values([
+        // made later than pair-usd: a second document for the same pair
+        pair("pair-usd-2", "USD", "EUR", "2026-10-02T00:00:00.000Z"),
+        pair("pair-usd", "USD", "EUR", "2026-10-01T00:00:00.000Z"),
+        pair("pair-chf-gbp", "CHF", "GBP", "2026-10-01T00:00:00.000Z"),
+        pair("pair-eur-usd", "EUR", "USD", "2026-10-01T00:00:00.000Z"),
+        pair("pair-unnamed", null, null, "2026-10-01T00:00:00.000Z"),
+      ])
+      .execute();
+    await fxDb
+      .insertInto("rate_index")
+      .values([
+        rate("pair-usd", "USD", "EUR", "2026-10-01", 0.5),
+        rate("pair-usd", "USD", "EUR", "2026-10-10", 0.8),
+        // a second document for the same pair is ignored, whole
+        rate("pair-usd-2", "USD", "EUR", "2026-10-20", 9),
+        // quoted in another currency: not the books'
+        rate("pair-chf-gbp", "CHF", "GBP", "2026-10-10", 0.9),
+        rate("pair-eur-usd", "EUR", "USD", "2026-10-10", 1.25),
+      ])
+      .execute();
+  });
+
+  it("moves an older invoice table to amounts in their own currency", async () => {
+    const tables = await fxDb.introspection.getTables();
+    const columns = tables
+      .filter((t) => t.name === "invoice_index" && t.schema === "fx_ns")
+      .flatMap((t) => t.columns.map((c) => c.name));
+    expect(columns).toContain("rates");
+    expect(columns).not.toContain("book_gross");
+    expect(columns).not.toContain("book_outstanding");
+    expect(columns).not.toContain("book_rate_known");
+  });
+
+  it("are in euros until the books say otherwise, then in the oldest settings' currency", async () => {
+    expect(await loadSettings(fxDb)).toEqual({ documentId: null, bookCurrency: "EUR" });
+    const fx = await loadFx(fxDb);
+    expect(fx.bookCurrency).toBe("EUR");
+    expect((await loadPairs(fxDb)).map((p) => `${p.base}/${p.quote}:${p.id}`)).toEqual([
+      "CHF/GBP:pair-chf-gbp",
+      "EUR/USD:pair-eur-usd",
+      "USD/EUR:pair-usd",
+    ]);
+    expect((await loadPairs(fxDb))[2]).toEqual({
+      id: "pair-usd",
+      base: "USD",
+      quote: "EUR",
+      rateCount: 1,
+      firstDay: "2026-10-01",
+      lastDay: "2026-10-10",
+      lastRate: 0.8,
+      lastSource: "ECB",
+      lastFetchedAt: AT,
+    });
+    // the oldest pair document's rates only, and only those quoted in euros
+    expect(fx.rate("USD")).toBe(0.8);
+    expect(fx.rate("CHF")).toBeNull();
+  });
+
+  it("name every currency in use and the first day it needs a rate for", async () => {
+    expect(await loadCurrenciesInUse(fxDb)).toEqual([
+      { currency: "CHF", since: "2026-10-12" },
+      { currency: "EUR", since: "2026-10-12" },
+      { currency: "JPY", since: null },
+      { currency: "USD", since: "2026-10-02" },
+    ]);
+    // a reader of one account sees only its currency
+    expect(await loadCurrenciesInUse(fxDb, only(["acc-chf"]))).toEqual([
+      { currency: "CHF", since: "2026-10-12" },
+    ]);
+  });
+
+  it("convert the dashboard's totals once and name what they left out", async () => {
+    const stats = await loadDashboard(fxDb, NOW);
+    expect(stats.bookCurrency).toBe("EUR");
+    // 1000 + 1000 USD at the latest rate; the francs have no rate
+    expect(stats.cash).toBe(1800);
+    expect(stats.card).toBe(-160);
+    // 100 USD at the books' latest + 100 USD at the invoice's own rate
+    expect(stats.receivable).toBe(170);
+    expect(stats.payable).toBe(40);
+    expect(stats.unconverted).toEqual(["CHF", "JPY"]);
+    // each day's dollars at that day's rate: 100 * 0.5, then (100 and -50) * 0.8
+    expect(stats.months.at(-1)).toEqual({ key: "2026-10", in: 130, out: 70 });
+    expect(stats.spend).toEqual([{ category: "SOFTWARE", amount: 70 }]);
+    // a row keeps its own currency
+    expect(stats.recent.find((t) => t.id === "t1")).toMatchObject({ amount: 100, currency: "USD" });
+  });
+
+  it("convert the claims' totals and the 90-day spend", async () => {
+    const fx = await loadFx(fxDb);
+    const counts = toExpenseCounts(await expenseStatusQuery(fxDb).execute(), fx);
+    expect(counts.byStatus.find((s) => s.status === "SUBMITTED")).toEqual({
+      status: "SUBMITTED",
+      count: 1,
+      total: 160,
+      reimbursable: 80,
+    });
+    expect(counts.unconverted).toEqual([]);
+    const spent = toExpenseSpend(await expenseSpendQuery(fxDb, spendSince(NOW)).execute(), fx);
+    expect(spent).toBe(130);
+  });
+
+  it("add up what a contact owes across currencies, leaving out what has no rate", async () => {
+    const fx = await loadFx(fxDb);
+    const open = await loadOpenByContact(fxDb, ["c-x", "c-none"], fx);
+    expect(open.get("c-x")).toBe(170);
+    expect(open.has("c-none")).toBe(false);
+    expect(fx.unconverted()).toEqual(["JPY"]);
+  });
+
+  it("follow the books to another main currency, with that currency's own pairs", async () => {
+    await fxDb
+      .insertInto("settings_index")
+      .values([
+        { document_id: "set-new", base_currency: "GBP", created_at: "2026-10-05T00:00:00.000Z", updated_at: AT },
+        { document_id: "set-old", base_currency: "USD", created_at: "2026-10-01T00:00:00.000Z", updated_at: AT },
+      ])
+      .execute();
+    expect(await loadSettings(fxDb)).toEqual({ documentId: "set-old", bookCurrency: "USD" });
+    const stats = await loadDashboard(fxDb, NOW);
+    expect(stats.bookCurrency).toBe("USD");
+    // dollars as they are; euros at the EUR->USD pair, never the inverse of USD->EUR
+    expect(stats.cash).toBe(1000 + 1000 * 1.25);
+    expect(stats.card).toBe(-200);
+    expect(stats.unconverted).toEqual(["CHF", "JPY"]);
+    // a reader who may not open the settings sees the books in euros
+    expect(await loadSettings(fxDb, only(["nothing"]))).toEqual({ documentId: null, bookCurrency: "EUR" });
+    expect((await loadFx(fxDb, only(["set-old", "pair-eur-usd"]))).rate("EUR")).toBe(1.25);
+    expect((await loadFx(fxDb, only(["set-old"]))).rate("EUR")).toBeNull();
+  });
+});
+
+/**
+ * An index from before this update: its invoice rows carry no rates of their
+ * own. The first start after the update reads them off the invoices, once.
+ */
+describe("invoices from before the update", () => {
+  const oldDb = base.withSchema("refill_ns");
+  const usd = (rate: number) => ({
+    global: {
+      ...invoiceUtils.createDocument().state.global,
+      currency: "USD",
+      exchangeRates: [{ base: "USD", quote: "EUR", rate, date: null, source: null }],
+    },
+  });
+
+  beforeAll(async () => {
+    await base.schema.createSchema("refill_ns").execute();
+    await sql`create table refill_ns.invoice_index (
+      document_id varchar(255) primary key, direction varchar(16) not null, kind varchar(16) not null,
+      status varchar(16) not null, number varchar(255), is_draft boolean not null default true,
+      list_key text not null default '', counterparty_name text, counterparty_contact_id varchar(255),
+      subject text, first_line text, currency varchar(8) not null, issued_at varchar(64), due_at varchar(64),
+      delivered_at varchar(64), period_start varchar(64), period_end varchar(64), created_at varchar(64) not null,
+      gross double precision not null default 0, outstanding double precision not null default 0,
+      book_gross double precision not null default 0, book_outstanding double precision not null default 0,
+      book_rate_known boolean not null default true, issued_copy_id varchar(255), issued_copy_ref text,
+      line_count integer not null default 0, lines_missing_attachments integer not null default 0,
+      last_paid_at varchar(64), our_party text, search_text text not null default '', updated_at varchar(64) not null
+    )`.execute(base);
+    for (const id of ["old-usd", "old-eur", "old-gone", "old-odd"]) {
+      await sql`insert into refill_ns.invoice_index (document_id, direction, kind, status, currency, created_at, outstanding, updated_at)
+        values (${id}, 'OUTGOING', 'INVOICE', 'OPEN', ${id === "old-eur" ? "EUR" : "USD"}, ${AT}, 100, ${AT})`.execute(base);
+    }
+    await up(oldDb);
+  });
+
+  it("have no rates of their own until they are read off the invoices", async () => {
+    const rows = await oldDb.selectFrom("invoice_index").select(["document_id", "rates"]).execute();
+    expect(rows.every((r) => r.rates === null)).toBe(true);
+    // until then a total uses the books' rate, and without one leaves the invoice out
+    const stats = await loadDashboard(oldDb, NOW);
+    expect(stats.receivable).toBe(100);
+    expect(stats.unconverted).toEqual(["USD"]);
+  });
+
+  it("are refilled once, at the rate each invoice carries", async () => {
+    const index = new FinanceIndex("refill_ns", {}, oldDb as never, "drive-old");
+    const asked: string[] = [];
+    const read = {
+      get: (id: string) => {
+        asked.push(id);
+        if (id === "old-gone") return Promise.reject(new Error("not found"));
+        if (id === "old-odd") return Promise.resolve({ state: { global: { nothing: true } } });
+        if (id === "old-eur") return Promise.resolve({ state: { global: invoiceUtils.createDocument().state.global } });
+        return Promise.resolve({ state: usd(0.9) });
+      },
+    };
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    expect(await index.refillInvoiceRates(read)).toBe(3);
+    const rows = await oldDb.selectFrom("invoice_index").select(["document_id", "rates"]).orderBy("document_id").execute();
+    expect(rows).toEqual([
+      { document_id: "old-eur", rates: "[]" },
+      // unreadable now: left for the next start
+      { document_id: "old-gone", rates: null },
+      // not an invoice's state: nothing to carry
+      { document_id: "old-odd", rates: "[]" },
+      { document_id: "old-usd", rates: JSON.stringify([{ base: "USD", quote: "EUR", rate: 0.9 }]) },
+    ]);
+    // 100 EUR + 100 USD at the invoice's own 0.9 + the dollar invoice with nothing to carry, left out
+    const stats = await loadDashboard(oldDb, NOW);
+    expect(stats.receivable).toBe(190);
+
+    // the next start asks only for what is still waiting
+    asked.length = 0;
+    expect(await index.refillInvoiceRates(read)).toBe(0);
+    expect(asked).toEqual(["old-gone"]);
+    vi.restoreAllMocks();
+  });
+
+  it("never overwrites a row the invoice has been edited into since", async () => {
+    await oldDb.updateTable("invoice_index").set({ rates: null }).where("document_id", "=", "old-usd").execute();
+    const index = new FinanceIndex("refill_ns", {}, oldDb as never, "drive-old");
+    const read = {
+      get: async (id: string) => {
+        if (id === "old-usd") {
+          // an edit lands while the invoice is being read
+          await oldDb.updateTable("invoice_index").set({ rates: "[\"edited\"]" }).where("document_id", "=", id).execute();
+          return { state: usd(0.5) };
+        }
+        throw new Error("not found");
+      },
+    };
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    await index.refillInvoiceRates(read);
+    const row = await oldDb.selectFrom("invoice_index").select("rates").where("document_id", "=", "old-usd").executeTakeFirst();
+    expect(row?.rates).toBe("[\"edited\"]");
+    vi.restoreAllMocks();
   });
 });

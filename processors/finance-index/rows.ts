@@ -9,9 +9,10 @@ import type {
   Transaction,
   TransactionCategory,
 } from "document-models/bank-account";
+import type { BooksSettingsState } from "document-models/books-settings";
+import type { CurrencyPairState } from "document-models/currency-pair";
 import {
   computeTotals,
-  findRate,
   round2,
   type InvoiceState,
 } from "document-models/invoice";
@@ -25,18 +26,14 @@ import type {
   ExpenseItemRow,
   ExpenseRow,
   InvoiceRow,
+  PairRow,
+  RateRow,
+  SettingsRow,
   TransactionRow,
 } from "./schema.js";
+import { dayOf, DEFAULT_BOOK_CURRENCY } from "./fx.js";
 
 type Json = Record<string, unknown>;
-
-/**
- * The currency the books are kept in: what the boards add up in. The same
- * constant as `BOOK_CURRENCY` in editors/sektar/kit/format.ts (that module
- * pulls in React, so a processor does not import it; rows.spec.ts checks the
- * two agree).
- */
-export const BOOK_CURRENCY = "EUR";
 
 /**
  * The category labels the Transactions search matches, as
@@ -115,36 +112,26 @@ export function numberSortKey(number: string): string {
 export interface InvoiceAmounts {
   gross: number;
   outstanding: number;
-  bookGross: number;
-  bookOutstanding: number;
-  bookRateKnown: boolean;
 }
 
 /**
- * The amounts the boards show: `computeTotals` (what the reducer and the
- * editor use), outstanding never below zero as `invoiceTotals` has it, and
- * the book amounts at the invoice's own rate as `bookTotals` converts them.
- * Without a rate the book amounts stay unconverted, as `bookTotals` leaves
- * them: close enough for a board, never for the books.
+ * The amounts the boards show, in the invoice's own currency: `computeTotals`
+ * (what the reducer and the editor use), outstanding never below zero as
+ * `invoiceTotals` has it. A total across invoices converts them when it is
+ * read (`fx.ts`), never here.
  */
 export function invoiceAmounts(state: InvoiceState): InvoiceAmounts {
   const t = computeTotals(state);
-  const gross = t.gross;
-  const outstanding = round2(Math.max(0, t.due));
-  if (state.currency === BOOK_CURRENCY) {
-    return { gross, outstanding, bookGross: gross, bookOutstanding: outstanding, bookRateKnown: true };
-  }
-  const rate = findRate(state.exchangeRates ?? [], state.currency, BOOK_CURRENCY);
-  if (rate === null) {
-    return { gross, outstanding, bookGross: gross, bookOutstanding: outstanding, bookRateKnown: false };
-  }
-  return {
-    gross,
-    outstanding,
-    bookGross: round2(gross * rate),
-    bookOutstanding: round2(outstanding * rate),
-    bookRateKnown: true,
-  };
+  return { gross: t.gross, outstanding: round2(Math.max(0, t.due)) };
+}
+
+/** The rates an invoice carries itself, as the row's JSON column holds them. */
+export function ownRatesOf(state: InvoiceState): string {
+  return JSON.stringify(
+    (state.exchangeRates ?? [])
+      .filter((r) => r && typeof r.rate === "number" && r.rate > 0)
+      .map((r) => ({ base: r.base, quote: r.quote, rate: r.rate })),
+  );
 }
 
 /**
@@ -201,9 +188,7 @@ export function invoiceRow(
     created_at: createdAt,
     gross: amounts.gross,
     outstanding: amounts.outstanding,
-    book_gross: amounts.bookGross,
-    book_outstanding: amounts.bookOutstanding,
-    book_rate_known: amounts.bookRateKnown,
+    rates: ownRatesOf(state),
     issued_copy_id: issuedCopy?.id ?? null,
     issued_copy_ref: issuedCopy?.ref ?? null,
     line_count: lines.length,
@@ -367,7 +352,7 @@ export function expenseRows(
       submitter_name: str(state.submitter?.name),
       submitter_email: str(state.submitter?.email),
       status: state.status,
-      currency: state.currency || BOOK_CURRENCY,
+      currency: state.currency || DEFAULT_BOOK_CURRENCY,
       total: round2(items.reduce((sum, i) => sum + num(i.amount), 0)),
       reimbursable: round2(
         items
@@ -437,4 +422,76 @@ export function contactRow(
     search_text: haystack(state.name, state.email, state.address?.city, ...tags),
     updated_at: at,
   };
+}
+
+/* ------------------------------------------------------- settings and rates */
+
+/** A books-settings document's global state, or null when the state is not one. */
+export function settingsState(state: Json): BooksSettingsState | null {
+  if (typeof state.baseCurrency !== "string") return null;
+  return state as unknown as BooksSettingsState;
+}
+
+/** The row for the books' settings; `createdAt` is when the document was made. */
+export function settingsRow(
+  documentId: string,
+  state: BooksSettingsState,
+  createdAt: string,
+  at: string,
+): SettingsRow {
+  return {
+    document_id: documentId,
+    base_currency: state.baseCurrency || DEFAULT_BOOK_CURRENCY,
+    created_at: createdAt,
+    updated_at: at,
+  };
+}
+
+/** A currency-pair document's global state, or null when the state is not one. */
+export function pairState(state: Json): CurrencyPairState | null {
+  if (!Array.isArray(state.rates)) return null;
+  if (!("base" in state) || !("quote" in state)) return null;
+  return state as unknown as CurrencyPairState;
+}
+
+/** The pair's own row; `createdAt` is when the document was made. */
+export function pairRow(
+  documentId: string,
+  state: CurrencyPairState,
+  createdAt: string,
+  at: string,
+): PairRow {
+  const rates = rateRows(documentId, state);
+  const days = rates.map((r) => r.day).sort();
+  const lastDay = days.at(-1) ?? null;
+  const last = lastDay
+    ? state.rates.findLast((r) => dayOf(r?.date) === lastDay)
+    : undefined;
+  return {
+    document_id: documentId,
+    base: str(state.base),
+    quote: str(state.quote),
+    rate_count: rates.length,
+    first_day: days[0] ?? null,
+    last_day: lastDay,
+    last_rate: last ? num(last.rate) : null,
+    last_source: str(last?.source),
+    last_fetched_at: str(state.lastFetchedAt),
+    created_at: createdAt,
+    updated_at: at,
+  };
+}
+
+/** A pair's rows: one per day it holds a rate for; none while it is unnamed. */
+export function rateRows(documentId: string, state: CurrencyPairState): RateRow[] {
+  const base = str(state.base);
+  const quote = str(state.quote);
+  if (!base || !quote) return [];
+  const rows = new Map<string, RateRow>();
+  for (const r of state.rates) {
+    const day = dayOf(r?.date);
+    if (!day || !(num(r.rate) > 0)) continue;
+    rows.set(day, { pair_id: documentId, base, quote, day, rate: num(r.rate) });
+  }
+  return [...rows.values()];
 }

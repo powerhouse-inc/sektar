@@ -32,9 +32,13 @@ export const schema: DocumentNode = gql`
     gross: Float!
     """What is still to be paid, never below zero."""
     outstanding: Float!
+    """
+    The same two in the main currency of the books, converted on reading: at
+    the invoice's own rate, else at the books' latest.
+    """
     bookGross: Float!
     bookOutstanding: Float!
-    """False when the invoice has no rate to the book currency: the book amounts are unconverted."""
+    """False when neither the invoice nor the books hold a rate: the book amounts are unconverted."""
     bookRateKnown: Boolean!
     """OPEN with a due date before the request's \`now\`."""
     overdue: Boolean!
@@ -149,7 +153,13 @@ export const schema: DocumentNode = gql`
   recent transactions (their account's currency).
   """
   type FinanceDashboardStats {
+    """The main currency of the books: what the amounts are in."""
     bookCurrency: String!
+    """
+    The currencies the totals left out because the books hold no rate for
+    them. Such amounts are never added as if they were the main currency.
+    """
+    unconverted: [String!]!
     """Balances of every account that is not a credit card."""
     cash: Float!
     """Balances of the credit cards (negative when owed)."""
@@ -245,12 +255,16 @@ export const schema: DocumentNode = gql`
   type FinanceExpenseStatusCount {
     status: String!
     count: Int!
-    """The claims' totals added up."""
+    """The claims' totals added up, in the main currency of the books."""
     total: Float!
     reimbursable: Float!
   }
 
   type FinanceExpenseCounts {
+    """The main currency of the books: what the totals are in."""
+    bookCurrency: String!
+    """The currencies the totals left out: the books hold no rate for them."""
+    unconverted: [String!]!
     all: Int!
     """One entry per status, DRAFT to REIMBURSED."""
     byStatus: [FinanceExpenseStatusCount!]!
@@ -287,7 +301,7 @@ export const schema: DocumentNode = gql`
     tags: [String!]!
     """OPEN invoices whose other party is this contact."""
     openInvoiceCount: Int!
-    """Their book outstanding added up."""
+    """What they still owe, added up in the main currency of the books."""
     openBookOutstanding: Float!
     """Bank transactions linked to the contact."""
     transactionCount: Int!
@@ -436,7 +450,7 @@ export const schema: DocumentNode = gql`
     """Claims per status with their totals, for the search given."""
     expenseCounts(driveId: String!, query: String): FinanceExpenseCounts!
 
-    """Receipts spent in the 90 days before \`now\` (ISO), added up."""
+    """Receipts spent in the 90 days before \`now\` (ISO), added up in the main currency of the books."""
     spend90d(driveId: String!, now: String): Float!
 
     """
@@ -472,6 +486,44 @@ export const schema: DocumentNode = gql`
 
     """How many accounts, invoices, claims and contacts the books hold."""
     counts(driveId: String!): FinanceCounts!
+
+    """The books' settings: their document and the main currency."""
+    settings(driveId: String!): FinanceSettings!
+
+    """The currency pairs the books hold rates for, one per pair of currencies."""
+    pairs(driveId: String!): [FinanceCurrencyPair!]!
+
+    """Every currency the books hold amounts in, with the first day each needs a rate for."""
+    currenciesInUse(driveId: String!): [FinanceCurrencyInUse!]!
+  }
+
+  """A currency pair: the daily rates that convert \`base\` into \`quote\`."""
+  type FinanceCurrencyPair {
+    id: String!
+    base: String!
+    quote: String!
+    rateCount: Int!
+    """YYYY-MM-DD; null while the pair holds no rate."""
+    firstDay: String
+    lastDay: String
+    """How many \`quote\` one \`base\` is worth on \`lastDay\`."""
+    lastRate: Float
+    lastSource: String
+    lastFetchedAt: String
+  }
+
+  type FinanceCurrencyInUse {
+    currency: String!
+    """YYYY-MM-DD: the earliest booking, issue or receipt in it."""
+    since: String
+  }
+
+  """The books' settings as a page reads them."""
+  type FinanceSettings {
+    """The settings document; null while the books have none (they are in euros)."""
+    documentId: String
+    """The main currency: what every total is shown in."""
+    bookCurrency: String!
   }
 
   type Query {

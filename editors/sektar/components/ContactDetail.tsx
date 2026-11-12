@@ -19,6 +19,7 @@ import {
 } from "../kit/data.js";
 import {
   useAccountRows,
+  useBookCurrency,
   useContactActivity,
   type InvoiceRow,
   type TransactionRow,
@@ -72,7 +73,12 @@ export function ContactDetail({
     accounts.find((a) => a.id === accountId)?.name;
   const [editing, setEditing] = useState(false);
   const open = invoices.filter((i) => i.status === "OPEN");
-  const openTotal = open.reduce((sum, i) => sum + i.bookOutstanding, 0);
+  // In the main currency of the books; an invoice with no rate is left out.
+  const book = useBookCurrency(drive);
+  const openTotal = open.reduce(
+    (sum, i) => sum + (i.bookRateKnown ? i.bookOutstanding : 0),
+    0,
+  );
 
   return (
     <div className="sk-stack sk-stack--6">
@@ -176,7 +182,7 @@ export function ContactDetail({
             {open.length > 0 && (
               <div className="sk-small">
                 <span className="sk-text-muted">Open</span> {open.length} ·{" "}
-                {money(openTotal)}
+                {money(openTotal, book)}
               </div>
             )}
           </div>

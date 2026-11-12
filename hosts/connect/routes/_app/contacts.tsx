@@ -14,6 +14,7 @@ import {
   contactKindOf,
   FINANCE_PAGE,
   useContactCounts,
+  useBookCurrency,
   useContactList,
   type ContactRow,
   type ContactView,
@@ -71,6 +72,7 @@ function ContactsPage() {
   // activity come from the finance index; the contact and the invoice that
   // are open are the documents this page loads.
   const list = useContactList({ view: VIEW[filter], query }, drive);
+  const book = useBookCurrency(drive);
   const indexCounts = useContactCounts(drive);
   const [selected] = useContactDocumentById(selectedId);
   const [openInvoice] = useInvoiceDocumentById(invoiceId);
@@ -170,6 +172,7 @@ function ContactsPage() {
                 <li key={c.id}>
                   <ContactListItem
                     row={c}
+                    book={book}
                     selected={selectedId === c.id}
                     onClick={() => setSelectedId(c.id)}
                   />
@@ -225,10 +228,13 @@ function ContactsPage() {
 
 function ContactListItem({
   row: c,
+  book,
   selected,
   onClick,
 }: {
   row: ContactRow;
+  /** The main currency of the books: what a contact owes is added up in it. */
+  book: string;
   selected: boolean;
   onClick: () => void;
 }) {
@@ -264,7 +270,7 @@ function ContactListItem({
           <ContactKindBadge kind={kind} />
           {c.openInvoiceCount > 0 ? (
             <span className="sk-small sk-weight-medium sk-tabular sk-text">
-              {money(c.openBookOutstanding)} open
+              {money(c.openBookOutstanding, book)} open
             </span>
           ) : (
             <span>Settled</span>

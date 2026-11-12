@@ -27,6 +27,7 @@ import {
 } from "../../../../../editors/sektar/kit/user-name.js";
 import {
   ActionTile,
+  Alert,
   Badge,
   Bars,
   Button,
@@ -73,6 +74,8 @@ function Dashboard() {
   const awaitingClaims = useAwaitingClaims(drive);
   const claimCounts = useExpenseCounts("", drive);
   const navigate = useNavigate();
+  // The main currency of the books: every total below is in it.
+  const book = index?.bookCurrency ?? "EUR";
   const [panel, setPanel] = useState<
     "invoice" | "expense" | "contact" | "import" | null
   >(null);
@@ -153,7 +156,7 @@ function Dashboard() {
       icon: "wallet" as const,
       title: `${r.title} awaits approval`,
       meta: r.submitterName ?? "",
-      value: money(r.total),
+      value: money(r.total, r.currency),
       to: "/finops/expenses" as const,
     })),
   ];
@@ -176,12 +179,34 @@ function Dashboard() {
         }
       />
 
+      {stats.unconverted.length > 0 && (
+        <Alert
+          tone="warning"
+          title={`${stats.unconverted.join(", ")} ${
+            stats.unconverted.length === 1 ? "is" : "are"
+          } not in these totals`}
+          actions={
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void navigate({ to: "/settings/currency" })}
+            >
+              Exchange rates
+            </Button>
+          }
+        >
+          There is no exchange rate to {book} yet, so{" "}
+          {stats.unconverted.length === 1 ? "that currency is" : "those currencies are"}{" "}
+          left out. Accounts and invoices still show their own amounts.
+        </Alert>
+      )}
+
       <div className="sk-dash-grid">
         <div className="c3">
           <Stat
             icon="bank"
             label="Cash position"
-            value={money(stats.cash, "EUR", { compact: true })}
+            value={money(stats.cash, book, { compact: true })}
             foot={`across ${plural(
               accounts.filter((a) => a.kind !== "CREDIT_CARD").length,
               "account",
@@ -195,7 +220,7 @@ function Dashboard() {
           <Stat
             icon="growth"
             label="Money in this month"
-            value={money(stats.thisMonth.in, "EUR", { compact: true })}
+            value={money(stats.thisMonth.in, book, { compact: true })}
             delta={
               noCashFlow
                 ? undefined
@@ -209,7 +234,7 @@ function Dashboard() {
           <Stat
             icon="invoice"
             label="Outstanding receivables"
-            value={money(stats.receivable, "EUR", { compact: true })}
+            value={money(stats.receivable, book, { compact: true })}
             foot={
               stats.overdue.length
                 ? `${stats.overdue.length} overdue`
@@ -221,8 +246,8 @@ function Dashboard() {
           <Stat
             icon="card"
             label="Bills & card to pay"
-            value={money(stats.payable + -stats.card, "EUR", { compact: true })}
-            foot={`${money(-stats.card)} on card`}
+            value={money(stats.payable + -stats.card, book, { compact: true })}
+            foot={`${money(-stats.card, book)} on card`}
           />
         </div>
 
@@ -248,7 +273,7 @@ function Dashboard() {
               <Bars
                 axis
                 ticks={4}
-                format={(v) => money(v, "EUR", { compact: true })}
+                format={(v) => money(v, book, { compact: true })}
                 groups={stats.months.map((m) => ({
                   label: m.label,
                   values: [Math.round(m.in), Math.round(m.out)],
@@ -433,7 +458,7 @@ function Dashboard() {
                   slices={stats.spendSlices.map(([, v]) => ({ value: v }))}
                   value={money(
                     stats.spendSlices.reduce((s, [, v]) => s + v, 0),
-                    "EUR",
+                    book,
                     { compact: true },
                   )}
                   label="last 90 days"
@@ -441,7 +466,7 @@ function Dashboard() {
                 <Legend
                   items={stats.spendSlices.map(([c, v]) => ({
                     label: CATEGORY[categoryOf(c)].label,
-                    value: money(v, "EUR", { compact: true }),
+                    value: money(v, book, { compact: true }),
                   }))}
                 />
               </div>

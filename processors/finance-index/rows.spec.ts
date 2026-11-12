@@ -27,9 +27,7 @@ import {
 } from "document-models/invoice/v2";
 import { describe, expect, it } from "vitest";
 import {
-  BOOK_CURRENCY as KIT_BOOK_CURRENCY,
   CATEGORY,
-  bookTotals,
   expenseReimbursable,
   expenseTotal,
   invoiceTotals,
@@ -44,10 +42,10 @@ import {
   toOurParty,
   toTransactionCounts,
 } from "./queries.js";
+import { Fx, roundMoney } from "./fx.js";
 import {
   accountRows,
   accountState,
-  BOOK_CURRENCY,
   CATEGORY_LABEL,
   contactRow,
   contactState,
@@ -58,6 +56,11 @@ import {
   invoiceRow,
   invoiceState,
   numberSortKey,
+  pairRow,
+  pairState,
+  rateRows,
+  settingsRow,
+  settingsState,
   ourPartyOf,
   parseState,
 } from "./rows.js";
@@ -118,9 +121,7 @@ describe("an invoice's row", () => {
       created_at: CREATED,
       gross: t.gross,
       outstanding: t.due,
-      book_gross: t.gross,
-      book_outstanding: t.due,
-      book_rate_known: true,
+      rates: "[]",
       line_count: 2,
       lines_missing_attachments: 2,
       last_paid_at: "2026-10-05T00:00:00.000Z",
@@ -129,34 +130,57 @@ describe("an invoice's row", () => {
     // Agrees with the boards' own helpers to the cent.
     expect(row.gross).toBe(invoiceTotals(s).gross);
     expect(row.outstanding).toBe(invoiceTotals(s).outstanding);
-    expect(row.book_outstanding).toBe(bookTotals(s).outstanding);
     expect(row.search_text).toContain("2026010");
     expect(row.search_text).toContain("acme bv");
     expect(row.search_text).toContain("po-77");
     expect(row.search_text).toContain(String(t.gross));
   });
 
-  it("converts to the book currency at the invoice's rate, as bookTotals does", () => {
+  it("keeps the amounts in the invoice's own currency, with the rates it carries", () => {
     const doc = apply(
       sale(),
       setCurrency({ currency: "USD" }),
       setExchangeRate({ base: "EUR", quote: "USD", rate: 1.141897 }),
     );
     const s = doc.state.global;
-    const a = invoiceAmounts(s);
-    const b = bookTotals(s);
-    expect(a.bookRateKnown).toBe(true);
-    expect(a.bookGross).toBe(b.gross);
-    expect(a.bookOutstanding).toBe(b.outstanding);
-    expect(a.bookGross).not.toBe(a.gross);
+    const row = invoiceRow("inv-1", s, CREATED, AT);
+    // nothing is converted on writing: a total converts once, on reading
+    expect(row.currency).toBe("USD");
+    expect(row.gross).toBe(invoiceTotals(s).gross);
+    expect(JSON.parse(row.rates ?? "[]")).toEqual([
+      { base: "EUR", quote: "USD", rate: 1.141897 },
+    ]);
+    expect(invoiceAmounts(s)).toEqual({
+      gross: invoiceTotals(s).gross,
+      outstanding: invoiceTotals(s).outstanding,
+    });
   });
 
-  it("leaves the book amounts unconverted without a rate, and says so", () => {
-    const s = apply(sale(), setCurrency({ currency: "SEK" })).state.global;
-    const a = invoiceAmounts(s);
-    expect(a.bookRateKnown).toBe(false);
-    expect(a.bookGross).toBe(a.gross);
-    expect(a.bookGross).toBe(bookTotals(s).gross);
+  it("converts on reading: at the invoice's own rate, else the books', else not at all", () => {
+    const usd = apply(
+      sale(),
+      setCurrency({ currency: "USD" }),
+      setExchangeRate({ base: "EUR", quote: "USD", rate: 2 }),
+    ).state.global;
+    const own = toInvoiceRow(invoiceRow("a", usd, CREATED, AT), AT, new Fx("EUR", []));
+    expect(own.bookRateKnown).toBe(true);
+    expect(own.bookGross).toBe(roundMoney(own.gross / 2));
+    expect(own.gross).toBe(invoiceTotals(usd).gross);
+
+    const sek = apply(sale(), setCurrency({ currency: "SEK" })).state.global;
+    const row = invoiceRow("b", sek, CREATED, AT);
+    const books = toInvoiceRow(row, AT, new Fx("EUR", [{ base: "SEK", day: "2026-10-01", rate: 0.1 }]));
+    expect(books.bookRateKnown).toBe(true);
+    expect(books.bookGross).toBe(roundMoney(books.gross * 0.1));
+
+    const none = toInvoiceRow(row, AT, new Fx("EUR", []));
+    expect(none.bookRateKnown).toBe(false);
+    expect(none.bookGross).toBe(none.gross);
+
+    // the books in the invoice's own currency: nothing to convert
+    const same = toInvoiceRow(row, AT, new Fx("SEK", []));
+    expect(same.bookRateKnown).toBe(true);
+    expect(same.bookOutstanding).toBe(same.outstanding);
   });
 
   it("never owes below zero", () => {
@@ -346,8 +370,7 @@ describe("reconciling an account's transactions", () => {
 });
 
 describe("agreement with the boards' kit", () => {
-  it("uses the same book currency and category labels", () => {
-    expect(BOOK_CURRENCY).toBe(KIT_BOOK_CURRENCY);
+  it("uses the same category labels", () => {
     for (const [key, value] of Object.entries(CATEGORY)) {
       expect(CATEGORY_LABEL[key as keyof typeof CATEGORY_LABEL]).toBe(value.label);
     }
@@ -363,8 +386,9 @@ describe("queries' folds", () => {
   it("marks an OPEN invoice due before now as overdue", () => {
     const s = apply(sale(), issueInvoice({ number: "1", issuedAt: "2026-10-01T00:00:00.000Z", dueAt: "2026-10-15T00:00:00.000Z" })).state.global;
     const row = invoiceRow("i", s, CREATED, AT);
-    expect(toInvoiceRow(row, "2026-10-20T00:00:00.000Z").overdue).toBe(true);
-    expect(toInvoiceRow(row, "2026-10-10T00:00:00.000Z").overdue).toBe(false);
+    const fx = new Fx("EUR", []);
+    expect(toInvoiceRow(row, "2026-10-20T00:00:00.000Z", fx).overdue).toBe(true);
+    expect(toInvoiceRow(row, "2026-10-10T00:00:00.000Z", fx).overdue).toBe(false);
   });
 
   it("folds the view counts per direction", () => {
@@ -392,19 +416,28 @@ describe("queries' folds", () => {
   it("folds the dashboard's results into its stats", () => {
     const now = Date.parse("2026-10-25T12:00:00.000Z");
     const stats = toDashboardStats(now, {
-      positions: { cash: 1500, card: -200 },
-      invoices: { receivable: 900, payable: "300.5", total: 4, issued: 3 },
+      positions: [{ currency: "EUR", cash: 1500, card: -200 }],
+      open: [
+        { direction: "OUTGOING", currency: "EUR", outstanding: 900, rates: "[]" },
+        { direction: "INCOMING", currency: "EUR", outstanding: "300.5", rates: "[]" },
+      ],
+      invoices: { total: 4, issued: 3 },
       overdue: [],
       transactions: { total: 10, new: 4, matched: 1, sales: 2 },
-      months: [{ month: "2026-10", in: 100, out: -40 }],
+      months: [
+        { day: "2026-10-03", currency: "EUR", in: 60, out: -40 },
+        { day: "2026-10-20", currency: "EUR", in: 40, out: 0 },
+      ],
       spend: [
-        { category: "TRAVEL", spent: -20 },
-        { category: "SOFTWARE", spent: -80 },
+        { category: "TRAVEL", day: "2026-10-03", currency: "EUR", spent: -20 },
+        { category: "SOFTWARE", day: "2026-10-03", currency: "EUR", spent: -50 },
+        { category: "SOFTWARE", day: "2026-10-04", currency: "EUR", spent: -30 },
       ],
       recent: [],
     });
     expect(stats).toMatchObject({
       bookCurrency: "EUR",
+      unconverted: [],
       cash: 1500,
       card: -200,
       receivable: 900,
@@ -424,9 +457,80 @@ describe("queries' folds", () => {
     ]);
   });
 
+  it("converts every total once: positions at the latest rate, flows at the day's", () => {
+    const now = Date.parse("2026-10-25T12:00:00.000Z");
+    const fx = new Fx("EUR", [
+      { base: "USD", day: "2026-10-01", rate: 0.5 },
+      { base: "USD", day: "2026-10-10", rate: 0.8 },
+    ]);
+    const stats = toDashboardStats(
+      now,
+      {
+        positions: [
+          { currency: "EUR", cash: 1000, card: -100 },
+          { currency: "USD", cash: 1000, card: -50 },
+          { currency: "CHF", cash: 999, card: 0 },
+        ],
+        open: [
+          { direction: "OUTGOING", currency: "USD", outstanding: 100, rates: "[]" },
+          // its own rate wins over the books'
+          { direction: "OUTGOING", currency: "USD", outstanding: 100, rates: '[{"base":"USD","quote":"EUR","rate":0.9}]' },
+          { direction: "INCOMING", currency: "EUR", outstanding: 40, rates: "[]" },
+          { direction: "INCOMING", currency: "JPY", outstanding: 5000, rates: "[]" },
+        ],
+        invoices: { total: 4, issued: 4 },
+        overdue: [],
+        transactions: undefined,
+        months: [
+          { day: "2026-10-02", currency: "USD", in: 100, out: -10 },
+          { day: "2026-10-12", currency: "USD", in: 100, out: 0 },
+          { day: "2026-10-12", currency: "EUR", in: 5, out: 0 },
+          { day: "2026-10-12", currency: "CHF", in: 777, out: -777 },
+        ],
+        spend: [
+          { category: "TRAVEL", day: "2026-10-02", currency: "USD", spent: -100 },
+          { category: "TRAVEL", day: "2026-10-12", currency: "USD", spent: -100 },
+          { category: "RENT", day: "2026-10-12", currency: "CHF", spent: -500 },
+        ],
+        recent: [],
+      },
+      fx,
+    );
+    // 1000 + 1000 * 0.8; the francs have no rate and are left out, named
+    expect(stats.cash).toBe(1800);
+    expect(stats.card).toBe(-140);
+    expect(stats.receivable).toBe(170);
+    expect(stats.payable).toBe(40);
+    expect(stats.unconverted).toEqual(["CHF", "JPY"]);
+    // 100 * 0.5 + 100 * 0.8 + 5
+    expect(stats.months.at(-1)).toEqual({ key: "2026-10", in: 135, out: 5 });
+    expect(stats.spend).toEqual([{ category: "TRAVEL", amount: 130 }]);
+  });
+
+  it("keeps the six largest categories of spend", () => {
+    const spend = ["A", "B", "C", "D", "E", "F", "G"].map((category, i) => ({
+      category,
+      day: "2026-10-02",
+      currency: "EUR",
+      spent: -(i + 1),
+    }));
+    const stats = toDashboardStats(Date.parse("2026-10-25T12:00:00.000Z"), {
+      positions: [],
+      open: [],
+      invoices: undefined,
+      overdue: [],
+      transactions: undefined,
+      months: [],
+      spend,
+      recent: [],
+    });
+    expect(stats.spend.map((s) => s.category)).toEqual(["G", "F", "E", "D", "C", "B"]);
+  });
+
   it("counts readiness the dashboard's way on an empty book", () => {
     const stats = toDashboardStats(Date.now(), {
-      positions: undefined,
+      positions: [],
+      open: [],
       invoices: undefined,
       overdue: [],
       transactions: undefined,
@@ -599,5 +703,72 @@ describe("our side of an invoice", () => {
     expect(invoiceRow("inv-1", sale().state.global, CREATED, AT).our_party).toBe(
       ourPartyOf(sale().state.global),
     );
+  });
+});
+
+describe("the books' settings and rates", () => {
+  it("reads the main currency off a settings document", () => {
+    const state = settingsState({ baseCurrency: "USD", baseCurrencyChangedAt: null });
+    expect(state).not.toBeNull();
+    expect(settingsRow("set-1", state!, CREATED, AT)).toEqual({
+      document_id: "set-1",
+      base_currency: "USD",
+      created_at: CREATED,
+      updated_at: AT,
+    });
+    // a state with no currency is the model's default
+    expect(settingsRow("set-1", { baseCurrency: "", baseCurrencyChangedAt: null }, CREATED, AT).base_currency).toBe("EUR");
+    expect(settingsState({ rates: [] })).toBeNull();
+  });
+
+  it("writes one row per day of a named pair", () => {
+    const state = pairState({
+      base: "USD",
+      quote: "EUR",
+      lastFetchedAt: null,
+      rates: [
+        { id: "r1", date: "2026-11-10T00:00:00.000Z", rate: 0.9, source: "ECB", manual: false },
+        { id: "r2", date: "2026-11-11T00:00:00.000Z", rate: 0.8, source: "Manual", manual: true },
+        // not a day, not a rate: no row
+        { id: "r3", date: "soon", rate: 0.7, source: null, manual: false },
+        { id: "r4", date: "2026-11-12T00:00:00.000Z", rate: 0, source: null, manual: false },
+      ],
+    });
+    expect(state).not.toBeNull();
+    expect(rateRows("pair-1", state!)).toEqual([
+      { pair_id: "pair-1", base: "USD", quote: "EUR", day: "2026-11-10", rate: 0.9 },
+      { pair_id: "pair-1", base: "USD", quote: "EUR", day: "2026-11-11", rate: 0.8 },
+    ]);
+    expect(pairRow("pair-1", { ...state!, lastFetchedAt: AT }, CREATED, AT)).toEqual({
+      document_id: "pair-1",
+      base: "USD",
+      quote: "EUR",
+      rate_count: 2,
+      first_day: "2026-11-10",
+      last_day: "2026-11-11",
+      last_rate: 0.8,
+      last_source: "Manual",
+      last_fetched_at: AT,
+      created_at: CREATED,
+      updated_at: AT,
+    });
+  });
+
+  it("writes nothing for a pair without its currencies, or a state that is not a pair", () => {
+    const unnamed = pairState({ base: null, quote: null, lastFetchedAt: null, rates: [] });
+    expect(unnamed).not.toBeNull();
+    expect(rateRows("pair-1", unnamed!)).toEqual([]);
+    expect(pairRow("pair-1", unnamed!, CREATED, AT)).toMatchObject({
+      base: null,
+      quote: null,
+      rate_count: 0,
+      first_day: null,
+      last_day: null,
+      last_rate: null,
+      last_source: null,
+      last_fetched_at: null,
+    });
+    expect(pairState({ rates: "none" })).toBeNull();
+    expect(pairState({ rates: [] })).toBeNull();
   });
 });

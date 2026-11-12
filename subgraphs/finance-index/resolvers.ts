@@ -32,8 +32,13 @@ import {
   isoNow,
   latestOurPartyQuery,
   loadCounts,
+  loadCurrenciesInUse,
   loadDashboard,
+  loadFx,
   loadMatchCandidates,
+  loadOpenByContact,
+  loadPairs,
+  loadSettings,
   loadTransaction,
   nextNumberFrom,
   searchWords,
@@ -43,6 +48,7 @@ import {
   toContactRow,
   toExpenseCounts,
   toExpenseRow,
+  toExpenseSpend,
   toInvoiceCounts,
   toInvoiceNumberRow,
   toInvoiceRow,
@@ -58,10 +64,13 @@ import {
   type ContactName,
   type ContactPageResult,
   type ContactView,
+  type CurrencyInUse,
+  type CurrencyPairRow,
   type DashboardStats,
   type ExpenseCounts,
   type ExpensePageResult,
   type FinanceCounts,
+  type FinanceSettings,
   type InvoiceCounts,
   type InvoiceNumberRow,
   type InvoicePageResult,
@@ -128,6 +137,37 @@ const pageOffset = (offset: number | null | undefined) =>
 /** GraphQL enum values are upper case; the queries' views are lower. */
 const toEnumView = (view: InvoiceView) => view.toUpperCase();
 
+/** What the contacts' open invoices still owe, in the main currency. */
+async function openByContact(
+  db: Db,
+  ids: string[],
+  restrict: Parameters<typeof loadOpenByContact>[3],
+): Promise<Map<string, number>> {
+  if (ids.length === 0) return new Map();
+  return loadOpenByContact(db, ids, await loadFx(db, restrict), restrict);
+}
+
+function settings({
+  db,
+  restrict,
+}: IndexQuery<Db, { driveId: string }>): Promise<FinanceSettings> {
+  return loadSettings(db, (q, column) => restrict(q, column));
+}
+
+function pairs({
+  db,
+  restrict,
+}: IndexQuery<Db, { driveId: string }>): Promise<CurrencyPairRow[]> {
+  return loadPairs(db, (q, column) => restrict(q, column));
+}
+
+function currenciesInUse({
+  db,
+  restrict,
+}: IndexQuery<Db, { driveId: string }>): Promise<CurrencyInUse[]> {
+  return loadCurrenciesInUse(db, (q, column) => restrict(q, column));
+}
+
 async function invoices({
   db,
   args,
@@ -143,16 +183,17 @@ async function invoices({
     contactId: args.contactId ?? null,
   };
   const limit = pageLimit(args.limit);
-  const [rows, count] = await Promise.all([
+  const [rows, count, fx] = await Promise.all([
     restrict(
       invoicesQuery(db, filter, { offset: pageOffset(args.offset), limit }),
     ).execute(),
     restrict(invoiceCountQuery(db, filter)).executeTakeFirst(),
+    loadFx(db, (q, column) => restrict(q, column)),
   ]);
   const hasMore = rows.length > limit;
   return {
     items: (hasMore ? rows.slice(0, limit) : rows).map((r) =>
-      toInvoiceRow(r, now),
+      toInvoiceRow(r, now, fx),
     ),
     total: Number(count?.n ?? 0),
     hasMore,
@@ -314,10 +355,11 @@ async function expenseCounts({
   Db,
   { driveId: string; query?: string | null }
 >): Promise<ExpenseCounts> {
-  const rows = await restrict(
-    expenseStatusQuery(db, searchWords(args.query)),
-  ).execute();
-  return toExpenseCounts(rows);
+  const [rows, fx] = await Promise.all([
+    restrict(expenseStatusQuery(db, searchWords(args.query))).execute(),
+    loadFx(db, (q, column) => restrict(q, column)),
+  ]);
+  return toExpenseCounts(rows, fx);
 }
 
 async function spend90d({
@@ -326,8 +368,11 @@ async function spend90d({
   restrict,
 }: IndexQuery<Db, { driveId: string; now?: string | null }>): Promise<number> {
   const since = spendSince(Date.parse(isoNow(args.now)));
-  const row = await restrict(expenseSpendQuery(db, since)).executeTakeFirst();
-  return Number(row?.spent ?? 0) || 0;
+  const [rows, fx] = await Promise.all([
+    restrict(expenseSpendQuery(db, since)).execute(),
+    loadFx(db, (q, column) => restrict(q, column)),
+  ]);
+  return toExpenseSpend(rows, fx);
 }
 
 async function contacts({
@@ -354,8 +399,14 @@ async function contacts({
     restrict(contactCountQuery(db, filter)).executeTakeFirst(),
   ]);
   const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+  const open = await openByContact(
+    db,
+    page.map((r) => r.document_id),
+    (q, column) => restrict(q, column),
+  );
   return {
-    items: (hasMore ? rows.slice(0, limit) : rows).map(toContactRow),
+    items: page.map((r) => toContactRow(r, open)),
     total: Number(count?.n ?? 0),
     hasMore,
   };
@@ -385,7 +436,11 @@ async function contact({
       restrict(q, column),
     ),
   ).executeTakeFirst();
-  return row ? toContactRow(row) : null;
+  if (!row) return null;
+  const open = await openByContact(db, [row.document_id], (q, column) =>
+    restrict(q, column),
+  );
+  return toContactRow(row, open);
 }
 
 async function contactNames({
@@ -462,4 +517,7 @@ export const queries = {
   "FinanceIndexQueries.transaction": transaction,
   "FinanceIndexQueries.matchCandidates": matchCandidates,
   "FinanceIndexQueries.counts": counts,
+  "FinanceIndexQueries.settings": settings,
+  "FinanceIndexQueries.pairs": pairs,
+  "FinanceIndexQueries.currenciesInUse": currenciesInUse,
 };

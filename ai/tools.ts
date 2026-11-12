@@ -257,7 +257,7 @@ function transactionRow(row: TransactionRow) {
 const SUMMARY_QUERY = `query ($d: String!, $n: String!) {
   financeIndex {
     dashboard(driveId: $d, now: $n) {
-      bookCurrency cash card receivable payable toReview
+      bookCurrency unconverted cash card receivable payable toReview
       months { key in out }
       spend { category amount }
       overdue { ${INVOICE_FIELDS} }
@@ -273,6 +273,7 @@ interface SummaryData {
   financeIndex: {
     dashboard: {
       bookCurrency: string;
+      unconverted: string[];
       cash: number;
       card: number;
       receivable: number;
@@ -325,6 +326,8 @@ const financeSummaryTool: PhAiToolDescriptor = {
       listing(what, rows, all, { budget: SUMMARY_LIST_BUDGET });
     return {
       bookCurrency: dashboard.bookCurrency,
+      // currencies with no exchange rate: their amounts are not in the totals
+      currenciesLeftOutOfTotals: dashboard.unconverted,
       cash: dashboard.cash,
       card: dashboard.card,
       receivable: dashboard.receivable,

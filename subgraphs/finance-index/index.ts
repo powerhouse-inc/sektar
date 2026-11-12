@@ -102,6 +102,21 @@ export const FinanceIndexSubgraph = defineIndexSubgraph({
         rows: "derived",
         column: "document_id",
       },
+      // The books' settings document.
+      "FinanceIndexQueries.settings": {
+        rows: "derived",
+        column: "document_id",
+      },
+      "FinanceIndexQueries.pairs": {
+        rows: "document",
+        column: "document_id",
+      },
+      // Spans accounts, transactions, invoices and claims; the handler names
+      // each query's column.
+      "FinanceIndexQueries.currenciesInUse": {
+        rows: "derived",
+        column: "document_id",
+      },
     },
   },
   resolvers,
