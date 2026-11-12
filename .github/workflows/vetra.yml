@@ -2,9 +2,6 @@ name: Vetra
 on:
   push:
     branches: ['**', '!release-please--**']
-    # Old deploy path only, until phase 3: release tags build the host image
-    # that licensed environments follow (LATEST channel).
-    tags: ['v*']
   pull_request:
     types: [opened, synchronize, reopened]
 permissions: {}
@@ -14,11 +11,10 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   publish:
-    # Never on tags. Skip pull requests opened from another repository: they must
-    # not reach the OIDC token. Compare full names rather than asking whether the
-    # head repo is a fork, which is true for every PR when this repository is
-    # itself a fork.
-    if: "!startsWith(github.ref, 'refs/tags/') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)"
+    # Skip pull requests opened from another repository: they must not reach the
+    # OIDC token. Compare full names rather than asking whether the head repo is
+    # a fork, which is true for every PR when this repository is itself a fork.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -35,29 +31,3 @@ jobs:
       - uses: powerhouse-inc/vetra-publish@v1
         with:
           app-id: 43622402-be06-435a-bbfa-bb649b0d6244
-  deploy:
-    # Same fork guard as above; keeps main pushes, pull requests and v* tags.
-    if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with: { version: 12.10.1 }
-      - uses: actions/setup-node@v4
-        with: { node-version: 24, cache: pnpm }
-      - uses: powerhouse-inc/vetra-deploy-action@v1
-        with:
-          app-id: 43622402-be06-435a-bbfa-bb649b0d6244
-          # Sektar's production stack (switchboard + Connect) as one container,
-          # built on release tags only and recorded as the App's `host` image
-          # on the LATEST channel: Vetra runs it as a host for each cloud
-          # licence (hosts/cli/README.md). Main pushes keep deploying the
-          # package alone, as before.
-          fusion-dockerfile: ${{ startsWith(github.ref, 'refs/tags/v') && 'hosts/cli/Dockerfile' || '' }}
-          fusion-image-name: host
-          # vetra-publish already published the release's packages; publishing
-          # them again from the tag run would fail.
-          package-dirs: ${{ !startsWith(github.ref, 'refs/tags/') && '.' || '' }}
