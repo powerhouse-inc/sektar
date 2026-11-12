@@ -81,6 +81,11 @@ export type CategorizeTransactionInput = {
   id: Scalars["OID"]["input"];
 };
 
+export type CorrectCurrencyInput = {
+  /** The currency the account is really in (ISO 4217) */
+  currency: Scalars["String"]["input"];
+};
+
 export type ExcludeTransactionInput = {
   excluded: Scalars["Boolean"]["input"];
   id: Scalars["OID"]["input"];

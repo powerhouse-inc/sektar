@@ -91,6 +91,11 @@ input SetAccountDetailsInput {
   openingBalance: Float
 }
 
+input CorrectCurrencyInput {
+  "The currency the account is really in (ISO 4217)"
+  currency: String!
+}
+
 # feed
 
 input ImportTransactionsInput {

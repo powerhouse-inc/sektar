@@ -56,6 +56,29 @@ export const documentModel: DocumentModelGlobalState = {
               examples: [],
               scope: "global",
             },
+            {
+              id: "4414e5a0-3637-4924-9f88-255b2752f95b",
+              name: "CORRECT_CURRENCY",
+              description:
+                "Correct the currency the account was filed under. The amounts stay as they are: only what they are amounts of changes.",
+              schema:
+                'input CorrectCurrencyInput {\n  "The currency the account is really in (ISO 4217)"\n  currency: String!\n}',
+              template: "",
+              reducer:
+                'const code = action.input.currency.trim().toUpperCase();\nif (!/^[A-Z]{3}$/.test(code))\n  throw new InvalidAccountCurrencyError(\n    `"${action.input.currency}" is not a three-letter currency code`,\n  );\nstate.currency = code;',
+              errors: [
+                {
+                  id: "b47d95ac-f842-4dc1-b5af-7e07ef0a9a89",
+                  code: "INVALID_ACCOUNT_CURRENCY",
+                  name: "InvalidAccountCurrencyError",
+                  description:
+                    "The currency is not a three-letter ISO 4217 code",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
           ],
         },
         {

@@ -1,7 +1,10 @@
 import type { Reducer, StateReducer } from "document-model";
 import { createReducer, isDocumentAction } from "document-model";
 import type { BankAccountPHState } from "document-models/bank-account/v1";
-import type { SetAccountDetailsAction } from "./account/actions.js";
+import type {
+  CorrectCurrencyAction,
+  SetAccountDetailsAction,
+} from "./account/actions.js";
 import type {
   CategorizeTransactionAction,
   ExcludeTransactionAction,
@@ -16,6 +19,7 @@ import { bankAccountFeedOperations } from "../src/reducers/feed.js";
 
 import {
   CategorizeTransactionInputSchema,
+  CorrectCurrencyInputSchema,
   ExcludeTransactionInputSchema,
   ImportTransactionsInputSchema,
   MatchTransactionInputSchema,
@@ -50,6 +54,18 @@ const stateReducer: StateReducer<BankAccountPHState> = (
       bankAccountAccountOperations.setAccountDetailsOperation(
         state.global,
         action as SetAccountDetailsAction,
+        dispatch,
+      );
+
+      break;
+    }
+
+    case "CORRECT_CURRENCY": {
+      memoizedSchema(CorrectCurrencyInputSchema).parse(action.input);
+
+      bankAccountAccountOperations.correctCurrencyOperation(
+        state.global,
+        action as CorrectCurrencyAction,
         dispatch,
       );
 

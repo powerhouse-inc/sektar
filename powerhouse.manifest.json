@@ -54,6 +54,14 @@
     {
       "id": "sektar/calendar-event",
       "name": "Calendar Event"
+    },
+    {
+      "id": "sektar/books-settings",
+      "name": "Books Settings"
+    },
+    {
+      "id": "sektar/currency-pair",
+      "name": "Currency Pair"
     }
   ],
   "apps": [

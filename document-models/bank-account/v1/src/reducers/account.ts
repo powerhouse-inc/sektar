@@ -1,5 +1,8 @@
 import type { BankAccountAccountOperations } from "document-models/bank-account/v1";
-import { CurrencyLockedError } from "../../gen/account/error.js";
+import {
+  CurrencyLockedError,
+  InvalidAccountCurrencyError,
+} from "../../gen/account/error.js";
 
 export const bankAccountAccountOperations: BankAccountAccountOperations = {
   setAccountDetailsOperation(state, action) {
@@ -25,5 +28,13 @@ export const bankAccountAccountOperations: BankAccountAccountOperations = {
       action.input.openingBalance !== null
     )
       state.openingBalance = action.input.openingBalance;
+  },
+  correctCurrencyOperation(state, action) {
+    const code = action.input.currency.trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(code))
+      throw new InvalidAccountCurrencyError(
+        `"${action.input.currency}" is not a three-letter currency code`,
+      );
+    state.currency = code;
   },
 };

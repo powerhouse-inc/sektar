@@ -1,4 +1,4 @@
-export type ErrorCode = "CURRENCY_LOCKED";
+export type ErrorCode = "CURRENCY_LOCKED" | "INVALID_ACCOUNT_CURRENCY";
 
 export interface ReducerError {
   errorCode: ErrorCode;
@@ -11,6 +11,15 @@ export class CurrencyLockedError extends Error implements ReducerError {
   }
 }
 
+export class InvalidAccountCurrencyError extends Error implements ReducerError {
+  errorCode = "INVALID_ACCOUNT_CURRENCY" as ErrorCode;
+  constructor(message = "InvalidAccountCurrencyError") {
+    super(message);
+  }
+}
+
 export const errors = {
   SetAccountDetails: { CurrencyLockedError },
+
+  CorrectCurrency: { InvalidAccountCurrencyError },
 };

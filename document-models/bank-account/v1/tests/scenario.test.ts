@@ -1,5 +1,6 @@
 import {
   categorizeTransaction,
+  correctCurrency,
   excludeTransaction,
   importTransactions,
   matchTransaction,
@@ -275,5 +276,31 @@ describe("bank account feed", () => {
     expect(lastError(doc)).toBeUndefined();
     expect(byId("p1")).toBeUndefined();
     expect(byId("t3")?.status).toBe("NEW");
+  });
+
+  it("corrects the currency of an account that already holds transactions", () => {
+    let doc = account();
+    const before = doc.state.global.transactions.map((t) => t.amount);
+    // the ordinary edit refuses: the account has transactions
+    doc = reducer(doc, setAccountDetails({ currency: "RON" }));
+    expect(lastError(doc)).toBe(
+      "The currency cannot change once transactions exist",
+    );
+    expect(doc.state.global.currency).toBe("EUR");
+
+    // the correction says what the amounts always were amounts of
+    doc = reducer(doc, correctCurrency({ currency: " ron " }));
+    expect(lastError(doc)).toBeUndefined();
+    expect(doc.state.global.currency).toBe("RON");
+    expect(doc.state.global.transactions.map((t) => t.amount)).toEqual(before);
+    expect(doc.state.global.openingBalance).toBe(1000);
+
+    for (const currency of ["", "RO", "LEI!", "R0N"]) {
+      doc = reducer(doc, correctCurrency({ currency }));
+      expect(lastError(doc)).toBe(
+        `"${currency}" is not a three-letter currency code`,
+      );
+      expect(doc.state.global.currency).toBe("RON");
+    }
   });
 });

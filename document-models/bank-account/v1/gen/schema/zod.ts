@@ -5,6 +5,7 @@ import type {
   AccountKind,
   BankAccountState,
   CategorizeTransactionInput,
+  CorrectCurrencyInput,
   ExcludeTransactionInput,
   ImportTransactionsInput,
   ImportedTransactionInput,
@@ -81,6 +82,14 @@ export function CategorizeTransactionInputSchema(): z.ZodObject<
     category: TransactionCategorySchema,
     contactId: z.string().nullish(),
     id: z.string(),
+  });
+}
+
+export function CorrectCurrencyInputSchema(): z.ZodObject<
+  Properties<CorrectCurrencyInput>
+> {
+  return z.object({
+    currency: z.string(),
   });
 }
 

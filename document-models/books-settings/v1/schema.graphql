@@ -1,0 +1,34 @@
+scalar Unknown
+scalar DateTime
+scalar Address
+scalar AttachmentRef
+scalar Amount_Tokens
+scalar EthereumAddress
+scalar EmailAddress
+scalar Amount_Percentage
+scalar Date
+scalar URL
+scalar Amount_Money
+scalar OLabel
+scalar Currency
+scalar PHID
+scalar OID
+scalar Amount_Fiat
+scalar Amount_Currency
+scalar Amount_Crypto
+scalar Amount
+scalar Upload
+
+type BooksSettingsState {
+  "The currency the books add up in (ISO 4217)"
+  baseCurrency: String!
+  "When the main currency last changed"
+  baseCurrencyChangedAt: DateTime
+}
+
+# currency
+
+input SetBaseCurrencyInput {
+  currency: String!
+  changedAt: DateTime!
+}

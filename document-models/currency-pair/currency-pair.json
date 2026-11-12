@@ -1,0 +1,162 @@
+{
+  "id": "sektar/currency-pair",
+  "name": "Currency Pair",
+  "author": {
+    "name": "Sektar",
+    "website": "https://sektar.example"
+  },
+  "extension": "fx",
+  "description": "The daily rates that convert one currency into the main currency of the books.",
+  "specifications": [
+    {
+      "version": 1,
+      "changeLog": [],
+      "state": {
+        "global": {
+          "schema": "type CurrencyPairState {\n  \"The currency converted from, e.g. USD\"\n  base: String\n  \"The currency converted to: the main currency of the books, e.g. EUR\"\n  quote: String\n  \"One rate per day, the oldest first\"\n  rates: [RatePoint!]!\n  lastFetchedAt: DateTime\n}\n\ntype RatePoint {\n  id: OID!\n  \"The day the rate applies to, at midnight UTC\"\n  date: Date!\n  \"How many quote one base is worth\"\n  rate: Float!\n  \"Where the rate comes from, e.g. ECB\"\n  source: String\n  \"Entered by hand: a fetched rate never overwrites it\"\n  manual: Boolean!\n}",
+          "initialValue": "{\"base\": null, \"quote\": null, \"rates\": [], \"lastFetchedAt\": null}",
+          "examples": []
+        },
+        "local": {
+          "schema": "",
+          "initialValue": "",
+          "examples": []
+        }
+      },
+      "modules": [
+        {
+          "id": "172a7c7f-5e7c-47b6-95ab-99493c6f8bb8",
+          "name": "pair",
+          "description": "Which two currencies the rates are for",
+          "operations": [
+            {
+              "id": "499bb841-0925-4120-9b07-d5bc29fc6c71",
+              "name": "SET_PAIR",
+              "description": "Name the two currencies",
+              "schema": "input SetPairInput {\n  base: String!\n  quote: String!\n}",
+              "template": "",
+              "reducer": "const base = action.input.base.trim().toUpperCase();\nconst quote = action.input.quote.trim().toUpperCase();\nif (!/^[A-Z]{3}$/.test(base) || !/^[A-Z]{3}$/.test(quote))\n  throw new InvalidPairCurrencyError(\n    `\"${action.input.base}\" and \"${action.input.quote}\" must be three-letter currency codes`,\n  );\nif (base === quote)\n  throw new SameCurrencyError(\"A currency needs no rate to itself\");\nif (state.rates.length > 0 && (state.base !== base || state.quote !== quote))\n  throw new PairLockedError(\n    \"The pair cannot change once it holds rates\",\n  );\nstate.base = base;\nstate.quote = quote;",
+              "errors": [
+                {
+                  "id": "6ee19b4e-9ee3-451b-89d2-79b05cb88592",
+                  "code": "INVALID_PAIR_CURRENCY",
+                  "name": "InvalidPairCurrencyError",
+                  "description": "A currency of the pair is not a three-letter ISO 4217 code",
+                  "template": ""
+                },
+                {
+                  "id": "db796af4-a257-4a62-bfed-1fc0f1b0712b",
+                  "code": "SAME_CURRENCY",
+                  "name": "SameCurrencyError",
+                  "description": "Base and quote are the same currency",
+                  "template": ""
+                },
+                {
+                  "id": "173e9e5b-5dce-41b1-bfff-e93b1bf2989e",
+                  "code": "PAIR_LOCKED",
+                  "name": "PairLockedError",
+                  "description": "The pair already holds rates for other currencies",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        },
+        {
+          "id": "3e91d49a-c020-46b6-87df-327052defedc",
+          "name": "rates",
+          "description": "The daily rates",
+          "operations": [
+            {
+              "id": "ce33c316-5340-448f-a125-d45e0796cd04",
+              "name": "RECORD_RATES",
+              "description": "Record fetched rates, one per day; a day entered by hand is kept",
+              "schema": "input RecordRatesInput {\n  source: String!\n  fetchedAt: DateTime!\n  rates: [RecordedRateInput!]!\n}\n\ninput RecordedRateInput {\n  id: OID!\n  date: Date!\n  rate: Float!\n}",
+              "template": "",
+              "reducer": "if (!state.base || !state.quote)\n  throw new PairNotSetError(\"Name the two currencies first\");\nif (action.input.rates.length === 0)\n  throw new EmptyRatesError(\"Nothing to record\");\nconst days = new Set<string>();\nfor (const r of action.input.rates) {\n  if (r.rate <= 0)\n    throw new InvalidRateError(`A rate must be above zero (${r.date.slice(0, 10)})`);\n  const day = `${r.date.slice(0, 10)}T00:00:00.000Z`;\n  if (days.has(day))\n    throw new DuplicateDateError(\n  `${day.slice(0, 10)} is in the batch twice`,\n);\n  days.add(day);\n}\nfor (const r of action.input.rates) {\n  const day = `${r.date.slice(0, 10)}T00:00:00.000Z`;\n  const held = state.rates.find((x) => x.date === day);\n  if (!held) {\n    state.rates.push({\n      id: r.id,\n      date: day,\n      rate: r.rate,\n      source: action.input.source,\n      manual: false,\n    });\n  } else if (!held.manual) {\n    held.rate = r.rate;\n    held.source = action.input.source;\n  }\n}\nstate.rates.sort((a, b) => a.date.localeCompare(b.date));\nstate.lastFetchedAt = action.input.fetchedAt;",
+              "errors": [
+                {
+                  "id": "35780c4c-5b32-4390-a854-97e23256cf0d",
+                  "code": "PAIR_NOT_SET",
+                  "name": "PairNotSetError",
+                  "description": "The pair has no currencies yet",
+                  "template": ""
+                },
+                {
+                  "id": "b7ea8b7a-5db0-48e2-851d-f800c0d140ca",
+                  "code": "EMPTY_RATES",
+                  "name": "EmptyRatesError",
+                  "description": "The batch holds no rates",
+                  "template": ""
+                },
+                {
+                  "id": "a49a5160-d4be-461b-a757-47548964b8e3",
+                  "code": "INVALID_RATE",
+                  "name": "InvalidRateError",
+                  "description": "A rate is zero or negative",
+                  "template": ""
+                },
+                {
+                  "id": "9a91afc9-2c28-462b-aab1-10fe3c692ec9",
+                  "code": "DUPLICATE_DATE",
+                  "name": "DuplicateDateError",
+                  "description": "The batch holds the same day twice",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "b18a4a7f-350c-4a7b-a939-dd62a3fd59b8",
+              "name": "SET_MANUAL_RATE",
+              "description": "Enter or correct the rate of one day by hand",
+              "schema": "input SetManualRateInput {\n  id: OID!\n  date: Date!\n  rate: Float!\n}",
+              "template": "",
+              "reducer": "if (!state.base || !state.quote)\n  throw new ManualPairNotSetError(\"Name the two currencies first\");\nif (action.input.rate <= 0)\n  throw new InvalidManualRateError(\"A rate must be above zero\");\nconst day = `${action.input.date.slice(0, 10)}T00:00:00.000Z`;\nconst held = state.rates.find((x) => x.date === day);\nif (held) {\n  held.rate = action.input.rate;\n  held.source = \"Manual\";\n  held.manual = true;\n} else {\n  state.rates.push({\n    id: action.input.id,\n    date: day,\n    rate: action.input.rate,\n    source: \"Manual\",\n    manual: true,\n  });\n  state.rates.sort((a, b) => a.date.localeCompare(b.date));\n}",
+              "errors": [
+                {
+                  "id": "e0354e1f-ddcf-4821-ab3a-f15d533a0582",
+                  "code": "MANUAL_PAIR_NOT_SET",
+                  "name": "ManualPairNotSetError",
+                  "description": "The pair has no currencies yet",
+                  "template": ""
+                },
+                {
+                  "id": "2ba51d2d-9735-46ce-bbf4-31eb5c45d311",
+                  "code": "INVALID_MANUAL_RATE",
+                  "name": "InvalidManualRateError",
+                  "description": "The rate is zero or negative",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            },
+            {
+              "id": "443c9240-916b-4812-80fc-07ab69a46b2b",
+              "name": "REMOVE_RATE",
+              "description": "Remove the rate of one day",
+              "schema": "input RemoveRateInput {\n  date: Date!\n}",
+              "template": "",
+              "reducer": "const day = `${action.input.date.slice(0, 10)}T00:00:00.000Z`;\nconst index = state.rates.findIndex((x) => x.date === day);\nif (index === -1) throw new RateNotFoundError(`No rate for ${day.slice(0, 10)}`);\nstate.rates.splice(index, 1);",
+              "errors": [
+                {
+                  "id": "d07f357e-cf11-412d-885f-cf5402d3739b",
+                  "code": "RATE_NOT_FOUND",
+                  "name": "RateNotFoundError",
+                  "description": "The pair holds no rate for that day",
+                  "template": ""
+                }
+              ],
+              "examples": [],
+              "scope": "global"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
