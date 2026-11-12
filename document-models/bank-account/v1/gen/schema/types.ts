@@ -65,6 +65,8 @@ export type Scalars = {
 export type AccountKind = "CREDIT_CARD" | "CURRENT" | "SAVINGS";
 
 export type BankAccountState = {
+  /** The balance the bank last reported for the account; null until it has */
+  bankBalance: Maybe<BankBalance>;
   currency: Scalars["String"]["output"];
   iban: Maybe<Scalars["String"]["output"]>;
   institution: Maybe<Scalars["String"]["output"]>;
@@ -73,6 +75,16 @@ export type BankAccountState = {
   name: Maybe<Scalars["String"]["output"]>;
   openingBalance: Scalars["Float"]["output"];
   transactions: Array<Transaction>;
+};
+
+/** A balance as the bank reported it */
+export type BankBalance = {
+  /** The booked balance, in the account's currency */
+  amount: Scalars["Float"]["output"];
+  /** Which balance the bank gave, e.g. ITBD (booked during the day) or CLBD (booked at the last close) */
+  kind: Maybe<Scalars["String"]["output"]>;
+  /** When it was read from the bank */
+  readAt: Scalars["DateTime"]["output"];
 };
 
 export type CategorizeTransactionInput = {
@@ -114,6 +126,17 @@ export type MatchTransactionInput = {
   documentId: Scalars["String"]["input"];
   id: Scalars["OID"]["input"];
   kind: MatchKind;
+};
+
+export type RecordBankBalanceInput = {
+  /** The booked balance the bank reports */
+  amount: Scalars["Float"]["input"];
+  /** The currency the bank gave for it, when it gave one */
+  currency?: InputMaybe<Scalars["String"]["input"]>;
+  /** Which balance the bank gave, e.g. ITBD or CLBD */
+  kind?: InputMaybe<Scalars["String"]["input"]>;
+  /** When it was read from the bank */
+  readAt: Scalars["DateTime"]["input"];
 };
 
 export type RemovePendingTransactionsInput = {

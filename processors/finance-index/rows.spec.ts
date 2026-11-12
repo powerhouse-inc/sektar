@@ -288,6 +288,7 @@ const account = (transactions: Transaction[], over: Partial<BankAccountState> = 
   institution: "ABN AMRO",
   kind: "CURRENT",
   lastImportedAt: "2026-10-02T00:00:00.000Z",
+  bankBalance: null,
   name: "Main",
   openingBalance: 1000,
   transactions,

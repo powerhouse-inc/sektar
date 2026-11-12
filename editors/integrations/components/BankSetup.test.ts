@@ -38,7 +38,7 @@ describe("connecting a bank", () => {
     ).toMatchObject({ bankAccountId: null, kind: "CREDIT_CARD" });
   });
 
-  it("writes the connection, the bank and its accounts, every 6 hours, without a backfill", () => {
+  it("writes the connection, the bank and its accounts, every 8 hours, without a backfill", () => {
     const now = new Date(2026, 9, 28);
     const choices = {
       ...defaultChoices("TRANSACTIONS", "distyra", now),
@@ -48,7 +48,8 @@ describe("connecting a bank", () => {
       bankName: "KBC",
       accounts: [{ ...accountChoice(kbc, []), bankAccountId: "bank-1" }],
     };
-    expect(choices.every).toEqual({ value: 6, unit: "HOURS" });
+    // three pulls a day: the bank's fourth daily fetch is the balance check's
+    expect(choices.every).toEqual({ value: 8, unit: "HOURS" });
     const doc = createActions(choices, now, () => "x").reduce(
       (d, a) => reducer(d, a),
       utils.createDocument(),

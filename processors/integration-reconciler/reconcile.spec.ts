@@ -1060,6 +1060,9 @@ describe("an integration on a connection it is given (Distyra)", () => {
     expect(live.steps?.map((x) => [x.key, x.connectionId])).toEqual([
       ["pull", "distyra-key"],
       ["import_1", null],
+      // the bank's own balances, read with the same key, then recorded
+      ["balances", "distyra-key"],
+      ["balance_1", null],
     ]);
     expect(s.resources.backfillWorkflowId).toBeNull();
   });

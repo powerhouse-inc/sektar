@@ -75,6 +75,7 @@ export function liveWorkflowSpec(
     enabled: ctx.state.intent.live.enabled,
     trigger: live.trigger,
     steps: live.steps,
+    triggerNeedsSteps: live.addMissingSteps,
     words: {
       subject: "the workflow",
       provider: provider.label,

@@ -15,7 +15,7 @@ import {
   liveWorkflowSpec,
 } from "../backfill-workflow.js";
 import { workflowDrift, type WorkflowFacts } from "../workflow-spec.js";
-import { distyra } from "./distyra.js";
+import { distyra, everyHours } from "./distyra.js";
 import { gmail } from "./gmail.js";
 
 const newId = () => "id-new";
@@ -252,11 +252,101 @@ describe("Distyra, as the existing transaction workflows run", () => {
           bankAccountId: "90TTzVxT",
         }),
       ],
+      // after the imports: the bank's own balances, then each account brought to its one
+      [
+        "balances",
+        "read-balances",
+        "WSEf1HivUP",
+        undefined,
+        {
+          connectionId: "5f3665c9-a1c1-4c15-95f9-566de0c783b8",
+          everyHours: 6,
+          psuIpAddress: "{{trigger.payload.psu.ipAddress?}}",
+          psuUserAgent: "{{trigger.payload.psu.userAgent?}}",
+        },
+      ],
+      [
+        "balance_1",
+        "record-bank-balance",
+        undefined,
+        REACTOR,
+        {
+          balances: "{{steps.balances.output}}",
+          accountId: "47af97c7",
+          accountKey: "ak1_d3b6",
+          bankAccountId: "JNBMjvNI",
+        },
+      ],
+      [
+        "balance_2",
+        "record-bank-balance",
+        undefined,
+        REACTOR,
+        expect.objectContaining({
+          accountId: "0af05ed7",
+          bankAccountId: "90TTzVxT",
+        }),
+      ],
     ]);
     expect(distyra.auth).toBe("apiKey");
     expect(distyra.backfillPollSeconds).toBeUndefined();
     expect(distyra.connection("KBC", kbc)).toBeNull();
     expect(distyra.backfillSteps({} as never, "day")).toEqual([]);
+  });
+
+  it("gives a workflow published before the balance steps existed those steps, in place", () => {
+    const spec = liveWorkflowSpec(distyra, {
+      name: "KBC",
+      state: kbc,
+      connectionId: "WSEf1HivUP",
+      accountLabel: null,
+      reactorConnectionId: REACTOR,
+      driveId: "",
+    });
+    expect(spec.triggerNeedsSteps).toBe(true);
+    // as published by the release before: the pull and the two imports
+    const before = spec.steps.slice(0, 3).map((step, i) => ({
+      id: `step-${String(i)}`,
+      key: step.key,
+      connectionId: step.connectionId ?? null,
+      config: step.config,
+    }));
+    let n = 0;
+    const drift = workflowDrift(
+      spec,
+      {
+        status: "ENABLED",
+        version: 3,
+        publishedVersion: 3,
+        triggerName: "schedule",
+        triggerConnectionId: null,
+        triggerConfig: spec.trigger.config,
+        triggerReactorConnectionId: null,
+        managedBy: null,
+        steps: before,
+      },
+      "2026-11-12T10:00:00.000Z",
+      () => `new-${String(++n)}`,
+    );
+    expect(drift.differences).toEqual([
+      'the workflow had no step "Read Balances"',
+      'the workflow had no step "Record bank balance 1"',
+      'the workflow had no step "Record bank balance 2"',
+    ]);
+    const types = drift.actions.map((a) => a.type);
+    expect(types).toEqual(["ADD_STEP", "ADD_EDGE", "ADD_STEP", "ADD_EDGE", "ADD_STEP", "ADD_EDGE", "PUBLISH_WORKFLOW"]);
+    // chained after the last import, then one after the other
+    const edges = drift.actions.filter((a) => a.type === "ADD_EDGE").map((a) => a.input as { from: string; to: string });
+    expect(edges.map((e) => e.from)).toEqual(["step-2", edges[0].to, edges[1].to]);
+  });
+
+  it("tells Read Balances how often it runs, in hours", () => {
+    const every = (value: number, unit: "MINUTES" | "HOURS" | "DAYS") =>
+      everyHours(state(initialize({ kind: "TRANSACTIONS", provider: "distyra" }), setLiveInterval({ value, unit })));
+    expect(every(6, "HOURS")).toBe(6);
+    expect(every(12, "HOURS")).toBe(12);
+    expect(every(1, "DAYS")).toBe(24);
+    expect(every(30, "MINUTES")).toBe(0.5);
   });
 });
 

@@ -5,11 +5,17 @@
 import { createAction } from "document-model";
 import {
   CorrectCurrencyInputSchema,
+  RecordBankBalanceInputSchema,
   SetAccountDetailsInputSchema,
 } from "../schema/zod.js";
-import type { CorrectCurrencyInput, SetAccountDetailsInput } from "../types.js";
+import type {
+  CorrectCurrencyInput,
+  RecordBankBalanceInput,
+  SetAccountDetailsInput,
+} from "../types.js";
 import type {
   CorrectCurrencyAction,
+  RecordBankBalanceAction,
   SetAccountDetailsAction,
 } from "./actions.js";
 
@@ -28,5 +34,14 @@ export const correctCurrency = (input: CorrectCurrencyInput) =>
     { ...input },
     undefined,
     CorrectCurrencyInputSchema,
+    "global",
+  );
+
+export const recordBankBalance = (input: RecordBankBalanceInput) =>
+  createAction<RecordBankBalanceAction>(
+    "RECORD_BANK_BALANCE",
+    { ...input },
+    undefined,
+    RecordBankBalanceInputSchema,
     "global",
   );

@@ -23,6 +23,7 @@ export function defaultGlobalState(): BankAccountGlobalState {
     openingBalance: 0,
     transactions: [],
     lastImportedAt: null,
+    bankBalance: null,
   };
 }
 

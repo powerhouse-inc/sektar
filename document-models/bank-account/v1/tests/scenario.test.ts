@@ -4,6 +4,7 @@ import {
   excludeTransaction,
   importTransactions,
   matchTransaction,
+  recordBankBalance,
   reducer,
   removePendingTransactions,
   setAccountDetails,
@@ -302,5 +303,71 @@ describe("bank account feed", () => {
       );
       expect(doc.state.global.currency).toBe("RON");
     }
+  });
+
+  it("adds up to the balance the bank reports, whatever history was imported", () => {
+    // an account filed by an integration: it starts at zero and holds only
+    // the transactions the bank still handed over
+    let doc = reducer(
+      utils.createDocument(),
+      setAccountDetails({ name: "BT Cont curent", kind: "CURRENT", currency: "RON" }),
+    );
+    doc = reducer(
+      doc,
+      importTransactions({
+        batchId: "b1",
+        importedAt: T,
+        transactions: [
+          { id: "a", bookedAt: T, amount: 7000.1, counterparty: "Client", description: null, reference: "r-a", pending: false },
+          { id: "b", bookedAt: T, amount: -1000.2, counterparty: "Rent", description: null, reference: "r-b", pending: false },
+          { id: "c", bookedAt: T, amount: -500, counterparty: "Card", description: null, reference: "r-c", pending: true },
+        ],
+      }),
+    );
+    const balance = () => {
+      const s = doc.state.global;
+      const cents = s.transactions
+        .filter((t) => t.status !== "EXCLUDED" && t.status !== "PENDING")
+        .reduce((sum, t) => sum + Math.round(t.amount * 100), Math.round(s.openingBalance * 100));
+      return cents / 100;
+    };
+    expect(balance()).toBe(5999.9);
+
+    // the bank says 9,000: the 3,000.10 from before the import becomes the opening balance
+    doc = reducer(doc, recordBankBalance({ amount: 9000, currency: " ron ", readAt: "2026-11-12T10:00:00.000Z", kind: "ITBD" }));
+    expect(lastError(doc)).toBeUndefined();
+    expect(doc.state.global.openingBalance).toBe(3000.1);
+    expect(doc.state.global.bankBalance).toEqual({ amount: 9000, readAt: "2026-11-12T10:00:00.000Z", kind: "ITBD" });
+    expect(balance()).toBe(9000);
+
+    // a transaction imported afterwards moves the balance as it does at the bank
+    doc = reducer(
+      doc,
+      importTransactions({
+        batchId: "b2",
+        importedAt: T,
+        transactions: [{ id: "d", bookedAt: T, amount: -300, counterparty: "Shop", description: null, reference: "r-d", pending: false }],
+      }),
+    );
+    expect(balance()).toBe(8700);
+
+    // the next reading puts right what drifted (a transaction left out of the books)
+    doc = reducer(doc, excludeTransaction({ id: "d", excluded: true }));
+    expect(balance()).toBe(9000);
+    doc = reducer(doc, recordBankBalance({ amount: 8700, readAt: "2026-11-13T10:00:00.000Z" }));
+    expect(lastError(doc)).toBeUndefined();
+    expect(balance()).toBe(8700);
+    expect(doc.state.global.bankBalance).toEqual({ amount: 8700, readAt: "2026-11-13T10:00:00.000Z", kind: null });
+
+    // an older reading is not taken over a later one
+    doc = reducer(doc, recordBankBalance({ amount: 1, readAt: "2026-11-12T23:00:00.000Z" }));
+    expect(lastError(doc)).toBe("The account already holds a later reading of its balance");
+    expect(balance()).toBe(8700);
+
+    // a balance in another currency is not this account's: nothing changes
+    doc = reducer(doc, recordBankBalance({ amount: 5, currency: "EUR", readAt: "2026-11-14T10:00:00.000Z" }));
+    expect(lastError(doc)).toBe("The bank reports a balance in EUR; the account is in RON");
+    expect(balance()).toBe(8700);
+    expect(doc.state.global.bankBalance?.amount).toBe(8700);
   });
 });

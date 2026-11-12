@@ -4,6 +4,7 @@ import * as z from "zod";
 import type {
   AccountKind,
   BankAccountState,
+  BankBalance,
   CategorizeTransactionInput,
   CorrectCurrencyInput,
   ExcludeTransactionInput,
@@ -11,6 +12,7 @@ import type {
   ImportedTransactionInput,
   MatchKind,
   MatchTransactionInput,
+  RecordBankBalanceInput,
   RemovePendingTransactionsInput,
   SetAccountDetailsInput,
   Transaction,
@@ -64,6 +66,7 @@ export function BankAccountStateSchema(): z.ZodObject<
 > {
   return z.object({
     __typename: z.literal("BankAccountState").optional(),
+    bankBalance: z.lazy(() => BankBalanceSchema().nullish()),
     currency: z.string(),
     iban: z.string().nullish(),
     institution: z.string().nullish(),
@@ -72,6 +75,15 @@ export function BankAccountStateSchema(): z.ZodObject<
     name: z.string().nullish(),
     openingBalance: z.number(),
     transactions: z.array(z.lazy(() => TransactionSchema())),
+  });
+}
+
+export function BankBalanceSchema(): z.ZodObject<Properties<BankBalance>> {
+  return z.object({
+    __typename: z.literal("BankBalance").optional(),
+    amount: z.number(),
+    kind: z.string().nullish(),
+    readAt: z.iso.datetime(),
   });
 }
 
@@ -133,6 +145,17 @@ export function MatchTransactionInputSchema(): z.ZodObject<
     documentId: z.string(),
     id: z.string(),
     kind: MatchKindSchema,
+  });
+}
+
+export function RecordBankBalanceInputSchema(): z.ZodObject<
+  Properties<RecordBankBalanceInput>
+> {
+  return z.object({
+    amount: z.number(),
+    currency: z.string().nullish(),
+    kind: z.string().nullish(),
+    readAt: z.iso.datetime(),
   });
 }
 

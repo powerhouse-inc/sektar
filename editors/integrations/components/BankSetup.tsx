@@ -380,7 +380,14 @@ export function BankAccounts({
         />
       </div>
       {choices.live && (
-        <Field label="Check every">
+        <Field
+          label="Check every"
+          hint={
+            choices.every.unit === "HOURS" && choices.every.value < 8
+              ? "This uses all four checks your bank allows a day, so the balance is only checked against the bank when you press Sync now."
+              : "The balance is checked against the bank once a day."
+          }
+        >
           <Select
             value={interval}
             onChange={(e) => {
