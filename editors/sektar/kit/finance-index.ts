@@ -35,6 +35,7 @@ import {
   contactsQuery,
   contactViewCountsQuery,
   DEFAULT_BOOK_CURRENCY,
+  Fx,
   EXPENSE_DOCUMENT_TYPE,
   expenseCountQuery,
   expenseSpendQuery,
@@ -52,6 +53,7 @@ import {
   isoNow,
   latestOurPartyQuery,
   loadCounts,
+  loadClosingRates,
   loadCurrenciesInUse,
   loadDashboard,
   loadFx,
@@ -96,6 +98,7 @@ import {
   type ExpenseListRow,
   type ExpenseStatusCount,
   type FinanceCounts,
+  type FinanceClosingRates,
   type FinanceQueryBuilder,
   type FinanceSettings,
   type InvoiceCounts,
@@ -790,6 +793,10 @@ const PAIRS_QUERY = `query ($d: String!) {
   }
 }`;
 
+const CLOSING_RATES_QUERY = `query ($d: String!) {
+  financeIndex { closingRates(driveId: $d) { bookCurrency rates { base day rate } } }
+}`;
+
 const COUNTS_QUERY = `query ($d: String!) {
   financeIndex { counts(driveId: $d) { accounts invoices expenses contacts } }
 }`;
@@ -1058,6 +1065,16 @@ async function fetchCurrencyBooks(src: Source): Promise<CurrencyBooks> {
   }
   const [pairs, inUse] = await Promise.all([loadPairs(src.db), loadCurrenciesInUse(src.db)]);
   return { pairs, inUse };
+}
+
+async function fetchClosingRates(src: Source): Promise<FinanceClosingRates> {
+  if (src.kind === "remote") {
+    const data = await gql<{ financeIndex: { closingRates: FinanceClosingRates } }>(src.base, CLOSING_RATES_QUERY, {
+      d: src.driveId,
+    });
+    return data.financeIndex.closingRates;
+  }
+  return loadClosingRates(src.db);
 }
 
 async function fetchCounts(src: Source): Promise<FinanceCounts> {
@@ -1397,6 +1414,27 @@ export function useCurrencyBooks(drive?: DocumentDriveDocument): CurrencyBooks |
     fetch: () => (source ? fetchCurrencyBooks(source) : notYet()),
     types: FINANCE_DOCUMENT_TYPES,
   });
+}
+
+/**
+ * What a page outside the finance boards converts its totals with: the books'
+ * main currency and the rate that closed each year (Business Travel's spend).
+ * Undefined until answered. A fresh converter per answer, so the currencies
+ * it could not convert (`unconverted()`) are those of the render that used it.
+ */
+export function useClosingFx(drive?: DocumentDriveDocument): Fx | undefined {
+  const sektar = useSektarDrive();
+  const { source, tag } = useFinanceSource(drive ?? sektar);
+  const answer = useIndexValue<FinanceClosingRates>({
+    key: JSON.stringify(["closing-rates", tag]),
+    enabled: source !== null,
+    fetch: () => (source ? fetchClosingRates(source) : notYet()),
+    types: FX_TYPES,
+  });
+  return useMemo(
+    () => (answer ? new Fx(answer.bookCurrency, answer.rates) : undefined),
+    [answer],
+  );
 }
 
 /** The main currency of the books: what every total is shown in. Euros until answered. */

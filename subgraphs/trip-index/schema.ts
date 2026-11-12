@@ -69,13 +69,26 @@ export const schema: DocumentNode = gql`
     nights: Int!
     """The days away, first and last day of each trip included."""
     days: Int!
-    """Spend in each trip's own currency, summed."""
+    """
+    Spend in each trip's own currency, summed as it is: one currency only
+    when the trips share one. \`byCurrency\` is what a total converts.
+    """
     cost: Float!
     """The part of the spend billed on to a customer."""
     billed: Float!
     """Every transport leg, whatever its mode."""
     legs: Int!
     """The spend split by kind of cost; the parts add up to \`cost\`."""
+    costByKind: TripCostByKind!
+    """The same spend per currency of the trips."""
+    byCurrency: [TripYearMoney!]!
+  }
+
+  """One currency's share of a year's spend."""
+  type TripYearMoney {
+    currency: String!
+    cost: Float!
+    billed: Float!
     costByKind: TripCostByKind!
   }
 

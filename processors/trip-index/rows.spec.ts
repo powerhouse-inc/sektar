@@ -4,7 +4,7 @@
  * `.spec.ts` so codegen never claims the filename.
  */
 import { describe, expect, it } from "vitest";
-import { foldYears, searchWords, toTripRow } from "./queries.js";
+import { foldYears, searchWords, toTripRow, tripCostInBooks, yearInBooks } from "./queries.js";
 import {
   costsOf,
   emptyRow,
@@ -218,11 +218,61 @@ describe("the per-year figures", () => {
   it("fold the lean rows, newest year first", () => {
     const a = rowFromState("a", state, AT);
     const b = rowFromState("b", { ...state, startDate: "2025-05-01", endDate: "2025-05-02" }, AT);
+    const twice = { transport: 2 * a.cost_transport, stays: 2 * a.cost_stays, meals: 2 * a.cost_meals, extras: 2 * a.cost_extras };
+    const once = { transport: a.cost_transport, stays: a.cost_stays, meals: a.cost_meals, extras: a.cost_extras };
     expect(foldYears([a, b, a])).toEqual([
-      { year: 2026, trips: 2, flights: 4, legs: 6, nights: 6, days: 8, cost: 1057.8, billed: 301, costByKind: { transport: 2 * a.cost_transport, stays: 2 * a.cost_stays, meals: 2 * a.cost_meals, extras: 2 * a.cost_extras } },
-      { year: 2025, trips: 1, flights: 2, legs: 3, nights: 3, days: 2, cost: 528.9, billed: 150.5, costByKind: { transport: a.cost_transport, stays: a.cost_stays, meals: a.cost_meals, extras: a.cost_extras } },
+      { year: 2026, trips: 2, flights: 4, legs: 6, nights: 6, days: 8, cost: 1057.8, billed: 301, costByKind: twice, byCurrency: [{ currency: "EUR", cost: 1057.8, billed: 301, costByKind: twice }] },
+      { year: 2025, trips: 1, flights: 2, legs: 3, nights: 3, days: 2, cost: 528.9, billed: 150.5, costByKind: once, byCurrency: [{ currency: "EUR", cost: 528.9, billed: 150.5, costByKind: once }] },
     ]);
     expect(foldYears([])).toEqual([]);
+  });
+
+  it("keep each currency's share apart, and convert it into the books' currency", () => {
+    const eur = rowFromState("a", state, AT);
+    const ron = { ...rowFromState("b", state, AT), currency: "RON" };
+    const chf = { ...rowFromState("c", state, AT), currency: "CHF" };
+    // a row from a reader that does not select the currency yet: euros, as a new trip is
+    const { currency: _currency, ...old } = eur;
+    const [year] = foldYears([eur, ron, chf, old]);
+    expect(year.byCurrency.map((m) => [m.currency, m.cost])).toEqual([
+      ["CHF", 528.9],
+      ["EUR", 1057.8],
+      ["RON", 528.9],
+    ]);
+    // the raw sum is not an amount of anything
+    expect(year.cost).toBe(2115.6);
+
+    const asked: [string, string | null | undefined][] = [];
+    const fx = {
+      convert: (amount: number, currency: string, day?: string | null) => {
+        asked.push([currency, day]);
+        if (currency === "EUR") return amount;
+        if (currency === "RON") return amount * 0.2;
+        return null;
+      },
+    };
+    const inBooks = yearInBooks(year, fx);
+    // 1057.8 EUR + 528.9 lei at 0.2; the francs have no rate and are left out
+    expect(inBooks.cost).toBe(1163.58);
+    expect(inBooks.billed).toBe(Math.round((301 + 150.5 * 0.2) * 100) / 100);
+    expect(inBooks.costByKind.transport).toBe(Math.round((2 * eur.cost_transport + eur.cost_transport * 0.2) * 100) / 100);
+    expect(inBooks.trips).toBe(year.trips);
+    // at the rate that closed the year
+    expect(new Set(asked.map(([, day]) => day))).toEqual(new Set(["2026-12-31"]));
+  });
+
+  it("convert one trip's spend at the rate that closed its year", () => {
+    const asked: (string | null | undefined)[] = [];
+    const fx = {
+      convert: (amount: number, currency: string, day?: string | null) => {
+        asked.push(day);
+        return currency === "RON" ? amount * 0.2 : null;
+      },
+    };
+    expect(tripCostInBooks({ costTotal: 100.004, currency: "RON", startDate: "2025-05-01" }, fx)).toBe(20);
+    expect(tripCostInBooks({ costTotal: 100, currency: "RON", startDate: null }, fx)).toBe(20);
+    expect(tripCostInBooks({ costTotal: 100, currency: "CHF", startDate: "2025-05-01" }, fx)).toBeNull();
+    expect(asked).toEqual(["2025-12-31", null, "2025-12-31"]);
   });
 });
 

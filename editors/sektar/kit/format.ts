@@ -39,6 +39,25 @@ export function money(
   return amount < 0 ? `−${text}` : text;
 }
 
+/**
+ * An amount whose currency may not be known (a search hit indexed before
+ * hits carried one): with the currency when there is one, as a plain number
+ * otherwise. Never under a currency it might not be in.
+ */
+export function moneyOrNumber(
+  amount: number,
+  currency: string | null | undefined,
+  opts: { signed?: boolean } = {},
+): string {
+  if (currency) return money(amount, currency, opts);
+  const text = new Intl.NumberFormat("en-IE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Math.abs(amount));
+  if (opts.signed) return amount < 0 ? `−${text}` : `+${text}`;
+  return amount < 0 ? `−${text}` : text;
+}
+
 export function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }

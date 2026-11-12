@@ -57,7 +57,7 @@ const TYPING_DEBOUNCE_MS = 200;
 
 const SEARCH_QUERY = `query ($d: String!, $q: String!, $l: Int) {
   searchIndex { search(driveId: $d, query: $q, limit: $l) {
-    documentId entityId documentType kind title subtitle amount status at
+    documentId entityId documentType kind title subtitle amount currency status at
   } }
 }`;
 
@@ -69,6 +69,7 @@ interface RemoteHit {
   title: string;
   subtitle: string | null;
   amount: number | null;
+  currency: string | null;
   status: string | null;
   at: string | null;
 }
@@ -82,6 +83,7 @@ const fromRemote = (h: RemoteHit): SearchHit => ({
   subtitle: h.subtitle,
   body: "",
   amount: h.amount,
+  currency: h.currency,
   status: h.status,
   at: h.at,
 });

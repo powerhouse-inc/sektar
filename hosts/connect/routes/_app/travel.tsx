@@ -5,9 +5,10 @@ import artDark from "../../../../editors/sektar/design/shapes/sektar-composition
 import artLight from "../../../../editors/sektar/design/shapes/sektar-composition-rise-light.svg";
 import { money, plural, relativeDays } from "../../../../editors/sektar/kit/format.js";
 import { Glyph, GlyphTile, TripSprite } from "../../../../editors/sektar/kit/trip-glyphs.js";
-import { useTripList, useTripPlaces, useTripYears, type TripPlace, type TripRow, type TripYear } from "../../../../editors/sektar/kit/trip-index.js";
+import { useClosingFx } from "../../../../editors/sektar/kit/finance-index.js";
+import { useTripList, useTripPlaces, useTripYears, yearInBooks, type TripPlace, type TripRow, type TripYear } from "../../../../editors/sektar/kit/trip-index.js";
 import { dateRange, flag, modeOf, PHASE, purposeOf } from "../../../../editors/sektar/kit/trips.js";
-import { Badge, Bars, Button, Card, EmptyState, IconTile, Legend, ListItem, PageHeader, Segmented, Stat } from "../../../../editors/sektar/kit/ui.js";
+import { Alert, Badge, Bars, Button, Card, EmptyState, IconTile, Legend, ListItem, PageHeader, Segmented, Stat } from "../../../../editors/sektar/kit/ui.js";
 import { driveFor, PRODUCTS } from "../-shared/products.js";
 
 export const Route = createFileRoute("/_app/travel")({
@@ -29,7 +30,16 @@ function TravelOverview() {
   // Rows and per-year figures come from the trip index; a trip document is
   // loaded only when it is opened.
   const yearsAnswer = useTripYears(found?.drive);
-  const years = yearsAnswer ?? NO_YEARS;
+  // Trips are in their own currencies; a year's spend is shown in the books'
+  // main currency (Settings → Currency), each currency's share at the rate
+  // that closed the year. Until the rates have answered: as the trips have it.
+  const fx = useClosingFx();
+  const book = fx?.bookCurrency ?? "EUR";
+  const { years, unconverted } = useMemo(() => {
+    const raw = yearsAnswer ?? NO_YEARS;
+    if (!fx) return { years: raw, unconverted: [] as string[] };
+    return { years: raw.map((y) => yearInBooks(y, fx)), unconverted: fx.unconverted() };
+  }, [yearsAnswer, fx]);
   const ongoing = useTripList(found?.drive, { year, phases: ["ongoing"], query: "", now });
   const upcoming = useTripList(found?.drive, { year, phases: ["upcoming"], query: "", now });
   const places = useTripPlaces(found?.drive, year) ?? NO_PLACES;
@@ -108,6 +118,12 @@ function TravelOverview() {
         </div>
       )}
 
+      {unconverted.length > 0 && (
+        <Alert tone="warning" title={`${unconverted.join(", ")} ${unconverted.length === 1 ? "is" : "are"} not in these totals`}>
+          There is no exchange rate to {book} yet, so trips in {unconverted.length === 1 ? "that currency are" : "those currencies are"} left out of the spend. Each trip still shows its own amounts.
+        </Alert>
+      )}
+
       {empty ? (
         <EmptyState icon="calendar" title="No trips yet" action={<Button variant="primary" onClick={() => openTrip()}>Open the Trips drive</Button>}>
           Trips are filled in from the sales invoices that billed them on and from the booking mails.
@@ -118,10 +134,10 @@ function TravelOverview() {
             <Stat icon="calendar" label="Trips" value={stats.trips} foot={`${plural(stats.days, "day")} away · ${plural(stats.nights, "night")}`} spark={chart.length > 1 ? chart.map((y) => y.trips) : undefined} />
           </div>
           <div className="c3">
-            <Stat icon="wallet" label="Spent on travel" value={money(stats.spend, "EUR", { compact: true })} foot={stats.trips ? `${money(stats.spend / stats.trips, "EUR", { compact: true })} a trip` : undefined} spark={chart.length > 1 ? chart.map((y) => Math.round(y.cost)) : undefined} />
+            <Stat icon="wallet" label="Spent on travel" value={money(stats.spend, book, { compact: true })} foot={stats.trips ? `${money(stats.spend / stats.trips, book, { compact: true })} a trip` : undefined} spark={chart.length > 1 ? chart.map((y) => Math.round(y.cost)) : undefined} />
           </div>
           <div className="c3">
-            <Stat icon="invoice" label="Billed on to customers" value={money(stats.billed, "EUR", { compact: true })} foot={stats.spend ? `${Math.round((stats.billed / stats.spend) * 100)}% of the spend` : "nothing yet"} />
+            <Stat icon="invoice" label="Billed on to customers" value={money(stats.billed, book, { compact: true })} foot={stats.spend ? `${Math.round((stats.billed / stats.spend) * 100)}% of the spend` : "nothing yet"} />
           </div>
           <div className="c3">
             <div className="sk-card sk-stat">
@@ -147,7 +163,7 @@ function TravelOverview() {
           </div>
           <div className="c6">
             <Card title="Spend by year" actions={<Legend items={[{ label: "Spent" }, { label: "Billed on", color: "var(--sk-chart-3)" }]} />}>
-              <Bars axis ticks={4} height={180} format={(v) => money(v, "EUR", { compact: true })} groups={chart.map((y) => ({ label: String(y.year), values: [Math.round(y.cost), Math.round(y.billed)] }))} />
+              <Bars axis ticks={4} height={180} format={(v) => money(v, book, { compact: true })} groups={chart.map((y) => ({ label: String(y.year), values: [Math.round(y.cost), Math.round(y.billed)] }))} />
             </Card>
           </div>
 
@@ -166,7 +182,7 @@ function TravelOverview() {
                     <span className="sk-travel-split__bar">
                       <span style={{ width: `${stats.spend ? (r.value / stats.spend) * 100 : 0}%` }} />
                     </span>
-                    <span className="sk-tabular">{money(r.value, "EUR", { compact: true })}</span>
+                    <span className="sk-tabular">{money(r.value, book, { compact: true })}</span>
                   </li>
                 ))}
               </ul>

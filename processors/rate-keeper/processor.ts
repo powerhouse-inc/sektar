@@ -26,7 +26,10 @@ import {
   utils as pairUtils,
 } from "document-models/currency-pair";
 import { generateId } from "document-model";
-import type { FinanceQueryBuilder } from "../finance-index/queries.js";
+import type {
+  CurrencyInUse,
+  FinanceQueryBuilder,
+} from "../finance-index/queries.js";
 import {
   loadCurrenciesInUse,
   loadPairs,
@@ -54,6 +57,29 @@ const FETCH_TIMEOUT_MS = 20_000;
 
 type Module = Pick<IProcessorHostModule, "dispatch">;
 
+/**
+ * Currencies in use outside the books' own documents (Business Travel's
+ * trips, which live in a drive of their own), with the first day each needs
+ * a rate for. Their totals are converted with the books' rates too.
+ */
+export type MoreCurrencies = () => Promise<readonly CurrencyInUse[]>;
+
+/** One list of currencies in use from two: each currency once, with its earliest day. */
+export function mergeCurrencies(
+  ...lists: readonly (readonly CurrencyInUse[])[]
+): CurrencyInUse[] {
+  const since = new Map<string, string | null>();
+  for (const { currency, since: day } of lists.flat()) {
+    if (!currency) continue;
+    const known = since.get(currency);
+    if (known === undefined) since.set(currency, day);
+    else if (day && (!known || day < known)) since.set(currency, day);
+  }
+  return [...since]
+    .map(([currency, day]) => ({ currency, since: day }))
+    .sort((a, b) => a.currency.localeCompare(b.currency));
+}
+
 export class RateKeeper implements IProcessor {
   private readonly memory = newMemory();
   private timers: ReturnType<typeof setTimeout>[] = [];
@@ -70,7 +96,13 @@ export class RateKeeper implements IProcessor {
     private readonly module: Module,
     /** The finance index of this drive: where the books' currencies are read. */
     private readonly index: () => FinanceQueryBuilder,
+    private readonly more: MoreCurrencies = () => Promise.resolve([]),
   ) {}
+
+  /** Something outside the books changed what they need rates for (a trip). */
+  poke(): void {
+    this.requestSoon();
+  }
 
   /** Starts the startup pass and the hourly sweep. */
   start(): void {
@@ -160,12 +192,18 @@ export class RateKeeper implements IProcessor {
       now: () => Date.now(),
       facts: async () => {
         const db = this.index();
-        const [settings, inUse, pairs] = await Promise.all([
+        const [settings, inUse, pairs, more] = await Promise.all([
           loadSettings(db),
           loadCurrenciesInUse(db),
           loadPairs(db),
+          // never the reason the books' own currencies go without rates
+          this.more().catch(() => []),
         ]);
-        return { bookCurrency: settings.bookCurrency, inUse, pairs };
+        return {
+          bookCurrency: settings.bookCurrency,
+          inUse: mergeCurrencies(inUse, more),
+          pairs,
+        };
       },
       createPair: async (base, quote) => {
         const document = pairUtils.createDocument();

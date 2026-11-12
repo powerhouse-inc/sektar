@@ -493,6 +493,13 @@ export const schema: DocumentNode = gql`
     """The currency pairs the books hold rates for, one per pair of currencies."""
     pairs(driveId: String!): [FinanceCurrencyPair!]!
 
+    """
+    The rate that closed each year, per currency quoted in the main currency
+    (the latest rate for the year still running): what a total outside the
+    finance index, such as travel spend per year, converts with.
+    """
+    closingRates(driveId: String!): FinanceClosingRates!
+
     """Every currency the books hold amounts in, with the first day each needs a rate for."""
     currenciesInUse(driveId: String!): [FinanceCurrencyInUse!]!
   }
@@ -510,6 +517,21 @@ export const schema: DocumentNode = gql`
     lastRate: Float
     lastSource: String
     lastFetchedAt: String
+  }
+
+  type FinanceClosingRates {
+    """The main currency of the books."""
+    bookCurrency: String!
+    rates: [FinanceClosingRate!]!
+  }
+
+  type FinanceClosingRate {
+    """The currency converted from."""
+    base: String!
+    """YYYY-MM-DD: the last day of its year the pair holds a rate for."""
+    day: String!
+    """How many of the main currency one \`base\` is worth."""
+    rate: Float!
   }
 
   type FinanceCurrencyInUse {

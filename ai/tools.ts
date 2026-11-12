@@ -1378,7 +1378,7 @@ const integrationStatusTool: PhAiToolDescriptor = {
 /* ---------------------------------------------------------------- search */
 
 const SEARCH_QUERY = `query ($d: String!, $q: String!, $l: Int) {
-  searchIndex { search(driveId: $d, query: $q, limit: $l) { documentId entityId kind title subtitle amount status at } }
+  searchIndex { search(driveId: $d, query: $q, limit: $l) { documentId entityId kind title subtitle amount currency status at } }
 }`;
 
 /** Hits per subject: the search says where to look, the find tools say more. */
@@ -1392,6 +1392,7 @@ interface SearchHit {
   title: string;
   subtitle: string | null;
   amount: number | null;
+  currency: string | null;
   status: string | null;
   at: string | null;
 }
@@ -1408,6 +1409,8 @@ async function searchFinance(query: string) {
       title: clip(hit.title, 120),
       subtitle: clip(hit.subtitle, 120),
       amount: hit.amount,
+      // the document's own currency: a hit's amount is never converted
+      currency: hit.amount === null ? null : hit.currency,
       status: hit.status,
       at: day(hit.at),
     }),

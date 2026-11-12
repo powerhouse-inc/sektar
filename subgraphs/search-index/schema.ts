@@ -15,6 +15,8 @@ export const schema: DocumentNode = gql`
     title: String!
     subtitle: String
     amount: Float
+    """What \`amount\` is an amount of: the document's own currency. Null where it is not known."""
+    currency: String
     status: String
     at: String
   }

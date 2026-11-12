@@ -23,6 +23,7 @@ import {
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { nextNumber } from "../../editors/sektar/kit/invoice.js";
 import { up } from "./migrations.js";
+import { Fx } from "./fx.js";
 import { FinanceIndex } from "./processor.js";
 import {
   contactCountQuery,
@@ -33,6 +34,7 @@ import {
   expenseSpendQuery,
   expensesQuery,
   expenseStatusQuery,
+  loadClosingRates,
   loadCurrenciesInUse,
   loadDashboard,
   loadFx,
@@ -714,6 +716,34 @@ describe("currency conversion", () => {
     expect(stats.spend).toEqual([{ category: "SOFTWARE", amount: 70 }]);
     // a row keeps its own currency
     expect(stats.recent.find((t) => t.id === "t1")).toMatchObject({ amount: 100, currency: "USD" });
+  });
+
+  it("answer the rate that closed each year, for totals outside the finance index", async () => {
+    await fxDb
+      .insertInto("rate_index")
+      .values([
+        rate("pair-usd", "USD", "EUR", "2025-12-30", 0.95),
+        rate("pair-usd", "USD", "EUR", "2025-12-31", 0.96),
+        rate("pair-usd", "USD", "EUR", "2025-06-01", 0.9),
+      ])
+      .execute();
+    const closing = await loadClosingRates(fxDb);
+    expect(closing).toEqual({
+      bookCurrency: "EUR",
+      rates: [
+        { base: "USD", day: "2025-12-31", rate: 0.96 },
+        // the year still running: its latest rate
+        { base: "USD", day: "2026-10-10", rate: 0.8 },
+      ],
+    });
+    const fx = new Fx(closing.bookCurrency, closing.rates);
+    expect(fx.rate("USD", "2025-12-31")).toBe(0.96);
+    expect(fx.rate("USD", "2026-12-31")).toBe(0.8);
+    // a year before any rate: the earliest there is
+    expect(fx.rate("USD", "2019-12-31")).toBe(0.96);
+    // a reader who may read no pair converts nothing
+    expect(await loadClosingRates(fxDb, only(["nothing"]))).toEqual({ bookCurrency: "EUR", rates: [] });
+    await fxDb.deleteFrom("rate_index").where("day", "like", "2025-%").execute();
   });
 
   it("convert the claims' totals and the 90-day spend", async () => {

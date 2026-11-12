@@ -32,6 +32,7 @@ import {
   isoNow,
   latestOurPartyQuery,
   loadCounts,
+  loadClosingRates,
   loadCurrenciesInUse,
   loadDashboard,
   loadFx,
@@ -69,6 +70,7 @@ import {
   type DashboardStats,
   type ExpenseCounts,
   type ExpensePageResult,
+  type FinanceClosingRates,
   type FinanceCounts,
   type FinanceSettings,
   type InvoiceCounts,
@@ -152,6 +154,13 @@ function settings({
   restrict,
 }: IndexQuery<Db, { driveId: string }>): Promise<FinanceSettings> {
   return loadSettings(db, (q, column) => restrict(q, column));
+}
+
+function closingRates({
+  db,
+  restrict,
+}: IndexQuery<Db, { driveId: string }>): Promise<FinanceClosingRates> {
+  return loadClosingRates(db, (q, column) => restrict(q, column));
 }
 
 function pairs({
@@ -519,5 +528,6 @@ export const queries = {
   "FinanceIndexQueries.counts": counts,
   "FinanceIndexQueries.settings": settings,
   "FinanceIndexQueries.pairs": pairs,
+  "FinanceIndexQueries.closingRates": closingRates,
   "FinanceIndexQueries.currenciesInUse": currenciesInUse,
 };

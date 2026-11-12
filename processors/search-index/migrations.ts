@@ -11,6 +11,7 @@ export async function up(db: IRelationalDb<any>): Promise<void> {
     .addColumn("subtitle", "text")
     .addColumn("body", "text", (col) => col.notNull())
     .addColumn("amount", "double precision")
+    .addColumn("currency", "varchar(8)")
     .addColumn("status", "varchar(32)")
     .addColumn("at", "varchar(64)")
     .addPrimaryKeyConstraint("search_entries_pkey", [
@@ -19,6 +20,25 @@ export async function up(db: IRelationalDb<any>): Promise<void> {
     ])
     .ifNotExists()
     .execute();
+  // A table made before a hit carried its currency gains the column; its
+  // rows keep null until their documents next change.
+  const tables = await db.introspection.getTables();
+  // The drive's own schema: read off the SQL the namespaced builder writes.
+  const schema = /"([^"]+)"\."search_entries"/.exec(
+    db.selectFrom("search_entries").select("document_id").compile().sql,
+  )?.[1];
+  const have = new Set(
+    tables
+      .filter((t) => t.name === "search_entries" && (!schema || t.schema === schema))
+      .flatMap((t) => t.columns.map((c) => c.name)),
+  );
+  if (!have.has("currency")) {
+    await db.schema
+      .alterTable("search_entries")
+      .addColumn("currency", "varchar(8)")
+      .execute();
+  }
+
   await db.schema
     .createIndex("search_entries_body_idx")
     .on("search_entries")

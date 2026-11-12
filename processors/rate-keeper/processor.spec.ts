@@ -22,12 +22,12 @@ vi.mock("../finance-index/queries.js", () => ({
   loadPairs: () => Promise.resolve(books.pairs),
 }));
 
-const { RateKeeper } = await import("./processor.js");
+const { RateKeeper, mergeCurrencies } = await import("./processor.js");
 
 const NOW = Date.parse("2026-11-12T10:00:00.000Z");
 const op = [{}] as unknown as OperationWithContext[];
 
-function host() {
+function host(more?: () => Promise<{ currency: string; since: string | null }[]>) {
   const writes: string[] = [];
   const dispatch = {
     createInDrive: vi.fn((driveId: string, document: { header: { name: string } }) => {
@@ -40,7 +40,7 @@ function host() {
     }),
     deleteDocument: vi.fn(),
   };
-  const keeper = new RateKeeper("drive-1", { dispatch }, () => ({}) as FinanceQueryBuilder);
+  const keeper = new RateKeeper("drive-1", { dispatch }, () => ({}) as FinanceQueryBuilder, more);
   return { keeper, writes };
 }
 
@@ -130,5 +130,72 @@ describe("RateKeeper", () => {
     const { keeper, writes } = host();
     await expect(keeper.pass()).resolves.toBeUndefined();
     expect(writes).toEqual([]);
+  });
+
+  it("keeps rates for the currencies of trips too, from the first trip, when a trip changes", async () => {
+    const fetcher = vi.fn((url: string) =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify([{ date: "2026-11-11", base: url.includes("base=CHF") ? "CHF" : "RON", quote: "EUR", rate: 1 }]),
+          { status: 200 },
+        ),
+      ),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    const { keeper, writes } = host(() =>
+      Promise.resolve([
+        { currency: "CHF", since: "2025-03-10" },
+        // the books' own lei, used by a trip earlier than by any account
+        { currency: "RON", since: "2026-02-01" },
+      ]),
+    );
+    keeper.poke();
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(writes.filter((w) => w.startsWith("create"))).toEqual([
+      "create in drive-1: CHF to EUR",
+      "create in drive-1: RON to EUR",
+    ]);
+    const asked = fetcher.mock.calls.map(([url]) => url);
+    expect(asked.some((u) => u.includes("base=CHF") && u.includes("from=2025-03-03"))).toBe(true);
+    expect(asked.some((u) => u.includes("base=RON") && u.includes("from=2026-01-25"))).toBe(true);
+    await keeper.onDisconnect();
+  });
+
+  it("keeps the books' own rates when the trips cannot be read", async () => {
+    vi.stubGlobal("fetch", service(200, [{ date: "2026-11-11", base: "RON", quote: "EUR", rate: 0.187 }]));
+    const { keeper, writes } = host(() => Promise.reject(new Error("no trips drive")));
+    await keeper.pass();
+    expect(writes).toEqual([
+      "create in drive-1: RON to EUR",
+      "pair-1: SET_PAIR",
+      "pair-1: RECORD_RATES",
+    ]);
+    await keeper.onDisconnect();
+  });
+});
+
+describe("mergeCurrencies", () => {
+  it("names each currency once, with its earliest day", () => {
+    expect(
+      mergeCurrencies(
+        [
+          { currency: "RON", since: "2026-10-01" },
+          { currency: "EUR", since: null },
+        ],
+        [
+          { currency: "RON", since: "2026-02-01" },
+          { currency: "EUR", since: "2025-01-01" },
+          { currency: "CHF", since: null },
+          { currency: "CHF", since: null },
+          { currency: "", since: "2020-01-01" },
+          { currency: "RON", since: "2026-12-01" },
+        ],
+      ),
+    ).toEqual([
+      { currency: "CHF", since: null },
+      { currency: "EUR", since: "2025-01-01" },
+      { currency: "RON", since: "2026-02-01" },
+    ]);
+    expect(mergeCurrencies()).toEqual([]);
   });
 });

@@ -18,6 +18,7 @@ import {
   DEFAULT_BOOK_CURRENCY,
   dayOf,
   Fx,
+  type FxRate,
   parseOwnRates,
   roundMoney,
 } from "./fx.js";
@@ -248,6 +249,59 @@ export async function loadFx(
     bookCurrency,
     rows.map((r) => ({ base: r.base, day: r.day, rate: Number(r.rate) })),
   );
+}
+
+/** The rates a page outside the finance index converts with. */
+export interface FinanceClosingRates {
+  /** The main currency of the books. */
+  bookCurrency: string;
+  /**
+   * Per currency quoted in it, the rate that closed each year (the latest
+   * one for the year still running): `new Fx(bookCurrency, rates)` answers
+   * a year's closing rate for `<year>-12-31`.
+   */
+  rates: FxRate[];
+}
+
+/**
+ * The closing rate of every year, per currency: what a total that is not the
+ * finance index's own (Business Travel's spend per year) converts with. A
+ * handful of rows per currency, where every day's rate would be thousands.
+ */
+export async function loadClosingRates(
+  db: FinanceQueryBuilder,
+  restrict: QueryRestriction = NO_RESTRICTION,
+): Promise<FinanceClosingRates> {
+  const [{ bookCurrency }, pairs] = await Promise.all([
+    loadSettings(db, restrict),
+    loadPairs(db, restrict),
+  ]);
+  const ids = pairs.filter((p) => p.quote === bookCurrency).map((p) => p.id);
+  if (ids.length === 0) return { bookCurrency, rates: [] };
+  const rows = await restrict(
+    db
+      .selectFrom("rate_index")
+      .select(["base", "day", "rate"])
+      .where("pair_id", "in", ids)
+      .where("quote", "=", bookCurrency)
+      .orderBy("day", "asc"),
+    "pair_id",
+  ).execute();
+  // ascending by day: the last row of a currency's year is its closing rate
+  const closing = new Map<string, FxRate>();
+  for (const r of rows) {
+    closing.set(`${r.base}:${r.day.slice(0, 4)}`, {
+      base: r.base,
+      day: r.day,
+      rate: Number(r.rate),
+    });
+  }
+  return {
+    bookCurrency,
+    rates: [...closing.values()].sort(
+      (a, b) => a.base.localeCompare(b.base) || a.day.localeCompare(b.day),
+    ),
+  };
 }
 
 /** LIKE's own wildcards are dropped from a word: a search is for text, not patterns. */
