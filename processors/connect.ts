@@ -8,6 +8,7 @@ import { integrationIndexFactoryBuilder } from "processors/integration-index";
 import { emailIndexFactoryBuilder } from "processors/email-index";
 import { filesIndexFactoryBuilder } from "processors/files-index";
 import { financeIndexFactoryBuilder } from "processors/finance-index";
+import { rateKeeperFactoryBuilder } from "processors/rate-keeper";
 import { searchIndexFactoryBuilder } from "processors/search-index";
 import { tripIndexFactoryBuilder } from "processors/trip-index";
 
@@ -19,4 +20,5 @@ export const processorFactoryBuilders: ProcessorFactoryBuilder[] = [
   tripIndexFactoryBuilder,
   calendarIndexFactoryBuilder,
   integrationIndexFactoryBuilder,
+  rateKeeperFactoryBuilder,
 ];

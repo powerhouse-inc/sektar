@@ -29,9 +29,7 @@ export async function up(db: Kysely<DB>): Promise<void> {
     .addColumn("created_at", stamp, (c) => c.notNull())
     .addColumn("gross", money, (c) => c.notNull().defaultTo(0))
     .addColumn("outstanding", money, (c) => c.notNull().defaultTo(0))
-    .addColumn("book_gross", money, (c) => c.notNull().defaultTo(0))
-    .addColumn("book_outstanding", money, (c) => c.notNull().defaultTo(0))
-    .addColumn("book_rate_known", "boolean", (c) => c.notNull().defaultTo(true))
+    .addColumn("rates", "text", (c) => c.notNull().defaultTo("[]"))
     .addColumn("issued_copy_id", "varchar(255)")
     .addColumn("issued_copy_ref", "text")
     .addColumn("line_count", "integer", (c) => c.notNull().defaultTo(0))
@@ -224,9 +222,80 @@ export async function up(db: Kysely<DB>): Promise<void> {
     .addColumn("updated_at", stamp, (c) => c.notNull())
     .ifNotExists()
     .execute();
+
+  // An invoice table made before amounts were converted on reading: it gains
+  // the invoice's own rates and loses the amounts converted on writing (they
+  // were in euros whatever the books' currency, and a total converting them
+  // again would convert twice). The rows keep null rates until the processor
+  // has read them off their invoices (`refillInvoiceRates`).
+  const tables = await db.introspection.getTables();
+  // The drive's own schema: read off the SQL the namespaced builder writes.
+  const schema = /"([^"]+)"\."invoice_index"/.exec(
+    db.selectFrom("invoice_index").select("document_id").compile().sql,
+  )?.[1];
+  const have = new Set(
+    tables
+      .filter((t) => t.name === "invoice_index" && (!schema || t.schema === schema))
+      .flatMap((t) => t.columns.map((c) => c.name)),
+  );
+  if (!have.has("rates")) {
+    // No default: the rows already there keep null, which says "not read
+    // off the invoice yet" until the processor refills them.
+    await db.schema.alterTable("invoice_index").addColumn("rates", "text").execute();
+  }
+  for (const column of ["book_gross", "book_outstanding", "book_rate_known"]) {
+    if (!have.has(column)) continue;
+    await db.schema.alterTable("invoice_index").dropColumn(column).execute();
+  }
+
+  await db.schema
+    .createTable("settings_index")
+    .addColumn("document_id", "varchar(255)", (c) => c.primaryKey())
+    .addColumn("base_currency", "varchar(8)", (c) => c.notNull())
+    .addColumn("created_at", stamp, (c) => c.notNull())
+    .addColumn("updated_at", stamp, (c) => c.notNull())
+    .ifNotExists()
+    .execute();
+
+  await db.schema
+    .createTable("pair_index")
+    .addColumn("document_id", "varchar(255)", (c) => c.primaryKey())
+    .addColumn("base", "varchar(8)")
+    .addColumn("quote", "varchar(8)")
+    .addColumn("rate_count", "integer", (c) => c.notNull().defaultTo(0))
+    .addColumn("first_day", "varchar(10)")
+    .addColumn("last_day", "varchar(10)")
+    .addColumn("last_rate", money)
+    .addColumn("last_source", "text")
+    .addColumn("last_fetched_at", stamp)
+    .addColumn("created_at", stamp, (c) => c.notNull())
+    .addColumn("updated_at", stamp, (c) => c.notNull())
+    .ifNotExists()
+    .execute();
+
+  await db.schema
+    .createTable("rate_index")
+    .addColumn("pair_id", "varchar(255)", (c) => c.notNull())
+    .addColumn("base", "varchar(8)", (c) => c.notNull())
+    .addColumn("quote", "varchar(8)", (c) => c.notNull())
+    .addColumn("day", "varchar(10)", (c) => c.notNull())
+    .addColumn("rate", money, (c) => c.notNull())
+    .addPrimaryKeyConstraint("rate_index_pk", ["pair_id", "day"])
+    .ifNotExists()
+    .execute();
+  // A total reads every rate quoted in the main currency.
+  await db.schema
+    .createIndex("rate_index_by_quote")
+    .on("rate_index")
+    .columns(["quote", "base", "day"])
+    .ifNotExists()
+    .execute();
 }
 
 export async function down(db: Kysely<DB>): Promise<void> {
+  await db.schema.dropTable("rate_index").ifExists().execute();
+  await db.schema.dropTable("pair_index").ifExists().execute();
+  await db.schema.dropTable("settings_index").ifExists().execute();
   await db.schema.dropTable("contact_index").ifExists().execute();
   await db.schema.dropTable("expense_item_index").ifExists().execute();
   await db.schema.dropTable("expense_index").ifExists().execute();

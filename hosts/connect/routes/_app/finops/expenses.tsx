@@ -96,6 +96,8 @@ function ExpensesBoard() {
   const searched = useExpenseCounts(query, drive);
   const spend90 = useExpenseSpend(now, drive);
   const [selected] = useExpenseReportDocumentById(selectedId);
+  // The main currency of the books: the totals are converted into it.
+  const book = totals?.bookCurrency ?? "EUR";
   const awaiting = statusOf(totals, "SUBMITTED");
   const approved = statusOf(totals, "APPROVED");
 
@@ -121,19 +123,19 @@ function ExpensesBoard() {
         <Stat
           icon="wallet"
           label="Awaiting approval"
-          value={money(awaiting.total, "EUR", { compact: true })}
+          value={money(awaiting.total, book, { compact: true })}
           foot={plural(awaiting.count, "claim")}
         />
         <Stat
           icon="customers"
           label="Owed to the team"
-          value={money(approved.reimbursable, "EUR", { compact: true })}
+          value={money(approved.reimbursable, book, { compact: true })}
           foot="approved, not yet reimbursed"
         />
         <Stat
           icon="pie"
           label="Spend · 90 days"
-          value={money(spend90 ?? 0, "EUR", { compact: true })}
+          value={money(spend90 ?? 0, book, { compact: true })}
           foot="across all claims"
         />
       </div>
@@ -235,7 +237,7 @@ function ExpenseColumn({
           <div className="sk-caption">{col.caption}</div>
         </div>
         <div className="sk-caption sk-tabular">
-          {money(total, "EUR", { compact: true })}
+          {money(total, counts?.bookCurrency ?? "EUR", { compact: true })}
         </div>
       </header>
       {list.loaded && list.total === 0 && !list.stale ? (

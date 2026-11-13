@@ -35,6 +35,7 @@ async function search({ db, args, restrict }: IndexQuery<Db, SearchArgs>) {
     title: r.title,
     subtitle: r.subtitle,
     amount: r.amount,
+    currency: r.currency,
     status: r.status,
     at: r.at,
   }));

@@ -77,6 +77,7 @@ export class SearchIndex extends RelationalDbProcessor<DB> {
               subtitle: eb.ref("excluded.subtitle"),
               body: eb.ref("excluded.body"),
               amount: eb.ref("excluded.amount"),
+              currency: eb.ref("excluded.currency"),
               status: eb.ref("excluded.status"),
               at: eb.ref("excluded.at"),
             })),

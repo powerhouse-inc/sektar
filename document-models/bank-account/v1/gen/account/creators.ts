@@ -3,9 +3,21 @@
  * This file is auto-generated and updated by codegen
  */
 import { createAction } from "document-model";
-import { SetAccountDetailsInputSchema } from "../schema/zod.js";
-import type { SetAccountDetailsInput } from "../types.js";
-import type { SetAccountDetailsAction } from "./actions.js";
+import {
+  CorrectCurrencyInputSchema,
+  RecordBankBalanceInputSchema,
+  SetAccountDetailsInputSchema,
+} from "../schema/zod.js";
+import type {
+  CorrectCurrencyInput,
+  RecordBankBalanceInput,
+  SetAccountDetailsInput,
+} from "../types.js";
+import type {
+  CorrectCurrencyAction,
+  RecordBankBalanceAction,
+  SetAccountDetailsAction,
+} from "./actions.js";
 
 export const setAccountDetails = (input: SetAccountDetailsInput) =>
   createAction<SetAccountDetailsAction>(
@@ -13,5 +25,23 @@ export const setAccountDetails = (input: SetAccountDetailsInput) =>
     { ...input },
     undefined,
     SetAccountDetailsInputSchema,
+    "global",
+  );
+
+export const correctCurrency = (input: CorrectCurrencyInput) =>
+  createAction<CorrectCurrencyAction>(
+    "CORRECT_CURRENCY",
+    { ...input },
+    undefined,
+    CorrectCurrencyInputSchema,
+    "global",
+  );
+
+export const recordBankBalance = (input: RecordBankBalanceInput) =>
+  createAction<RecordBankBalanceAction>(
+    "RECORD_BANK_BALANCE",
+    { ...input },
+    undefined,
+    RecordBankBalanceInputSchema,
     "global",
   );

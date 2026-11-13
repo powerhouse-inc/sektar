@@ -18,7 +18,8 @@ import { TripSide } from "../../sektar/components/trip/TripSide.js";
 import { money } from "../../sektar/kit/format.js";
 import { useSearch } from "../../sektar/kit/search-context.js";
 import { GlyphTile } from "../../sektar/kit/trip-glyphs.js";
-import { useTripList, useTripYears, type TripPhase, type TripRow } from "../../sektar/kit/trip-index.js";
+import { useClosingFx } from "../../sektar/kit/finance-index.js";
+import { tripCostInBooks, useTripList, useTripYears, yearInBooks, type TripPhase, type TripRow } from "../../sektar/kit/trip-index.js";
 import { createTrip, dateRange, flag, PHASE, purposeOf, TRIP_TYPE } from "../../sektar/kit/trips.js";
 import { Badge, Button, EmptyState, Field, IconTile, Input, ListItem, Modal, Pills } from "../../sektar/kit/ui.js";
 import { Pane, Workspace } from "../../sektar/kit/workspace.js";
@@ -84,7 +85,17 @@ export function TripsWorkspace() {
     }
     return out;
   }, [rows]);
-  const yearFigures = useMemo(() => new Map((years ?? []).map((y) => [String(y.year), y])), [years]);
+  // A year's spend adds trips of every currency: shown in the books' main
+  // currency (Settings → Currency), a trip with no rate left out. A trip's
+  // own row keeps its own currency.
+  const fx = useClosingFx();
+  const book = fx?.bookCurrency ?? "EUR";
+  const yearFigures = useMemo(
+    () => new Map((years ?? []).map((y) => [String(y.year), fx ? yearInBooks(y, fx) : y])),
+    [years, fx],
+  );
+  const spendOf = (trips: readonly TripRow[]) =>
+    trips.reduce((n, t) => n + (fx ? (tripCostInBooks(t, fx) ?? 0) : t.costTotal), 0);
   const whole = filter === "all" && !query.trim();
 
   const effectiveId = selectedId ?? rows[0]?.id ?? null;
@@ -147,8 +158,8 @@ export function TripsWorkspace() {
                 <span className="sk-eyebrow">{g.year}</span>
                 <span className="sk-small sk-text-muted">
                   {whole && yearFigures.get(g.year)
-                    ? `${yearFigures.get(g.year)?.trips ?? 0} · ${money(yearFigures.get(g.year)?.cost ?? 0, "EUR", { compact: true })}`
-                    : `${g.trips.length} · ${money(g.trips.reduce((n, t) => n + t.costTotal, 0), "EUR", { compact: true })}`}
+                    ? `${yearFigures.get(g.year)?.trips ?? 0} · ${money(yearFigures.get(g.year)?.cost ?? 0, book, { compact: true })}`
+                    : `${g.trips.length} · ${money(spendOf(g.trips), book, { compact: true })}`}
                 </span>
               </header>
               <ul className="sk-list sk-list--rich">

@@ -308,6 +308,7 @@ const mailPage = <T>(items: T[], total = items.length) => ({
 
 const dashboard = (over: Record<string, unknown> = {}) => ({
   bookCurrency: "EUR",
+  unconverted: [],
   cash: 5000,
   card: -200,
   receivable: 2420,

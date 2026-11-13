@@ -3,7 +3,7 @@ import {
   EXPENSE_STATUS,
   fmtShortDate,
   INVOICE_STATUS,
-  money,
+  moneyOrNumber,
   TX_STATUS,
   plural,
 } from "../../../../editors/sektar/kit/format.js";
@@ -119,7 +119,7 @@ function SearchPage() {
                                 : ""
                             }
                           >
-                            {money(h.amount, "EUR", {
+                            {moneyOrNumber(h.amount, h.currency, {
                               signed: h.kind === "transaction",
                             })}
                           </span>

@@ -18,7 +18,24 @@ export type DistyraAccount = {
   account_type: string | null;
   /** ISO 20022: CACC current, SVGS savings, CARD card, LOAN, CASH, OTHR. */
   cash_account_type: string | null;
+  /** False when no current balance was read: `balance` is then not a reading. */
   balance_known: boolean;
+  /**
+   * The booked balance: what the bank has booked, without pending entries.
+   * ITBD (calculated during the day) when the bank sends it, else CLBD (at
+   * the end of its last reporting period). Null when it sends neither.
+   */
+  balance_booked?: {
+    amount: number;
+    currency: string | null;
+    balance_type: string;
+  } | null;
+  /** The available balance: what the bank reports as available to spend. */
+  balance_available?: {
+    amount: number;
+    currency: string | null;
+    balance_type: string;
+  } | null;
   [key: string]: unknown;
 };
 

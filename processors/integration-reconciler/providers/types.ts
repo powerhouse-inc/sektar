@@ -64,6 +64,12 @@ export interface ProviderAdapter {
     steps: StepSpec[];
     /** How a changed trigger config reads, e.g. "checked every hour, not every 15 minutes" */
     config: DriftWords["config"];
+    /**
+     * Steps the workflow ends with that a published one lacks are added in
+     * place: how a workflow from before a step existed gains it (the bank
+     * workflow's balance steps) without being made again.
+     */
+    addMissingSteps?: boolean;
   };
   /**
    * The steps one backfill slice runs; they read the window as

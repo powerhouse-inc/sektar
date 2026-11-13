@@ -34,6 +34,8 @@ import {
   contactNamesQuery,
   contactsQuery,
   contactViewCountsQuery,
+  DEFAULT_BOOK_CURRENCY,
+  Fx,
   EXPENSE_DOCUMENT_TYPE,
   expenseCountQuery,
   expenseSpendQuery,
@@ -51,18 +53,27 @@ import {
   isoNow,
   latestOurPartyQuery,
   loadCounts,
+  loadClosingRates,
+  loadCurrenciesInUse,
   loadDashboard,
+  loadFx,
   loadMatchCandidates,
+  loadOpenByContact,
+  loadPairs,
+  loadSettings,
   loadTransaction,
   nextNumberFrom,
+  PAIR_DOCUMENT_TYPE,
   PARTY_FIELDS,
   searchWords,
+  SETTINGS_DOCUMENT_TYPE,
   spendSince,
   toAccountRow,
   toContactCounts,
   toContactRow,
   toExpenseCounts,
   toExpenseRow,
+  toExpenseSpend,
   toInvoiceCounts,
   toInvoiceNumberRow,
   toInvoiceRow,
@@ -77,6 +88,8 @@ import {
   type ContactListRow,
   type ContactName,
   type ContactView,
+  type CurrencyInUse,
+  type CurrencyPairRow,
   type DashboardMonth,
   type DashboardSpend,
   type DashboardStats,
@@ -85,7 +98,9 @@ import {
   type ExpenseListRow,
   type ExpenseStatusCount,
   type FinanceCounts,
+  type FinanceClosingRates,
   type FinanceQueryBuilder,
+  type FinanceSettings,
   type InvoiceCounts,
   type InvoiceListRow,
   type InvoiceNumberRow,
@@ -214,7 +229,7 @@ const TRANSACTION_COUNTS_QUERY = `query ($d: String!, $a: String) {
 
 const DASHBOARD_QUERY = `query ($d: String!, $n: String!) {
   financeIndex { dashboard(driveId: $d, now: $n) {
-    bookCurrency cash card receivable payable
+    bookCurrency unconverted cash card receivable payable
     overdue { ${INVOICE_FIELDS} }
     toReview
     months { key in out }
@@ -262,12 +277,13 @@ async function fetchInvoices(
     return data.financeIndex.invoices;
   }
   const filter = { direction: f.direction, view: f.view, words: searchWords(f.query), now: f.now };
-  const [rows, count] = await Promise.all([
+  const [rows, count, fx] = await Promise.all([
     invoicesQuery(src.db, filter, { offset, limit: FINANCE_PAGE }).execute(),
     invoiceCountQuery(src.db, filter).executeTakeFirst(),
+    loadFx(src.db),
   ]);
   return {
-    items: rows.slice(0, FINANCE_PAGE).map((r) => toInvoiceRow(r, f.now)),
+    items: rows.slice(0, FINANCE_PAGE).map((r) => toInvoiceRow(r, f.now, fx)),
     total: Number(count?.n ?? 0),
   };
 }
@@ -540,9 +556,11 @@ function usePatched<T extends { id: string }>(
 
 /* ----------------------------------------------------------------- api */
 
-const INVOICE_TYPES = [INVOICE_DOCUMENT_TYPE] as const;
+// A change of the main currency or of a rate changes every converted total.
+const FX_TYPES = [SETTINGS_DOCUMENT_TYPE, PAIR_DOCUMENT_TYPE] as const;
+const INVOICE_TYPES = [INVOICE_DOCUMENT_TYPE, ...FX_TYPES] as const;
 const ACCOUNT_TYPES = [ACCOUNT_DOCUMENT_TYPE] as const;
-const FINANCE_TYPES = [ACCOUNT_DOCUMENT_TYPE, INVOICE_DOCUMENT_TYPE] as const;
+const FINANCE_TYPES = [ACCOUNT_DOCUMENT_TYPE, INVOICE_DOCUMENT_TYPE, ...FX_TYPES] as const;
 const NO_ACCOUNTS: AccountRow[] = [];
 
 export interface InvoiceListFilter {
@@ -714,7 +732,7 @@ const EXPENSES_QUERY = `query ($d: String!, $s: [String!], $q: String, $o: Int, 
 }`;
 
 const EXPENSE_COUNTS_QUERY = `query ($d: String!, $q: String) {
-  financeIndex { expenseCounts(driveId: $d, query: $q) { all byStatus { status count total reimbursable } } }
+  financeIndex { expenseCounts(driveId: $d, query: $q) { bookCurrency unconverted all byStatus { status count total reimbursable } } }
 }`;
 
 const SPEND_QUERY = `query ($d: String!, $n: String) {
@@ -764,6 +782,21 @@ const OUR_PARTY_QUERY = `query ($d: String!, $dir: String!) {
   financeIndex { latestOurParty(driveId: $d, direction: $dir) { ${PARTY_GQL_FIELDS} } }
 }`;
 
+const SETTINGS_QUERY = `query ($d: String!) {
+  financeIndex { settings(driveId: $d) { documentId bookCurrency } }
+}`;
+
+const PAIRS_QUERY = `query ($d: String!) {
+  financeIndex {
+    pairs(driveId: $d) { id base quote rateCount firstDay lastDay lastRate lastSource lastFetchedAt }
+    currenciesInUse(driveId: $d) { currency since }
+  }
+}`;
+
+const CLOSING_RATES_QUERY = `query ($d: String!) {
+  financeIndex { closingRates(driveId: $d) { bookCurrency rates { base day rate } } }
+}`;
+
 const COUNTS_QUERY = `query ($d: String!) {
   financeIndex { counts(driveId: $d) { accounts invoices expenses contacts } }
 }`;
@@ -772,6 +805,7 @@ const COUNTS_QUERY = `query ($d: String!) {
 export type ExpenseRow = ExpenseListRow;
 /** A contact with its open invoices and bank activity (FinanceContactRow). */
 export type ContactRow = ContactListRow;
+export type { CurrencyInUse, CurrencyPairRow, FinanceSettings };
 /** One transaction with its account and what it is matched to. */
 export type TransactionDetail = TransactionDetailRow;
 export type {
@@ -823,7 +857,11 @@ async function fetchExpenseCounts(src: Source, query: string): Promise<ExpenseCo
     });
     return data.financeIndex.expenseCounts;
   }
-  return toExpenseCounts(await expenseStatusQuery(src.db, searchWords(query)).execute());
+  const [rows, fx] = await Promise.all([
+    expenseStatusQuery(src.db, searchWords(query)).execute(),
+    loadFx(src.db),
+  ]);
+  return toExpenseCounts(rows, fx);
 }
 
 async function fetchSpend(src: Source, nowMs: number): Promise<number> {
@@ -834,8 +872,11 @@ async function fetchSpend(src: Source, nowMs: number): Promise<number> {
     });
     return data.financeIndex.spend90d;
   }
-  const row = await expenseSpendQuery(src.db, spendSince(nowMs)).executeTakeFirst();
-  return Number(row?.spent ?? 0) || 0;
+  const [rows, fx] = await Promise.all([
+    expenseSpendQuery(src.db, spendSince(nowMs)).execute(),
+    loadFx(src.db),
+  ]);
+  return toExpenseSpend(rows, fx);
 }
 
 async function fetchContacts(
@@ -860,7 +901,13 @@ async function fetchContacts(
     contactsQuery(src.db, filter, { offset, limit: pageSize }).execute(),
     contactCountQuery(src.db, filter).executeTakeFirst(),
   ]);
-  return { items: rows.slice(0, pageSize).map(toContactRow), total: Number(count?.n ?? 0) };
+  const shown = rows.slice(0, pageSize);
+  const open = await loadOpenByContact(
+    src.db,
+    shown.map((r) => r.document_id),
+    await loadFx(src.db),
+  );
+  return { items: shown.map((r) => toContactRow(r, open)), total: Number(count?.n ?? 0) };
 }
 
 async function fetchContactCounts(src: Source): Promise<ContactCounts> {
@@ -902,14 +949,15 @@ async function fetchContactActivity(src: Source, id: string, now: string): Promi
       transactions: data.financeIndex.transactions.items,
     };
   }
-  const [contact, invoices, transactions] = await Promise.all([
+  const [contact, invoices, transactions, fx] = await Promise.all([
     contactsQuery(src.db, { id }, { limit: 1 }).executeTakeFirst(),
     invoicesQuery(src.db, { contactId: id, now }, { limit: ALL_ROWS }).execute(),
     transactionsQuery(src.db, { contactId: id }, { limit: CONTACT_ACTIVITY_ROWS }).execute(),
+    loadFx(src.db),
   ]);
   return {
-    contact: contact ? toContactRow(contact) : null,
-    invoices: invoices.slice(0, ALL_ROWS).map((r) => toInvoiceRow(r, now)),
+    contact: contact ? toContactRow(contact, await loadOpenByContact(src.db, [id], fx)) : null,
+    invoices: invoices.slice(0, ALL_ROWS).map((r) => toInvoiceRow(r, now, fx)),
     transactions: transactions.slice(0, CONTACT_ACTIVITY_ROWS).map(toTransactionRow),
   };
 }
@@ -992,6 +1040,43 @@ async function fetchLatestOurParty(src: Source, direction: string): Promise<OurP
   return toOurParty(row?.our_party);
 }
 
+async function fetchSettings(src: Source): Promise<FinanceSettings> {
+  if (src.kind === "remote") {
+    const data = await gql<{ financeIndex: { settings: FinanceSettings } }>(src.base, SETTINGS_QUERY, {
+      d: src.driveId,
+    });
+    return data.financeIndex.settings;
+  }
+  return loadSettings(src.db);
+}
+
+/** The pairs the books hold rates for, and the currencies that need one. */
+export interface CurrencyBooks {
+  pairs: CurrencyPairRow[];
+  inUse: CurrencyInUse[];
+}
+
+async function fetchCurrencyBooks(src: Source): Promise<CurrencyBooks> {
+  if (src.kind === "remote") {
+    const data = await gql<{
+      financeIndex: { pairs: CurrencyPairRow[]; currenciesInUse: CurrencyInUse[] };
+    }>(src.base, PAIRS_QUERY, { d: src.driveId });
+    return { pairs: data.financeIndex.pairs, inUse: data.financeIndex.currenciesInUse };
+  }
+  const [pairs, inUse] = await Promise.all([loadPairs(src.db), loadCurrenciesInUse(src.db)]);
+  return { pairs, inUse };
+}
+
+async function fetchClosingRates(src: Source): Promise<FinanceClosingRates> {
+  if (src.kind === "remote") {
+    const data = await gql<{ financeIndex: { closingRates: FinanceClosingRates } }>(src.base, CLOSING_RATES_QUERY, {
+      d: src.driveId,
+    });
+    return data.financeIndex.closingRates;
+  }
+  return loadClosingRates(src.db);
+}
+
 async function fetchCounts(src: Source): Promise<FinanceCounts> {
   if (src.kind === "remote") {
     const data = await gql<{ financeIndex: { counts: FinanceCounts } }>(src.base, COUNTS_QUERY, {
@@ -1002,10 +1087,10 @@ async function fetchCounts(src: Source): Promise<FinanceCounts> {
   return loadCounts(src.db);
 }
 
-const EXPENSE_TYPES = [EXPENSE_DOCUMENT_TYPE] as const;
-const CONTACT_TYPES = [CONTACT_DOCUMENT_TYPE] as const;
+const EXPENSE_TYPES = [EXPENSE_DOCUMENT_TYPE, ...FX_TYPES] as const;
+const CONTACT_TYPES = [CONTACT_DOCUMENT_TYPE, ...FX_TYPES] as const;
 /** A contact's aggregates move with its invoices and the accounts' transactions. */
-const CONTACT_ACTIVITY_TYPES = [CONTACT_DOCUMENT_TYPE, INVOICE_DOCUMENT_TYPE, ACCOUNT_DOCUMENT_TYPE] as const;
+const CONTACT_ACTIVITY_TYPES = [CONTACT_DOCUMENT_TYPE, INVOICE_DOCUMENT_TYPE, ACCOUNT_DOCUMENT_TYPE, ...FX_TYPES] as const;
 /** A transaction's detail names its account and what it is matched to. */
 const TRANSACTION_DETAIL_TYPES = [ACCOUNT_DOCUMENT_TYPE, INVOICE_DOCUMENT_TYPE, EXPENSE_DOCUMENT_TYPE] as const;
 const MATCH_TYPES = [INVOICE_DOCUMENT_TYPE, EXPENSE_DOCUMENT_TYPE] as const;
@@ -1305,6 +1390,56 @@ export function useLatestOurParty(direction: string, drive?: DocumentDriveDocume
     fetch: () => (source ? fetchLatestOurParty(source, direction) : notYet()),
     types: INVOICE_TYPES,
   });
+}
+
+/** The books' settings (their document and main currency); undefined until answered. */
+export function useBookSettings(drive?: DocumentDriveDocument): FinanceSettings | undefined {
+  const sektar = useSektarDrive();
+  const { source, tag } = useFinanceSource(drive ?? sektar);
+  return useIndexValue<FinanceSettings>({
+    key: JSON.stringify(["settings", tag]),
+    enabled: source !== null,
+    fetch: () => (source ? fetchSettings(source) : notYet()),
+    types: FX_TYPES,
+  });
+}
+
+/** The pairs the books hold rates for and the currencies in use; undefined until answered. */
+export function useCurrencyBooks(drive?: DocumentDriveDocument): CurrencyBooks | undefined {
+  const sektar = useSektarDrive();
+  const { source, tag } = useFinanceSource(drive ?? sektar);
+  return useIndexValue<CurrencyBooks>({
+    key: JSON.stringify(["currency-books", tag]),
+    enabled: source !== null,
+    fetch: () => (source ? fetchCurrencyBooks(source) : notYet()),
+    types: FINANCE_DOCUMENT_TYPES,
+  });
+}
+
+/**
+ * What a page outside the finance boards converts its totals with: the books'
+ * main currency and the rate that closed each year (Business Travel's spend).
+ * Undefined until answered. A fresh converter per answer, so the currencies
+ * it could not convert (`unconverted()`) are those of the render that used it.
+ */
+export function useClosingFx(drive?: DocumentDriveDocument): Fx | undefined {
+  const sektar = useSektarDrive();
+  const { source, tag } = useFinanceSource(drive ?? sektar);
+  const answer = useIndexValue<FinanceClosingRates>({
+    key: JSON.stringify(["closing-rates", tag]),
+    enabled: source !== null,
+    fetch: () => (source ? fetchClosingRates(source) : notYet()),
+    types: FX_TYPES,
+  });
+  return useMemo(
+    () => (answer ? new Fx(answer.bookCurrency, answer.rates) : undefined),
+    [answer],
+  );
+}
+
+/** The main currency of the books: what every total is shown in. Euros until answered. */
+export function useBookCurrency(drive?: DocumentDriveDocument): string {
+  return useBookSettings(drive)?.bookCurrency ?? DEFAULT_BOOK_CURRENCY;
 }
 
 /** How many accounts, invoices, claims and contacts the books hold; undefined until answered. */

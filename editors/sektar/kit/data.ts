@@ -27,6 +27,8 @@ import {
   type MatchKind,
   type TransactionCategory,
 } from "document-models/bank-account";
+import { actions as booksSettingsActions } from "document-models/books-settings";
+import { actions as currencyPairActions } from "document-models/currency-pair";
 import {
   actions as contactActions,
   type ContactDocument,
@@ -56,6 +58,8 @@ export const DOC_TYPES = {
   invoice: "sektar/invoice",
   expense: "sektar/expense-report",
   contact: "sektar/contact",
+  settings: "sektar/books-settings",
+  pair: "sektar/currency-pair",
 } as const;
 
 export const FOLDERS = {
@@ -63,6 +67,7 @@ export const FOLDERS = {
   invoices: "Invoices",
   expenses: "Expenses",
   contacts: "Contacts",
+  rates: "Exchange rates",
 } as const;
 
 const now = () => new Date().toISOString();
@@ -820,3 +825,54 @@ export function archiveContact(contactId: string, archived: boolean) {
 }
 
 export { generateId };
+
+/* ------------------------------------------------- currency and rates */
+
+/**
+ * Sets the main currency of the books: every total is shown in it. The
+ * books' settings document is made the first time (`settingsId` is the one
+ * the finance index names, null while there is none). Resolves with its id.
+ */
+export async function setBookCurrency(
+  drive: DocumentDriveDocument,
+  settingsId: string | null,
+  currency: string,
+): Promise<string> {
+  const id =
+    settingsId ??
+    (await addDocument(drive.header.id, "Books settings", DOC_TYPES.settings))
+      .id;
+  await dispatchActions(
+    booksSettingsActions.setBaseCurrency({ currency, changedAt: now() }),
+    id,
+  );
+  return id;
+}
+
+/**
+ * Corrects the currency an account was filed under (a bank that reported
+ * none is filed in euros). Its amounts stay as they are: only what they are
+ * amounts of changes, and the totals convert them from the new currency.
+ */
+export function correctAccountCurrency(
+  accountId: string,
+  currency: string,
+): Promise<void> {
+  return dispatchById(accountId, bankActions.correctCurrency({ currency }));
+}
+
+/** Enters or corrects one day's rate by hand; `day` is "YYYY-MM-DD". */
+export function setManualRate(
+  pairId: string,
+  day: string,
+  rate: number,
+): Promise<void> {
+  return dispatchById(
+    pairId,
+    currencyPairActions.setManualRate({
+      id: generateId(),
+      date: `${day}T00:00:00.000Z`,
+      rate,
+    }),
+  );
+}

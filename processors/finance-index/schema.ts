@@ -50,11 +50,17 @@ export interface InvoiceRow {
   gross: number;
   /** What is still to be paid, never below zero, in the invoice's currency. */
   outstanding: number;
-  /** `gross` in the book currency, at the invoice's own rate when it has one. */
-  book_gross: number;
-  book_outstanding: number;
-  /** False when the invoice has no rate to the book currency: the book amounts are unconverted. */
-  book_rate_known: boolean;
+  /**
+   * The rates the invoice carries itself, as JSON (`[{ base, quote, rate }]`):
+   * what a total converts it at before the books' own rates. Amounts are
+   * stored in the invoice's currency only and converted when a total is read
+   * (see `fx.ts`), so nothing is ever converted twice.
+   *
+   * Null on a row written before this column existed: the invoice's rates
+   * are not known yet, and the processor reads them off the document once
+   * (`refillInvoiceRates`). Until then a total falls back to the books' rate.
+   */
+  rates: string | null;
   /** The ISSUED_COPY attachment: what the third column opens on. */
   issued_copy_id: string | null;
   issued_copy_ref: string | null;
@@ -182,6 +188,48 @@ export interface ContactRow {
   updated_at: string;
 }
 
+/** A books-settings document: the main currency every total is shown in. */
+export interface SettingsRow {
+  document_id: string;
+  base_currency: string;
+  /** When the document was made: with more than one, the oldest is the books'. */
+  created_at: string;
+  updated_at: string;
+}
+
+/** A currency-pair document: which currencies, and how far its rates reach. */
+export interface PairRow {
+  document_id: string;
+  /** The currency converted from; null while the pair is unnamed. */
+  base: string | null;
+  /** The currency converted to. */
+  quote: string | null;
+  rate_count: number;
+  /** "YYYY-MM-DD"; null while it holds no rate. */
+  first_day: string | null;
+  last_day: string | null;
+  /** The rate of `last_day`. */
+  last_rate: number | null;
+  last_source: string | null;
+  last_fetched_at: string | null;
+  /** When the document was made: with two for one pair, the oldest is the pair's. */
+  created_at: string;
+  updated_at: string;
+}
+
+/** One day's rate of a currency-pair document. */
+export interface RateRow {
+  pair_id: string;
+  /** The currency converted from. */
+  base: string;
+  /** The currency converted to. */
+  quote: string;
+  /** "YYYY-MM-DD" */
+  day: string;
+  /** How many `quote` one `base` is worth. */
+  rate: number;
+}
+
 export interface DB {
   invoice_index: InvoiceRow;
   account_index: AccountRow;
@@ -189,4 +237,7 @@ export interface DB {
   expense_index: ExpenseRow;
   expense_item_index: ExpenseItemRow;
   contact_index: ContactRow;
+  settings_index: SettingsRow;
+  pair_index: PairRow;
+  rate_index: RateRow;
 }

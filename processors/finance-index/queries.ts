@@ -14,7 +14,14 @@ import type {
   InvoiceRow,
   TransactionRow,
 } from "./schema.js";
-import { BOOK_CURRENCY } from "./rows.js";
+import {
+  DEFAULT_BOOK_CURRENCY,
+  dayOf,
+  Fx,
+  type FxRate,
+  parseOwnRates,
+  roundMoney,
+} from "./fx.js";
 
 /** What both a namespaced query builder and a Kysely instance offer. */
 export type FinanceQueryBuilder = Pick<IRelationalDb<DB>, "selectFrom">;
@@ -51,6 +58,250 @@ export function searchWords(
     .map((w) => w.trim())
     .filter(Boolean)
     .slice(0, max);
+}
+
+/* -------------------------------------------------------- the books' rates */
+
+/**
+ * Narrows a query to the rows the caller may see, given the column that
+ * names the row's document (`document_id` for invoices and accounts,
+ * `account_id` for transactions). The switchboard's subgraph passes the
+ * host's readable-documents filter; the browser, reading its own reactor,
+ * passes nothing.
+ */
+export type QueryRestriction = <Q extends { where(...args: any[]): Q }>(
+  q: Q,
+  documentColumn: string,
+) => Q;
+
+const NO_RESTRICTION: QueryRestriction = (q) => q;
+
+/** The books' settings as a page reads them. */
+export interface FinanceSettings {
+  /** The settings document; null while the books have none (they are in euros). */
+  documentId: string | null;
+  /** The main currency: what every total is shown in. */
+  bookCurrency: string;
+}
+
+/** The books' settings: the oldest settings document's, euros without one. */
+export async function loadSettings(
+  db: FinanceQueryBuilder,
+  restrict: QueryRestriction = NO_RESTRICTION,
+): Promise<FinanceSettings> {
+  const row = await restrict(
+    db
+      .selectFrom("settings_index")
+      .select(["document_id", "base_currency"])
+      .orderBy("created_at", "asc")
+      .orderBy("document_id", "asc")
+      .limit(1),
+    "document_id",
+  ).executeTakeFirst();
+  return {
+    documentId: row?.document_id ?? null,
+    bookCurrency: row?.base_currency || DEFAULT_BOOK_CURRENCY,
+  };
+}
+
+/** A currency pair as the settings page and the rate sync read it. */
+export interface CurrencyPairRow {
+  id: string;
+  base: string;
+  quote: string;
+  rateCount: number;
+  /** "YYYY-MM-DD"; null while the pair holds no rate. */
+  firstDay: string | null;
+  lastDay: string | null;
+  lastRate: number | null;
+  lastSource: string | null;
+  lastFetchedAt: string | null;
+}
+
+/**
+ * The named pairs, one per pair of currencies: with two documents for one
+ * pair, the oldest is the pair's and the other is ignored, whole.
+ */
+export async function loadPairs(
+  db: FinanceQueryBuilder,
+  restrict: QueryRestriction = NO_RESTRICTION,
+): Promise<CurrencyPairRow[]> {
+  const rows = await restrict(
+    db
+      .selectFrom("pair_index")
+      .selectAll()
+      .where("base", "is not", null)
+      .where("quote", "is not", null)
+      .orderBy("created_at", "asc")
+      .orderBy("document_id", "asc"),
+    "document_id",
+  ).execute();
+  const seen = new Set<string>();
+  const pairs: CurrencyPairRow[] = [];
+  for (const r of rows) {
+    if (!r.base || !r.quote) continue;
+    const key = `${r.base}/${r.quote}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    pairs.push({
+      id: r.document_id,
+      base: r.base,
+      quote: r.quote,
+      rateCount: Number(r.rate_count),
+      firstDay: r.first_day,
+      lastDay: r.last_day,
+      lastRate: r.last_rate === null ? null : Number(r.last_rate),
+      lastSource: r.last_source,
+      lastFetchedAt: r.last_fetched_at,
+    });
+  }
+  return pairs.sort(
+    (x, y) => x.base.localeCompare(y.base) || x.quote.localeCompare(y.quote),
+  );
+}
+
+/** A currency the books hold amounts in, and the first day they need a rate for. */
+export interface CurrencyInUse {
+  currency: string;
+  /** "YYYY-MM-DD": the earliest booking, issue or receipt in it; null when undated. */
+  since: string | null;
+}
+
+/**
+ * Every currency the books hold amounts in (accounts, invoices, claims),
+ * with the earliest day each needs a rate for: what the rate sync makes
+ * pairs for and how far back it fetches.
+ */
+export async function loadCurrenciesInUse(
+  db: FinanceQueryBuilder,
+  restrict: QueryRestriction = NO_RESTRICTION,
+): Promise<CurrencyInUse[]> {
+  const [accounts, transactions, invoices, claims] = await Promise.all([
+    restrict(
+      db.selectFrom("account_index").select("currency").distinct(),
+      "document_id",
+    ).execute(),
+    restrict(
+      db
+        .selectFrom("transaction_index")
+        .select("currency")
+        .select((eb) => eb.fn.min("booked_at").as("since"))
+        .groupBy("currency"),
+      "account_id",
+    ).execute(),
+    restrict(
+      db
+        .selectFrom("invoice_index")
+        .select("currency")
+        .select((eb) => eb.fn.min("issued_at").as("since"))
+        .groupBy("currency"),
+      "document_id",
+    ).execute(),
+    restrict(
+      db
+        .selectFrom("expense_index")
+        .select("currency")
+        .select((eb) => eb.fn.min("first_spent_at").as("since"))
+        .groupBy("currency"),
+      "document_id",
+    ).execute(),
+  ]);
+  const since = new Map<string, string | null>();
+  const note = (currency: string, day: string | null) => {
+    if (!currency) return;
+    const known = since.get(currency);
+    if (known === undefined) since.set(currency, day);
+    else if (day && (!known || day < known)) since.set(currency, day);
+  };
+  for (const a of accounts) note(a.currency, null);
+  for (const r of [...transactions, ...invoices, ...claims]) {
+    note(r.currency, dayOf(r.since));
+  }
+  return [...since]
+    .map(([currency, day]) => ({ currency, since: day }))
+    .sort((a, b) => a.currency.localeCompare(b.currency));
+}
+
+/**
+ * What a total converts with: the main currency and every rate quoted in it.
+ * Only pairs that point at the main currency are read (no inverse, no chain
+ * through a third currency), one document per pair (`loadPairs`).
+ */
+export async function loadFx(
+  db: FinanceQueryBuilder,
+  restrict: QueryRestriction = NO_RESTRICTION,
+): Promise<Fx> {
+  const [{ bookCurrency }, pairs] = await Promise.all([
+    loadSettings(db, restrict),
+    loadPairs(db, restrict),
+  ]);
+  const ids = pairs.filter((p) => p.quote === bookCurrency).map((p) => p.id);
+  if (ids.length === 0) return new Fx(bookCurrency, []);
+  const rows = await restrict(
+    db
+      .selectFrom("rate_index")
+      .select(["base", "day", "rate"])
+      .where("pair_id", "in", ids)
+      .where("quote", "=", bookCurrency),
+    "pair_id",
+  ).execute();
+  return new Fx(
+    bookCurrency,
+    rows.map((r) => ({ base: r.base, day: r.day, rate: Number(r.rate) })),
+  );
+}
+
+/** The rates a page outside the finance index converts with. */
+export interface FinanceClosingRates {
+  /** The main currency of the books. */
+  bookCurrency: string;
+  /**
+   * Per currency quoted in it, the rate that closed each year (the latest
+   * one for the year still running): `new Fx(bookCurrency, rates)` answers
+   * a year's closing rate for `<year>-12-31`.
+   */
+  rates: FxRate[];
+}
+
+/**
+ * The closing rate of every year, per currency: what a total that is not the
+ * finance index's own (Business Travel's spend per year) converts with. A
+ * handful of rows per currency, where every day's rate would be thousands.
+ */
+export async function loadClosingRates(
+  db: FinanceQueryBuilder,
+  restrict: QueryRestriction = NO_RESTRICTION,
+): Promise<FinanceClosingRates> {
+  const [{ bookCurrency }, pairs] = await Promise.all([
+    loadSettings(db, restrict),
+    loadPairs(db, restrict),
+  ]);
+  const ids = pairs.filter((p) => p.quote === bookCurrency).map((p) => p.id);
+  if (ids.length === 0) return { bookCurrency, rates: [] };
+  const rows = await restrict(
+    db
+      .selectFrom("rate_index")
+      .select(["base", "day", "rate"])
+      .where("pair_id", "in", ids)
+      .where("quote", "=", bookCurrency)
+      .orderBy("day", "asc"),
+    "pair_id",
+  ).execute();
+  // ascending by day: the last row of a currency's year is its closing rate
+  const closing = new Map<string, FxRate>();
+  for (const r of rows) {
+    closing.set(`${r.base}:${r.day.slice(0, 4)}`, {
+      base: r.base,
+      day: r.day,
+      rate: Number(r.rate),
+    });
+  }
+  return {
+    bookCurrency,
+    rates: [...closing.values()].sort(
+      (a, b) => a.base.localeCompare(b.base) || a.day.localeCompare(b.day),
+    ),
+  };
 }
 
 /** LIKE's own wildcards are dropped from a word: a search is for text, not patterns. */
@@ -236,8 +487,14 @@ export interface InvoiceListRow {
   periodStart: string | null;
   periodEnd: string | null;
   createdAt: string;
+  /** In the invoice's own currency. */
   gross: number;
   outstanding: number;
+  /**
+   * The same in the main currency of the books, converted on reading: at the
+   * invoice's own rate, else at the books' latest. Unconverted when
+   * `bookRateKnown` is false.
+   */
   bookGross: number;
   bookOutstanding: number;
   bookRateKnown: boolean;
@@ -257,7 +514,12 @@ export interface InvoicePageResult {
   hasMore: boolean;
 }
 
-export function toInvoiceRow(r: InvoiceRow, now: string): InvoiceListRow {
+export function toInvoiceRow(r: InvoiceRow, now: string, fx: Fx): InvoiceListRow {
+  const own = parseOwnRates(r.rates);
+  const gross = Number(r.gross);
+  const outstanding = Number(r.outstanding);
+  const bookGross = fx.convertInvoice(gross, r.currency, own);
+  const bookOutstanding = fx.convertInvoice(outstanding, r.currency, own);
   return {
     id: r.document_id,
     direction: r.direction,
@@ -275,12 +537,12 @@ export function toInvoiceRow(r: InvoiceRow, now: string): InvoiceListRow {
     periodStart: r.period_start,
     periodEnd: r.period_end,
     createdAt: r.created_at,
-    gross: Number(r.gross),
-    outstanding: Number(r.outstanding),
-    bookGross: Number(r.book_gross),
-    bookOutstanding: Number(r.book_outstanding),
-    // SQLite has no boolean, so a driver may hand back 0/1.
-    bookRateKnown: Boolean(r.book_rate_known),
+    gross,
+    outstanding,
+    bookGross: bookGross === null ? gross : roundMoney(bookGross),
+    bookOutstanding:
+      bookOutstanding === null ? outstanding : roundMoney(bookOutstanding),
+    bookRateKnown: bookGross !== null,
     overdue: r.status === "OPEN" && !!r.due_at && r.due_at < now,
     issuedCopyId: r.issued_copy_id,
     issuedCopyRef: r.issued_copy_ref,
@@ -534,9 +796,10 @@ export function dashboardQueries(db: FinanceQueryBuilder, nowMs: number) {
   const months = dashboardMonths(nowMs);
   const since = new Date(nowMs - 90 * DAY_MS).toISOString();
   return {
-    /** Cash (every account but cards) and card positions. */
+    /** Cash (every account but cards) and card positions, per currency. */
     positions: db
       .selectFrom("account_index")
+      .select("currency")
       .select((eb) => [
         eb.fn
           .sum<number>("balance")
@@ -546,21 +809,15 @@ export function dashboardQueries(db: FinanceQueryBuilder, nowMs: number) {
           .sum<number>("balance")
           .filterWhere("kind", "=", "CREDIT_CARD")
           .as("card"),
-      ]),
-    /** Receivable and payable (book outstanding of OPEN invoices), and the readiness counts. */
+      ])
+      .groupBy("currency"),
+    /** What the OPEN invoices still owe, each in its own currency with its own rates. */
+    open: db
+      .selectFrom("invoice_index")
+      .select(["direction", "currency", "outstanding", "rates"])
+      .where("status", "=", "OPEN"),
+    /** The readiness counts. */
     invoices: db.selectFrom("invoice_index").select((eb) => [
-      eb.fn
-        .sum<number>("book_outstanding")
-        .filterWhere((w) =>
-          w.and([w("direction", "=", "OUTGOING"), w("status", "=", "OPEN")]),
-        )
-        .as("receivable"),
-      eb.fn
-        .sum<number>("book_outstanding")
-        .filterWhere((w) =>
-          w.and([w("direction", "=", "INCOMING"), w("status", "=", "OPEN")]),
-        )
-        .as("payable"),
       eb.fn.countAll<number>().as("total"),
       eb.fn
         .countAll<number>()
@@ -591,14 +848,19 @@ export function dashboardQueries(db: FinanceQueryBuilder, nowMs: number) {
           .filterWhere("category", "=", "SALES")
           .as("sales"),
       ]),
-    /** Money in and out per month, transfers and excluded rows left out. */
+    /**
+     * Money in and out per day and currency, transfers and excluded rows left
+     * out: a day's amounts are converted at that day's rate, then added up
+     * per month.
+     */
     months: db
       .selectFrom("transaction_index")
+      .select("currency")
       .select((eb) => [
-        // "YYYY-MM": the dashboard's `bookedAt.slice(0, 7)`.
+        // "YYYY-MM-DD": its first seven characters are the dashboard's month.
         eb
-          .fn<string>("substr", [eb.ref("booked_at"), eb.lit(1), eb.lit(7)])
-          .as("month"),
+          .fn<string>("substr", [eb.ref("booked_at"), eb.lit(1), eb.lit(10)])
+          .as("day"),
         eb.fn.sum<number>("amount").filterWhere("amount", ">", 0).as("in"),
         eb.fn.sum<number>("amount").filterWhere("amount", "<", 0).as("out"),
       ])
@@ -607,21 +869,32 @@ export function dashboardQueries(db: FinanceQueryBuilder, nowMs: number) {
       .where("category", "!=", "TRANSFER")
       .where("booked_at", ">=", months[0])
       .where("booked_at", "<", nextMonth(months[months.length - 1]))
+      .groupBy("currency")
       .groupBy((eb) =>
-        eb.fn<string>("substr", [eb.ref("booked_at"), eb.lit(1), eb.lit(7)]),
+        eb.fn<string>("substr", [eb.ref("booked_at"), eb.lit(1), eb.lit(10)]),
       ),
-    /** Spend by category over the last 90 days: outflows that are spending (not transfers, payroll, tax). */
+    /**
+     * Spend by category, day and currency over the last 90 days: outflows
+     * that are spending (not transfers, payroll, tax). The six largest
+     * categories are picked once the amounts are in one currency.
+     */
     spend: db
       .selectFrom("transaction_index")
-      .select("category")
-      .select((eb) => eb.fn.sum<number>("amount").as("spent"))
+      .select(["category", "currency"])
+      .select((eb) => [
+        eb
+          .fn<string>("substr", [eb.ref("booked_at"), eb.lit(1), eb.lit(10)])
+          .as("day"),
+        eb.fn.sum<number>("amount").as("spent"),
+      ])
       .where("amount", "<", 0)
       .where("status", "not in", ["EXCLUDED", "PENDING"])
       .where("category", "not in", ["TRANSFER", "PAYROLL", "TAX"])
       .where("booked_at", ">=", since)
-      .groupBy("category")
-      .orderBy("spent", "asc")
-      .limit(6),
+      .groupBy(["category", "currency"])
+      .groupBy((eb) =>
+        eb.fn<string>("substr", [eb.ref("booked_at"), eb.lit(1), eb.lit(10)]),
+      ),
     /** The seven latest transactions. */
     recent: db
       .selectFrom("transaction_index")
@@ -634,15 +907,28 @@ export function dashboardQueries(db: FinanceQueryBuilder, nowMs: number) {
 
 type Num = number | string | null | undefined;
 
+/** How many categories the spend chart shows. */
+export const SPEND_CATEGORIES = 6;
+
 export interface DashboardResults {
-  positions: { cash: Num; card: Num } | undefined;
-  invoices:
-    | { receivable: Num; payable: Num; total: Num; issued: Num }
-    | undefined;
+  positions: readonly { currency: string; cash: Num; card: Num }[];
+  open: readonly {
+    direction: string;
+    currency: string;
+    outstanding: Num;
+    /** Null on a row not refilled yet: the books' rate is used. */
+    rates: string | null;
+  }[];
+  invoices: { total: Num; issued: Num } | undefined;
   overdue: readonly InvoiceRow[];
   transactions: { total: Num; new: Num; matched: Num; sales: Num } | undefined;
-  months: readonly { month: string; in: Num; out: Num }[];
-  spend: readonly { category: string; spent: Num }[];
+  months: readonly { day: string; currency: string; in: Num; out: Num }[];
+  spend: readonly {
+    category: string;
+    day: string;
+    currency: string;
+    spent: Num;
+  }[];
   recent: readonly TransactionRow[];
 }
 
@@ -659,8 +945,13 @@ export interface DashboardSpend {
 }
 
 export interface DashboardStats {
-  /** What the amounts below are in. */
+  /** What the amounts below are in: the main currency of the books. */
   bookCurrency: string;
+  /**
+   * The currencies a total left out because the books hold no rate for them:
+   * such amounts are never added as if they were the main currency.
+   */
+  unconverted: string[];
   cash: number;
   card: number;
   receivable: number;
@@ -690,14 +981,50 @@ const n = (v: Num): number => Number(v ?? 0) || 0;
 export function toDashboardStats(
   nowMs: number,
   r: DashboardResults,
+  fx: Fx = new Fx(DEFAULT_BOOK_CURRENCY, []),
 ): DashboardStats {
   const now = new Date(nowMs).toISOString();
-  const byMonth = new Map(r.months.map((m) => [m.month, m]));
+  // Positions are what is held today: the latest rate.
+  let cash = 0;
+  let card = 0;
+  for (const p of r.positions) {
+    cash += fx.convert(n(p.cash), p.currency) ?? 0;
+    card += fx.convert(n(p.card), p.currency) ?? 0;
+  }
+  let receivable = 0;
+  let payable = 0;
+  for (const i of r.open) {
+    const owed =
+      fx.convertInvoice(n(i.outstanding), i.currency, parseOwnRates(i.rates)) ??
+      0;
+    if (i.direction === "OUTGOING") receivable += owed;
+    else if (i.direction === "INCOMING") payable += owed;
+  }
+  // Flows happened on a day: that day's rate.
+  const byMonth = new Map<string, { in: number; out: number }>();
+  for (const m of r.months) {
+    const key = m.day.slice(0, 7);
+    const sum = byMonth.get(key) ?? { in: 0, out: 0 };
+    sum.in += fx.convert(n(m.in), m.currency, m.day) ?? 0;
+    sum.out += fx.convert(n(m.out), m.currency, m.day) ?? 0;
+    byMonth.set(key, sum);
+  }
   const months = dashboardMonths(nowMs).map((key) => {
     const m = byMonth.get(key);
     // `out` sums negative amounts: the bars show it as a positive outflow.
-    return { key, in: n(m?.in), out: Math.abs(n(m?.out)) };
+    return {
+      key,
+      in: roundMoney(m?.in ?? 0),
+      out: roundMoney(Math.abs(m?.out ?? 0)),
+    };
   });
+  const byCategory = new Map<string, number>();
+  for (const s of r.spend) {
+    const spent = fx.convert(n(s.spent), s.currency, s.day);
+    if (spent === null) continue;
+    byCategory.set(s.category, (byCategory.get(s.category) ?? 0) + spent);
+  }
+  const overdue = r.overdue.map((row) => toInvoiceRow(row, now, fx));
   const total = n(r.transactions?.total);
   const categorised = total - n(r.transactions?.new);
   const matched = n(r.transactions?.matched);
@@ -707,17 +1034,25 @@ export function toDashboardStats(
   const pctOf = (num: number, den: number) =>
     den ? Math.round((num / den) * 100) : 100;
   return {
-    bookCurrency: BOOK_CURRENCY,
-    cash: n(r.positions?.cash),
-    card: n(r.positions?.card),
-    receivable: n(r.invoices?.receivable),
-    payable: n(r.invoices?.payable),
-    overdue: r.overdue.map((row) => toInvoiceRow(row, now)),
+    bookCurrency: fx.bookCurrency,
+    unconverted: fx.unconverted(),
+    cash: roundMoney(cash),
+    card: roundMoney(card),
+    receivable: roundMoney(receivable),
+    payable: roundMoney(payable),
+    overdue,
     toReview: n(r.transactions?.new),
     months,
-    spend: r.spend
-      .map((s) => ({ category: s.category, amount: Math.abs(n(s.spent)) }))
-      .sort((a, b) => b.amount - a.amount),
+    spend: [...byCategory]
+      .map(([category, spent]) => ({
+        category,
+        amount: roundMoney(Math.abs(spent)),
+      }))
+      // the largest first, a tie by name so the order is stable
+      .sort(
+        (a, b) => b.amount - a.amount || a.category.localeCompare(b.category),
+      )
+      .slice(0, SPEND_CATEGORIES),
     readiness: total ? Math.round((categorised / total) * 100) : 0,
     categorisedPct: pctOf(categorised, total),
     matchedPct: pctOf(matched, sales),
@@ -732,18 +1067,6 @@ export function toDashboardStats(
   };
 }
 
-/**
- * Narrows a dashboard query to the rows the caller may see, given the column
- * that names the row's document (`document_id` for invoices and accounts,
- * `account_id` for transactions). The switchboard's subgraph passes the
- * host's readable-documents filter; the browser, reading its own reactor,
- * passes nothing.
- */
-export type QueryRestriction = <Q extends { where(...args: any[]): Q }>(
-  q: Q,
-  documentColumn: string,
-) => Q;
-
 /** Every dashboard query in one parallel round, folded. */
 export async function loadDashboard(
   db: FinanceQueryBuilder,
@@ -751,9 +1074,11 @@ export async function loadDashboard(
   restrict: QueryRestriction = (q) => q,
 ): Promise<DashboardStats> {
   const q = dashboardQueries(db, nowMs);
-  const [positions, invoices, overdue, transactions, months, spend, recent] =
+  const [fx, positions, open, invoices, overdue, transactions, months, spend, recent] =
     await Promise.all([
-      restrict(q.positions, "document_id").executeTakeFirst(),
+      loadFx(db, restrict),
+      restrict(q.positions, "document_id").execute(),
+      restrict(q.open, "document_id").execute(),
       restrict(q.invoices, "document_id").executeTakeFirst(),
       restrict(q.overdue, "document_id").execute(),
       restrict(q.transactions, "account_id").executeTakeFirst(),
@@ -761,18 +1086,12 @@ export async function loadDashboard(
       restrict(q.spend, "account_id").execute(),
       restrict(q.recent, "account_id").execute(),
     ]);
-  return toDashboardStats(nowMs, {
-    positions,
-    invoices,
-    overdue,
-    transactions,
-    months,
-    spend,
-    recent,
-  });
+  return toDashboardStats(
+    nowMs,
+    { positions, open, invoices, overdue, transactions, months, spend, recent },
+    fx,
+  );
 }
-
-const NO_RESTRICTION: QueryRestriction = (q) => q;
 
 /* ------------------------------------------------- numbers and our party */
 
@@ -960,61 +1279,120 @@ export function expenseCountQuery(db: FinanceQueryBuilder, f: ExpenseFilter) {
   );
 }
 
-/** Claims per status with their totals, for the words given (the board's columns and its cards). */
+/** Claims per status and currency with their totals, for the words given (the board's columns and its cards). */
 export function expenseStatusQuery(
   db: FinanceQueryBuilder,
   words?: readonly string[],
 ) {
   return expensesFiltered(db, { words })
-    .select("status")
+    .select(["status", "currency"])
     .select((eb) => [
       eb.fn.countAll<number>().as("n"),
       eb.fn.sum<number>("total").as("total"),
       eb.fn.sum<number>("reimbursable").as("reimbursable"),
     ])
-    .groupBy("status");
+    .groupBy(["status", "currency"]);
 }
 
 export interface ExpenseStatusCount {
   status: string;
   count: number;
-  /** The claims' totals added up (in their own currencies, as the board adds them). */
+  /** The claims' totals added up, in the main currency of the books. */
   total: number;
   reimbursable: number;
 }
 
 export interface ExpenseCounts {
+  /** What the totals are in: the main currency of the books. */
+  bookCurrency: string;
+  /** The currencies the totals left out: the books hold no rate for them. */
+  unconverted: string[];
   all: number;
   /** One entry per status, in EXPENSE_STATUSES order. */
   byStatus: ExpenseStatusCount[];
 }
 
+/**
+ * The board's counts and totals. What is owed is a position: the claims are
+ * converted at the books' latest rate.
+ */
 export function toExpenseCounts(
   rows: readonly {
     status: string;
+    currency: string;
     n: Num;
     total: Num;
     reimbursable: Num;
   }[],
+  fx: Fx = new Fx(DEFAULT_BOOK_CURRENCY, []),
 ): ExpenseCounts {
   const byStatus = EXPENSE_STATUSES.map((status) => {
-    const r = rows.find((x) => x.status === status);
+    let count = 0;
+    let total = 0;
+    let reimbursable = 0;
+    for (const r of rows) {
+      if (r.status !== status) continue;
+      count += n(r.n);
+      total += fx.convert(n(r.total), r.currency) ?? 0;
+      reimbursable += fx.convert(n(r.reimbursable), r.currency) ?? 0;
+    }
     return {
       status,
-      count: n(r?.n),
-      total: n(r?.total),
-      reimbursable: n(r?.reimbursable),
+      count,
+      total: roundMoney(total),
+      reimbursable: roundMoney(reimbursable),
     };
   });
-  return { all: byStatus.reduce((sum, s) => sum + s.count, 0), byStatus };
+  return {
+    bookCurrency: fx.bookCurrency,
+    unconverted: fx.unconverted(),
+    all: byStatus.reduce((sum, s) => sum + s.count, 0),
+    byStatus,
+  };
 }
 
-/** Receipts spent after `since` (ISO), added up: the board's 90-day spend. */
+/**
+ * Receipts spent after `since` (ISO), per day and currency: the board's
+ * 90-day spend. A receipt is in its claim's currency.
+ */
 export function expenseSpendQuery(db: FinanceQueryBuilder, since: string) {
   return db
     .selectFrom("expense_item_index")
-    .select((eb) => eb.fn.sum<number>("amount").as("spent"))
-    .where("spent_at", ">", since);
+    .innerJoin(
+      "expense_index",
+      "expense_index.document_id",
+      "expense_item_index.report_id",
+    )
+    .select("expense_index.currency as currency")
+    .select((eb) => [
+      eb
+        .fn<string>("substr", [
+          eb.ref("expense_item_index.spent_at"),
+          eb.lit(1),
+          eb.lit(10),
+        ])
+        .as("day"),
+      eb.fn.sum<number>("expense_item_index.amount").as("spent"),
+    ])
+    .where("expense_item_index.spent_at", ">", since)
+    .groupBy("expense_index.currency")
+    .groupBy((eb) =>
+      eb.fn<string>("substr", [
+        eb.ref("expense_item_index.spent_at"),
+        eb.lit(1),
+        eb.lit(10),
+      ]),
+    );
+}
+
+/** The 90-day spend in the main currency: each day's receipts at that day's rate. */
+export function toExpenseSpend(
+  rows: readonly { currency: string; day: string; spent: Num }[],
+  fx: Fx = new Fx(DEFAULT_BOOK_CURRENCY, []),
+): number {
+  let spent = 0;
+  for (const r of rows) spent += fx.convert(n(r.spent), r.currency, r.day) ?? 0;
+  return roundMoney(spent);
 }
 
 /** The instant 90 days before `nowMs`, as the spend is measured from. */
@@ -1150,20 +1528,6 @@ export function contactsQuery(
       ).as("open_count"),
       restrict(
         eb
-          .selectFrom("invoice_index")
-          .select((s) =>
-            s.fn.sum<number>("invoice_index.book_outstanding").as("n"),
-          )
-          .whereRef(
-            "invoice_index.counterparty_contact_id",
-            "=",
-            "contact_index.document_id",
-          )
-          .where("invoice_index.status", "=", "OPEN"),
-        "invoice_index.document_id",
-      ).as("open_book"),
-      restrict(
-        eb
           .selectFrom("transaction_index")
           .select((s) => s.fn.countAll<number>().as("n"))
           .whereRef(
@@ -1192,6 +1556,42 @@ export function contactsQuery(
     .orderBy("contact_index.document_id", "asc")
     .limit(page.limit + 1);
   return page.offset ? ordered.offset(page.offset) : ordered;
+}
+
+/**
+ * What the OPEN invoices of the contacts given still owe, per contact, in the
+ * main currency: each invoice converted once, on reading, at its own rate
+ * else the books' latest. An invoice with no rate is left out.
+ */
+export async function loadOpenByContact(
+  db: FinanceQueryBuilder,
+  contactIds: readonly string[],
+  fx: Fx,
+  restrict: QueryRestriction = NO_RESTRICTION,
+): Promise<Map<string, number>> {
+  const totals = new Map<string, number>();
+  if (contactIds.length === 0) return totals;
+  const rows = await restrict(
+    db
+      .selectFrom("invoice_index")
+      .select(["counterparty_contact_id", "currency", "outstanding", "rates"])
+      .where("status", "=", "OPEN")
+      .where("counterparty_contact_id", "in", [...contactIds]),
+    "document_id",
+  ).execute();
+  for (const r of rows) {
+    const id = r.counterparty_contact_id;
+    if (!id) continue;
+    const owed = fx.convertInvoice(
+      Number(r.outstanding),
+      r.currency,
+      parseOwnRates(r.rates),
+    );
+    if (owed === null) continue;
+    totals.set(id, (totals.get(id) ?? 0) + owed);
+  }
+  for (const [id, total] of totals) totals.set(id, roundMoney(total));
+  return totals;
 }
 
 /** How many contacts the filters match. */
@@ -1286,7 +1686,7 @@ export interface ContactListRow {
   tags: string[];
   /** OPEN invoices whose other party is this contact. */
   openInvoiceCount: number;
-  /** Their book outstanding added up (EUR). */
+  /** What they still owe, added up in the main currency of the books. */
   openBookOutstanding: number;
   /** Bank transactions linked to the contact. */
   transactionCount: number;
@@ -1314,10 +1714,11 @@ function tagsOf(json: string | null | undefined): string[] {
 export function toContactRow(
   r: ContactRow & {
     open_count?: Num;
-    open_book?: Num;
     tx_count?: Num;
     last_tx_at?: string | null;
   },
+  /** `loadOpenByContact`'s answer for the page the row is on. */
+  openByContact: ReadonlyMap<string, number> = new Map(),
 ): ContactListRow {
   return {
     id: r.document_id,
@@ -1337,7 +1738,7 @@ export function toContactRow(
     defaultCategory: r.default_category,
     tags: tagsOf(r.tags),
     openInvoiceCount: n(r.open_count),
-    openBookOutstanding: n(r.open_book),
+    openBookOutstanding: openByContact.get(r.document_id) ?? 0,
     transactionCount: n(r.tx_count),
     lastTransactionAt: r.last_tx_at ?? null,
   };

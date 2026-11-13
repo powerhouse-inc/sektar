@@ -7,6 +7,12 @@
  * keeps its own history, so there is no backfill. The connection is an API
  * key the integration is given, shared with others.
  *
+ * The transactions a bank hands over rarely reach back to the day an account
+ * was opened, so their sum is short of the balance. After the imports the
+ * workflow reads the bank's own balances and brings each account to its one
+ * (the piece's Read Balances decides whether a run can afford the fetch:
+ * always on Sync now, otherwise once a day when the schedule leaves one).
+ *
  * A scheduled run is unattended and uses one of the connection's four daily
  * fetches. A manual refresh fires the workflow with the person on screen
  * (`trigger.payload.psu`: their public address and browser), which the pull
@@ -31,6 +37,13 @@ function source(state: IntegrationState): TransactionsSource {
     bankConnectionId: s?.bankConnectionId ?? "",
     accounts: s?.accounts ?? [],
   };
+}
+
+/** The live interval in hours, as Read Balances weighs it against the bank's daily fetches. */
+export function everyHours(state: IntegrationState): number {
+  const every = state.intent.live.every;
+  const hours = { MINUTES: 1 / 60, HOURS: 1, DAYS: 24 }[every.unit];
+  return Math.round(every.value * hours * 100) / 100;
 }
 
 export const distyra: ProviderAdapter = {
@@ -58,6 +71,20 @@ export const distyra: ProviderAdapter = {
         bankAccountId: account.bankAccountId,
       },
     }));
+    const balances: StepSpec[] = accounts.map((account, i) => ({
+      key: `balance_${i + 1}`,
+      name: `Record bank balance ${i + 1}`,
+      pieceName: DISTYRA_PIECE,
+      pieceVersion: DISTYRA_PIECE_VERSION,
+      actionName: "record-bank-balance",
+      reactorConnectionId: ctx.reactorConnectionId,
+      config: {
+        balances: "{{steps.balances.output}}",
+        accountId: account.accountId,
+        accountKey: account.accountKey,
+        bankAccountId: account.bankAccountId,
+      },
+    }));
     return {
       name: `${ctx.name} · transactions`,
       trigger: scheduleTrigger(ctx.state),
@@ -78,8 +105,28 @@ export const distyra: ProviderAdapter = {
           },
         },
         ...imports,
+        // After the imports: the balance is recorded against the
+        // transactions this run brought in.
+        {
+          key: "balances",
+          name: "Read Balances",
+          pieceName: DISTYRA_PIECE,
+          pieceVersion: DISTYRA_PIECE_VERSION,
+          actionName: "read-balances",
+          connectionId: ctx.connectionId,
+          config: {
+            connectionId: bankConnectionId,
+            everyHours: everyHours(ctx.state),
+            psuIpAddress: "{{trigger.payload.psu.ipAddress?}}",
+            psuUserAgent: "{{trigger.payload.psu.userAgent?}}",
+          },
+        },
+        ...balances,
       ],
       config: scheduleWords,
+      // A workflow published before the balance steps existed gains them: an
+      // integration's accounts are set once, so they are always its tail.
+      addMissingSteps: true,
     };
   },
 

@@ -257,7 +257,7 @@ function transactionRow(row: TransactionRow) {
 const SUMMARY_QUERY = `query ($d: String!, $n: String!) {
   financeIndex {
     dashboard(driveId: $d, now: $n) {
-      bookCurrency cash card receivable payable toReview
+      bookCurrency unconverted cash card receivable payable toReview
       months { key in out }
       spend { category amount }
       overdue { ${INVOICE_FIELDS} }
@@ -273,6 +273,7 @@ interface SummaryData {
   financeIndex: {
     dashboard: {
       bookCurrency: string;
+      unconverted: string[];
       cash: number;
       card: number;
       receivable: number;
@@ -325,6 +326,8 @@ const financeSummaryTool: PhAiToolDescriptor = {
       listing(what, rows, all, { budget: SUMMARY_LIST_BUDGET });
     return {
       bookCurrency: dashboard.bookCurrency,
+      // currencies with no exchange rate: their amounts are not in the totals
+      currenciesLeftOutOfTotals: dashboard.unconverted,
       cash: dashboard.cash,
       card: dashboard.card,
       receivable: dashboard.receivable,
@@ -1375,7 +1378,7 @@ const integrationStatusTool: PhAiToolDescriptor = {
 /* ---------------------------------------------------------------- search */
 
 const SEARCH_QUERY = `query ($d: String!, $q: String!, $l: Int) {
-  searchIndex { search(driveId: $d, query: $q, limit: $l) { documentId entityId kind title subtitle amount status at } }
+  searchIndex { search(driveId: $d, query: $q, limit: $l) { documentId entityId kind title subtitle amount currency status at } }
 }`;
 
 /** Hits per subject: the search says where to look, the find tools say more. */
@@ -1389,6 +1392,7 @@ interface SearchHit {
   title: string;
   subtitle: string | null;
   amount: number | null;
+  currency: string | null;
   status: string | null;
   at: string | null;
 }
@@ -1405,6 +1409,8 @@ async function searchFinance(query: string) {
       title: clip(hit.title, 120),
       subtitle: clip(hit.subtitle, 120),
       amount: hit.amount,
+      // the document's own currency: a hit's amount is never converted
+      currency: hit.amount === null ? null : hit.currency,
       status: hit.status,
       at: day(hit.at),
     }),

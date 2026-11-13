@@ -33,6 +33,7 @@ export const initialGlobalState: BankAccountGlobalState = {
   openingBalance: 0,
   transactions: [],
   lastImportedAt: null,
+  bankBalance: null,
 };
 export const initialLocalState: BankAccountLocalState = {};
 

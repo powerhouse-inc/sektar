@@ -26,6 +26,8 @@ import {
   type TripPhase,
   type TripRow as TripStoredRow,
   type TripYearRow,
+  tripCostInBooks,
+  yearInBooks,
   type YearSource,
 } from "../../../processors/trip-index/index.js";
 import { useMailIndexMode } from "./mail-index.js";
@@ -34,6 +36,7 @@ import { usePagedList, type PagedList } from "./paged.js";
 /** A trip as the boards list it. */
 export type TripRow = TripListRow;
 export type TripYear = TripYearRow;
+export { tripCostInBooks, yearInBooks };
 export type TripPlace = DestinationRow;
 type PlaceSource = { start_date: string | null; destinations: string };
 export type { TripPhase };
@@ -63,7 +66,7 @@ const PLACES_QUERY = `query ($d: String!, $y: Int) {
 }`;
 
 const YEARS_QUERY = `query ($d: String!) {
-  tripIndex { years(driveId: $d) { year trips flights legs nights days cost billed costByKind { transport stays meals extras } } }
+  tripIndex { years(driveId: $d) { year trips flights legs nights days cost billed costByKind { transport stays meals extras } byCurrency { currency cost billed costByKind { transport stays meals extras } } } }
 }`;
 
 /** The wire speaks upper-case phases; the kit lower-case. */

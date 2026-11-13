@@ -69,7 +69,8 @@ vi.mock("../../../../editors/sektar/kit/finance-index.js", async (original) => (
     app.loading
       ? undefined
       : toDashboardStats(now, {
-          positions: undefined,
+          positions: [],
+          open: [],
           invoices: undefined,
           overdue: [],
           transactions: undefined,

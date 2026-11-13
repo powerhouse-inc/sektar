@@ -12,6 +12,7 @@ import { folderSyncFactoryBuilder } from "processors/folder-sync";
 import { integrationReconcilerFactoryBuilder } from "processors/integration-reconciler";
 import { keyIndexFactoryBuilder } from "processors/key-index";
 import { oscIndexFactoryBuilder } from "processors/osc-index";
+import { rateKeeperFactoryBuilder } from "processors/rate-keeper";
 import { searchIndexFactoryBuilder } from "processors/search-index";
 import { tripIndexFactoryBuilder } from "processors/trip-index";
 
@@ -26,5 +27,6 @@ export const processorFactoryBuilders: ProcessorFactoryBuilder[] = [
   tripIndexFactoryBuilder,
   calendarIndexFactoryBuilder,
   integrationIndexFactoryBuilder,
+  rateKeeperFactoryBuilder,
   integrationReconcilerFactoryBuilder,
 ];

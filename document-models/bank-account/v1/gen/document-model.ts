@@ -17,9 +17,9 @@ export const documentModel: DocumentModelGlobalState = {
       state: {
         global: {
           schema:
-            'type BankAccountState {\n  name: String\n  institution: String\n  iban: String\n  kind: AccountKind!\n  currency: String!\n  openingBalance: Float!\n  transactions: [Transaction!]!\n  lastImportedAt: DateTime\n}\n\ntype Transaction {\n  id: OID!\n  bookedAt: DateTime!\n  amount: Float!\n  counterparty: String!\n  description: String\n  reference: String\n  category: TransactionCategory!\n  contactId: String\n  matchedDocumentId: String\n  matchedKind: MatchKind\n  status: TransactionStatus!\n  importBatch: String\n}\n\nenum AccountKind {\n  CURRENT\n  SAVINGS\n  CREDIT_CARD\n}\n\nenum MatchKind {\n  INVOICE\n  EXPENSE\n}\n\nenum TransactionStatus {\n  "Reported by the bank, not booked yet: shown, not counted, not reviewed; the booked entry replaces it"\n  PENDING\n  NEW\n  CATEGORIZED\n  MATCHED\n  EXCLUDED\n}\n\nenum TransactionCategory {\n  UNCATEGORIZED\n  SALES\n  SUPPLIES\n  PAYROLL\n  RENT\n  SOFTWARE\n  TRAVEL\n  MARKETING\n  TAX\n  BANK_FEES\n  TRANSFER\n  OTHER\n}',
+            'type BankAccountState {\n  name: String\n  institution: String\n  iban: String\n  kind: AccountKind!\n  currency: String!\n  openingBalance: Float!\n  transactions: [Transaction!]!\n  lastImportedAt: DateTime\n  "The balance the bank last reported for the account; null until it has"\n  bankBalance: BankBalance\n}\n\n"A balance as the bank reported it"\ntype BankBalance {\n  "The booked balance, in the account\'s currency"\n  amount: Float!\n  "When it was read from the bank"\n  readAt: DateTime!\n  "Which balance the bank gave, e.g. ITBD (booked during the day) or CLBD (booked at the last close)"\n  kind: String\n}\n\ntype Transaction {\n  id: OID!\n  bookedAt: DateTime!\n  amount: Float!\n  counterparty: String!\n  description: String\n  reference: String\n  category: TransactionCategory!\n  contactId: String\n  matchedDocumentId: String\n  matchedKind: MatchKind\n  status: TransactionStatus!\n  importBatch: String\n}\n\nenum AccountKind {\n  CURRENT\n  SAVINGS\n  CREDIT_CARD\n}\n\nenum MatchKind {\n  INVOICE\n  EXPENSE\n}\n\nenum TransactionStatus {\n  "Reported by the bank, not booked yet: shown, not counted, not reviewed; the booked entry replaces it"\n  PENDING\n  NEW\n  CATEGORIZED\n  MATCHED\n  EXCLUDED\n}\n\nenum TransactionCategory {\n  UNCATEGORIZED\n  SALES\n  SUPPLIES\n  PAYROLL\n  RENT\n  SOFTWARE\n  TRAVEL\n  MARKETING\n  TAX\n  BANK_FEES\n  TRANSFER\n  OTHER\n}',
           initialValue:
-            '{"name": null, "institution": null, "iban": null, "kind": "CURRENT", "currency": "EUR", "openingBalance": 0, "transactions": [], "lastImportedAt": null}',
+            '{"name": null, "institution": null, "iban": null, "kind": "CURRENT", "currency": "EUR", "openingBalance": 0, "transactions": [], "lastImportedAt": null, "bankBalance": null}',
           examples: [],
         },
         local: {
@@ -50,6 +50,60 @@ export const documentModel: DocumentModelGlobalState = {
                   name: "CurrencyLockedError",
                   description:
                     "The account already holds transactions in another currency",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+            {
+              id: "4414e5a0-3637-4924-9f88-255b2752f95b",
+              name: "CORRECT_CURRENCY",
+              description:
+                "Correct the currency the account was filed under. The amounts stay as they are: only what they are amounts of changes.",
+              schema:
+                'input CorrectCurrencyInput {\n  "The currency the account is really in (ISO 4217)"\n  currency: String!\n}',
+              template: "",
+              reducer:
+                'const code = action.input.currency.trim().toUpperCase();\nif (!/^[A-Z]{3}$/.test(code))\n  throw new InvalidAccountCurrencyError(\n    `"${action.input.currency}" is not a three-letter currency code`,\n  );\nstate.currency = code;',
+              errors: [
+                {
+                  id: "b47d95ac-f842-4dc1-b5af-7e07ef0a9a89",
+                  code: "INVALID_ACCOUNT_CURRENCY",
+                  name: "InvalidAccountCurrencyError",
+                  description:
+                    "The currency is not a three-letter ISO 4217 code",
+                  template: "",
+                },
+              ],
+              examples: [],
+              scope: "global",
+            },
+            {
+              id: "4f4e8d39-a929-4f36-a1a8-e50960ee5dcb",
+              name: "RECORD_BANK_BALANCE",
+              description:
+                "Record the booked balance the bank reports, and set the opening balance so the account adds up to it. The imported transactions rarely reach back to the day the account was opened, so their sum alone is not the balance.",
+              schema:
+                'input RecordBankBalanceInput {\n  "The booked balance the bank reports"\n  amount: Float!\n  "The currency the bank gave for it, when it gave one"\n  currency: String\n  "When it was read from the bank"\n  readAt: DateTime!\n  "Which balance the bank gave, e.g. ITBD or CLBD"\n  kind: String\n}',
+              template: "",
+              reducer:
+                'const currency = action.input.currency?.trim().toUpperCase();\nif (currency && currency !== state.currency)\n  throw new BalanceCurrencyMismatchError(\n    `The bank reports a balance in ${currency}; the account is in ${state.currency}`,\n  );\nif (state.bankBalance && action.input.readAt < state.bankBalance.readAt)\n  throw new StaleBalanceError(\n    "The account already holds a later reading of its balance",\n  );\n// What the account adds up to: its booked transactions that count (a pending\n// one is not booked yet, an excluded one is left out), in cents so the sum\n// carries no float error into the opening balance.\nconst counted = state.transactions\n  .filter((t) => t.status !== "EXCLUDED" && t.status !== "PENDING")\n  .reduce((sum, t) => sum + Math.round(t.amount * 100), 0);\nstate.openingBalance = (Math.round(action.input.amount * 100) - counted) / 100;\nstate.bankBalance = {\n  amount: action.input.amount,\n  readAt: action.input.readAt,\n  kind: action.input.kind || null,\n};',
+              errors: [
+                {
+                  id: "38f1ef61-17d7-42a6-910f-e35aed1c0b39",
+                  code: "BALANCE_CURRENCY_MISMATCH",
+                  name: "BalanceCurrencyMismatchError",
+                  description:
+                    "The bank reports the balance in another currency than the account is filed under",
+                  template: "",
+                },
+                {
+                  id: "539ebbb3-3cf6-46e4-905f-aaa9c7d583b2",
+                  code: "STALE_BALANCE",
+                  name: "StaleBalanceError",
+                  description:
+                    "The account already holds a later reading of its balance",
                   template: "",
                 },
               ],

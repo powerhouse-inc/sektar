@@ -330,12 +330,15 @@ export const KIND_COPY: Partial<Record<IntegrationKind, KindCopy>> = {
     liveMeta: "New transactions",
     historyLegend: "",
     thing: "your bank",
-    // Banks allow about four unattended fetches a day
-    every: { value: 6, unit: "HOURS" },
+    // Banks allow about four unattended fetches a day. Every 8 hours is
+    // three pulls and leaves the fourth for the daily balance check; every 6
+    // hours uses all four, so its balances are only checked on Sync now.
+    every: { value: 8, unit: "HOURS" },
     sliceSeconds: 0,
     ahead: false,
     intervals: [
       { value: 6, unit: "HOURS", label: "6 hours" },
+      { value: 8, unit: "HOURS", label: "8 hours" },
       { value: 12, unit: "HOURS", label: "12 hours" },
       { value: 1, unit: "DAYS", label: "day" },
     ],

@@ -1,0 +1,73 @@
+scalar Unknown
+scalar DateTime
+scalar Address
+scalar AttachmentRef
+scalar Amount_Tokens
+scalar EthereumAddress
+scalar EmailAddress
+scalar Amount_Percentage
+scalar Date
+scalar URL
+scalar Amount_Money
+scalar OLabel
+scalar Currency
+scalar PHID
+scalar OID
+scalar Amount_Fiat
+scalar Amount_Currency
+scalar Amount_Crypto
+scalar Amount
+scalar Upload
+
+type CurrencyPairState {
+  "The currency converted from, e.g. USD"
+  base: String
+  "The currency converted to: the main currency of the books, e.g. EUR"
+  quote: String
+  "One rate per day, the oldest first"
+  rates: [RatePoint!]!
+  lastFetchedAt: DateTime
+}
+
+type RatePoint {
+  id: OID!
+  "The day the rate applies to, at midnight UTC"
+  date: Date!
+  "How many quote one base is worth"
+  rate: Float!
+  "Where the rate comes from, e.g. ECB"
+  source: String
+  "Entered by hand: a fetched rate never overwrites it"
+  manual: Boolean!
+}
+
+# pair
+
+input SetPairInput {
+  base: String!
+  quote: String!
+}
+
+# rates
+
+input RecordRatesInput {
+  source: String!
+  fetchedAt: DateTime!
+  rates: [RecordedRateInput!]!
+}
+
+input RecordedRateInput {
+  id: OID!
+  date: Date!
+  rate: Float!
+}
+
+input SetManualRateInput {
+  id: OID!
+  date: Date!
+  rate: Float!
+}
+
+input RemoveRateInput {
+  date: Date!
+}

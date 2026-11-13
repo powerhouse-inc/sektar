@@ -28,6 +28,18 @@ type BankAccountState {
   openingBalance: Float!
   transactions: [Transaction!]!
   lastImportedAt: DateTime
+  "The balance the bank last reported for the account; null until it has"
+  bankBalance: BankBalance
+}
+
+"A balance as the bank reported it"
+type BankBalance {
+  "The booked balance, in the account's currency"
+  amount: Float!
+  "When it was read from the bank"
+  readAt: DateTime!
+  "Which balance the bank gave, e.g. ITBD (booked during the day) or CLBD (booked at the last close)"
+  kind: String
 }
 
 type Transaction {
@@ -89,6 +101,22 @@ input SetAccountDetailsInput {
   kind: AccountKind
   currency: String
   openingBalance: Float
+}
+
+input CorrectCurrencyInput {
+  "The currency the account is really in (ISO 4217)"
+  currency: String!
+}
+
+input RecordBankBalanceInput {
+  "The booked balance the bank reports"
+  amount: Float!
+  "The currency the bank gave for it, when it gave one"
+  currency: String
+  "When it was read from the bank"
+  readAt: DateTime!
+  "Which balance the bank gave, e.g. ITBD or CLBD"
+  kind: String
 }
 
 # feed

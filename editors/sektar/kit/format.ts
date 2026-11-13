@@ -39,6 +39,25 @@ export function money(
   return amount < 0 ? `−${text}` : text;
 }
 
+/**
+ * An amount whose currency may not be known (a search hit indexed before
+ * hits carried one): with the currency when there is one, as a plain number
+ * otherwise. Never under a currency it might not be in.
+ */
+export function moneyOrNumber(
+  amount: number,
+  currency: string | null | undefined,
+  opts: { signed?: boolean } = {},
+): string {
+  if (currency) return money(amount, currency, opts);
+  const text = new Intl.NumberFormat("en-IE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Math.abs(amount));
+  if (opts.signed) return amount < 0 ? `−${text}` : `+${text}`;
+  return amount < 0 ? `−${text}` : text;
+}
+
 export function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
@@ -259,28 +278,6 @@ export function invoiceTotals(state: InvoiceState): InvoiceTotals {
     gross: t.gross,
     paid: t.paid,
     outstanding: round2(Math.max(0, t.due)),
-  };
-}
-
-/** The currency the books are kept in: what the boards add up in. */
-export const BOOK_CURRENCY = "EUR";
-
-/**
- * An invoice's totals in the book currency, at the invoice's own rate (the
- * one its VAT is reported at). Without a rate the amounts stay as they are:
- * close enough for a board, never for the books.
- */
-export function bookTotals(state: InvoiceState): InvoiceTotals {
-  const t = invoiceTotals(state);
-  if (state.currency === BOOK_CURRENCY) return t;
-  const rate = findRate(state.exchangeRates, state.currency, BOOK_CURRENCY);
-  if (rate === null) return t;
-  return {
-    net: round2(t.net * rate),
-    vat: round2(t.vat * rate),
-    gross: round2(t.gross * rate),
-    paid: round2(t.paid * rate),
-    outstanding: round2(t.outstanding * rate),
   };
 }
 

@@ -65,6 +65,14 @@ export interface CostByKind {
   extras: number;
 }
 
+/** One currency's share of a year's spend. */
+export interface TripYearMoney {
+  currency: string;
+  cost: number;
+  billed: number;
+  costByKind: CostByKind;
+}
+
 export interface TripYearRow {
   year: number;
   trips: number;
@@ -72,9 +80,70 @@ export interface TripYearRow {
   legs: number;
   nights: number;
   days: number;
+  /**
+   * The spend of every trip added up as the trips have it, whatever their
+   * currencies: a figure in one currency only when the trips share one. A
+   * page shows `yearInBooks`, which converts `byCurrency`.
+   */
   cost: number;
   billed: number;
   costByKind: CostByKind;
+  /** The same spend per currency of the trips, by currency code. */
+  byCurrency: TripYearMoney[];
+}
+
+/** What converts an amount into the books' main currency (finance-index `Fx`). */
+export interface TripConverter {
+  convert(amount: number, currency: string, day?: string | null): number | null;
+}
+
+const cents = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * A year's spend in the books' main currency: each currency's share at the
+ * rate that closed the year (the latest rate for the year still running). A
+ * currency the books hold no rate for is left out, as on the dashboard; the
+ * converter names it.
+ */
+export function yearInBooks<T extends TripYearRow>(y: T, fx: TripConverter): T {
+  const closing = `${String(y.year)}-12-31`;
+  const sum = { cost: 0, billed: 0, transport: 0, stays: 0, meals: 0, extras: 0 };
+  for (const m of y.byCurrency) {
+    const at = (amount: number) => fx.convert(amount, m.currency, closing);
+    const cost = at(m.cost);
+    if (cost === null) continue;
+    sum.cost += cost;
+    sum.billed += at(m.billed) ?? 0;
+    sum.transport += at(m.costByKind.transport) ?? 0;
+    sum.stays += at(m.costByKind.stays) ?? 0;
+    sum.meals += at(m.costByKind.meals) ?? 0;
+    sum.extras += at(m.costByKind.extras) ?? 0;
+  }
+  return {
+    ...y,
+    cost: cents(sum.cost),
+    billed: cents(sum.billed),
+    costByKind: {
+      transport: cents(sum.transport),
+      stays: cents(sum.stays),
+      meals: cents(sum.meals),
+      extras: cents(sum.extras),
+    },
+  };
+}
+
+/** A trip's spend in the books' main currency, at the rate that closed its year; null with no rate. */
+export function tripCostInBooks(
+  trip: { costTotal: number; currency: string; startDate: string | null },
+  fx: TripConverter,
+): number | null {
+  const year = trip.startDate?.slice(0, 4);
+  const cost = fx.convert(
+    trip.costTotal,
+    trip.currency,
+    year ? `${year}-12-31` : null,
+  );
+  return cost === null ? null : cents(cost);
 }
 
 /** The words of a search, lower-cased, at most `max` of them. */
@@ -185,6 +254,7 @@ export function yearsQuery(db: TripQueryBuilder) {
     .where("start_date", "is not", null)
     .select([
       "start_date",
+      "currency",
       "flights",
       "legs",
       "nights",
@@ -200,6 +270,8 @@ export function yearsQuery(db: TripQueryBuilder) {
 
 export interface YearSource {
   start_date: string | null;
+  /** The trip's currency; a row without one (an older reader) is in euros, as a new trip is. */
+  currency?: string | null;
   flights: number | string;
   legs: number | string;
   nights: number | string;
@@ -229,7 +301,25 @@ export function foldYears(rows: readonly YearSource[]): TripYearRow[] {
       cost: 0,
       billed: 0,
       costByKind: { transport: 0, stays: 0, meals: 0, extras: 0 },
+      byCurrency: [],
     };
+    const currency = r.currency || "EUR";
+    let m = y.byCurrency.find((x) => x.currency === currency);
+    if (!m) {
+      m = {
+        currency,
+        cost: 0,
+        billed: 0,
+        costByKind: { transport: 0, stays: 0, meals: 0, extras: 0 },
+      };
+      y.byCurrency.push(m);
+    }
+    m.cost += Number(r.cost_total);
+    m.billed += Number(r.billed_total);
+    m.costByKind.transport += Number(r.cost_transport);
+    m.costByKind.stays += Number(r.cost_stays);
+    m.costByKind.meals += Number(r.cost_meals);
+    m.costByKind.extras += Number(r.cost_extras);
     y.trips += 1;
     y.flights += Number(r.flights);
     y.legs += Number(r.legs);
@@ -254,6 +344,19 @@ export function foldYears(rows: readonly YearSource[]): TripYearRow[] {
         meals: Math.round(y.costByKind.meals * 100) / 100,
         extras: Math.round(y.costByKind.extras * 100) / 100,
       },
+      byCurrency: y.byCurrency
+        .map((m) => ({
+          currency: m.currency,
+          cost: cents(m.cost),
+          billed: cents(m.billed),
+          costByKind: {
+            transport: cents(m.costByKind.transport),
+            stays: cents(m.costByKind.stays),
+            meals: cents(m.costByKind.meals),
+            extras: cents(m.costByKind.extras),
+          },
+        }))
+        .sort((a, b) => a.currency.localeCompare(b.currency)),
     }))
     .sort((a, b) => b.year - a.year);
 }

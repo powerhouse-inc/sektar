@@ -115,7 +115,7 @@ export const SCHEMES: readonly { code: string; label: string }[] = [
   { code: "0060", label: "0060 · DUNS" },
 ];
 
-export const CURRENCIES = ["EUR", "USD", "GBP", "CHF", "DKK", "SEK", "NOK", "PLN", "CZK", "HUF", "CAD", "AUD", "JPY"];
+export const CURRENCIES = ["EUR", "USD", "GBP", "CHF", "DKK", "SEK", "NOK", "PLN", "CZK", "HUF", "RON", "CAD", "AUD", "JPY"];
 
 /** "1.173,46", "1,173.46", "1173,46" and "1173.46" all read as 1173.46; "1,173094" as 1.173094. */
 export function parseNumber(input: string): number | null {

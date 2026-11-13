@@ -1,6 +1,8 @@
 import { createPiece } from "@powerhousedao/pieces-framework";
 import { distyraGetLatestTransactionsAction } from "./lib/actions/get-latest-transactions.js";
 import { distyraListAccountsAction } from "./lib/actions/list-accounts.js";
+import { distyraReadBalancesAction } from "./lib/actions/read-balances.js";
+import { distyraRecordBankBalanceAction } from "./lib/bank/record-bank-balance.js";
 import { distyraImportToBankAccountAction } from "./lib/bank/import-to-bank-account.js";
 import { distyraPullForLedgerAction } from "./lib/actions/pull-for-ledger.js";
 import { distyraAuth } from "./lib/auth.js";
@@ -53,6 +55,10 @@ export const distyra = createPiece({
     // Files one account's pulled rows onto its Sektar bank account; reaches
     // the reactor only, so it needs no bank connection.
     distyraImportToBankAccountAction,
+    // The bank's own balances, and bringing a Sektar account to its one: the
+    // imported transactions rarely reach back to the day the account opened.
+    distyraReadBalancesAction,
+    distyraRecordBankBalanceAction,
     // Queue steps. These talk to the reactor rather than to Distyra, so none
     // of them requires the bank connection above.
     // Pure queue steps: these read a state a reactor Get Document step has

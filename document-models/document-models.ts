@@ -1,6 +1,8 @@
 import { BankAccount as BankAccountV1 } from "document-models/bank-account/v1";
+import { BooksSettings as BooksSettingsV1 } from "document-models/books-settings/v1";
 import { CalendarEvent as CalendarEventV1 } from "document-models/calendar-event/v1";
 import { Contact as ContactV1 } from "document-models/contact/v1";
+import { CurrencyPair as CurrencyPairV1 } from "document-models/currency-pair/v1";
 import { Email as EmailV1 } from "document-models/email/v1";
 import { ExpenseReport as ExpenseReportV1 } from "document-models/expense-report/v1";
 import { File as FileV1 } from "document-models/file/v1";
@@ -19,8 +21,10 @@ import { Trip as TripV1 } from "document-models/trip/v1";
 
 export const documentModels = [
   BankAccountV1,
+  BooksSettingsV1,
   CalendarEventV1,
   ContactV1,
+  CurrencyPairV1,
   EmailV1,
   ExpenseReportV1,
   FileV1,

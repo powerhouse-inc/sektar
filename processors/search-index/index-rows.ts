@@ -10,6 +10,8 @@ const str = (v: unknown): string | null =>
   typeof v === "string" && v.trim() ? v.trim() : null;
 const num = (v: unknown): number | null =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
+/** A currency code as the documents hold it, in capitals; null when there is none. */
+const code = (v: unknown): string | null => str(v)?.toUpperCase() ?? null;
 const text = (...parts: unknown[]) =>
   parts
     .flat()
@@ -39,6 +41,7 @@ function base(
     subtitle: null,
     body: "",
     amount: null,
+    currency: null,
     status: null,
     at: null,
   };
@@ -71,6 +74,7 @@ export function rowsFromState(
       row.title = str(state.number) ?? "Draft invoice";
       row.subtitle = str(party.name);
       row.amount = Math.round(gross * 100) / 100;
+      row.currency = code(state.currency);
       row.status = str(state.status);
       row.at = str(state.issuedAt) ?? str(state.dueAt);
       row.body = text(
@@ -122,6 +126,7 @@ export function rowsFromState(
       row.amount =
         Math.round(items.reduce((s, i) => s + (num(i.amount) ?? 0), 0) * 100) /
         100;
+      row.currency = code(state.currency);
       row.status = str(state.status);
       row.at = str(state.submittedAt) ?? str(items[0]?.spentAt);
       row.body = text(
@@ -139,6 +144,9 @@ export function rowsFromState(
         [str(state.institution), str(state.iban)].filter(Boolean).join(" · ") ||
         null;
       row.status = str(state.kind);
+      // the account's row has no amount: it carries the currency its
+      // transactions are in, for the ones a later import adds
+      row.currency = code(state.currency);
       row.body = text(state.name, state.institution, state.iban, state.kind);
       const txRows = ((state.transactions ?? []) as Json[]).map((t) => {
         const r = base(documentId, documentType, String(t.id));
@@ -146,6 +154,7 @@ export function rowsFromState(
         r.title = str(t.counterparty) ?? "Transaction";
         r.subtitle = str(t.description) ?? str(state.name);
         r.amount = num(t.amount);
+        r.currency = row.currency;
         r.status = str(t.status);
         r.at = str(t.bookedAt);
         r.body = text(
@@ -205,6 +214,16 @@ export function applyAction(
     case "SET_HEADER":
       touch({}, [input.subject, input.buyerReference, input.notes]);
       break;
+    case "SET_CURRENCY":
+      touch({ currency: code(input.currency) ?? doc.currency });
+      break;
+    case "CORRECT_CURRENCY": {
+      // the account's currency, and so every one of its transactions'
+      const currency = code(input.currency) ?? doc.currency;
+      touch({ currency });
+      for (const r of others) r.currency = currency;
+      break;
+    }
     case "ISSUE_INVOICE":
       touch(
         {
@@ -265,6 +284,7 @@ export function applyAction(
         {
           title: str(input.title) ?? doc.title,
           subtitle: str(input.submitterName) ?? doc.subtitle,
+          currency: code(input.currency) ?? doc.currency,
         },
         [input.title, input.submitterName, input.submitterEmail],
       );
@@ -301,9 +321,11 @@ export function applyAction(
               .filter(Boolean)
               .join(" · ") || doc.subtitle,
           status: str(input.kind) ?? doc.status,
+          currency: code(input.currency) ?? doc.currency,
         },
         [input.name, input.institution, input.iban],
       );
+      for (const r of others) r.currency = doc.currency;
       break;
     case "IMPORT_TRANSACTIONS": {
       const txs = (input.transactions ?? []) as Json[];
@@ -313,6 +335,7 @@ export function applyAction(
         r.title = str(t.counterparty) ?? "Transaction";
         r.subtitle = str(t.description) ?? doc.title;
         r.amount = num(t.amount);
+        r.currency = doc.currency;
         r.status = t.pending === true ? "PENDING" : "NEW";
         r.at = str(t.bookedAt);
         r.body = text(
