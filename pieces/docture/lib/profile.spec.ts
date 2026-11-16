@@ -10,10 +10,7 @@ import {
   oneOffProfile,
   parseLanguages,
   READING_METHODS,
-  recognitionOf,
-  usesAi,
   usesAppScanner,
-  withAiLayout,
   withLanguages,
   withMethod,
   withOcrModel,
@@ -30,10 +27,8 @@ describe("a profile as a person picks it", () => {
   it("is a valid profile of the contract for every method, from any other", () => {
     const starts: ConversionProfile[] = [
       smart,
-      withRecognition(smart, "ai"),
-      withAiLayout(withMethod(smart, "digital"), true),
+      withMethod(smart, "digital"),
       withMethod(paddle, "ocr"),
-      withMethod(smart, "ai"),
     ];
     for (const start of starts) {
       for (const method of READING_METHODS) {
@@ -44,26 +39,9 @@ describe("a profile as a person picks it", () => {
     }
   });
 
-  it("never keeps AI layout on AI transcription", () => {
-    const laidOut = withAiLayout(smart, true);
-    expect(withMethod(laidOut, "ai").layout).toEqual({ kind: "off" });
-    expect(withAiLayout(withMethod(smart, "ai"), true).layout).toEqual({
-      kind: "off",
-    });
-    expect(withMethod(laidOut, "ocr").layout).toEqual({
-      kind: "ai",
-      model: "integrated",
-    });
-  });
-
-  it("lets only Smart fall back to the integrated model", () => {
-    expect(recognitionOf(withRecognition(smart, "ai"))).toEqual({
-      kind: "ai",
-      model: "integrated",
-    });
-    const ocr = withMethod(smart, "ocr");
-    expect(withRecognition(ocr, "ai")).toEqual(ocr);
+  it("recognizes nothing on Text only", () => {
     const digital = withMethod(smart, "digital");
+    expect(localOcrOf(digital)).toBeNull();
     expect(withRecognition(digital, "paddleocr")).toEqual(digital);
   });
 
@@ -73,40 +51,27 @@ describe("a profile as a person picks it", () => {
       "spa",
     ]);
     const asOcr = withMethod(spanish, "ocr");
-    expect(recognitionOf(asOcr)).toEqual({
+    expect(localOcrOf(asOcr)).toEqual({
       kind: "ocr",
       engine: "paddleocr",
       languages: ["eng", "spa"],
     });
-    expect(recognitionOf(withMethod(asOcr, "smart"))).toEqual(
-      recognitionOf(asOcr),
+    expect(localOcrOf(withMethod(asOcr, "smart"))).toEqual(
+      localOcrOf(asOcr),
     );
   });
 
-  it("falls back to local OCR, not the model, when leaving AI transcription for Smart", () => {
-    expect(recognitionOf(withMethod(withMethod(smart, "ai"), "smart"))).toEqual(
-      { kind: "ocr", engine: "tesseract", languages: ["eng"] },
-    );
-  });
-
-  it("comes back from the model to the local engine it is given", () => {
-    const viaAi = withMethod(withRecognition(smart, "ai"), "ocr", {
+  it("comes back from Text only to the local engine it is given", () => {
+    const back = withMethod(withMethod(smart, "digital"), "ocr", {
       kind: "ocr",
       engine: "paddleocr",
       languages: ["eng", "spa"],
     });
-    expect(localOcrOf(viaAi)).toEqual({
+    expect(localOcrOf(back)).toEqual({
       kind: "ocr",
       engine: "paddleocr",
       languages: ["eng", "spa"],
     });
-  });
-
-  it("says whether running it calls the model", () => {
-    expect(usesAi(smart)).toBe(false);
-    expect(usesAi(withRecognition(smart, "ai"))).toBe(true);
-    expect(usesAi(withAiLayout(withMethod(smart, "digital"), true))).toBe(true);
-    expect(usesAi(withMethod(smart, "ai"))).toBe(true);
   });
 });
 
@@ -180,23 +145,15 @@ describe("one PDF read with the app's scanner", () => {
     const digital = withMethod(smart, "digital");
     expect(oneOffProfile(digital, "smart")).toBeNull();
     expect(oneOffProfile(digital, "ocr")).toBeNull();
-    expect(oneOffProfile(digital, "ai")).toEqual(withMethod(digital, "ai"));
-    const smartAi = withRecognition(smart, "ai");
-    expect(oneOffProfile(smartAi, "smart")).toEqual(smartAi);
-    expect(oneOffProfile(smartAi, "ocr")).toBeNull();
+    expect(oneOffProfile(digital, "digital")).toEqual(digital);
   });
 
   it("accepts only the app's engine, model and some of its languages", () => {
     expect(usesAppScanner(withMethod(app, "digital"), app)).toBe(true);
-    expect(usesAppScanner(withMethod(app, "ai"), app)).toBe(true);
     expect(usesAppScanner(withLanguages(app, ["spa"]), app)).toBe(true);
     expect(usesAppScanner(withLanguages(app, ["eng", "fra"]), app)).toBe(false);
     expect(usesAppScanner(withRecognition(app, "paddleocr"), app)).toBe(false);
     expect(usesAppScanner(withOcrModel(paddle, "v6Tiny"), paddle)).toBe(false);
-    expect(usesAppScanner(withRecognition(app, "ai"), app)).toBe(false);
     expect(usesAppScanner(app, withMethod(app, "digital"))).toBe(false);
-    const smartAi = withRecognition(smart, "ai");
-    expect(usesAppScanner(smartAi, smartAi)).toBe(true);
-    expect(usesAppScanner(app, smartAi)).toBe(false);
   });
 });

@@ -31,6 +31,7 @@ import {
 import {
   doctureConversionOutputSchema,
   doctureManifestSchema,
+  NO_MODEL_USAGE,
   type DoctureConversionOutput,
   type DoctureManifest,
 } from "../../docture/lib/contracts.js";
@@ -123,6 +124,7 @@ function verifyOutput(
   const stored = doctureManifestSchema.parse(JSON.parse(data.toString("utf8")));
   const expected = doctureManifestSchema.parse({
     ...output,
+    usage: NO_MODEL_USAGE,
     kind: "docture-conversion-manifest",
     version: output.plan.contractVersion,
     sourceFileName: stored.sourceFileName,

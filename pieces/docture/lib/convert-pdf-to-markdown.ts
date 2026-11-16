@@ -7,7 +7,7 @@ import {
   DEFAULT_PADDLE_MODEL,
   PADDLE_MODEL_PRESETS,
 } from "../../../conversions/engine/engines.js";
-import { convertPdf, INTEGRATED_AI } from "./convert.js";
+import { convertPdf } from "./convert.js";
 
 /**
  * The workflow editor's form hint: the property is shown only while a
@@ -30,7 +30,7 @@ const props = {
   method: Property.StaticDropdown<string, true>({
     displayName: "Reading method",
     description:
-      "Smart reads the text layer and recognizes only the pages without one. Digital only reads the text layer. OCR recognizes every page. AI transcription needs Sektar's integrated model, which workflow steps cannot reach yet.",
+      "Smart reads the text layer and recognizes only the pages without one. Digital only reads the text layer. OCR recognizes every page.",
     required: true,
     defaultValue: "smart",
     options: {
@@ -38,7 +38,6 @@ const props = {
         { label: "Smart", value: "smart" },
         { label: "Digital only", value: "digital" },
         { label: "OCR", value: "ocr" },
-        { label: "AI transcription", value: "ai" },
       ],
     },
   }),
@@ -46,14 +45,13 @@ const props = {
     Property.StaticDropdown<string, false>({
       displayName: "Recognition",
       description:
-        "What recognizes the pages that need it (Smart), or every page (OCR). Integrated AI is not available to workflow steps yet.",
+        "What recognizes the pages that need it (Smart), or every page (OCR).",
       required: false,
       defaultValue: "tesseract",
       options: {
         options: [
           { label: "Tesseract", value: "tesseract" },
           { label: "PaddleOCR", value: "paddleocr" },
-          { label: "Integrated AI (Smart only)", value: INTEGRATED_AI },
         ],
       },
     }),
@@ -88,18 +86,6 @@ const props = {
     }),
     "method",
     ["smart", "ocr"],
-  ),
-  aiLayout: shownWhen(
-    Property.Checkbox({
-      displayName: "Improve layout with AI",
-      description:
-        "Adjusts headings and reading order with the integrated model. Not available to workflow steps yet: the step stops and says so.",
-      required: false,
-      defaultValue: false,
-      advanced: true,
-    }),
-    "method",
-    ["smart", "digital", "ocr"],
   ),
   pages: Property.ShortText({
     displayName: "Pages",
@@ -180,7 +166,6 @@ export const convertPdfToMarkdownAction = createAction({
         label: "Engines",
         description: "What read the pages, by version",
       },
-      { key: "usage", label: "AI usage" },
       {
         key: "plan",
         label: "Plan",

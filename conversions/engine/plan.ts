@@ -5,9 +5,8 @@ export { canonicalJson } from "../canonical-json.js";
 import type {
   ConversionProfile,
   ExecutableConversionPlan,
-  RecognitionSelection,
+  OcrSelection,
   ResolvedConversionPlan,
-  ResolvedModel,
   ResolvedRecognition,
 } from "../contracts.js";
 import {
@@ -17,25 +16,10 @@ import {
   type EngineProbe,
 } from "./engines.js";
 
-export type IntegratedModelStatus =
-  | { readonly kind: "available"; readonly model: ResolvedModel }
-  | {
-      readonly kind: "unavailable";
-      readonly reason: string;
-      readonly setup: string;
-    };
-
-export interface PlanInputs {
-  readonly probe: EngineProbe;
-  readonly integrated: IntegratedModelStatus;
-}
-
 export const planRefusalCodes = [
   "engine-unavailable",
-  "ai-unavailable",
   "language-unavailable",
   "model-unavailable",
-  "layout-not-applicable",
 ] as const;
 export type PlanRefusalCode = (typeof planRefusalCodes)[number];
 
@@ -56,14 +40,6 @@ export function converterVersion(probe: EngineProbe): string {
   return `${CONVERTER_CONTRACT}+docture@${probe.docture ?? "missing"}`;
 }
 
-/** The prompt Docture's model reader or layout analyzer sends, by its version. */
-export function promptVersion(
-  probe: EngineProbe,
-  role: "llm-ocr" | "llm-layout",
-): string {
-  return `docture@${probe.docture ?? "missing"}:${role}`;
-}
-
 function requireEngine(
   label: string,
   availability: EngineAvailability,
@@ -76,28 +52,10 @@ function requireEngine(
   return availability.version;
 }
 
-function integratedModel(inputs: PlanInputs, purpose: string): ResolvedModel {
-  if (inputs.integrated.kind === "unavailable") {
-    throw new PlanRefusal(
-      "ai-unavailable",
-      `${purpose} isn't available. ${inputs.integrated.reason} ${inputs.integrated.setup}`.trim(),
-    );
-  }
-  return inputs.integrated.model;
-}
-
 function resolveRecognition(
-  selection: RecognitionSelection,
-  inputs: PlanInputs,
+  selection: OcrSelection,
+  probe: EngineProbe,
 ): ResolvedRecognition {
-  const { probe } = inputs;
-  if (selection.kind === "ai") {
-    return {
-      kind: "ai",
-      model: integratedModel(inputs, "AI transcription"),
-      promptVersion: promptVersion(probe, "llm-ocr"),
-    };
-  }
   if (selection.engine === "tesseract") {
     const version = requireEngine("Tesseract", probe.tesseract);
     const languageVersions: Record<string, string> = {};
@@ -153,11 +111,10 @@ export function planFingerprint(
 /** Pins a profile to the engines and versions installed now. */
 export function resolvePlan(
   profile: ConversionProfile,
-  inputs: PlanInputs,
+  probe: EngineProbe,
 ): ExecutableConversionPlan {
-  const { probe } = inputs;
   const reading = profile.reading;
-  let resolvedReading: ResolvedConversionPlan["reading"];
+  let resolvedReading: ExecutableConversionPlan["reading"];
   switch (reading.kind) {
     case "digital":
       resolvedReading = {
@@ -169,13 +126,13 @@ export function resolvePlan(
       resolvedReading = {
         kind: "smart",
         readerVersion: requireEngine("PDF.js", probe.pdfjs),
-        fallback: resolveRecognition(reading.fallback, inputs),
+        fallback: resolveRecognition(reading.fallback, probe),
       };
       break;
     case "recognize":
       resolvedReading = {
         kind: "recognize",
-        engine: resolveRecognition(reading.engine, inputs),
+        engine: resolveRecognition(reading.engine, probe),
       };
       break;
     default: {
@@ -183,24 +140,6 @@ export function resolvePlan(
       throw new Error(`Unhandled reading ${JSON.stringify(unhandled)}`);
     }
   }
-  if (
-    profile.layout.kind === "ai" &&
-    reading.kind === "recognize" &&
-    reading.engine.kind === "ai"
-  ) {
-    throw new PlanRefusal(
-      "layout-not-applicable",
-      "AI layout works with Standard, Text only or Scan every page, not with AI transcription. Turn AI layout off.",
-    );
-  }
-  const layout: ResolvedConversionPlan["layout"] =
-    profile.layout.kind === "ai"
-      ? {
-          kind: "ai",
-          model: integratedModel(inputs, "Improve layout with AI"),
-          promptVersion: promptVersion(probe, "llm-layout"),
-        }
-      : { kind: "off" };
   if (probe.docture === null)
     throw new PlanRefusal(
       "engine-unavailable",
@@ -219,7 +158,7 @@ export function resolvePlan(
     },
     converterVersion: converterVersion(probe),
     reading: resolvedReading,
-    layout,
+    layout: { kind: "off" as const },
     pages: profile.pages,
     output: { kind: "markdown" as const, pageMarkers: true },
   };
@@ -229,13 +168,11 @@ export function resolvePlan(
 /** The local OCR the plan may run, if any. */
 export function planOcr(
   plan: ResolvedConversionPlan,
-): Extract<ResolvedRecognition, { kind: "ocr" }> | null {
+): ResolvedRecognition | null {
   const reading = plan.reading;
-  const recognition =
-    reading.kind === "smart"
-      ? reading.fallback
-      : reading.kind === "recognize"
-        ? reading.engine
-        : null;
-  return recognition?.kind === "ocr" ? recognition : null;
+  return reading.kind === "smart"
+    ? reading.fallback
+    : reading.kind === "recognize"
+      ? reading.engine
+      : null;
 }

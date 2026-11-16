@@ -1,4 +1,5 @@
-import type { ConversionProfile, RecognitionSelection } from "../contracts.js";
+import type { ConversionProfile, OcrSelection } from "../contracts.js";
+import { localOcrOf } from "../../pieces/docture/lib/profile.js";
 
 export interface ModelAsset {
   readonly id: string;
@@ -116,20 +117,10 @@ export function assetById(id: string): ModelAsset {
   return asset;
 }
 
-export function recognitionOf(
-  profile: ConversionProfile,
-): RecognitionSelection | null {
-  return profile.reading.kind === "smart"
-    ? profile.reading.fallback
-    : profile.reading.kind === "recognize"
-      ? profile.reading.engine
-      : null;
-}
-
 export function recognitionAssets(
-  selection: RecognitionSelection | null,
+  selection: OcrSelection | null,
 ): readonly ModelAsset[] {
-  if (!selection || selection.kind === "ai") return [];
+  if (!selection) return [];
   if (selection.engine === "tesseract") {
     return [...new Set(selection.languages)]
       .sort()
@@ -153,10 +144,10 @@ export function recognitionAssets(
 }
 
 export const profileAssets = (profile: ConversionProfile) =>
-  recognitionAssets(recognitionOf(profile));
+  recognitionAssets(localOcrOf(profile));
 export function recognitionVersion(
   runtime: string,
-  selection: RecognitionSelection,
+  selection: OcrSelection,
 ): string {
   return `${runtime}+models:${recognitionAssets(selection)
     .map((asset) => asset.sha256)

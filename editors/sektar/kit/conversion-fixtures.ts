@@ -28,6 +28,7 @@ import {
   type ConversionRenditionView,
 } from "../../../conversions/model-adapter.js";
 import { attachmentRefSchema } from "../../../conversions/contracts.js";
+import { NO_MODEL_USAGE } from "../../../pieces/docture/lib/contracts.js";
 import {
   canonicalPublicationJson,
   encodePublication,
@@ -97,16 +98,13 @@ PLAN.fingerprint = createHash("sha256")
 export const HOST_LIMITS: ConversionLimits = {
   maxBytes: 200 * 1024 * 1024,
   maxPages: 2000,
-  maxAiPages: 500,
-  maxAiRequests: 1000,
-  automaticAiPagesPerDay: 5000,
   maxDurationMs: 2 * 60 * 60 * 1000,
 };
 
 const AVAILABLE = (version: string) =>
   ({ status: "available", version }) as const;
 
-/** A host with PDF.js, Tesseract (eng, spa) and the integrated model; PaddleOCR needs setup. */
+/** A host with PDF.js and Tesseract (eng, spa); PaddleOCR needs setup. */
 export function capabilities(
   over: Partial<ConversionCapabilities> = {},
 ): ConversionCapabilities {
@@ -133,15 +131,6 @@ export function capabilities(
         models: [],
       },
     ],
-    ai: {
-      availability: AVAILABLE("openrouter/qwen3.8-max-prime"),
-      model: {
-        provider: "openrouter",
-        modelId: "qwen/qwen3.8-max-prime",
-        configurationRevision: "rev-7",
-      },
-    },
-    layout: { availability: AVAILABLE("openrouter/qwen3.8-max-prime") },
     limits: HOST_LIMITS,
     ...over,
   };
@@ -155,12 +144,7 @@ export function settings(
     revision: 3,
     activation: "manual",
     profile: defaultConversionProfile,
-    limits: {
-      ...HOST_LIMITS,
-      maxAiPages: 25,
-      maxAiRequests: 50,
-      automaticAiPagesPerDay: 0,
-    },
+    limits: HOST_LIMITS,
     authorizingIdentity: "0xabc0000000000000000000000000000000000def",
     updatedAt: "2026-11-10T09:00:00.000Z",
     automaticSince: null,
@@ -209,14 +193,6 @@ export function result(over: Partial<ConversionResult> = {}): ConversionResult {
         model: null,
       },
     ],
-    usage: {
-      kind: "known",
-      inputTokens: 0,
-      outputTokens: 0,
-      requests: 0,
-      aiPages: 0,
-      costUsd: 0,
-    },
     ...over,
   };
 }
@@ -323,9 +299,9 @@ export const failedJob = (
 
 export const needsAttentionJob = (
   error: ConversionProblem = {
-    code: "ai-outcome-unknown",
+    code: "outcome-unknown",
     message:
-      "A model request was sent and its outcome is unknown. It may have been charged.",
+      "The conversion stopped and its outcome is unknown. Check the workflow's run history.",
     retryable: false,
   },
   over: Partial<JobBase> = {},
@@ -388,6 +364,7 @@ export function renditionView(
           pages: outcomes,
         }),
         plan: PLAN,
+        usage: NO_MODEL_USAGE,
         kind: "docture-conversion-manifest",
         version: 1,
         sourceFileName: FILE_SOURCE.fileName,
@@ -439,6 +416,7 @@ export function publicationFixture(
       ...outcome,
       markdown,
       plan: PLAN,
+      usage: NO_MODEL_USAGE,
       kind: "docture-conversion-manifest",
       version: 1,
       sourceFileName: outcome.source.fileName,

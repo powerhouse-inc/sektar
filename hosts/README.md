@@ -179,16 +179,11 @@ and the final revision check succeed. MuPDF
 is not used: its AGPL license does not suit Sektar.
 `hosts/packaging.test.ts` checks a fresh build and its resolved dependencies.
 
-Digital extraction and OCR can run in the Node host with published dependencies.
-Docture is pinned to 0.3.1. That release improves OCR geometry and table
-reconstruction, but still lacks a public page-local layout validator. The
-layout recovery reproduction still discards valid pages when one page's
-annotations are invalid, so that release gate remains open.
-Integrated AI and AI layout report unavailable when their upstream capabilities
-are missing. Conversion integration tests and the packaged smoke check remain
-acceptance gates; they must pass against supported upstream releases before
-this feature ships. Earlier results obtained with patched packages do not
-clear that gate. The chat assistant's conversion tools are deferred separately.
+Conversion reads PDFs with PDF.js, Tesseract and PaddleOCR only, in the Node
+host with published dependencies; it has no AI reading or AI layout. Docture is
+pinned to 0.3.2. `qa/desktop/conversion.mjs` checks that a packaged stack
+resolves and loads all three engines and the page rasterizer. The chat
+assistant's conversion tools are deferred separately.
 
 #### Building against a local monorepo checkout
 

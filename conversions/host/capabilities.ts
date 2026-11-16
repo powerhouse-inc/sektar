@@ -4,7 +4,6 @@ import {
   type EngineAvailability,
   type EngineProbe,
 } from "../engine/engines.js";
-import type { IntegratedModelStatus } from "../engine/plan.js";
 import { HOST_LIMITS } from "./settings.js";
 
 const NO_CONVERTER: EngineAvailability = {
@@ -14,30 +13,9 @@ const NO_CONVERTER: EngineAvailability = {
   detail: "docture is not installed.",
 };
 
-export function capabilitiesOf(
-  probe: EngineProbe,
-  ai: IntegratedModelStatus,
-): ConversionCapabilities {
+export function capabilitiesOf(probe: EngineProbe): ConversionCapabilities {
   const usable = (availability: EngineAvailability): EngineAvailability =>
     probe.docture === null ? NO_CONVERTER : availability;
-  const integrated: EngineAvailability =
-    probe.docture === null
-      ? NO_CONVERTER
-      : ai.kind === "available"
-        ? {
-            status: "available",
-            version: `${ai.model.provider}/${ai.model.modelId}`,
-          }
-        : probe.rasterizer.status === "unavailable"
-          ? {
-              status: "unavailable",
-              reason: `AI transcription can't read pages. ${probe.rasterizer.reason}`,
-              setup: probe.rasterizer.setup,
-              ...(probe.rasterizer.detail
-                ? { detail: probe.rasterizer.detail }
-                : {}),
-            }
-          : { status: "unavailable", reason: ai.reason, setup: ai.setup };
   return {
     contractVersion: 1,
     digital: usable(probe.pdfjs),
@@ -57,14 +35,6 @@ export function capabilitiesOf(
         models: PADDLE_MODEL_PRESETS.map((preset) => preset.id),
       },
     ],
-    ai: {
-      availability: integrated,
-      model:
-        ai.kind === "available" && integrated.status === "available"
-          ? ai.model
-          : null,
-    },
-    layout: { availability: integrated },
     limits: HOST_LIMITS,
   };
 }

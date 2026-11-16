@@ -1,6 +1,18 @@
 import { z } from "zod";
-import { publicationManifestV1Schema } from "./publication/v1.js";
-import { publicationManifestV2Schema } from "./publication/v2.js";
+import {
+  engineProvenanceSchema,
+  executableConversionPlanSchema,
+  localPlanV1Schema,
+  pageOutcomeSchema,
+} from "./contracts.js";
+import {
+  doctureManifestV1Schema,
+  publicationManifestV1Schema,
+} from "./publication/v1.js";
+import {
+  doctureManifestV2Schema,
+  publicationManifestV2Schema,
+} from "./publication/v2.js";
 import { canonicalJson } from "./canonical-json.js";
 import { parsePublicationRowId as parseRowId } from "./publication-id.js";
 
@@ -26,10 +38,26 @@ export function publicationRowId(
   return `sektar-pdf:v1:${generationIdSchema.parse(generationId)}:${role}`;
 }
 
+/** Pages and engines as Sektar reads them: the stored formats narrowed to local engines. */
+const localOutputFields = {
+  pages: z.array(pageOutcomeSchema).min(1),
+  provenance: z.array(engineProvenanceSchema),
+};
+
 export const publicationManifestSchema = z
   .discriminatedUnion("version", [
-    publicationManifestV1Schema,
-    publicationManifestV2Schema,
+    publicationManifestV1Schema.extend({
+      output: doctureManifestV1Schema.extend({
+        ...localOutputFields,
+        plan: localPlanV1Schema,
+      }),
+    }),
+    publicationManifestV2Schema.extend({
+      output: doctureManifestV2Schema.extend({
+        ...localOutputFields,
+        plan: executableConversionPlanSchema,
+      }),
+    }),
   ])
   .superRefine(({ source, output }, context) => {
     function invalid(message: string): void {

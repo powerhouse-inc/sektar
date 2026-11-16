@@ -21,7 +21,6 @@ import {
 import {
   ACTIVATION_HELP,
   ACTIVATION_LABEL,
-  aiOffered,
   blockersOf,
   draftOf,
   limitProblems,
@@ -62,36 +61,11 @@ import {
 import {
   localOcrOf,
   methodOf,
-  usesAi,
-  withAiLayout,
   withMethod,
 } from "../../../../pieces/docture/lib/profile.js";
 import { findDrive } from "../../../../processors/drives/index.js";
 import { ExistingPdfs } from "./conversion-batches.js";
 import { sourcesOf } from "./conversion-sources.js";
-
-export function draftProblems(
-  draft: SettingsDraft,
-  hostLimits: ConversionLimits,
-): { limits: Partial<Record<LimitName, string>>; general: string[] } {
-  const limits = limitProblems(draft.limits, hostLimits);
-  const general: string[] = [];
-  if (draft.activation !== "off" && usesAi(draft.profile)) {
-    if (draft.limits.maxAiPages === 0 || draft.limits.maxAiRequests === 0) {
-      general.push(
-        "These choices use AI, and the AI limits allow none. Allow at least one AI page and one AI request per PDF, or choose a method without AI.",
-      );
-    } else if (
-      draft.activation === "automatic" &&
-      draft.limits.automaticAiPagesPerDay === 0
-    ) {
-      general.push(
-        "Automatic conversion with AI needs an automatic AI allowance above 0 pages per day.",
-      );
-    }
-  }
-  return { limits, general };
-}
 
 const NO_ACCOUNTS: readonly MailAccount[] = [];
 
@@ -304,13 +278,8 @@ export function ConversionSettingsForm({
   const off = draft.activation === "off";
   const busy = saving !== null || preparing;
   const blockers = off ? [] : blockersOf(draft.profile, capabilities);
-  const problems = draftProblems(draft, hostLimits);
-  const invalid =
-    blockers.length > 0 ||
-    problems.general.length > 0 ||
-    Object.keys(problems.limits).length > 0;
-  const ai = !off && usesAi(draft.profile);
-  const aiShown = aiOffered(capabilities) || usesAi(draft.profile);
+  const problems = limitProblems(draft.limits, hostLimits);
+  const invalid = blockers.length > 0 || Object.keys(problems).length > 0;
   const fileBytes = Math.min(
     draft.limits.maxBytes,
     capabilities.execution?.maxFileBytes ?? hostLimits.maxBytes,
@@ -430,14 +399,6 @@ export function ConversionSettingsForm({
           onChange={(profile) => change({ profile })}
           capabilities={capabilities}
         />
-        {ai && (
-          <p className="sk-small sk-text-secondary">
-            Uses the integrated model
-            {capabilities.ai.model ? ` (${capabilities.ai.model.modelId})` : ""}
-            . Choosing it permits model calls within the limits below. Automatic
-            mode alone never turns AI on.
-          </p>
-        )}
         <BlockerList blockers={blockers} />
       </fieldset>
       <details
@@ -450,9 +411,9 @@ export function ConversionSettingsForm({
             Conversion limits
           </span>
           <span
-            className={`sk-small ${Object.keys(problems.limits).length ? "sk-text-danger" : "sk-text-secondary"}`}
+            className={`sk-small ${Object.keys(problems).length ? "sk-text-danger" : "sk-text-secondary"}`}
           >
-            {Object.keys(problems.limits).length
+            {Object.keys(problems).length
               ? "A limit needs fixing."
               : limitsSummary(draft.limits, fileBytes)}
           </span>
@@ -462,19 +423,14 @@ export function ConversionSettingsForm({
           disabled={off || busy}
         >
           <div className="sk-convert-settings__grid">
-            {LIMIT_FIELDS.filter(({ ai: isAi }) => aiShown || !isAi).map(
-              ({ name, label }) => (
-                <LimitField
-                  key={name}
-                  label={label}
-                  name={name}
-                  limits={draft.limits}
-                  hostLimits={hostLimits}
-                  problem={problems.limits[name]}
-                  onChange={changeLimit}
-                />
-              ),
-            )}
+            <LimitField
+              label="Pages per PDF"
+              name="maxPages"
+              limits={draft.limits}
+              hostLimits={hostLimits}
+              problem={problems.maxPages}
+              onChange={changeLimit}
+            />
             <div className="sk-convert-settings__host-limits">
               <strong>Set by your host</strong>
               <p>File size: {bytes(fileBytes)} maximum</p>
@@ -484,18 +440,8 @@ export function ConversionSettingsForm({
               </p>
             </div>
           </div>
-          {aiShown && (
-            <p className="sk-caption">
-              Batches share the automatic AI allowance, and 0 allows none.
-            </p>
-          )}
         </fieldset>
       </details>
-      {problems.general.map((problem) => (
-        <p key={problem} className="sk-small sk-text-danger" role="alert">
-          {problem}
-        </p>
-      ))}
       <details className="sk-convert-settings__limits sk-convert-settings__access">
         <summary>
           <span className="sk-convert-settings__limits-title">
@@ -662,9 +608,7 @@ export function limitsSummary(
 /* ---------------------------------------------------------------- reading */
 
 /**
- * The method, then the scanner with its own options under it, then AI
- * layout where the host can run it. AI the host cannot run is not offered, so nothing points at a
- * setup the person has no way to do; once chosen, it stays to be undone.
+ * The method, then the scanner with its own options under it.
  */
 function ReadingFields({
   profile,
@@ -679,15 +623,10 @@ function ReadingFields({
   const ocr = localOcrOf(profile);
   const [remembered, setRemembered] = useState(ocr);
   if (ocr && ocr !== remembered) setRemembered(ocr);
-  const method = methodOf(profile);
-  const layoutAvailable =
-    capabilities.layout.availability.status === "available";
-  const layoutOn = profile.layout.kind === "ai";
-
   return (
     <div className="sk-convert-reading">
       <MethodSelect
-        value={method}
+        value={methodOf(profile)}
         capabilities={capabilities}
         onChange={(next) =>
           onChange(withMethod(profile, next, remembered ?? undefined))
@@ -697,43 +636,10 @@ function ReadingFields({
         profile={profile}
         onChange={onChange}
         capabilities={capabilities}
-        ocr={remembered ?? undefined}
       />
-      {method !== "ai" && (layoutAvailable || layoutOn) && (
-        <label className="sk-check sk-sync-check">
-          <input
-            type="checkbox"
-            checked={layoutOn}
-            onChange={(event) =>
-              onChange(withAiLayout(profile, event.target.checked))
-            }
-          />
-          <span>
-            <span className="sk-sync-check__label">
-              Improve layout with AI{layoutAvailable ? "" : " (needs setup)"}
-            </span>
-            <span className="sk-caption">
-              Adjusts headings and reading order with the integrated model and
-              keeps the words that were read.
-            </span>
-          </span>
-        </label>
-      )}
     </div>
   );
 }
-
-const LIMIT_FIELDS: readonly { name: LimitName; label: string; ai: boolean }[] =
-  [
-    { name: "maxPages", label: "Pages per PDF", ai: false },
-    { name: "maxAiPages", label: "AI pages per PDF", ai: true },
-    { name: "maxAiRequests", label: "AI requests per PDF", ai: true },
-    {
-      name: "automaticAiPagesPerDay",
-      label: "Automatic AI pages per day",
-      ai: true,
-    },
-  ];
 
 /** A limit, with the most this host allows inside the field. */
 function LimitField({
@@ -761,14 +667,14 @@ function LimitField({
         <Input
           type="number"
           inputMode="numeric"
-          min={name === "maxPages" ? 1 : 0}
+          min={1}
           max={hostLimits[name]}
           step={1}
           value={Number.isFinite(limits[name]) ? limits[name] : ""}
           onChange={(event) => onChange(name, event.target.valueAsNumber)}
         />
         <span className="sk-convert-settings__unit">
-          {name === "maxAiRequests" ? "requests" : "pages"}
+          pages
         </span>
       </span>
     </Field>

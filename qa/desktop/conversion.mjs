@@ -1,9 +1,8 @@
-// Whether a packaged stack can read a PDF: the Docture piece is in it, and the
-// engines that piece loads at run time resolve from where it sits and read a
-// PDF's text. Conversions run in the workflow runtime's own piece workers, so
-// nothing here starts a worker of Sektar's; a whole workflow run is the
-// acceptance check's, not this one's. It ends with what integrated AI needs
-// of the stack, which fails until upstream ships it.
+// Whether a packaged stack can read a PDF: the Docture piece is in it, the
+// engines that piece loads at run time resolve from where it sits, their
+// native parts load, and PDF.js reads a PDF's text. Conversions run in the
+// workflow runtime's own piece workers, so nothing here starts a worker of
+// Sektar's; a whole workflow run is the acceptance check's, not this one's.
 //
 //   node qa/desktop/conversion.mjs --stack <the app's stack folder>
 import assert from "node:assert/strict";
@@ -40,12 +39,42 @@ for (const name of Object.keys(declared ?? {})) {
     `The desktop bundle must include ${name}, which the Docture piece leaves outside its bundle`,
   );
 }
-for (const name of ["docture/loaders/tesseract", "tesseract.js"]) {
+for (const name of [
+  "docture/loaders/tesseract",
+  "tesseract.js",
+  "docture/loaders/paddleocr",
+  "ppu-paddle-ocr",
+  "onnxruntime-node",
+  "docture/raster/canvas",
+]) {
   assert.doesNotThrow(
     () => fromPiece.resolve(name),
     `The desktop bundle must include ${name} for OCR`,
   );
 }
+
+// Both scanners load, with their native parts: PaddleOCR runs on ONNX
+// Runtime, and scanned pages are rendered with @napi-rs/canvas first.
+const { DocumentLoaderTesseract } = await load("docture/loaders/tesseract");
+const { createWorker } = await load("tesseract.js");
+assert.equal(typeof DocumentLoaderTesseract, "function");
+assert.equal(typeof createWorker, "function");
+const { DocumentLoaderPaddleOcr } = await load("docture/loaders/paddleocr");
+const { PaddleOcrService } = await load("ppu-paddle-ocr");
+assert.equal(typeof DocumentLoaderPaddleOcr, "function");
+assert.equal(typeof PaddleOcrService, "function");
+const ort = await load("onnxruntime-node");
+assert.ok(
+  ort.listSupportedBackends().some((backend) => backend.name === "cpu"),
+  "The desktop bundle's ONNX Runtime must load its native CPU backend for PaddleOCR",
+);
+const { createCanvas } = await load("@napi-rs/canvas");
+assert.equal(
+  createCanvas(8, 8).width,
+  8,
+  "The desktop bundle's @napi-rs/canvas must load to render scanned pages",
+);
+console.log("ok   the packaged OCR engines and the page rasterizer load");
 
 const text = "Sektar desktop conversion smoke 2026";
 const content = `BT /F1 18 Tf 72 720 Td (${text}) Tj ET`;
@@ -89,27 +118,3 @@ try {
 } finally {
   await reader.dispose?.();
 }
-
-// Integrated AI and AI layout stay unavailable until the stack carries what
-// they need; these two hold the packaged check back until it does.
-const docture = await load("docture");
-assert.equal(
-  typeof docture.applyLayoutAnnotations,
-  "function",
-  "The desktop bundle must include Docture's AI layout validator",
-);
-const { createAiPlugin } = await import(
-  pathToFileURL(
-    createRequire(join(stack, "package.json")).resolve(
-      "@powerhousedao/switchboard/plugins/ai",
-    ),
-  )
-);
-assert.equal(
-  typeof createAiPlugin({
-    upstreamUrl: "http://127.0.0.1:1",
-    defaultModel: "qa/offline",
-  }).hooks?.transformServerOptions,
-  "function",
-  "The desktop bundle must include host inference support",
-);

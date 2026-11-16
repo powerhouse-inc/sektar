@@ -30,7 +30,7 @@ import {
   type ConversionClient,
 } from "../../../../editors/sektar/kit/conversion.js";
 import { withRecognition } from "../../../../pieces/docture/lib/profile.js";
-import { batchObstacle, batchText, previewText } from "./conversion-batches.js";
+import { batchText, previewText } from "./conversion-batches.js";
 import {
   ConversionSettings,
   ConversionSettingsForm,
@@ -92,9 +92,6 @@ const hostDefault = (): Settings =>
     limits: {
       ...HOST_LIMITS,
       maxPages: 500,
-      maxAiPages: 50,
-      maxAiRequests: 120,
-      automaticAiPagesPerDay: 0,
     },
   });
 
@@ -466,17 +463,6 @@ describe("a batch", () => {
     );
   });
 
-  it("is not offered for AI settings without an automatic AI allowance", () => {
-    const ai = settings({ profile: withRecognition(settings().profile, "ai") });
-    expect(batchObstacle(ai)).toContain("automatic AI allowance is 0");
-    expect(
-      batchObstacle({
-        ...ai,
-        limits: { ...ai.limits, automaticAiPagesPerDay: 40 },
-      }),
-    ).toBeNull();
-  });
-
   it("says in plain sentences what a preview found and what it skipped", () => {
     const preview: ConversionBatchPreview = {
       id: "preview-1",
@@ -651,7 +637,6 @@ describe("Settings → Document conversion", () => {
     ).toEqual([
       ["Tesseract", true],
       ["PaddleOCR (needs setup)", true],
-      ["Integrated AI", true],
     ]);
     expect(text()).toContain("PaddleOCR needs setup.");
     expect(text()).toContain("PaddleOCR is not installed on this host.");
@@ -692,12 +677,7 @@ describe("Settings → Document conversion", () => {
           ".sk-convert-reading :is(.sk-label, .sk-sync-check__label)",
         ),
       ].map((label) => label.textContent);
-    expect(order()).toEqual([
-      "Method",
-      "Scanner",
-      "Languages",
-      "Improve layout with AI",
-    ]);
+    expect(order()).toEqual(["Method", "Scanner", "Languages"]);
     expect(
       cards("Scanner").map(({ name, facts, description }) => [
         name,
@@ -715,20 +695,10 @@ describe("Settings → Document conversion", () => {
         ["Speed: 2 of 5", "Photos & small print: 4 of 5"],
         "Better with harder pages, like photos of paper or small print. Slower. Download the scanner once, then use it offline.",
       ],
-      [
-        "Integrated AI",
-        ["Speed: 1 of 5", "Photos & small print: 4 of 5"],
-        "Your AI model reads the pages that are pictures. It can misread or leave out words.",
-      ],
     ]);
 
     pick("Scanner", "PaddleOCR");
-    expect(order()).toEqual([
-      "Method",
-      "Scanner",
-      "Speed and accuracy",
-      "Improve layout with AI",
-    ]);
+    expect(order()).toEqual(["Method", "Scanner", "Speed and accuracy"]);
     expect(
       cards("Speed and accuracy").map(
         ({ name, facts, description, chosen }) => [
@@ -761,7 +731,7 @@ describe("Settings → Document conversion", () => {
     pick("Speed and accuracy", "Fastest");
 
     pick("Method", "Text only");
-    expect(order()).toEqual(["Method", "Improve layout with AI"]);
+    expect(order()).toEqual(["Method"]);
 
     pick("Method", "Scan every page");
     await pressSave();
@@ -788,67 +758,8 @@ describe("Settings → Document conversion", () => {
     });
   });
 
-  it("permits AI only with limits that allow it, and never just by going automatic", async () => {
-    const host = hostWith(
-      settings({
-        limits: {
-          ...HOST_LIMITS,
-          maxAiPages: 0,
-          maxAiRequests: 0,
-          automaticAiPagesPerDay: 0,
-        },
-      }),
-    );
-    await show(form(host));
-    await press("Automatically");
-    expect(text()).not.toContain("Uses the integrated model");
-
-    tick("Improve layout with AI");
-    expect(text()).toContain(
-      "Uses the integrated model (qwen/qwen3.8-max-prime).",
-    );
-    expect(text()).toContain(
-      "These choices use AI, and the AI limits allow none.",
-    );
-    expect(saveButton().disabled).toBe(true);
-    // Off runs nothing, so it is never held back by the AI limits.
-    await press("Off");
-    expect(saveButton().disabled).toBe(false);
-    await press("Automatically");
-
-    type("AI pages per PDF", "20");
-    type("AI requests per PDF", "40");
-    expect(text()).toContain(
-      "Automatic conversion with AI needs an automatic AI allowance above 0 pages per day.",
-    );
-    type("Automatic AI pages per day", "100");
-    expect(saveButton().disabled).toBe(false);
-    await pressSave();
-    expect(host.puts[0]).toMatchObject({
-      activation: "automatic",
-      profile: { layout: { kind: "ai", model: "integrated" } },
-      limits: {
-        maxAiPages: 20,
-        maxAiRequests: 40,
-        automaticAiPagesPerDay: 100,
-      },
-    });
-  });
-
-  it("hides the AI controls and limits where the host cannot run AI", async () => {
-    const unavailable = {
-      status: "unavailable",
-      reason: "No model is set up.",
-      setup: "Add an image-capable model.",
-    } as const;
+  it("offers no AI method, scanner, layout option or limit", async () => {
     const host = hostWith();
-    host.client.capabilities = () =>
-      Promise.resolve(
-        capabilities({
-          ai: { availability: unavailable, model: null },
-          layout: { availability: unavailable },
-        }),
-      );
     await show(form(host));
     expect(text()).not.toContain("Improve layout with AI");
     expect(text()).not.toContain("AI transcription");

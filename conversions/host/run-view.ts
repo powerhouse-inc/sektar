@@ -17,15 +17,12 @@ import type {
   ResolvedRecognition,
 } from "../contracts.js";
 function profileOfPlan(plan: ResolvedConversionPlan): ConversionProfile {
-  const recognition = (value: ResolvedRecognition) =>
-    value.kind === "ai"
-      ? { kind: "ai" as const, model: "integrated" as const }
-      : {
-          kind: "ocr" as const,
-          engine: value.engine,
-          languages: value.languages,
-          ...(value.model ? { model: value.model } : {}),
-        };
+  const recognition = ({ engine, languages, model }: ResolvedRecognition) => ({
+    kind: "ocr" as const,
+    engine,
+    languages,
+    ...(model ? { model } : {}),
+  });
   const r = plan.reading;
   return {
     reading:
@@ -34,10 +31,6 @@ function profileOfPlan(plan: ResolvedConversionPlan): ConversionProfile {
         : r.kind === "smart"
           ? { kind: "smart", fallback: recognition(r.fallback) }
           : { kind: "recognize", engine: recognition(r.engine) },
-    layout:
-      plan.layout.kind === "ai"
-        ? { kind: "ai", model: "integrated" }
-        : { kind: "off" },
     pages: plan.pages,
   };
 }

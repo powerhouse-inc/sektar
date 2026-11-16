@@ -2,7 +2,6 @@ import {
   defaultConversionProfile,
   type ConversionLimits,
   type ConversionSettings,
-  type ConversionProfile,
   type ConversionScope,
   type PutConversionSettings,
 } from "../contracts.js";
@@ -12,19 +11,13 @@ import { ConversionRefusal } from "./problems.js";
 export const HOST_LIMITS: ConversionLimits = {
   maxBytes: 200 * 1024 * 1024,
   maxPages: 2000,
-  maxAiPages: 500,
-  maxAiRequests: 1000,
-  automaticAiPagesPerDay: 5000,
   maxDurationMs: 2 * 60 * 60 * 1000,
 };
 
-/** The initial app-wide limits. Automatic AI starts at zero. */
+/** The initial app-wide limits. */
 export const DEFAULT_LIMITS: ConversionLimits = {
   maxBytes: 50 * 1024 * 1024,
   maxPages: 500,
-  maxAiPages: 50,
-  maxAiRequests: 120,
-  automaticAiPagesPerDay: 0,
   maxDurationMs: 30 * 60 * 1000,
 };
 
@@ -53,9 +46,6 @@ export function defaultSettings(now: string): ConversionSettings {
 const LIMIT_KEYS = [
   "maxBytes",
   "maxPages",
-  "maxAiPages",
-  "maxAiRequests",
-  "automaticAiPagesPerDay",
   "maxDurationMs",
 ] as const satisfies readonly (keyof ConversionLimits)[];
 
@@ -71,17 +61,6 @@ export function checkLimits(limits: ConversionLimits): void {
       );
     }
   }
-}
-
-export function usesAi(profile: ConversionProfile): boolean {
-  const reading = profile.reading;
-  const recognition =
-    reading.kind === "smart"
-      ? reading.fallback
-      : reading.kind === "recognize"
-        ? reading.engine
-        : null;
-  return recognition?.kind === "ai" || profile.layout.kind === "ai";
 }
 
 /** Settings after a successful save. The caller authorizes future conversions. */

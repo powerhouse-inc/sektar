@@ -545,7 +545,6 @@ it("waits for global reading settings before applying a one-off method", async (
         kind: "smart",
         fallback: { kind: "ocr", engine: "tesseract", languages: ["spa"] },
       },
-      layout: { kind: "off" },
       pages: { kind: "all" },
     },
   });

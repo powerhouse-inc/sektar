@@ -33,8 +33,6 @@ import {
   methodOf,
   oneOffProfile,
   READING_METHODS,
-  recognitionOf,
-  usesAi,
   type ReadingMethod,
 } from "../../../pieces/docture/lib/profile.js";
 import {
@@ -58,7 +56,6 @@ import {
   scanningProfile,
   shortWhen,
   startedAgo,
-  usageText,
   warningLines,
   warningNote,
 } from "../kit/conversion-model.js";
@@ -256,7 +253,7 @@ function unavailableReason(
 ): string | null {
   const profile = oneOffProfile(app, method);
   if (!profile) return NO_SCANNER;
-  if (scannerReady === false && recognitionOf(profile)?.kind === "ocr")
+  if (scannerReady === false && localOcrOf(profile))
     return SCANNER_MISSING;
   if (!capabilities || methodAvailable(method, capabilities)) return null;
   const blocker = blockersOf(profile, capabilities).at(0);
@@ -299,7 +296,7 @@ export function ConvertButton({
   // A failed check leaves the decision to the host.
   const checking =
     app !== null &&
-    recognitionOf(app)?.kind === "ocr" &&
+    localOcrOf(app) !== null &&
     scanner.value === null &&
     scanner.error === null;
   const busy = pending || conversion.starting;
@@ -364,16 +361,6 @@ export function ConvertButton({
   );
 }
 
-/** Whether an attempt that needs attention may already have cost a model charge. */
-function mayHaveCharged(job: ConversionJobView | undefined): boolean {
-  return (
-    job?.status === "needs-attention" &&
-    (job.error.code.startsWith("ai-") ||
-      (["publication-failed", "cleanup-failed"].includes(job.error.code) &&
-        usesAi(job.profile)))
-  );
-}
-
 /**
  * The request with another method: one card per method the host offers (the
  * app default marked), always with the scanner from Settings. With several
@@ -427,7 +414,7 @@ export function ConvertDialog({
   const { again, converted } = convertAction(conversion);
   const name = useId();
   const scanner = useScannerReadiness(client, settings ? app : null);
-  const scans = recognitionOf(profile)?.kind === "ocr";
+  const scans = localOcrOf(profile) !== null;
   const scannerMissing = scans && scanner.value?.ready === false;
   const checking = scans && scanner.value === null && scanner.error === null;
 
@@ -437,11 +424,6 @@ export function ConvertDialog({
       ? conversion.availability.reason
       : null;
   const under = conversion.active !== undefined;
-  const aiOffered =
-    capabilities?.ai.availability.status === "available" || selected === "ai";
-  const methods = READING_METHODS.filter(
-    (method) => method !== "ai" || aiOffered,
-  );
 
   return createPortal(
     <div className="sk-app" style={{ display: "contents" }}>
@@ -490,7 +472,7 @@ export function ConvertDialog({
             role="radiogroup"
             aria-label="Method"
           >
-            {methods.map((each) => {
+            {READING_METHODS.map((each) => {
               const reason =
                 settings === null
                   ? "Waiting for the app's reading settings."
@@ -536,7 +518,7 @@ export function ConvertDialog({
               );
             })}
           </div>
-          {settings && recognitionOf(profile) && (
+          {settings && localOcrOf(profile) && (
             <AppScanner
               app={app}
               profile={profile}
@@ -552,21 +534,6 @@ export function ConvertDialog({
           {scanner.error && (
             <p className="sk-small sk-text-secondary" role="status">
               {scanner.error}
-            </p>
-          )}
-          {mayHaveCharged(latest) && (
-            <p className="sk-small sk-text-secondary">
-              A model request may already have been charged. Converting again
-              can add another charge.
-            </p>
-          )}
-          {usesAi(profile) && (
-            <p className="sk-small sk-text-secondary">
-              Uses the integrated model
-              {settings
-                ? `, up to ${settings.limits.maxAiPages.toLocaleString("en")} AI pages for this PDF`
-                : ""}
-              . Cancelling can't undo a request already sent.
             </p>
           )}
           {conversion.renditionsPending && (
@@ -779,11 +746,6 @@ export function ConversionPendingRow({
         <span className="sk-file-row__body">
           <span className="sk-file-row__name">Markdown</span>
           <span className="sk-file-row__meta">{meta}</span>
-          {asked && usesAi(active.profile) && (
-            <span className="sk-convert-pending__note">
-              A model request already sent may still finish and be charged.
-            </span>
-          )}
           {stopError && (
             <span className="sk-convert-pending__note sk-text-danger">
               {stopError}
@@ -1218,8 +1180,8 @@ export function ConvertedMarkdown({
 
 /**
  * What is known about how a result was made, collapsed until asked for:
- * first what a person asks (which PDF, how many pages, how, whether AI was
- * used, when), then the engines and the converter's own words.
+ * first what a person asks (which PDF, how many pages, how, when), then the
+ * engines and the converter's own words.
  */
 function ConversionDetails({
   rendition,
@@ -1244,10 +1206,6 @@ function ConversionDetails({
     rendition.current && latest && latest.id !== rendition.jobId
       ? attemptText(latest)
       : null;
-  const unused =
-    output.usage.kind === "known" &&
-    output.usage.requests === 0 &&
-    output.usage.aiPages === 0;
   const note = warningNote(output.warnings);
   const rows: { label: string; value: ReactNode }[] = [
     {
@@ -1272,7 +1230,6 @@ function ConversionDetails({
       value: coverageText(rendition, coverageOf(output.pages).unread),
     },
     { label: "Method", value: readingSummary(profileOfPlan(output.plan)) },
-    { label: "AI", value: unused ? "Not used" : usageText(output.usage) },
     { label: "Made", value: fullWhen(rendition.createdAt) },
     ...(note ? [{ label: "Note", value: note }] : []),
     ...(later
@@ -1293,9 +1250,6 @@ function ConversionDetails({
         .join(", "),
     },
     ...(rendition.model ? [{ label: "Model", value: rendition.model }] : []),
-    ...(output.usage.kind === "unknown"
-      ? [{ label: "AI usage", value: output.usage.reason }]
-      : []),
     ...(failedPages.length > 0
       ? [
           {

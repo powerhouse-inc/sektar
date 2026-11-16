@@ -388,6 +388,5 @@ export function resultOfPublication({
     pages: output.pages,
     warnings: output.warnings,
     provenance: output.provenance,
-    usage: output.usage,
   };
 }

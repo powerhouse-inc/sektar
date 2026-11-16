@@ -5,22 +5,13 @@ import {
   type ConversionProfile,
 } from "../contracts.js";
 import { PADDLE_MODEL_PRESETS, probeEngines } from "./engines.js";
-import {
-  resolvePlan,
-  type IntegratedModelStatus,
-  type PlanRefusal,
-} from "./plan.js";
+import { resolvePlan, type PlanRefusal } from "./plan.js";
 
 const probe = probeEngines();
-const noAi: IntegratedModelStatus = {
-  kind: "unavailable",
-  reason: "No model is configured.",
-  setup: "Configure one.",
-};
 
-function refusal(profile: ConversionProfile, integrated = noAi): PlanRefusal {
+function refusal(profile: ConversionProfile): PlanRefusal {
   try {
-    resolvePlan(profile, { probe, integrated });
+    resolvePlan(profile, probe);
   } catch (error) {
     return error as PlanRefusal;
   }
@@ -29,10 +20,7 @@ function refusal(profile: ConversionProfile, integrated = noAi): PlanRefusal {
 
 describe("pinning a profile to the installed engines", () => {
   it("pins the default profile to the installed PDF.js, Tesseract and Docture versions", () => {
-    const plan = resolvePlan(defaultConversionProfile, {
-      probe,
-      integrated: noAi,
-    });
+    const plan = resolvePlan(defaultConversionProfile, probe);
     expect(plan.reading).toMatchObject({
       kind: "smart",
       readerVersion:
@@ -40,6 +28,8 @@ describe("pinning a profile to the installed engines", () => {
       fallback: { kind: "ocr", engine: "tesseract", languages: ["eng"] },
     });
     expect(plan.converterVersion).toContain(`docture@${probe.docture}`);
+    // The stored format's layout field, always off, so earlier plans keep their fingerprints.
+    expect(plan.layout).toEqual({ kind: "off" });
     expect(plan.renderer).toEqual({
       pdfjsVersion:
         probe.pdfjs.status === "available" ? probe.pdfjs.version : "",
@@ -60,29 +50,17 @@ describe("pinning a profile to the installed engines", () => {
           engine: { kind: "ocr", engine: "tesseract", languages: ["eng"] },
         },
       };
-      const before = resolvePlan(profile, { probe, integrated: noAi });
+      const before = resolvePlan(profile, probe);
       const after = resolvePlan(profile, {
-        probe: {
-          ...probe,
-          [engine]: { status: "available", version: "new-renderer" },
-        },
-        integrated: noAi,
+        ...probe,
+        [engine]: { status: "available", version: "new-renderer" },
       });
       expect(after.reading).toEqual(before.reading);
       expect(after.fingerprint).not.toBe(before.fingerprint);
     },
   );
 
-  it("refuses AI without the integrated model, and language data the host lacks", () => {
-    expect(
-      refusal({
-        ...defaultConversionProfile,
-        reading: {
-          kind: "recognize",
-          engine: { kind: "ai", model: "integrated" },
-        },
-      }).code,
-    ).toBe("ai-unavailable");
+  it("refuses language data the host lacks", () => {
     expect(
       refusal({
         ...defaultConversionProfile,
@@ -92,15 +70,6 @@ describe("pinning a profile to the installed engines", () => {
         },
       }).code,
     ).toBe("language-unavailable");
-  });
-
-  it("refuses AI layout without the integrated model", () => {
-    expect(
-      refusal({
-        ...defaultConversionProfile,
-        layout: { kind: "ai", model: "integrated" },
-      }).code,
-    ).toBe("ai-unavailable");
   });
 
   it("offers only PaddleOCR presets Docture knows, and pins the default", () => {
@@ -117,7 +86,7 @@ describe("pinning a profile to the installed engines", () => {
       expect(refusal(paddle).code).toBe("engine-unavailable");
       return;
     }
-    const plan = resolvePlan(paddle, { probe, integrated: noAi });
+    const plan = resolvePlan(paddle, probe);
     expect(
       plan.reading.kind === "recognize" && plan.reading.engine,
     ).toMatchObject({

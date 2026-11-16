@@ -33,7 +33,6 @@ import {
   ref,
   renditionView,
   runningJob,
-  waitingJob,
   workflowRun,
 } from "../kit/conversion-fixtures.js";
 import { shortWhen } from "../kit/conversion-model.js";
@@ -494,7 +493,6 @@ describe("the options dialog", () => {
       "StandardApp defaultWorks for most PDFs. Copies the text in the PDF and reads pages that are pictures, like scanned paper.",
       "Text onlyFastest. Copies only the text in the PDF and skips pages that are pictures, like scanned paper.",
       "Scan every pageSlower. Reads every page as a picture. Try it when text comes out jumbled or in the wrong order.",
-      "AI transcriptionAn AI model reads each page as a picture. It can misread or leave out words.",
     ]);
     expect(card("Standard").checked).toBe(true);
     expect(
@@ -502,25 +500,6 @@ describe("the options dialog", () => {
     ).toBe("Tesseract · English");
     expect(document.body.textContent).not.toContain("cancelled");
     expect(document.body.textContent).not.toContain("Waiting for the host");
-  });
-
-  it("offers AI transcription only where the host can run it", async () => {
-    offered = capabilities({
-      ai: {
-        availability: {
-          status: "unavailable",
-          reason: "No integrated model is set up.",
-          setup: "Set one up in Settings.",
-        },
-        model: null,
-      },
-    });
-    await show(dialog(conversionOf()));
-    expect(
-      [...document.querySelectorAll(".sk-convert-choice__title")].map(
-        (title) => title.textContent,
-      ),
-    ).toEqual(["StandardApp default", "Text only", "Scan every page"]);
   });
 
   it("uses the app's settings unless another method is picked, and closes once the host accepts", async () => {
@@ -583,7 +562,6 @@ describe("the options dialog", () => {
               languages: ["eng", "spa"],
             },
           },
-          layout: { kind: "off" },
           pages: { kind: "all" },
         },
       }),
@@ -616,7 +594,6 @@ describe("the options dialog", () => {
             kind: "smart",
             fallback: { ...scanner, languages: ["spa"] },
           },
-          layout: { kind: "off" },
           pages: { kind: "all" },
         },
       });
@@ -635,7 +612,6 @@ describe("the options dialog", () => {
               ? undefined
               : {
                   reading: { kind: "recognize", engine: scanner },
-                  layout: stored.profile.layout,
                   pages: stored.profile.pages,
                 },
         }),
@@ -747,7 +723,6 @@ describe("the options dialog", () => {
       );
     }
     expect(card("Text only").checked).toBe(true);
-    expect(card("AI transcription").disabled).toBe(false);
   });
 
   it("refuses a profile the host lacks an engine for, in the host's words", async () => {
@@ -770,26 +745,15 @@ describe("the options dialog", () => {
     expect(button("Convert")?.disabled).toBe(true);
   });
 
-  it("says what choosing AI permits, within the source's limit", async () => {
-    await show(dialog(conversionOf()));
-    expect(document.body.textContent).not.toContain(
-      "Uses the integrated model",
-    );
-    choose("AI transcription");
-    expect(document.body.textContent).toContain(
-      "Uses the integrated model, up to 25 AI pages for this PDF. Cancelling can't undo a request already sent.",
-    );
-  });
-
   it("shows the host's refusal and keeps the same request for another try", async () => {
     const current = renditionView();
     const request = vi
       .fn<SourceConversion["request"]>()
       .mockRejectedValueOnce(
         new ConversionApiError(
-          403,
-          "ai-not-allowed",
-          "The conversion settings for this Files drive do not allow AI.",
+          422,
+          "scanner-not-in-settings",
+          "This conversion asks for a scanner that isn't chosen in Settings.",
         ),
       )
       .mockResolvedValue(queuedJob());
@@ -801,7 +765,7 @@ describe("the options dialog", () => {
     );
     await press("Convert");
     expect(document.body.textContent).toContain(
-      "The conversion settings for this Files drive do not allow AI.",
+      "This conversion asks for a scanner that isn't chosen in Settings.",
     );
     expect(onClose).not.toHaveBeenCalled();
     await press("Convert");
@@ -879,7 +843,7 @@ describe("the options dialog", () => {
 
   it("retries an attention job with its exact profile instead of the source defaults", async () => {
     const attempted: ConversionProfile = {
-      ...withMethod(settings().profile, "ai"),
+      ...withMethod(settings().profile, "digital"),
       pages: { kind: "selected", pages: [2] },
     };
     const sourcePolicy = settings({
@@ -898,53 +862,13 @@ describe("the options dialog", () => {
       },
     });
     await show(dialog(conversion));
-    expect(card("AI transcription").checked).toBe(true);
+    expect(card("Text only").checked).toBe(true);
     await press("Convert");
     expect(conversion.request).toHaveBeenCalledWith(
       expect.objectContaining({ profile: attempted, again: true }),
     );
   });
 
-  it("warns about earlier model charges when an AI result also needs cleanup", async () => {
-    await show(
-      dialog(
-        conversionOf({
-          jobs: [
-            needsAttentionJob(
-              {
-                code: "cleanup-failed",
-                message: "Cleanup failed.",
-                retryable: true,
-              },
-              { profile: withMethod(settings().profile, "ai") },
-            ),
-          ],
-        }),
-      ),
-    );
-    expect(document.body.textContent).toContain(
-      "A model request may already have been charged. Converting again can add another charge.",
-    );
-  });
-
-  it("does not warn about past model charges when setup stopped local extraction", async () => {
-    await show(
-      dialog(
-        conversionOf({
-          jobs: [
-            needsAttentionJob({
-              code: "setup-required",
-              message: "Install the selected OCR engine.",
-              retryable: true,
-            }),
-          ],
-        }),
-      ),
-    );
-    expect(document.body.textContent).not.toContain(
-      "already have been charged",
-    );
-  });
 });
 
 /** The pending row, in a list as a surface shows it. */
@@ -989,7 +913,6 @@ describe("a conversion under way", () => {
     expect(conversion.cancel).toHaveBeenCalledWith(job.id);
     expect(host.textContent).toContain("Cancelling");
     expect(button("Cancel")).toBeUndefined();
-    expect(host.textContent).not.toContain("may still finish and be charged");
   });
 
   it("shows the host's refusal when a run started before it could be cancelled", async () => {
@@ -1034,18 +957,6 @@ describe("a conversion under way", () => {
       "The conversion is running, even though asking for it reported a problem.",
     );
     expect(host.textContent).not.toContain("The host took too long to answer.");
-  });
-
-  it("says a sent model request may still be charged when an AI conversion is cancelled", async () => {
-    const job = workflowRun(
-      { ...waitingJob(), profile: withMethod(settings().profile, "ai") },
-      true,
-    );
-    await show(pending(conversionOf({ jobs: [job], active: job })));
-    await press("Cancel");
-    expect(host.textContent).toContain(
-      "A model request already sent may still finish and be charged.",
-    );
   });
 
   it("shows nothing when no conversion is under way", async () => {
@@ -1140,13 +1051,13 @@ describe("what else needs saying", () => {
     expect(conversion.request).not.toHaveBeenCalled();
   });
 
-  it("requires an explicit new attempt when a paid call's outcome is unknown", async () => {
+  it("requires an explicit new attempt when an attempt's outcome is unknown", async () => {
     const conversion = conversionOf({ jobs: [needsAttentionJob()] });
     const onRetry = vi.fn();
     await show(<ConversionStatus conversion={conversion} onRetry={onRetry} />);
     expect(host.textContent).toContain("Needs attention");
     expect(host.textContent).toContain(
-      "It may have been charged. Nothing is tried again on its own.",
+      "Check the workflow's run history. Nothing is tried again on its own.",
     );
     expect(button("Try again")).toBeUndefined();
     expect(conversion.request).not.toHaveBeenCalled();
@@ -1361,8 +1272,7 @@ describe("reading the Markdown", () => {
         profile: withMethod(
           {
             reading: { kind: "digital" },
-            layout: { kind: "off" },
-            pages: { kind: "all" },
+              pages: { kind: "all" },
           },
           "smart",
           { kind: "ocr", engine: "tesseract", languages: ["eng"] },
@@ -1430,17 +1340,12 @@ describe("reading the Markdown", () => {
     store.markdown = "# Invoice";
     const rendition = renditionView({
       jobId: "run-pruned",
-      model: "openrouter/test",
-      methods: ["digital:pdfjs@pdfjs-dist@6.4.299", "layout:openrouter/test@1"],
+      model: "v6Small",
+      methods: [
+        "digital:pdfjs@pdfjs-dist@6.4.299",
+        "ocr:paddleocr@ppu-paddle-ocr@6.3.0",
+      ],
     });
-    rendition.publication.output.usage = {
-      kind: "known",
-      requests: 3,
-      aiPages: 3,
-      inputTokens: 1200,
-      outputTokens: 180,
-      costUsd: 0.0063,
-    };
     await show(
       read(
         rendition,
@@ -1458,15 +1363,13 @@ describe("reading the Markdown", () => {
     expect(summary).toContain("Made frominvoice.pdf Current PDF");
     expect(summary).toContain("PagesAll 3 pages");
     expect(summary).toContain("MethodStandard, English");
-    expect(summary).toContain("AI3 model requests for 3 pages");
-    expect(summary).toContain("$0.0063");
-    expect(summary).not.toMatch(/pdfjs-dist|Note/);
+    expect(summary).not.toMatch(/pdfjs-dist|Note|AI|model request/);
     const technical = details?.querySelector("details");
     expect(technical?.open).toBe(false);
     expect(technical?.textContent).toContain(
-      "EnginesPDF.js (pdfjs-dist@6.4.299), AI layout (1)",
+      "EnginesPDF.js (pdfjs-dist@6.4.299), PaddleOCR (ppu-paddle-ocr@6.3.0)",
     );
-    expect(technical?.textContent).toContain("Modelopenrouter/test");
+    expect(technical?.textContent).toContain("Modelv6Small");
   });
 
   it("turns the converter's warnings into one note, with each raw warning once under Technical details", async () => {
@@ -1492,7 +1395,7 @@ describe("reading the Markdown", () => {
     const details = host.querySelector("details");
     expect(details?.open).toBe(true);
     const summary = details?.querySelector(":scope > dl")?.textContent ?? "";
-    expect(summary).toContain("AINot used");
+    expect(summary).not.toContain("AI");
     expect(summary).toContain(
       "NoteHeadings and columns may show as plain text on scanned pages.",
     );

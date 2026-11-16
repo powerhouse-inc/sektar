@@ -28,7 +28,6 @@ import {
   useStartedBatches,
   type StartedBatches,
 } from "../../../../editors/sektar/kit/use-conversion.js";
-import { usesAi } from "../../../../pieces/docture/lib/profile.js";
 import { scopeLabel, type ConversionSource } from "./conversion-sources.js";
 
 /** The most PDFs one batch holds: the contract's cap on a preview. */
@@ -235,12 +234,6 @@ export function batchObstacle(
   if (!settings) return null;
   if (settings.activation === "off") {
     return "Conversion is off for the app. Turn it on and save settings before converting existing PDFs.";
-  }
-  if (
-    usesAi(settings.profile) &&
-    settings.limits.automaticAiPagesPerDay === 0
-  ) {
-    return "The global settings use AI, and the automatic AI allowance is 0 pages per day, which a batch shares. Raise the allowance, or choose a method without AI.";
   }
   return null;
 }
@@ -488,15 +481,6 @@ function BatchDialog({
         {!obstacle && (
           <p className="sk-hint">
             Uses your saved app settings: {readingSummary(settings.profile)}.
-          </p>
-        )}
-        {usesAi(settings.profile) && count > 0 && (
-          <p className="sk-small sk-text-secondary">
-            These settings use AI. Each PDF may use up to{" "}
-            {settings.limits.maxAiPages.toLocaleString("en")} AI pages, and the
-            batch shares the app's allowance of{" "}
-            {settings.limits.automaticAiPagesPerDay.toLocaleString("en")} AI
-            pages per day.
           </p>
         )}
         {running && (

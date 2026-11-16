@@ -3,30 +3,18 @@ prepareTestScanners(true);
 import { describe, expect, it } from "vitest";
 import type {
   ConversionProfile,
+  OcrSelection,
   PageOutcome,
-  RecognitionSelection,
   ResolvedConversionPlan,
-  ResolvedModel,
 } from "../contracts.js";
 import { damagedPdf, makePdf, type PdfPage } from "../test-support/pdfs.js";
 import { probeEngines } from "./engines.js";
 import { ExecutionFailure } from "./executor.js";
-import {
-  planFingerprint,
-  resolvePlan,
-  type IntegratedModelStatus,
-} from "./plan.js";
+import { planFingerprint, resolvePlan } from "./plan.js";
 import { runConversion } from "./run.js";
 
 const probe = probeEngines();
-const MODEL: ResolvedModel = {
-  provider: "openrouter",
-  modelId: "test/vision-model",
-  configurationRevision: "rev-1",
-};
-const integrated: IntegratedModelStatus = { kind: "available", model: MODEL };
-
-const tesseract: RecognitionSelection = {
+const tesseract: OcrSelection = {
   kind: "ocr",
   engine: "tesseract",
   languages: ["eng"],
@@ -34,22 +22,14 @@ const tesseract: RecognitionSelection = {
 const profiles = {
   digital: {
     reading: { kind: "digital" },
-    layout: { kind: "off" },
     pages: { kind: "all" },
   },
   smart: {
     reading: { kind: "smart", fallback: tesseract },
-    layout: { kind: "off" },
     pages: { kind: "all" },
   },
   ocr: {
     reading: { kind: "recognize", engine: tesseract },
-    layout: { kind: "off" },
-    pages: { kind: "all" },
-  },
-  ai: {
-    reading: { kind: "recognize", engine: { kind: "ai", model: "integrated" } },
-    layout: { kind: "off" },
     pages: { kind: "all" },
   },
 } satisfies Record<string, ConversionProfile>;
@@ -63,7 +43,7 @@ async function convert(
     {
       bytes: pages instanceof Uint8Array ? pages : makePdf(pages),
       fileName: "test.pdf",
-      plan: resolvePlan(profile, { probe, integrated }),
+      plan: resolvePlan(profile, probe),
       maxPages: options.maxPages ?? 100,
       maxDurationMs: 120_000,
     },
@@ -102,7 +82,7 @@ describe("converting a PDF", () => {
     "converterVersion",
     "contractVersion",
   ] as const)("refuses a saved OCR plan after %s changes", async (field) => {
-    const current = resolvePlan(profiles.ocr, { probe, integrated });
+    const current = resolvePlan(profiles.ocr, probe);
     const changed: ResolvedConversionPlan =
       field === "contractVersion"
         ? { ...current, contractVersion: 1 }
@@ -327,23 +307,4 @@ describe.skipIf(probe.paddleocr.status === "unavailable")("PaddleOCR", () => {
       ),
     ).toEqual(["digital:pdfjs:", "ocr:paddleocr:v6Small"]);
   }, 300_000);
-});
-
-describe("AI reading", () => {
-  it("is refused before any page is read, since workflow steps cannot reach the model", async () => {
-    expect(
-      (await failure(convert([{ kind: "scan", lines: SCAN }], profiles.ai)))
-        .code,
-    ).toBe("engine-unavailable");
-    expect(
-      (
-        await failure(
-          convert([{ kind: "text", lines: INVOICE }], {
-            ...profiles.digital,
-            layout: { kind: "ai", model: "integrated" },
-          }),
-        )
-      ).code,
-    ).toBe("engine-unavailable");
-  });
 });

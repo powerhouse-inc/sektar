@@ -66,25 +66,14 @@ export const ocrSelectionSchema = z.object({
   languages: z.array(z.string().min(1).max(32)).min(1).max(16),
   model: z.string().min(1).optional(),
 });
-export const recognitionSelectionSchema = z.discriminatedUnion("kind", [
-  ocrSelectionSchema,
-  z.object({ kind: z.literal("ai"), model: z.literal("integrated") }),
-]);
-export type RecognitionSelection = z.infer<typeof recognitionSelectionSchema>;
+export type OcrSelection = z.infer<typeof ocrSelectionSchema>;
 export const readingProfileSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("digital") }),
-  z.object({ kind: z.literal("smart"), fallback: recognitionSelectionSchema }),
-  z.object({
-    kind: z.literal("recognize"),
-    engine: recognitionSelectionSchema,
-  }),
+  z.object({ kind: z.literal("smart"), fallback: ocrSelectionSchema }),
+  z.object({ kind: z.literal("recognize"), engine: ocrSelectionSchema }),
 ]);
 export const conversionProfileSchema = z.object({
   reading: readingProfileSchema,
-  layout: z.discriminatedUnion("kind", [
-    z.object({ kind: z.literal("off") }),
-    z.object({ kind: z.literal("ai"), model: z.literal("integrated") }),
-  ]),
   pages: z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("all") }),
     z.object({
@@ -100,27 +89,13 @@ export const defaultConversionProfile: ConversionProfile = {
     kind: "smart",
     fallback: { kind: "ocr", engine: "tesseract", languages: ["eng"] },
   },
-  layout: { kind: "off" },
   pages: { kind: "all" },
 };
 
-export const resolvedModelSchema = z.object({
-  provider: identifier,
-  modelId: identifier,
-  configurationRevision: identifier,
+export const resolvedRecognitionSchema = ocrSelectionSchema.extend({
+  version: identifier,
+  languageVersions: z.record(z.string(), z.string()),
 });
-export type ResolvedModel = z.infer<typeof resolvedModelSchema>;
-export const resolvedRecognitionSchema = z.discriminatedUnion("kind", [
-  ocrSelectionSchema.extend({
-    version: identifier,
-    languageVersions: z.record(z.string(), z.string()),
-  }),
-  z.object({
-    kind: z.literal("ai"),
-    model: resolvedModelSchema,
-    promptVersion: identifier,
-  }),
-]);
 export const resolvedReadingPlanSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("digital"), readerVersion: identifier }),
   z.object({
@@ -130,13 +105,24 @@ export const resolvedReadingPlanSchema = z.discriminatedUnion("kind", [
   }),
   z.object({ kind: z.literal("recognize"), engine: resolvedRecognitionSchema }),
 ]);
-export const executableConversionPlanSchema = resolvedConversionPlanV2Schema;
+/**
+ * Plans as Sektar makes and reads them: the stored formats narrowed to local
+ * engines. The formats keep their `layout` field, always off.
+ */
+const localPlanFields = {
+  reading: resolvedReadingPlanSchema,
+  layout: z.object({ kind: z.literal("off") }),
+};
+export const localPlanV1Schema =
+  resolvedConversionPlanV1Schema.extend(localPlanFields);
+export const executableConversionPlanSchema =
+  resolvedConversionPlanV2Schema.extend(localPlanFields);
 export type ExecutableConversionPlan = z.infer<
   typeof executableConversionPlanSchema
 >;
 export const resolvedConversionPlanSchema = z.discriminatedUnion(
   "contractVersion",
-  [resolvedConversionPlanV1Schema, resolvedConversionPlanV2Schema],
+  [localPlanV1Schema, executableConversionPlanSchema],
 );
 export type ResolvedRecognition = z.infer<typeof resolvedRecognitionSchema>;
 export type ResolvedReadingPlan = z.infer<typeof resolvedReadingPlanSchema>;
@@ -147,9 +133,6 @@ export type ResolvedConversionPlan = z.infer<
 export const conversionLimitsSchema = z.object({
   maxBytes: z.number().int().positive(),
   maxPages: z.number().int().positive(),
-  maxAiPages: z.number().int().nonnegative(),
-  maxAiRequests: z.number().int().nonnegative(),
-  automaticAiPagesPerDay: z.number().int().nonnegative(),
   maxDurationMs: z.number().int().positive(),
 });
 export type ConversionLimits = z.infer<typeof conversionLimitsSchema>;
@@ -169,9 +152,12 @@ export const conversionSettingsSchema = z.object({
   automaticSince: timestamp.nullable(),
 });
 export type ConversionSettings = z.infer<typeof conversionSettingsSchema>;
+/** A save names only what this version runs: unknown choices or limits are refused, not dropped. */
 export const putConversionSettingsSchema = conversionSettingsSchema
-  .pick({ activation: true, profile: true, limits: true })
+  .pick({ activation: true })
   .extend({
+    profile: conversionProfileSchema.strict(),
+    limits: conversionLimitsSchema.strict(),
     expectedRevision: z.number().int().nonnegative(),
     requestId: z.string().min(1).max(512).optional(),
     workflowGrant: z.string().min(1).max(65536).optional(),
@@ -214,11 +200,6 @@ export const conversionCapabilitiesSchema = z.object({
       models: z.array(z.string()),
     }),
   ),
-  ai: z.object({
-    availability: engineAvailabilitySchema,
-    model: resolvedModelSchema.nullable(),
-  }),
-  layout: z.object({ availability: engineAvailabilitySchema }),
   limits: conversionLimitsSchema,
 });
 export type ConversionCapabilities = z.infer<
@@ -235,13 +216,13 @@ export const pageOutcomeSchema = z.discriminatedUnion("status", [
   z.object({
     status: z.literal("read"),
     page: z.number().int().positive(),
-    method: z.enum(["digital", "ocr", "ai"]),
+    method: z.enum(["digital", "ocr"]),
     characters: z.number().int().positive(),
   }),
   z.object({
     status: z.literal("blank"),
     page: z.number().int().positive(),
-    method: z.enum(["digital", "ocr", "ai"]),
+    method: z.enum(["digital", "ocr"]),
   }),
   z.object({
     status: z.literal("unresolved"),
@@ -255,25 +236,8 @@ export const pageOutcomeSchema = z.discriminatedUnion("status", [
   }),
 ]);
 export type PageOutcome = z.infer<typeof pageOutcomeSchema>;
-export const conversionUsageSchema = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("known"),
-    inputTokens: z.number().int().nonnegative(),
-    outputTokens: z.number().int().nonnegative(),
-    requests: z.number().int().nonnegative(),
-    aiPages: z.number().int().nonnegative(),
-    costUsd: z.number().nonnegative().nullable(),
-  }),
-  z.object({
-    kind: z.literal("unknown"),
-    requests: z.number().int().nonnegative(),
-    aiPages: z.number().int().nonnegative(),
-    reason: z.string().min(1),
-  }),
-]);
-export type ConversionUsage = z.infer<typeof conversionUsageSchema>;
 export const engineProvenanceSchema = z.object({
-  role: z.enum(["digital", "ocr", "transcription", "layout"]),
+  role: z.enum(["digital", "ocr"]),
   engine: identifier,
   version: identifier,
   model: z.string().nullable(),
@@ -305,7 +269,6 @@ export const conversionResultSchema = z.object({
   pages: z.array(pageOutcomeSchema).min(1),
   warnings: z.array(conversionWarningSchema),
   provenance: z.array(engineProvenanceSchema),
-  usage: conversionUsageSchema,
 });
 export type ConversionResult = z.infer<typeof conversionResultSchema>;
 export const conversionResultResponseSchema = z.object({
@@ -323,7 +286,6 @@ export const conversionProgressSchema = z.object({
     "reading",
     "rendering",
     "recognizing",
-    "layout",
     "staging",
     "uploading",
     "finalizing",

@@ -15,7 +15,8 @@ import {
 } from "document-models/email";
 import {
   attachmentRefSchema,
-  conversionUsageSchema,
+  conversionSettingsSchema,
+  defaultConversionProfile,
   putConversionSettingsSchema,
   requestConversionSchema,
   type ArtifactDescriptor,
@@ -23,6 +24,7 @@ import {
   type ResolvedSource,
 } from "./contracts.js";
 import { planFingerprint } from "./engine/plan.js";
+import { modelPreparationSchema } from "./models/contracts.js";
 import {
   getCurrentConversionRendition,
   listConversionRenditions,
@@ -766,7 +768,7 @@ describe("publication boundary schemas", () => {
     ).toBe(false);
   });
 
-  it("preserves API validation for source variants, caller identities and unknown usage", () => {
+  it("preserves API validation for source variants, caller identities and settings saves", () => {
     expect(attachmentRefSchema.safeParse("attachment://v1:short").success).toBe(
       false,
     );
@@ -790,22 +792,80 @@ describe("publication boundary schemas", () => {
       putConversionSettingsSchema.safeParse({ authorizingIdentity: "admin" })
         .success,
     ).toBe(false);
+  });
+
+  it("still reads settings and scanner downloads saved with AI fields", () => {
+    const saved = {
+      activation: "manual",
+      profile: { ...defaultConversionProfile, layout: { kind: "off" } },
+      limits: {
+        maxBytes: 1,
+        maxPages: 1,
+        maxDurationMs: 1,
+        maxAiPages: 50,
+        maxAiRequests: 120,
+        automaticAiPagesPerDay: 0,
+      },
+    };
+    const settings = conversionSettingsSchema.parse({
+      ...saved,
+      needsReview: false,
+      revision: 1,
+      authorizingIdentity: "host-default",
+      updatedAt: "2026-11-10T09:00:00.000Z",
+      automaticSince: null,
+    });
+    expect(settings.profile).toEqual(defaultConversionProfile);
+    expect(settings.limits).toEqual({ maxBytes: 1, maxPages: 1, maxDurationMs: 1 });
     expect(
-      conversionUsageSchema.parse({
-        kind: "unknown",
-        requests: 1,
-        aiPages: 1,
-        reason: "Provider timeout",
-      }).kind,
-    ).toBe("unknown");
-    expect(
-      conversionUsageSchema.safeParse({
-        kind: "known",
-        inputTokens: 0,
-        outputTokens: 0,
-        requests: 1,
-        aiPages: 1,
+      modelPreparationSchema.safeParse({
+        kind: "preparation",
+        id: "preparation-1",
+        intent: { kind: "settings", settings: { ...saved, expectedRevision: 0 } },
+        progress: {
+          phase: "failed",
+          transferredBytes: 0,
+          totalBytes: 1,
+          readyFiles: 0,
+          totalFiles: 1,
+          file: null,
+        },
+        updatedAt: "2026-11-10T09:00:00.000Z",
+        error: { code: "interrupted", message: "Retry.", retryable: true },
+        result: null,
       }).success,
-    ).toBe(false);
+    ).toBe(true);
+  });
+
+  it("refuses a settings save that asks for AI reading, AI layout or AI limits", () => {
+    const save = {
+      activation: "manual",
+      profile: defaultConversionProfile,
+      limits: { maxBytes: 1, maxPages: 1, maxDurationMs: 1 },
+      expectedRevision: 0,
+    };
+    expect(putConversionSettingsSchema.safeParse(save).success).toBe(true);
+    for (const asked of [
+      {
+        profile: {
+          ...defaultConversionProfile,
+          reading: {
+            kind: "smart",
+            fallback: { kind: "ai", model: "integrated" },
+          },
+        },
+      },
+      {
+        profile: {
+          ...defaultConversionProfile,
+          layout: { kind: "ai", model: "integrated" },
+        },
+      },
+      { limits: { ...save.limits, maxAiPages: 1 } },
+    ]) {
+      expect(
+        putConversionSettingsSchema.safeParse({ ...save, ...asked }).success,
+      ).toBe(false);
+    }
   });
 });

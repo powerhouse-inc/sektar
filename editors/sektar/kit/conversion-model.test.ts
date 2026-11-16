@@ -7,7 +7,6 @@ import {
 import {
   localOcrOf,
   READING_METHODS,
-  withAiLayout,
   withLanguages,
   withMethod,
   withOcrModel,
@@ -26,7 +25,6 @@ import {
   runningJob,
 } from "./conversion-fixtures.js";
 import {
-  aiOffered,
   blockersOf,
   coverageOf,
   coverageText,
@@ -42,7 +40,6 @@ import {
   provenanceLabel,
   readingSummary,
   sameDraft,
-  usageText,
   fullWhen,
   methodOfPlan,
   missingPageReason,
@@ -59,48 +56,21 @@ import {
 
 const smart = defaultConversionProfile;
 const digital = withMethod(smart, "digital");
-const ai = withMethod(smart, "ai");
-const smartAi = withRecognition(smart, "ai");
 
 describe("the words for a profile, a settings and a finished conversion", () => {
   it("names how a profile and a job's plan read pages", () => {
     expect(profileLabel(smart)).toBe("PDF.js + Tesseract");
-    expect(profileLabel(ai)).toBe("Integrated AI");
-    expect(profileLabel(withAiLayout(smartAi, true))).toBe(
-      "PDF.js + Integrated AI · AI layout",
-    );
+    expect(profileLabel(withMethod(smart, "ocr"))).toBe("Tesseract");
+    expect(profileLabel(digital)).toBe("PDF.js");
     expect(profileLabel(PLAN)).toBe("PDF.js + Tesseract");
   });
 
   it("sums up how a profile reads by method and language, not by engine", () => {
     expect(readingSummary(smart)).toBe("Standard, English");
     expect(readingSummary(digital)).toBe("Text only");
-    expect(readingSummary(ai)).toBe("AI transcription");
     expect(
-      readingSummary(
-        withAiLayout(
-          withLanguages(withMethod(smart, "ocr"), ["eng", "spa"]),
-          true,
-        ),
-      ),
-    ).toBe("Scan every page, English, Spanish, AI layout");
-  });
-
-  it("knows whether the host can run any AI", () => {
-    const unavailable = {
-      status: "unavailable",
-      reason: "No model is set up.",
-      setup: "Add an image-capable model.",
-    } as const;
-    expect(aiOffered(capabilities())).toBe(true);
-    expect(
-      aiOffered(
-        capabilities({
-          ai: { availability: unavailable, model: null },
-          layout: { availability: unavailable },
-        }),
-      ),
-    ).toBe(false);
+      readingSummary(withLanguages(withMethod(smart, "ocr"), ["eng", "spa"])),
+    ).toBe("Scan every page, English, Spanish");
   });
 
   it("uses the host's own name for an engine", () => {
@@ -120,19 +90,16 @@ describe("the words for a profile, a settings and a finished conversion", () => 
 
   it("names the engines a document recorded, as the host writes them", () => {
     const recorded = [
+      "digital:pdfjs@pdfjs-dist@6.4.299",
       "ocr:paddleocr@ppu-paddle-ocr@6.3.0+onnxruntime-node@1.27.0",
-      "transcription:integrated@docture@0.3.0:llm-ocr",
-      "layout:integrated@docture@0.3.0:llm-layout",
     ];
     expect(recorded.map((method) => provenanceLabel(method))).toEqual([
+      "PDF.js",
       "PaddleOCR",
-      "AI transcription",
-      "AI layout",
     ]);
     expect(recorded.map((method) => provenanceDetail(method))).toEqual([
+      "PDF.js (pdfjs-dist@6.4.299)",
       "PaddleOCR (ppu-paddle-ocr@6.3.0+onnxruntime-node@1.27.0)",
-      "AI transcription (docture@0.3.0:llm-ocr)",
-      "AI layout (docture@0.3.0:llm-layout)",
     ]);
     expect(provenanceLabel("something else")).toBe("something else");
     expect(provenanceDetail("something else")).toBe("something else");
@@ -142,25 +109,7 @@ describe("the words for a profile, a settings and a finished conversion", () => 
 describe("what this host cannot run", () => {
   it("finds nothing wrong with a profile the host has everything for", () => {
     expect(blockersOf(smart, capabilities())).toEqual([]);
-    expect(blockersOf(withAiLayout(smartAi, true), capabilities())).toEqual([]);
-  });
-
-  it("names the model and AI layout separately when the model is not set up", () => {
-    const noModel = {
-      status: "unavailable",
-      reason: "No AI key is configured on this host.",
-      setup: "Add a key in the assistant's settings.",
-    } as const;
-    const host = capabilities({
-      ai: { availability: noModel, model: null },
-      layout: { availability: noModel },
-    });
-    expect(
-      blockersOf(withAiLayout(smartAi, true), host).map(
-        (blocker) => blocker.what,
-      ),
-    ).toEqual(["Integrated AI", "AI layout"]);
-    expect(blockersOf(smart, host)).toEqual([]);
+    expect(blockersOf(digital, capabilities())).toEqual([]);
   });
 
   it("names a language the engine has no data for", () => {
@@ -235,14 +184,8 @@ describe("what this host cannot run", () => {
     const host = capabilities();
     expect(
       READING_METHODS.filter((method) => methodAvailable(method, host)),
-    ).toEqual(["smart", "digital", "ocr", "ai"]);
-    const bare = capabilities({
-      ocr: [],
-      ai: {
-        availability: { status: "unavailable", reason: "r", setup: "s" },
-        model: null,
-      },
-    });
+    ).toEqual(["smart", "digital", "ocr"]);
+    const bare = capabilities({ ocr: [] });
     expect(
       READING_METHODS.filter((method) => methodAvailable(method, bare)),
     ).toEqual(["digital"]);
@@ -287,9 +230,13 @@ describe("a source's jobs", () => {
     ).toBe("Reading text · 1 page");
     expect(
       progressText(
-        runningJob({ stage: "layout", completedPages: 2, totalPages: null }),
+        runningJob({
+          stage: "recognizing",
+          completedPages: 2,
+          totalPages: null,
+        }),
       ),
-    ).toBe("Improving the layout · 2 pages done");
+    ).toBe("Recognizing pages · 2 pages done");
     expect(
       progressText(
         runningJob({
@@ -323,47 +270,6 @@ describe("page coverage", () => {
   });
 });
 
-describe("usage", () => {
-  it("gives requests, pages, tokens and the cost", () => {
-    expect(
-      usageText({
-        kind: "known",
-        inputTokens: 4210,
-        outputTokens: 1932,
-        requests: 3,
-        aiPages: 3,
-        costUsd: 0.0123,
-      }),
-    ).toBe(
-      "3 model requests for 3 pages · 4,210 tokens in, 1,932 out · $0.0123",
-    );
-  });
-
-  it("never shows an unknown price as zero", () => {
-    const text = usageText({
-      kind: "known",
-      inputTokens: 10,
-      outputTokens: 5,
-      requests: 1,
-      aiPages: 1,
-      costUsd: null,
-    });
-    expect(text).toContain("cost unknown");
-    expect(text).not.toContain("$");
-  });
-
-  it("says when what was spent is not known", () => {
-    expect(
-      usageText({
-        kind: "unknown",
-        requests: 2,
-        aiPages: 2,
-        reason: "the provider did not report usage",
-      }),
-    ).toBe("Unknown · 2 model requests for 2 pages sent");
-  });
-});
-
 describe("a result's download name", () => {
   it("says partial for a partial result, once", () => {
     expect(downloadName("invoice.md", "complete")).toBe("invoice.md");
@@ -375,23 +281,17 @@ describe("a result's download name", () => {
 });
 
 describe("policies", () => {
-  it("start a scope the host said nothing about on demand, with no AI allowance", () => {
+  it("start a scope the host said nothing about on demand, within the host's limits", () => {
     const draft = draftOf(undefined, HOST_LIMITS);
     expect(draft.activation).toBe("manual");
     expect(draft.profile).toEqual(defaultConversionProfile);
-    expect(draft.limits).toEqual({
-      ...HOST_LIMITS,
-      maxAiPages: 0,
-      maxAiRequests: 0,
-      automaticAiPagesPerDay: 0,
-    });
+    expect(draft.limits).toEqual(HOST_LIMITS);
   });
 
   it("compare by what they choose, not by how the objects were built", () => {
     const a = draftOf(settings(), HOST_LIMITS);
     const reordered: ConversionProfile = {
       pages: { kind: "all" },
-      layout: { kind: "off" },
       reading: a.profile.reading,
     };
     expect(sameDraft(a, { ...a, profile: reordered })).toBe(true);
@@ -439,7 +339,6 @@ describe("a finished result, for the person reading it", () => {
     });
     expect(scanningProfile(textOnly, app)).toEqual({
       reading: { kind: "smart", fallback: localOcrOf(app) },
-      layout: { kind: "off" },
       pages: textOnly.pages,
     });
     // The scanner the run used gives way to the one in Settings.
@@ -448,13 +347,12 @@ describe("a finished result, for the person reading it", () => {
   });
 
   it("says why a page wasn't read, from its outcome and the method that ran", () => {
-    const reason = (ran: "digital" | "smart" | "ai") =>
+    const reason = (ran: "digital" | "smart") =>
       missingPageReason({ status: "unresolved", page: 2, reason: "x" }, ran);
     expect(reason("digital")).toBe(
       "It looks like a scan, and text-only conversion skips scans.",
     );
     expect(reason("smart")).toBe("Scanning found no text on it.");
-    expect(reason("ai")).toBe("The model returned no text for it.");
     expect(
       missingPageReason(
         { status: "failed", page: 2, reason: "OCR failed: worker crashed" },

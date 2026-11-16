@@ -48,8 +48,6 @@ export const USABLE_TEXT_CHARACTERS = 20;
 const BLANK_INK_FRACTION = 0.0005;
 const BLANK_CHECK_DPI = 48;
 const MAX_REASON_LENGTH = 300;
-const AI_UNAVAILABLE =
-  "AI transcription and AI layout aren't available yet. Choose a reading method that doesn't use AI, and leave AI layout off.";
 const DAMAGED = "This file is damaged or is not a valid PDF.";
 const MISSING_ENGINE =
   "A reading tool this conversion needs isn't installed on this host. Reinstall Sektar, or choose another reading method.";
@@ -153,14 +151,7 @@ function checkPlan(plan: ResolvedConversionPlan, probe: EngineProbe): void {
   )
     stale(plan.renderer.pdfjsVersion, probe.pdfjs.version);
   const reading = plan.reading;
-  const recognition =
-    reading.kind === "smart"
-      ? reading.fallback
-      : reading.kind === "recognize"
-        ? reading.engine
-        : null;
-  if (recognition?.kind === "ai" || plan.layout.kind === "ai")
-    throw new ExecutionFailure("engine-unavailable", AI_UNAVAILABLE);
+  const recognition = planOcr(plan);
   if (probe.pdfjs.status !== "available")
     throw new ExecutionFailure(
       "engine-unavailable",

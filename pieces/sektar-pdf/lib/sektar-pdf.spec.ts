@@ -38,6 +38,7 @@ import { inspectPublications } from "../../../conversions/read-publications.js";
 import {
   doctureConversionOutputSchema,
   doctureManifestSchema,
+  NO_MODEL_USAGE,
 } from "../../docture/lib/contracts.js";
 import { sektarPdf } from "../index.js";
 import {
@@ -123,18 +124,11 @@ function doctureOutput(text: string, warnings: ConversionWarning[] = []) {
     provenance: [
       { role: "digital", engine: "pdfjs", version: "1", model: null },
     ],
-    usage: {
-      kind: "known",
-      inputTokens: 0,
-      outputTokens: 0,
-      requests: 0,
-      aiPages: 0,
-      costUsd: 0,
-    },
     documentPages: 1,
   };
   const doctureManifest = doctureManifestSchema.parse({
     ...body,
+    usage: NO_MODEL_USAGE,
     kind: "docture-conversion-manifest",
     version: 1,
     sourceFileName: "source.pdf",
@@ -214,9 +208,6 @@ function fixture(kind: "file" | "mail" = "file") {
     limits: {
       maxBytes: 1000,
       maxPages: 20,
-      maxAiPages: 0,
-      maxAiRequests: 0,
-      automaticAiPagesPerDay: 0,
       maxDurationMs: 10000,
     },
   });

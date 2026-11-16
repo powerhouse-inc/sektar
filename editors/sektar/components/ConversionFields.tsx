@@ -3,27 +3,24 @@
 // Settings (a source's default). Each choice is a card that says in plain words
 // what it does and rates what it trades.
 // A local engine this host cannot run is shown with the host's own reason; it
-// is never swapped for another. AI is offered only where the host can run it.
+// is never swapped for another.
 import type {
   ConversionCapabilities,
   ConversionProfile,
+  LocalOcrEngine,
+  OcrSelection,
 } from "../../../conversions/contracts.js";
 import {
   localOcrOf,
-  methodOf,
   READING_METHODS,
-  recognitionOf,
   withLanguages,
   withOcrModel,
   withRecognition,
-  type LocalOcr,
   type ReadingMethod,
-  type RecognitionChoice,
 } from "../../../pieces/docture/lib/profile.js";
 import { ChoiceCards, type CardChoice } from "../kit/choice-cards.js";
 import {
   engineName,
-  INTEGRATED_AI_NAME,
   languageName,
   METHOD_FACTS,
   METHOD_HELP,
@@ -38,12 +35,6 @@ import {
 const needsSetup = (label: string, available: boolean) =>
   available ? label : `${label} (needs setup)`;
 
-/** Whether AI is offered: the host can run it, or it is already chosen and can be undone. */
-const aiShown = (
-  capabilities: ConversionCapabilities | null,
-  chosen: boolean,
-): boolean => chosen || capabilities?.ai.availability.status === "available";
-
 /** The reading method. A method the host cannot run is listed, marked, and cannot be picked. */
 export function MethodSelect({
   value,
@@ -54,9 +45,7 @@ export function MethodSelect({
   onChange: (value: ReadingMethod) => void;
   capabilities: ConversionCapabilities;
 }) {
-  const choices = READING_METHODS.filter(
-    (method) => method !== "ai" || aiShown(capabilities, value === "ai"),
-  ).map((method): CardChoice<ReadingMethod> => {
+  const choices = READING_METHODS.map((method): CardChoice<ReadingMethod> => {
     const available = methodAvailable(method, capabilities);
     return {
       value: method,
@@ -71,7 +60,7 @@ export function MethodSelect({
       legend="Method"
       value={value}
       choices={choices}
-      columns={choices.length === 4 ? 2 : choices.length}
+      columns={choices.length}
       onChange={onChange}
     />
   );
@@ -80,34 +69,28 @@ export function MethodSelect({
 /**
  * What reads the pages that are pictures, and that scanner's own options
  * under it: its model and the languages it reads. Shown for the methods that
- * scan (Standard and Scan every page); the others have no scanner to choose.
- * `ocr` is the local engine a switch away from the integrated model goes
- * back to.
+ * scan (Standard and Scan every page); Text only has no scanner to choose.
  */
 export function ScannerFields({
   profile,
   onChange,
   capabilities,
-  ocr,
 }: {
   profile: ConversionProfile;
   onChange: (profile: ConversionProfile) => void;
   capabilities: ConversionCapabilities | null;
-  ocr?: LocalOcr;
 }) {
-  const method = methodOf(profile);
-  const recognition = recognitionOf(profile);
-  if (!recognition || (method !== "smart" && method !== "ocr")) return null;
   const local = localOcrOf(profile);
+  if (!local) return null;
   return (
     <div className="sk-convert-scanner">
       <RecognitionSelect
+        value={local.engine}
         profile={profile}
         onChange={onChange}
         capabilities={capabilities}
-        ocr={ocr}
       />
-      {local && capabilities && (
+      {capabilities && (
         <ScannerOptions
           ocr={local}
           profile={profile}
@@ -120,24 +103,21 @@ export function ScannerFields({
 }
 
 function RecognitionSelect({
+  value,
   profile,
   onChange,
   capabilities,
-  ocr,
 }: {
+  value: LocalOcrEngine;
   profile: ConversionProfile;
   onChange: (profile: ConversionProfile) => void;
   capabilities: ConversionCapabilities | null;
-  ocr?: LocalOcr;
 }) {
-  const recognition = recognitionOf(profile);
   const engines = capabilities?.ocr ?? [
     { id: "tesseract" as const, label: "Tesseract", availability: null },
     { id: "paddleocr" as const, label: "PaddleOCR", availability: null },
   ];
-  const value: RecognitionChoice =
-    recognition?.kind === "ai" ? "ai" : (recognition?.engine ?? engines[0].id);
-  const choices = engines.map((engine): CardChoice<RecognitionChoice> => {
+  const choices = engines.map((engine): CardChoice<LocalOcrEngine> => {
     const available =
       !engine.availability || engine.availability.status === "available";
     return {
@@ -148,31 +128,12 @@ function RecognitionSelect({
       disabled: !available && engine.id !== value,
     };
   });
-  if (methodOf(profile) === "smart" && aiShown(capabilities, value === "ai")) {
-    choices.push({
-      value: "ai",
-      label: needsSetup(
-        INTEGRATED_AI_NAME,
-        capabilities?.ai.availability.status === "available",
-      ),
-      description: SCANNER_HELP.ai,
-      facts: SCANNER_FACTS.ai,
-    });
-  }
   return (
     <ChoiceCards
       legend="Scanner"
       value={value}
       choices={choices}
-      onChange={(choice) => {
-        if (choice === "ai") {
-          onChange(withRecognition(profile, "ai"));
-          return;
-        }
-        // Coming back from the model, the languages are the ones picked before.
-        const languages = ocr?.engine === choice ? ocr.languages : undefined;
-        onChange(withRecognition(profile, choice, languages));
-      }}
+      onChange={(choice) => onChange(withRecognition(profile, choice))}
     />
   );
 }
@@ -184,7 +145,7 @@ function ScannerOptions({
   onChange,
   capabilities,
 }: {
-  ocr: LocalOcr;
+  ocr: OcrSelection;
   profile: ConversionProfile;
   onChange: (profile: ConversionProfile) => void;
   capabilities: ConversionCapabilities;
@@ -225,7 +186,7 @@ function ModelSelect({
   models,
   onChange,
 }: {
-  ocr: LocalOcr;
+  ocr: OcrSelection;
   models: readonly string[];
   onChange: (model: string) => void;
 }) {
@@ -261,7 +222,7 @@ function LanguageChoices({
   installed,
   onChange,
 }: {
-  ocr: LocalOcr;
+  ocr: OcrSelection;
   installed: readonly string[];
   onChange: (languages: string[]) => void;
 }) {
@@ -299,10 +260,9 @@ function LanguageChoices({
 
 /** The scanner's name, with its model or its one language. */
 function scannerName(
-  scanner: NonNullable<ReturnType<typeof recognitionOf>>,
+  scanner: OcrSelection,
   capabilities: ConversionCapabilities | null,
 ): string {
-  if (scanner.kind === "ai") return INTEGRATED_AI_NAME;
   const name = engineName(scanner.engine, capabilities);
   const model =
     scanner.model ??
@@ -331,10 +291,9 @@ export function AppScanner({
   onLanguages: (languages: string[]) => void;
   capabilities: ConversionCapabilities | null;
 }) {
-  const scanner = recognitionOf(app);
+  const scanner = localOcrOf(app);
   if (!scanner) return null;
-  const local = localOcrOf(app);
-  const chosen = localOcrOf(profile)?.languages ?? local?.languages ?? [];
+  const chosen = localOcrOf(profile)?.languages ?? scanner.languages;
   return (
     <section className="sk-convert-scanner sk-convert-app-scanner" aria-label="Scanner">
       <div className="sk-convert-app-scanner__head">
@@ -343,11 +302,11 @@ export function AppScanner({
           {scannerName(scanner, capabilities)}
         </span>
       </div>
-      {local && local.languages.length > 1 && (
+      {scanner.languages.length > 1 && (
         <fieldset className="sk-field sk-convert-languages">
           <legend className="sk-label">Languages in this PDF</legend>
           <div className="sk-convert-languages__choices">
-            {local.languages.map((code) => (
+            {scanner.languages.map((code) => (
               <label key={code} className="sk-chip-toggle">
                 <input
                   type="checkbox"
@@ -357,7 +316,7 @@ export function AppScanner({
                   onChange={(event) =>
                     onLanguages(
                       event.target.checked
-                        ? local.languages.filter(
+                        ? scanner.languages.filter(
                             (each) => each === code || chosen.includes(each),
                           )
                         : chosen.filter((each) => each !== code),
@@ -371,8 +330,8 @@ export function AppScanner({
         </fieldset>
       )}
       <p className="sk-caption">
-        From Settings → Document conversion. To use another scanner
-        {local ? ", model or language" : ""}, change it there.
+        From Settings → Document conversion. To use another scanner, model or
+        language, change it there.
       </p>
     </section>
   );

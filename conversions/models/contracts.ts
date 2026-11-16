@@ -2,7 +2,6 @@ import { z } from "zod";
 import {
   conversionProfileSchema,
   conversionSettingsSchema,
-  putConversionSettingsSchema,
 } from "../contracts.js";
 
 export const modelReadinessSchema = z.object({
@@ -35,12 +34,12 @@ export const modelProgressSchema = z.object({
   file: z.string().nullable(),
 });
 export type ModelProgress = z.infer<typeof modelProgressSchema>;
+/** A save waiting on its scanner download. Stored, so it reads as leniently as saved settings do. */
 export const preparationIntentSchema = z.object({
   kind: z.literal("settings"),
-  settings: putConversionSettingsSchema.omit({
-    workflowGrant: true,
-    requestId: true,
-  }),
+  settings: conversionSettingsSchema
+    .pick({ activation: true, profile: true, limits: true })
+    .extend({ expectedRevision: z.number().int().nonnegative() }),
 });
 export type PreparationIntent = z.infer<typeof preparationIntentSchema>;
 export const modelPreparationSchema = z.object({

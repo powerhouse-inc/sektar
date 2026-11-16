@@ -3,7 +3,7 @@ import { createReadStream } from "node:fs";
 import { mkdir, open, readdir, rename, rm, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { ConversionProfile, RecognitionSelection } from "../contracts.js";
+import type { ConversionProfile, OcrSelection } from "../contracts.js";
 import {
   profileAssets,
   recognitionAssets,
@@ -84,7 +84,7 @@ export class ModelStore {
     return this.inspectAssets(profileAssets(profile));
   }
   async require(
-    selection: RecognitionSelection | null,
+    selection: OcrSelection | null,
   ): Promise<readonly ModelAsset[]> {
     const assets = recognitionAssets(selection);
     if (!(await this.inspectAssets(assets)).ready) throw new ModelsNotReady();

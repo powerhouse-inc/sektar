@@ -16,8 +16,8 @@ import {
   executableConversionPlanSchema,
   type ArtifactDescriptor,
   type ConversionProfile,
-  type ConversionUsage,
   type ExecutableConversionPlan,
+  type OcrSelection,
 } from "../../../conversions/contracts.js";
 import {
   probeEngines,
@@ -26,13 +26,13 @@ import {
 import {
   planFingerprint,
   resolvePlan,
-  type IntegratedModelStatus,
 } from "../../../conversions/engine/plan.js";
 import { runConversion } from "../../../conversions/engine/run.js";
 import {
   DEFAULT_DOCTURE_LIMITS,
   DOCTURE_MANIFEST_KIND,
   doctureLimitsInputSchema,
+  NO_MODEL_USAGE,
   type DoctureConversionOutput,
   type DoctureLimits,
   type DoctureManifest,
@@ -41,10 +41,7 @@ import {
   DEFAULT_LOCAL_OCR,
   parseLanguages,
   READING_METHODS,
-  withAiLayout,
   withMethod,
-  withRecognition,
-  type LocalOcr,
 } from "./profile.js";
 
 /* ----------------------------------------------------------------- errors */
@@ -72,27 +69,11 @@ export interface ConvertProps {
   recognition?: unknown;
   languages?: unknown;
   paddleModel?: unknown;
-  aiLayout?: unknown;
   pages?: unknown;
   onIncomplete?: unknown;
   resolvedPlan?: unknown;
   limits?: unknown;
 }
-
-/** What recognizes pages when Smart falls back to the integrated model. */
-export const INTEGRATED_AI = "ai";
-
-/**
- * A workflow step has no way to reach Sektar's integrated model yet: the
- * workflow runtime offers pieces no host AI capability, and a step must not
- * call a provider with credentials of its own.
- */
-export const WORKFLOW_AI: IntegratedModelStatus = {
-  kind: "unavailable",
-  reason: "Workflow steps cannot reach Sektar's integrated model yet.",
-  setup:
-    "Choose Digital only, OCR, or Smart with local OCR, and leave AI layout off.",
-};
 
 const text = (value: unknown): string =>
   typeof value === "string" ? value.trim() : "";
@@ -132,22 +113,14 @@ export function profileOf(props: ConvertProps): ConversionProfile {
   }
   const recognition = text(props.recognition) || DEFAULT_LOCAL_OCR.engine;
   const engine = localOcrEngineSchema.safeParse(recognition);
-  const recognizes = method === "smart" || method === "ocr";
-  if (recognizes && !engine.success) {
-    if (recognition !== INTEGRATED_AI) {
-      throw new ConversionInputError(
-        `"${recognition}" is not something that recognizes pages.`,
-      );
-    }
-    if (method === "ocr") {
-      throw new ConversionInputError(
-        "OCR recognizes pages with a local engine. Choose Tesseract or PaddleOCR, or the AI transcription method.",
-      );
-    }
+  if (method !== "digital" && !engine.success) {
+    throw new ConversionInputError(
+      `"${recognition}" is not something that recognizes pages. Choose Tesseract or PaddleOCR.`,
+    );
   }
   const languages = parseLanguages(text(props.languages));
   const paddleModel = text(props.paddleModel);
-  const ocr: LocalOcr = {
+  const ocr: OcrSelection = {
     kind: "ocr",
     engine: engine.success ? engine.data : DEFAULT_LOCAL_OCR.engine,
     languages:
@@ -156,19 +129,7 @@ export function profileOf(props: ConvertProps): ConversionProfile {
       ? { model: paddleModel }
       : {}),
   };
-  let profile = withMethod(
-    { ...defaultConversionProfile, reading: { kind: "digital" } },
-    method,
-    ocr,
-  );
-  if (method === "smart") {
-    profile = withRecognition(
-      profile,
-      engine.success ? engine.data : INTEGRATED_AI,
-      ocr.languages,
-    );
-  }
-  profile = withAiLayout(profile, props.aiLayout === true);
+  const profile = withMethod(defaultConversionProfile, method, ocr);
   const valid = conversionProfileSchema.safeParse({
     ...profile,
     pages: pagesOf(props.pages),
@@ -202,7 +163,7 @@ export function planOf(
   probe: EngineProbe,
 ): ExecutableConversionPlan {
   if (absent(props.resolvedPlan)) {
-    return resolvePlan(profileOf(props), { probe, integrated: WORKFLOW_AI });
+    return resolvePlan(profileOf(props), probe);
   }
   const parsed = executableConversionPlanSchema.safeParse(
     jsonInput(props.resolvedPlan, "Resolved plan"),
@@ -269,15 +230,6 @@ function stemOf(fileName: string): string {
   const stem = fileName.replace(/\.pdf$/i, "").trim();
   return stem || "document";
 }
-
-const NO_AI_USAGE: ConversionUsage = {
-  kind: "known",
-  inputTokens: 0,
-  outputTokens: 0,
-  requests: 0,
-  aiPages: 0,
-  costUsd: 0,
-};
 
 /** The pages named in a sentence, the first few of a long list. */
 function pagesText(pages: readonly number[]): string {
@@ -349,7 +301,7 @@ export async function convertPdf(
     pages: [...bundle.pages],
     provenance: [...bundle.provenance],
     warnings: [...bundle.warnings],
-    usage: NO_AI_USAGE,
+    usage: NO_MODEL_USAGE,
     markdown,
   };
   const manifest = await store(
@@ -363,10 +315,9 @@ export async function convertPdf(
     markdown,
     artifacts: [manifest],
     completeness,
-    pages: manifestBody.pages,
+    pages: [...bundle.pages],
     warnings: manifestBody.warnings,
-    provenance: manifestBody.provenance,
-    usage: NO_AI_USAGE,
+    provenance: [...bundle.provenance],
     plan,
     documentPages: bundle.documentPages,
   };

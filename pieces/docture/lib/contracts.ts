@@ -10,7 +10,6 @@ import {
   artifactDescriptorSchema,
   conversionCompletenessSchema,
   conversionLimitsSchema,
-  conversionUsageSchema,
   conversionWarningSchema,
   engineProvenanceSchema,
   pageOutcomeSchema,
@@ -59,6 +58,16 @@ export const doctureManifestSchema = z.discriminatedUnion("version", [
 ]);
 export type DoctureManifest = z.infer<typeof doctureManifestSchema>;
 
+/** The manifest format records model usage; the step's local engines use none. */
+export const NO_MODEL_USAGE: DoctureManifest["usage"] = {
+  kind: "known",
+  inputTokens: 0,
+  outputTokens: 0,
+  requests: 0,
+  aiPages: 0,
+  costUsd: 0,
+};
+
 /** What the step hands to the steps after it. Large content is stored, never inline. */
 export const doctureConversionOutputSchema = z.object({
   /** The stored Markdown. */
@@ -70,7 +79,6 @@ export const doctureConversionOutputSchema = z.object({
   pages: z.array(pageOutcomeSchema).min(1),
   warnings: z.array(conversionWarningSchema),
   provenance: z.array(engineProvenanceSchema),
-  usage: conversionUsageSchema,
   /** The plan the PDF was read with, pinned to the installed engines. */
   plan: resolvedConversionPlanSchema,
   documentPages: z.number().int().positive(),

@@ -1,5 +1,5 @@
 // Conversion as the Files, Mail and Settings surfaces show it: the words for a
-// method, a profile, a job's progress, page coverage and usage, which choices
+// method, a profile, a job's progress, page coverage, which choices
 // this host cannot run and why. Pure
 // functions over the shared contract (conversions/contracts.ts); the profile
 // edits themselves are the workflow step's (pieces/docture/lib/profile.ts).
@@ -14,11 +14,10 @@ import {
   type ConversionScope,
   type ConversionProfile,
   type ConversionProgress,
-  type ConversionUsage,
   type ConversionWarning,
   type LocalOcrEngine,
+  type OcrSelection,
   type PageOutcome,
-  type RecognitionSelection,
   type ResolvedConversionPlan,
   type ResolvedRecognition,
   type SourceSelection,
@@ -29,7 +28,6 @@ import {
   methodOf,
   oneOffProfile,
   withMethod,
-  type LocalOcr,
   type ReadingMethod,
 } from "../../../pieces/docture/lib/profile.js";
 import { plural } from "./format.js";
@@ -41,7 +39,6 @@ export const METHOD_LABEL: Record<ReadingMethod, string> = {
   smart: "Standard",
   digital: "Text only",
   ocr: "Scan every page",
-  ai: "AI transcription",
 };
 
 export const METHOD_HELP: Record<ReadingMethod, string> = {
@@ -50,7 +47,6 @@ export const METHOD_HELP: Record<ReadingMethod, string> = {
   digital:
     "Fastest. Copies only the text in the PDF and skips pages that are pictures, like scanned paper.",
   ocr: "Slower. Reads every page as a picture. Try it when text comes out jumbled or in the wrong order.",
-  ai: "An AI model reads each page as a picture. It can misread or leave out words.",
 };
 
 /**
@@ -71,10 +67,6 @@ export const METHOD_FACTS: Record<ReadingMethod, readonly ChoiceFact[]> = {
     { label: "Scanned paper", text: "Skipped" },
   ],
   ocr: [
-    { label: "Speed", level: 1 },
-    { label: "Scanned paper", text: "Read" },
-  ],
-  ai: [
     { label: "Speed", level: 1 },
     { label: "Scanned paper", text: "Read" },
   ],
@@ -101,30 +93,20 @@ const ENGINE_NAME: Partial<Record<string, string>> = {
   paddleocr: "PaddleOCR",
 };
 
-export const INTEGRATED_AI_NAME = "Integrated AI";
-
 /** What reads the pages that are pictures, by what it is good at. */
-export const SCANNER_HELP: Record<LocalOcrEngine | "ai", string> = {
+export const SCANNER_HELP: Record<LocalOcrEngine, string> = {
   tesseract: "Best for clean, printed pages, like typed letters and forms.",
   paddleocr:
     "Better with harder pages, like photos of paper or small print. Slower. Download the scanner once, then use it offline.",
-  ai: "Your AI model reads the pages that are pictures. It can misread or leave out words.",
 };
 
-export const SCANNER_FACTS: Record<
-  LocalOcrEngine | "ai",
-  readonly ChoiceFact[]
-> = {
+export const SCANNER_FACTS: Record<LocalOcrEngine, readonly ChoiceFact[]> = {
   tesseract: [
     { label: "Speed", level: 4 },
     { label: "Photos & small print", level: 2 },
   ],
   paddleocr: [
     { label: "Speed", level: 2 },
-    { label: "Photos & small print", level: 4 },
-  ],
-  ai: [
-    { label: "Speed", level: 1 },
     { label: "Photos & small print", level: 4 },
   ],
 };
@@ -206,70 +188,43 @@ export function engineName(
   return known?.label || (ENGINE_NAME[id] ?? id);
 }
 
-type Recognizer = { kind: "ocr"; engine: string } | { kind: "ai" };
-
 /** What a profile and a job's fixed plan both say about how pages are read. */
 interface Readable {
   reading:
     | { kind: "digital" }
-    | { kind: "smart"; fallback: Recognizer }
-    | { kind: "recognize"; engine: Recognizer };
-  layout: { kind: "off" } | { kind: "ai" };
+    | { kind: "smart"; fallback: { engine: string } }
+    | { kind: "recognize"; engine: { engine: string } };
 }
 
-function recognizerName(
-  recognizer: Recognizer,
-  capabilities?: ConversionCapabilities | null,
-): string {
-  return recognizer.kind === "ai"
-    ? INTEGRATED_AI_NAME
-    : engineName(recognizer.engine, capabilities);
-}
-
-/** A profile or a plan in a few words: "PDF.js + Tesseract · AI layout". */
+/** A profile or a plan in a few words: "PDF.js + Tesseract". */
 export function profileLabel(
   readable: Readable,
   capabilities?: ConversionCapabilities | null,
 ): string {
   const reading = readable.reading;
-  let how: string;
   switch (reading.kind) {
     case "digital":
-      how = engineName("pdfjs", capabilities);
-      break;
+      return engineName("pdfjs", capabilities);
     case "smart":
-      how = `${engineName("pdfjs", capabilities)} + ${recognizerName(reading.fallback, capabilities)}`;
-      break;
+      return `${engineName("pdfjs", capabilities)} + ${engineName(reading.fallback.engine, capabilities)}`;
     case "recognize":
-      how = recognizerName(reading.engine, capabilities);
-      break;
+      return engineName(reading.engine.engine, capabilities);
     default: {
       const _exhaustive: never = reading;
       return _exhaustive;
     }
   }
-  return readable.layout.kind === "ai" ? `${how} · AI layout` : how;
 }
 
 /**
  * How a profile reads, by method name and the languages it scans in:
- * "Standard, English", "Text only", "Scan every page, English, Spanish, AI layout".
+ * "Standard, English", "Text only", "Scan every page, English, Spanish".
  */
 export function readingSummary(profile: ConversionProfile): string {
-  const parts = [
+  return [
     METHOD_LABEL[methodOf(profile)],
     ...(localOcrOf(profile)?.languages.map(languageName) ?? []),
-  ];
-  if (profile.layout.kind === "ai") parts.push("AI layout");
-  return parts.join(", ");
-}
-
-/** Whether this host can run any AI: transcription, an AI scanner or AI layout. */
-export function aiOffered(capabilities: ConversionCapabilities): boolean {
-  return (
-    capabilities.ai.availability.status === "available" ||
-    capabilities.layout.availability.status === "available"
-  );
+  ].join(", ");
 }
 
 /**
@@ -281,7 +236,7 @@ export function aiOffered(capabilities: ConversionCapabilities): boolean {
 function recordedEngine(
   method: string,
 ): { role: string; engine: string; version: string } | null {
-  const match = /^(digital|ocr|transcription|layout):([^@]*)@(.*)$/.exec(
+  const match = /^(digital|ocr):([^@]*)@(.*)$/.exec(
     method,
   );
   if (!match) return null;
@@ -289,16 +244,13 @@ function recordedEngine(
   return { role, engine, version };
 }
 
-/** What read the pages, by name: "PDF.js", "Tesseract", "AI transcription". */
+/** What read the pages, by name: "PDF.js", "Tesseract". */
 export function provenanceLabel(
   method: string,
   capabilities?: ConversionCapabilities | null,
 ): string {
   const recorded = recordedEngine(method);
-  if (!recorded) return method;
-  if (recorded.role === "transcription") return "AI transcription";
-  if (recorded.role === "layout") return "AI layout";
-  return engineName(recorded.engine, capabilities);
+  return recorded ? engineName(recorded.engine, capabilities) : method;
 }
 
 /** The same with the exact version that ran: "PDF.js (pdfjs-dist@6.4.299)". */
@@ -315,14 +267,14 @@ export function provenanceDetail(
 
 /** A choice this host cannot run, in the host's own words. */
 export interface SetupBlocker {
-  /** What cannot run: an engine's name, or the integrated model */
+  /** What cannot run: an engine's name */
   what: string;
   reason: string;
   /** What to do about it */
   setup: string;
 }
 
-type Availability = ConversionCapabilities["ai"]["availability"];
+type Availability = ConversionCapabilities["digital"];
 
 function blockerOf(
   what: string,
@@ -341,12 +293,9 @@ function blockerOf(
 }
 
 function recognitionBlockers(
-  recognition: RecognitionSelection,
+  recognition: OcrSelection,
   capabilities: ConversionCapabilities,
 ): (SetupBlocker | null)[] {
-  if (recognition.kind === "ai") {
-    return [blockerOf(INTEGRATED_AI_NAME, capabilities.ai.availability)];
-  }
   const engine = capabilities.ocr.find((e) => e.id === recognition.engine);
   const what = engineName(recognition.engine, capabilities);
   if (engine?.availability.status !== "available") {
@@ -394,17 +343,9 @@ export function blockersOf(
       blockerOf(engineName("pdfjs", capabilities), capabilities.digital),
     );
   }
-  const recognition =
-    reading.kind === "smart"
-      ? reading.fallback
-      : reading.kind === "recognize"
-        ? reading.engine
-        : null;
+  const recognition = localOcrOf(profile);
   if (recognition)
     found.push(...recognitionBlockers(recognition, capabilities));
-  if (profile.layout.kind === "ai") {
-    found.push(blockerOf("AI layout", capabilities.layout.availability));
-  }
   return found.filter((blocker) => blocker !== null);
 }
 
@@ -420,11 +361,9 @@ export function methodAvailable(
     case "digital":
       return digital;
     case "smart":
-      return digital && (ocr || available(capabilities.ai.availability));
+      return digital && ocr;
     case "ocr":
       return ocr;
-    case "ai":
-      return available(capabilities.ai.availability);
     default: {
       const _exhaustive: never = method;
       return _exhaustive;
@@ -486,7 +425,6 @@ const STAGE_LABEL: Record<ConversionProgress["stage"], string> = {
   reading: "Reading text",
   rendering: "Rendering pages",
   recognizing: "Recognizing pages",
-  layout: "Improving the layout",
   staging: "Saving the result",
   uploading: "Saving the Markdown",
   finalizing: "Finishing",
@@ -499,7 +437,6 @@ const WORKFLOW_STAGE_LABEL: Record<ConversionProgress["stage"], string> = {
   reading: "Converting the PDF",
   rendering: "Converting the PDF",
   recognizing: "Converting the PDF",
-  layout: "Converting the PDF",
   staging: "Saving the Markdown",
   uploading: "Saving the Markdown",
   finalizing: "Saving the Markdown",
@@ -635,28 +572,6 @@ export function countsOf(pages: readonly PageOutcome[]): PageCounts {
   };
 }
 
-/* ------------------------------------------------------------------ usage */
-
-/**
- * What a conversion spent on the integrated model. An unknown price is said,
- * never shown as zero; neither are counts nobody recorded.
- */
-export function usageText(usage: ConversionUsage): string {
-  const sent = `${plural(usage.requests, "model request")} for ${plural(usage.aiPages, "page")}`;
-  if (usage.kind === "unknown") {
-    return usage.requests === 0 && usage.aiPages === 0
-      ? "Unknown"
-      : `Unknown · ${sent} sent`;
-  }
-  if (usage.requests === 0 && usage.aiPages === 0) return "No model calls";
-  const tokens = `${usage.inputTokens.toLocaleString("en")} tokens in, ${usage.outputTokens.toLocaleString("en")} out`;
-  const cost =
-    usage.costUsd === null
-      ? "cost unknown"
-      : `$${usage.costUsd.toFixed(usage.costUsd < 1 ? 4 : 2)}`;
-  return `${sent} · ${tokens} · ${cost}`;
-}
-
 /* ------------------------------------------------------------------ files */
 
 /** The name a result downloads under: a partial result says so in its name. */
@@ -696,9 +611,8 @@ export interface SettingsDraft {
 
 /**
  * The saved global settings, as the host gave them. Before a response, use
- * defaults (On demand, Smart, Tesseract fallback, AI layout off) with the
- * host's ceilings for size, pages and time, and no AI allowance: saving
- * never grants AI that the person did not type in.
+ * defaults (On demand, Smart, Tesseract fallback) with the host's ceilings
+ * for size, pages and time.
  */
 export function draftOf(
   settings: ConversionSettings | undefined,
@@ -714,12 +628,7 @@ export function draftOf(
   return {
     activation: "manual",
     profile: defaultConversionProfile,
-    limits: {
-      ...hostLimits,
-      maxAiPages: 0,
-      maxAiRequests: 0,
-      automaticAiPagesPerDay: 0,
-    },
+    limits: hostLimits,
   };
 }
 
@@ -743,28 +652,15 @@ export function sameDraft(a: SettingsDraft, b: SettingsDraft): boolean {
 
 export type LimitName = keyof ConversionLimits;
 
-/** The least each limit may be: a page, or none for the AI allowances. */
-const LEAST: Record<LimitName, number> = {
-  maxBytes: 1,
-  maxPages: 1,
-  maxDurationMs: 1,
-  maxAiPages: 0,
-  maxAiRequests: 0,
-  automaticAiPagesPerDay: 0,
-};
 const LIMIT_NAMES: readonly LimitName[] = [
   "maxBytes",
   "maxPages",
   "maxDurationMs",
-  "maxAiPages",
-  "maxAiRequests",
-  "automaticAiPagesPerDay",
 ];
 
 /**
  * What is wrong with a draft's limits: each must be a whole number, at least
- * what the contract asks (a page, or none for the AI allowances) and no more
- * than the host's own ceiling.
+ * 1 and no more than the host's own ceiling.
  */
 export function limitProblems(
   limits: ConversionLimits,
@@ -773,11 +669,8 @@ export function limitProblems(
   const problems: Partial<Record<LimitName, string>> = {};
   for (const name of LIMIT_NAMES) {
     const value = limits[name];
-    if (!Number.isInteger(value) || value < LEAST[name]) {
-      problems[name] =
-        LEAST[name] === 0
-          ? "A whole number, 0 or more."
-          : "A whole number, 1 or more.";
+    if (!Number.isInteger(value) || value < 1) {
+      problems[name] = "A whole number, 1 or more.";
     } else if (value > hostLimits[name]) {
       problems[name] =
         `This host allows at most ${hostLimits[name].toLocaleString("en")}.`;
@@ -797,7 +690,7 @@ export function methodOfPlan(plan: ResolvedConversionPlan): ReadingMethod {
     case "smart":
       return "smart";
     case "recognize":
-      return reading.engine.kind === "ai" ? "ai" : "ocr";
+      return "ocr";
     default: {
       const _exhaustive: never = reading;
       return _exhaustive;
@@ -805,8 +698,7 @@ export function methodOfPlan(plan: ResolvedConversionPlan): ReadingMethod {
   }
 }
 
-function selectionOf(recognition: ResolvedRecognition): RecognitionSelection {
-  if (recognition.kind === "ai") return { kind: "ai", model: "integrated" };
+function selectionOf(recognition: ResolvedRecognition): OcrSelection {
   return {
     kind: "ocr",
     engine: recognition.engine,
@@ -825,10 +717,6 @@ export function profileOfPlan(plan: ResolvedConversionPlan): ConversionProfile {
         : reading.kind === "smart"
           ? { kind: "smart", fallback: selectionOf(reading.fallback) }
           : { kind: "recognize", engine: selectionOf(reading.engine) },
-    layout:
-      plan.layout.kind === "ai"
-        ? { kind: "ai", model: "integrated" }
-        : { kind: "off" },
     pages: plan.pages,
   };
 }
@@ -860,8 +748,6 @@ export function missingPageReason(
   switch (ran) {
     case "digital":
       return "It looks like a scan, and text-only conversion skips scans.";
-    case "ai":
-      return "The model returned no text for it.";
     case "smart":
     case "ocr":
       return "Scanning found no text on it.";

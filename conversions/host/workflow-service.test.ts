@@ -95,7 +95,6 @@ const REPLACEMENT = attachmentRefSchema.parse(
 );
 const DIGITAL: ConversionProfile = {
   reading: { kind: "digital" },
-  layout: { kind: "off" },
   pages: { kind: "all" },
 };
 const PROBE = probeEngines();

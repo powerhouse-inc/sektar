@@ -3,7 +3,7 @@ import {
   ModelsNotReady,
   ModelDownloadError,
 } from "../models/store.js";
-import { profileAssets, recognitionOf } from "../models/catalogue.js";
+import { profileAssets } from "../models/catalogue.js";
 import {
   preparationActive,
   type ModelPreparation,
@@ -39,12 +39,6 @@ import {
   sha256Hex,
   canonicalJson,
 } from "../engine/plan.js";
-const WORKFLOW_AI = {
-  kind: "unavailable" as const,
-  reason: "AI reading isn't available in this version of Sektar.",
-  setup:
-    "Choose Standard, Text only or Scan every page, and leave AI layout off.",
-};
 import {
   type PreparePdfInput,
   type PreparedPdf,
@@ -85,7 +79,10 @@ import {
 } from "./ports.js";
 import { submissionSchema, viewOfRun, type NativeRun } from "./run-view.js";
 import { WorkflowRuntimeError } from "../workflow/bridge.js";
-import { usesAppScanner } from "../../pieces/docture/lib/profile.js";
+import {
+  localOcrOf,
+  usesAppScanner,
+} from "../../pieces/docture/lib/profile.js";
 export { callerOf } from "./ports.js";
 export type { Caller, AccessPort, DocumentReader } from "./ports.js";
 
@@ -247,10 +244,7 @@ export class ConversionService {
   }
   private plan(profile: ConversionProfile) {
     try {
-      return resolvePlan(profile, {
-        probe: this.probe(),
-        integrated: WORKFLOW_AI,
-      });
+      return resolvePlan(profile, this.probe());
     } catch (error) {
       if (error instanceof PlanRefusal)
         throw new ConversionRefusal(422, error.code, error.message, false);
@@ -273,7 +267,7 @@ export class ConversionService {
     };
   }
   capabilities(_caller: Caller) {
-    const capabilities = capabilitiesOf(this.probe(), WORKFLOW_AI);
+    const capabilities = capabilitiesOf(this.probe());
     return Promise.resolve({
       ...capabilities,
       execution: {
@@ -334,7 +328,7 @@ export class ConversionService {
   }
   private async requireModels(profile: ConversionProfile) {
     try {
-      await this.models.require(recognitionOf(profile));
+      await this.models.require(localOcrOf(profile));
     } catch (error) {
       if (error instanceof ModelsNotReady)
         throw new ConversionRefusal(

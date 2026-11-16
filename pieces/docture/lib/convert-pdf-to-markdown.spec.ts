@@ -122,7 +122,6 @@ describe("Docture in the workflow editor", () => {
       "recognition",
       "paddleModel",
       "languages",
-      "aiLayout",
       "pages",
       "onIncomplete",
       "resolvedPlan",
@@ -180,11 +179,6 @@ describe("converting in the step", () => {
     expect(manifest.markdown).toEqual(output.markdown);
     expect(manifest.plan).toEqual(output.plan);
     expect(stored.size).toBe(2);
-    expect(output.usage).toMatchObject({
-      kind: "known",
-      requests: 0,
-      aiPages: 0,
-    });
   });
 
   it("stops without storing anything when pages cannot be read, unless told to continue", async () => {
@@ -224,12 +218,11 @@ describe("converting in the step", () => {
     expect(read(output.markdown.ref)).not.toContain("First page");
   });
 
-  it("refuses AI on this host before reading or storing", async () => {
+  it("refuses AI reading a step saved earlier may still name, before reading or storing", async () => {
     const store = fileStore();
     for (const props of [
       { method: "ai" },
       { method: "smart", recognition: "ai" },
-      { method: "digital", aiLayout: true },
     ]) {
       const error = await refusal(
         convertPdf({
@@ -238,7 +231,7 @@ describe("converting in the step", () => {
           files: store.files,
         }),
       );
-      expect(error).toMatchObject({ code: "ai-unavailable" });
+      expect(error).toBeInstanceOf(ConversionInputError);
     }
     expect(store.stored.size).toBe(0);
   });
@@ -307,10 +300,7 @@ describe("with a plan pinned by an earlier step", () => {
       ...defaultConversionProfile,
       reading: { kind: "digital" },
     },
-    {
-      probe,
-      integrated: { kind: "unavailable", reason: "none", setup: "none" },
-    },
+    probe,
   );
 
   it("reads with the pinned plan, also given as JSON text, ignoring the form's method", async () => {
