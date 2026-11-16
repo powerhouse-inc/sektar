@@ -6,7 +6,11 @@ allowBuilds:
   bufferutil: true
   esbuild: true
   keccak: true
+  # Its script only downloads optional CUDA binaries; the CPU ones ship in the package.
+  onnxruntime-node: false
   protobufjs: true
+  # Its only script prints an opencollective banner.
+  tesseract.js: false
   utf-8-validate: true
 overrides:
   "@tanstack/react-router": "1.170.41"

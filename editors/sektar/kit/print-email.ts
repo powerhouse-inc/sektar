@@ -5,6 +5,7 @@ import type { EmailDocument } from "document-models/email";
 import { emailPrintHtml } from "./email-print.js";
 import type { AttachmentClient } from "./files.js";
 import { printHtml } from "./print.js";
+import { parsePublicationRowId } from "../../../conversions/publication-id.js";
 
 const cidKey = (cid: string) => cid.trim().replace(/^<|>$/g, "").toLowerCase();
 
@@ -15,7 +16,7 @@ export async function printEmail(doc: EmailDocument, client: AttachmentClient | 
   if (client) {
     await Promise.all(
       s.attachments
-        .filter((a) => a.contentId)
+        .filter((a) => a.contentId && !parsePublicationRowId(a.id))
         .map(async (a) => {
           try {
             const o = await client.downloadObjectUrl({ documentId: doc.header.id, ref: a.ref });

@@ -2,6 +2,7 @@
 // filed by the Gmail workflow; the list itself is read through the mailbox
 // index (kit/mail-index.ts), never by loading every document.
 import { dispatchActions } from "@powerhousedao/reactor-browser";
+import { parsePublicationRowId } from "../../../conversions/publication-id.js";
 import {
   actions as emailActions,
   type EmailAttachment,
@@ -167,11 +168,12 @@ export function bytes(size: number | null | undefined): string {
  * with a real name and the more specific type.
  */
 export function uniqueAttachments<
-  T extends Pick<EmailAttachment, "ref" | "fileName" | "mimeType">,
+  T extends Pick<EmailAttachment, "ref" | "fileName" | "mimeType"> & { id?: string },
 >(attachments: readonly T[]): T[] {
   const synthesised = (a: T) => /^attachment-\d+$/i.test(a.fileName);
   const byRef = new Map<string, T>();
   for (const a of attachments) {
+    if (parsePublicationRowId(a.id)) continue;
     const cur = byRef.get(a.ref);
     if (!cur) {
       byRef.set(a.ref, a);
@@ -236,7 +238,7 @@ export function matchesMail(query: string, doc: EmailDocument): boolean {
     ...s.from.map((m) => `${m.name ?? ""} ${m.address}`),
     ...s.to.map((m) => `${m.name ?? ""} ${m.address}`),
     ...s.labels,
-    ...s.attachments.map((a) => a.fileName),
+    ...uniqueAttachments(s.attachments).map((a) => a.fileName),
   ]
     .filter(Boolean)
     .join(" ")

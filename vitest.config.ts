@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     globals: true,
     // A desktop build leaves copies of the project here, tests included.
-    exclude: [...configDefaults.exclude, "hosts/desktop/tauri-shell/**"],
+    exclude: [...configDefaults.exclude, "hosts/desktop/tauri-shell/**", ".ph/**"],
     coverage: {
       provider: "v8",
       include: ["document-models/**/src/reducers/**"],

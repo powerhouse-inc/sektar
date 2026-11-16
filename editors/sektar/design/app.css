@@ -1514,6 +1514,15 @@ html:has(.sk-app.sk-shell) body {
 /* file rows: a tile, a name, a meta line, actions on the right */
 .sk-app .sk-file-rows { list-style: none; margin: 0; padding: 0; border: 1px solid var(--sk-border-subtle); border-radius: var(--sk-radius-lg); overflow: hidden; background: var(--sk-surface); }
 .sk-app .sk-file-rows > .sk-file-row + .sk-file-row { border-top: 1px solid var(--sk-border-subtle); }
+/* Rows whose menus open past the list's edge (Extracted content): the list
+   does not clip them, and its end rows round their own corners instead. */
+.sk-app .sk-file-rows--menus { overflow: visible; }
+.sk-app .sk-file-rows--menus > .sk-file-row:first-child,
+.sk-app .sk-file-rows--menus > .sk-file-row.is-active:first-child::before { border-top-left-radius: var(--sk-radius-lg); }
+.sk-app .sk-file-rows--menus > .sk-file-row:first-child { border-top-right-radius: var(--sk-radius-lg); }
+.sk-app .sk-file-rows--menus > .sk-file-row:last-child,
+.sk-app .sk-file-rows--menus > .sk-file-row.is-active:last-child::before { border-bottom-left-radius: var(--sk-radius-lg); }
+.sk-app .sk-file-rows--menus > .sk-file-row:last-child { border-bottom-right-radius: var(--sk-radius-lg); }
 .sk-app .sk-file-drop--filled > .sk-file-row { border: 1px solid var(--sk-border-subtle); border-radius: var(--sk-radius-lg); background: var(--sk-surface); }
 .sk-app .sk-file-row { display: flex; align-items: center; gap: var(--sk-space-2); padding-right: var(--sk-space-2); position: relative; }
 .sk-app .sk-file-row.is-active { background: var(--sk-surface-3); }
@@ -1531,6 +1540,9 @@ html:has(.sk-app.sk-shell) body {
 .sk-app .sk-file-row__meta { font-size: var(--sk-text-xs); color: var(--sk-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sk-app .sk-file-row__flag { font-size: 10px; font-weight: var(--sk-weight-medium); text-transform: uppercase; letter-spacing: 0.06em; color: var(--sk-text-muted); border: 1px solid var(--sk-border); border-radius: var(--sk-radius-full); padding: 0 6px; line-height: 16px; }
 .sk-app .sk-file-row__actions { display: inline-flex; align-items: center; gap: var(--sk-space-1); flex: none; }
+/* An earlier version of a result: its tile is faded */
+.sk-app .sk-file-type--md { background: var(--sk-forest-700); }
+.sk-app .sk-file-type--earlier { opacity: 0.55; }
 
 .sk-app .sk-file-renditions { display: flex; flex-direction: column; gap: var(--sk-space-3); border-radius: var(--sk-radius-lg); }
 .sk-app .sk-file-renditions__empty { margin: 0; padding: var(--sk-space-4); border: 1px dashed var(--sk-border); border-radius: var(--sk-radius-lg); background: var(--sk-bg-subtle); }
@@ -1584,6 +1596,217 @@ html:has(.sk-app.sk-shell) body {
 .sk-app .sk-file-props__row dt { color: var(--sk-text-muted); }
 .sk-app .sk-file-props__row dd { margin: 0; overflow-wrap: anywhere; min-width: 0; }
 .sk-app .sk-file-props__chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+
+/* ----- conversion to Markdown (components/Conversion.tsx, Markdown.tsx) ----
+   A PDF's Markdown in the File and Mail previews: where a conversion stands,
+   the request dialog, the result as a document, and its details. */
+.sk-app .sk-convert-status { display: flex; flex-direction: column; gap: var(--sk-space-2); }
+.sk-app .sk-convert-status > p { margin: 0; }
+.sk-app .sk-convert-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sk-space-2); margin: 0; font-size: var(--sk-text-sm); color: var(--sk-text-secondary); }
+.sk-app .sk-convert-status .sk-btn--link { font-size: inherit; }
+.sk-modal:has(.sk-convert-dialog) { width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; }
+.sk-modal:has(.sk-convert-dialog) > .sk-modal__body { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.sk-modal:has(.sk-convert-dialog) > :is(.sk-modal__title, .sk-modal__footer) { flex: none; }
+.sk-app .sk-convert-dialog > p { margin: 0; }
+.sk-app .sk-convert-setup { list-style: none; margin: 0; padding: var(--sk-space-3) var(--sk-space-4); display: flex; flex-direction: column; gap: var(--sk-space-2); border-radius: var(--sk-radius-md); background: var(--sk-warning-bg); color: var(--sk-warning-text); font-size: var(--sk-text-sm); }
+/* Disclosures (details, Technical details, Earlier versions, Language and engine): a chevron that turns when open */
+.sk-app :is(.sk-convert-details, .sk-convert-earlier, .sk-convert-disclosure) > summary { display: inline-flex; align-items: center; gap: var(--sk-space-1); cursor: pointer; width: fit-content; list-style: none; font-size: var(--sk-text-sm); font-weight: var(--sk-weight-medium); color: var(--sk-text-secondary); }
+.sk-app :is(.sk-convert-details, .sk-convert-earlier, .sk-convert-disclosure) > summary::-webkit-details-marker { display: none; }
+.sk-app :is(.sk-convert-details, .sk-convert-earlier, .sk-convert-disclosure) > summary .sk-icon { transition: transform var(--sk-duration-fast); }
+.sk-app :is(.sk-convert-details, .sk-convert-earlier, .sk-convert-disclosure)[open] > summary .sk-icon { transform: rotate(90deg); }
+.sk-app .sk-convert-details { font-size: var(--sk-text-sm); }
+.sk-app .sk-convert-details[open] > summary { margin-bottom: var(--sk-space-2); }
+.sk-app .sk-convert-details--nested { margin-top: var(--sk-space-3); }
+.sk-app .sk-convert-details .sk-kv dd { font-size: var(--sk-text-sm); overflow-wrap: anywhere; }
+.sk-app .sk-convert-warnings { margin: 0; padding-left: var(--sk-space-4); }
+.sk-app .sk-convert-earlier[open] > summary { margin-bottom: var(--sk-space-2); }
+.sk-app .sk-convert-disclosure[open] > summary { margin-bottom: var(--sk-space-3); }
+/* Convert to Markdown with its arrow: one control of two halves */
+.sk-app .sk-split-button { display: inline-flex; align-items: stretch; }
+.sk-app .sk-split-button > .sk-btn { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.sk-app .sk-split-button > .sk-menu-host > .sk-btn { height: 100%; margin-left: -1px; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.sk-app .sk-split-button .sk-btn .sk-spinner { width: 14px; height: 14px; }
+.sk-app .sk-convert-option { display: flex; flex-direction: column; align-items: flex-start; }
+.sk-app .sk-convert-option__help { max-width: 240px; white-space: normal; font-size: var(--sk-text-xs); color: var(--sk-text-muted); }
+/* The dialog's methods: one card each */
+.sk-app .sk-convert-choices { display: flex; flex-direction: column; gap: var(--sk-space-2); }
+.sk-app .sk-convert-choice { display: flex; align-items: flex-start; gap: var(--sk-space-3); padding: var(--sk-space-3); border: 1px solid var(--sk-border); border-radius: var(--sk-radius-md); background: var(--sk-surface); cursor: pointer; }
+.sk-app .sk-convert-choice > input { margin: 3px 0 0; accent-color: var(--sk-primary); }
+.sk-app .sk-convert-choice.is-selected { border-color: var(--sk-primary); box-shadow: inset 0 0 0 1px var(--sk-primary); background: var(--sk-surface-2); }
+.sk-app .sk-convert-choice.is-disabled { cursor: not-allowed; opacity: 0.6; }
+.sk-app .sk-convert-choice__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sk-app .sk-convert-choice__title { display: inline-flex; align-items: center; gap: var(--sk-space-2); font-weight: var(--sk-weight-medium); color: var(--sk-text); }
+.sk-app .sk-convert-choice__help { font-size: var(--sk-text-sm); color: var(--sk-text-muted); }
+/* A conversion under way, as the row its result will take */
+.sk-app .sk-file-row.sk-convert-pending:hover { background: transparent; }
+.sk-app .sk-convert-pending .sk-file-row__main { cursor: default; }
+.sk-app .sk-convert-pending__tile { display: grid; place-items: center; background: var(--sk-bg-subtle); color: var(--sk-text-muted); }
+.sk-app .sk-convert-pending__tile::before { display: none; }
+.sk-app .sk-convert-pending__note { font-size: var(--sk-text-xs); white-space: normal; }
+.sk-app .sk-convert-pending .sk-file-row__meta { white-space: normal; }
+.sk-app .sk-convert-pending .sk-btn--link { font-size: var(--sk-text-sm); }
+/* In Mail the preview fills its pane; a result is as tall as what it holds. */
+.sk-app .sk-mail .sk-convert-result { height: auto; }
+.sk-app .sk-preview__toolbar .sk-segmented__item { padding: 4px 10px; font-size: var(--sk-text-xs); }
+/* The result's toolbar stays one line at Mail's pane width: the name gives way first. */
+.sk-app .sk-convert-result > .sk-preview__toolbar { flex-wrap: nowrap; min-width: 0; }
+.sk-app .sk-convert-result > .sk-preview__toolbar > :is(.sk-segmented, .sk-btn, .sk-menu-host, .sk-convert-result__read) { flex: none; }
+.sk-app .sk-convert-result { container-type: inline-size; }
+.sk-app .sk-convert-result__read { white-space: nowrap; }
+/* A narrow pane (Mail) has no room for the partial badge in the toolbar: it takes a line under it. */
+.sk-app .sk-convert-result__read-line { display: none; }
+@container (max-width: 480px) {
+  .sk-app .sk-convert-result > .sk-preview__toolbar > .sk-convert-result__read { display: none; }
+  .sk-app .sk-convert-result__read-line { display: block; }
+}
+.sk-app .sk-convert-result__note { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-app .sk-convert-result > .sk-preview__toolbar .sk-more { width: 32px; height: 32px; }
+
+.sk-app .sk-markdown { padding: var(--sk-space-5) var(--sk-space-6); max-height: 70vh; overflow: auto; font-size: var(--sk-text-sm); line-height: 1.65; color: var(--sk-text); overflow-wrap: anywhere; }
+.sk-app .sk-markdown > * + * { margin-top: var(--sk-space-3); }
+/* The converter writes a PDF's lines (an address, a letterhead) as the lines of a paragraph: they stay lines. */
+.sk-app .sk-markdown :is(p, li) { white-space: pre-line; }
+.sk-app .sk-markdown :is(h1, h2, h3, h4, h5, h6) { font-family: var(--sk-font-sans); font-weight: var(--sk-weight-semibold); line-height: 1.3; letter-spacing: 0; }
+.sk-app .sk-markdown h1 { font-size: var(--sk-text-xl); }
+.sk-app .sk-markdown h2 { font-size: var(--sk-text-lg); }
+.sk-app .sk-markdown :is(h3, h4, h5, h6) { font-size: var(--sk-text-md); }
+.sk-app .sk-markdown > :is(h1, h2, h3, h4, h5, h6):not(:first-child) { margin-top: var(--sk-space-5); }
+.sk-app .sk-markdown :is(ul, ol) { margin: 0; padding-left: var(--sk-space-6); }
+.sk-app .sk-markdown ul { list-style: disc; }
+.sk-app .sk-markdown ol { list-style: decimal; }
+.sk-app .sk-markdown li > * + * { margin-top: var(--sk-space-2); }
+.sk-app .sk-markdown a { color: var(--sk-text-link); text-decoration: underline; text-underline-offset: 0.2em; }
+.sk-app .sk-markdown code { font-family: var(--sk-font-mono); font-size: 0.92em; padding: 1px 4px; border-radius: var(--sk-radius-xs, 4px); background: var(--sk-bg-subtle); }
+.sk-app .sk-markdown pre { margin: 0; padding: var(--sk-space-3) var(--sk-space-4); border-radius: var(--sk-radius-md); background: var(--sk-bg-subtle); overflow-x: auto; white-space: pre; }
+.sk-app .sk-markdown pre code { padding: 0; background: none; }
+.sk-app .sk-markdown blockquote { margin: 0; padding-left: var(--sk-space-4); border-left: 3px solid var(--sk-border); color: var(--sk-text-secondary); }
+.sk-app .sk-markdown blockquote > * + * { margin-top: var(--sk-space-2); }
+.sk-app .sk-markdown hr { border: 0; border-top: 1px solid var(--sk-border-subtle); }
+.sk-app .sk-markdown__table { overflow-x: auto; }
+.sk-app .sk-markdown table { border-collapse: collapse; font-size: var(--sk-text-sm); }
+.sk-app .sk-markdown :is(th, td) { padding: var(--sk-space-1) var(--sk-space-3); border: 1px solid var(--sk-border-subtle); text-align: left; vertical-align: top; }
+.sk-app .sk-markdown th { background: var(--sk-bg-subtle); font-weight: var(--sk-weight-medium); }
+.sk-app .sk-markdown__image { color: var(--sk-text-muted); font-style: italic; }
+/* Where a page of the PDF begins, when the document has more than one */
+.sk-app .sk-markdown__page { display: flex; align-items: center; gap: var(--sk-space-3); font-size: var(--sk-text-xs); color: var(--sk-text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.sk-app .sk-markdown__page::after { content: ""; flex: 1; border-top: 1px solid var(--sk-border-subtle); }
+.sk-app .sk-markdown > .sk-markdown__page:not(:first-child) { margin-top: var(--sk-space-6); }
+/* Where a page the Markdown is missing belongs: why, and what to do */
+.sk-app .sk-markdown__missing { padding: var(--sk-space-3); border: 1px dashed var(--sk-warning); border-radius: var(--sk-radius-md); background: var(--sk-warning-bg); color: var(--sk-warning-text); font-size: var(--sk-text-sm); line-height: 1.5; }
+.sk-app .sk-markdown__missing > p { margin: 0; white-space: normal; }
+.sk-app .sk-markdown__missing-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sk-space-2); margin-top: var(--sk-space-2); }
+.sk-app .sk-markdown__missing .sk-btn--secondary { background: var(--sk-surface); }
+.sk-app .sk-markdown__missing .sk-btn--link { font-size: var(--sk-text-sm); }
+
+/* Settings → Document conversion (hosts/connect/routes/-shared/conversion-settings.tsx):
+   one app-wide configuration with separate access and batch actions. */
+.sk-app section:has(> .sk-convert-settings) { overflow: visible; }
+.sk-app .sk-convert-settings { display: flex; flex-direction: column; gap: var(--sk-space-6); max-width: 720px; }
+.sk-app .sk-convert-settings__header { display: grid; gap: var(--sk-space-2); }
+.sk-app .sk-convert-settings__header h2 { font-size: var(--sk-text-xl); font-weight: var(--sk-weight-semibold); }
+.sk-app .sk-convert-settings__header p { margin: 0; }
+.sk-app .sk-convert-settings__section { display: flex; flex-direction: column; gap: var(--sk-space-3); min-width: 0; margin: 0; padding: 0; border: 0; }
+.sk-app .sk-convert-settings__section > :is(legend, h3) { padding: 0; font-size: var(--sk-text-md); font-weight: var(--sk-weight-semibold); }
+/* A legend is not laid out by its fieldset's gap. */
+.sk-app .sk-convert-settings__section > legend { margin-bottom: var(--sk-space-3); }
+.sk-app .sk-convert-settings__section > p { margin: 0; }
+.sk-app .sk-convert-settings__section:disabled > :not(legend) { opacity: 0.55; }
+.sk-app .sk-convert-settings__reading { border-top: 1px solid var(--sk-border-subtle); padding-top: var(--sk-space-5); }
+.sk-app .sk-convert-settings__reading > legend { float: left; width: 100%; margin-bottom: 0; }
+.sk-app .sk-convert-settings__link { color: var(--sk-primary); text-underline-offset: 3px; }
+/* A choice of one as cards, all visible (kit/choice-cards.tsx) */
+.sk-app .sk-choice-cards { min-width: 0; margin: 0; padding: 0; border: 0; }
+.sk-app .sk-choice-cards > legend { padding: 0; margin-bottom: var(--sk-space-2); }
+.sk-app .sk-choice-cards__scale { display: flex; justify-content: space-between; margin: 0 2px var(--sk-space-2); font-size: var(--sk-text-xs); color: var(--sk-text-muted); }
+.sk-app .sk-choice-cards__room { container-type: inline-size; }
+.sk-app .sk-choice-cards__grid { display: grid; grid-template-columns: repeat(var(--sk-choice-columns, 1), minmax(0, 1fr)); gap: var(--sk-space-3); }
+@container (max-width: 560px) {
+  .sk-app .sk-choice-cards__grid:is([data-columns="3"], [data-columns="4"]) { grid-template-columns: minmax(0, 1fr); }
+  .sk-app .sk-choice-cards__scale { display: none; }
+}
+@container (max-width: 380px) { .sk-app .sk-choice-cards__grid { grid-template-columns: minmax(0, 1fr); } }
+.sk-app .sk-choice-card { display: flex; flex-direction: column; gap: var(--sk-space-2); padding: var(--sk-space-4); border: 1px solid var(--sk-border); border-radius: var(--sk-radius-md); background: var(--sk-surface); cursor: pointer; transition: border-color var(--sk-duration-fast), background var(--sk-duration-fast); }
+.sk-app .sk-choice-card:hover { border-color: var(--sk-border-strong); }
+.sk-app .sk-choice-card:has(input:checked) { border-color: var(--sk-primary); box-shadow: inset 0 0 0 1px var(--sk-primary); background: var(--sk-surface-2); }
+.sk-app .sk-choice-card:has(input:focus-visible) { box-shadow: var(--sk-shadow-focus); }
+.sk-app .sk-choice-card:has(input:checked:focus-visible) { box-shadow: inset 0 0 0 1px var(--sk-primary), var(--sk-shadow-focus); }
+.sk-app .sk-choice-card.is-disabled { cursor: not-allowed; opacity: 0.6; }
+.sk-app .sk-choice-card.is-disabled:hover { border-color: var(--sk-border); }
+.sk-app .sk-choice-card__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sk-space-2); }
+.sk-app .sk-choice-card__name { font-weight: var(--sk-weight-medium); color: var(--sk-text); }
+.sk-app .sk-choice-card__tick { display: grid; place-items: center; flex: none; width: 18px; height: 18px; border: 1.5px solid var(--sk-border); border-radius: var(--sk-radius-full); color: transparent; }
+.sk-app .sk-choice-card__tick path { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.sk-app .sk-choice-card:has(input:checked) .sk-choice-card__tick { background: var(--sk-primary); border-color: var(--sk-primary); color: var(--sk-surface); }
+.sk-app .sk-choice-card__facts { display: flex; flex-direction: column; gap: var(--sk-space-1); padding: var(--sk-space-2) 0; border-block: 1px solid var(--sk-border-subtle); }
+.sk-app .sk-choice-card__fact { display: flex; align-items: center; justify-content: space-between; gap: var(--sk-space-2); font-size: var(--sk-text-xs); color: var(--sk-text-secondary); }
+.sk-app .sk-choice-card__dots { display: inline-flex; gap: 3px; }
+.sk-app .sk-choice-card__dots > i { width: 7px; height: 7px; border: 1px solid var(--sk-border); border-radius: var(--sk-radius-full); background: var(--sk-bg-subtle); }
+.sk-app .sk-choice-card__dots > i.is-on { border-color: var(--sk-primary); background: var(--sk-primary); }
+.sk-app .sk-choice-card__text { font-size: var(--sk-text-sm); color: var(--sk-text-muted); }
+/* An on/off choice as a chip: OCR languages */
+.sk-app .sk-chip-toggle > span { display: inline-flex; align-items: center; gap: var(--sk-space-1); padding: 6px 12px; border: 1px solid var(--sk-border); border-radius: var(--sk-radius-full); font-size: var(--sk-text-sm); color: var(--sk-text-secondary); cursor: pointer; }
+.sk-app .sk-chip-toggle > input:checked + span { border-color: var(--sk-primary); background: var(--sk-accent-subtle); color: var(--sk-text-brand); }
+.sk-app .sk-chip-toggle > input:checked + span::before { content: "✓"; font-size: 11px; }
+.sk-app .sk-chip-toggle > input:focus-visible + span { box-shadow: var(--sk-shadow-focus); }
+.sk-app .sk-chip-toggle > input:disabled + span { cursor: not-allowed; }
+.sk-app .sk-convert-settings__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sk-space-3) var(--sk-space-4); align-items: start; }
+.sk-app .sk-convert-settings__save { display: flex; align-items: center; justify-content: space-between; gap: var(--sk-space-3); padding: var(--sk-space-4); border: 1px solid var(--sk-border); border-radius: var(--sk-radius-md); background: var(--sk-surface); }
+.sk-app .sk-convert-settings__save.is-dirty { position: sticky; bottom: var(--sk-space-3); z-index: 2; box-shadow: var(--sk-shadow-md); }
+.sk-app .sk-convert-settings__save-copy { display: grid; gap: var(--sk-space-1); min-width: 0; font-size: var(--sk-text-sm); }
+.sk-app .sk-convert-settings__save-copy strong { font-weight: var(--sk-weight-medium); }
+.sk-app .sk-convert-settings__buttons { display: flex; flex-shrink: 0; flex-wrap: wrap; align-items: center; gap: var(--sk-space-2); }
+.sk-app .sk-convert-settings__limits { border-top: 1px solid var(--sk-border-subtle); padding-top: var(--sk-space-3); }
+.sk-app .sk-convert-settings__limits > summary { list-style: none; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sk-space-1) var(--sk-space-3); cursor: pointer; }
+.sk-app .sk-convert-settings__limits[open] > summary { margin-bottom: var(--sk-space-3); }
+.sk-app .sk-convert-settings__limits > summary::-webkit-details-marker { display: none; }
+.sk-app .sk-convert-settings__limits > summary::before { content: ""; align-self: center; width: 6px; height: 6px; margin: 0 2px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform 0.15s; }
+.sk-app .sk-convert-settings__limits[open] > summary::before { transform: rotate(45deg); }
+.sk-app .sk-convert-settings__limits-title { font-size: var(--sk-text-md); font-weight: var(--sk-weight-semibold); }
+.sk-app .sk-convert-settings__limits .sk-convert-settings__grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.sk-app .sk-convert-settings__limit { position: relative; display: block; }
+.sk-app .sk-convert-settings__limit > .sk-input { width: 100%; padding-right: 88px; }
+.sk-app .sk-convert-settings__unit { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: var(--sk-text-sm); color: var(--sk-text-muted); pointer-events: none; }
+.sk-app .sk-convert-settings__host-limits { padding: var(--sk-space-4); border-radius: var(--sk-radius-md); background: var(--sk-surface-2); font-size: var(--sk-text-sm); color: var(--sk-text-secondary); }
+.sk-app .sk-convert-settings__host-limits strong { display: block; color: var(--sk-text); font-weight: var(--sk-weight-medium); margin-bottom: var(--sk-space-2); }
+.sk-app .sk-convert-settings__host-limits p { margin: 0; }
+.sk-app .sk-convert-settings__access > p { margin: 0 0 var(--sk-space-3); }
+.sk-app .sk-convert-settings__access > div + p { margin-top: var(--sk-space-2); }
+.sk-app .sk-convert-settings__existing { padding: var(--sk-space-4); border: 1px solid var(--sk-border); border-radius: var(--sk-radius-md); background: var(--sk-surface-2); scroll-margin-top: var(--sk-space-4); }
+.sk-app .sk-convert-settings__existing-heading { display: flex; align-items: center; gap: var(--sk-space-4); }
+.sk-app .sk-convert-settings__existing-heading > div { flex: 1; }
+.sk-app .sk-convert-settings__existing-heading h3 { font-size: var(--sk-text-md); font-weight: var(--sk-weight-semibold); margin-bottom: var(--sk-space-1); }
+.sk-app .sk-convert-settings__existing-heading .sk-btn { flex-shrink: 0; }
+@media (max-width: 760px) {
+  .sk-app div:has(> section > .sk-convert-settings) { flex-direction: column; }
+  .sk-app nav:has(+ section > .sk-convert-settings) { width: auto; border-bottom: 1px solid var(--sk-border-subtle); }
+  .sk-app nav:has(+ section > .sk-convert-settings) > ul { flex-direction: row; flex-wrap: wrap; }
+  .sk-app section:has(> .sk-convert-settings) { padding: var(--sk-space-4); }
+  .sk-app .sk-convert-settings__save { flex-wrap: wrap; }
+  .sk-app .sk-convert-settings__save-copy { flex-basis: 100%; }
+  .sk-app .sk-convert-settings__buttons { margin-left: auto; }
+  .sk-app .sk-convert-settings__existing-heading { align-items: flex-start; flex-direction: column; }
+  .sk-app .sk-convert-settings__limits .sk-convert-settings__grid { grid-template-columns: minmax(0, 1fr); }
+}
+.sk-modal:has(.sk-convert-batch) { width: min(600px, calc(100vw - 32px)); }
+.sk-app .sk-convert-batch > p { margin: 0; }
+.sk-app .sk-convert-batch .sk-select { width: 100%; }
+.sk-app .sk-convert-batch__loading { display: flex; align-items: center; gap: var(--sk-space-2); font-size: var(--sk-text-sm); color: var(--sk-text-secondary); }
+.sk-app .sk-convert-batch__list { list-style: none; margin: 0; padding: 0; max-height: 280px; overflow-y: auto; border: 1px solid var(--sk-border-subtle); border-radius: var(--sk-radius-md); }
+.sk-app .sk-convert-batch__list > li { display: flex; align-items: center; gap: var(--sk-space-2); padding: var(--sk-space-2) var(--sk-space-3); font-size: var(--sk-text-sm); }
+.sk-app .sk-convert-batch__list > li + li { border-top: 1px solid var(--sk-border-subtle); }
+.sk-app .sk-convert-batch__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sk-app .sk-convert-batch__size { flex: none; font-size: var(--sk-text-xs); color: var(--sk-text-muted); }
+.sk-app .sk-convert-languages { min-width: 0; margin: 0; padding: 0; border: 0; }
+.sk-app .sk-convert-languages > legend { padding: 0; margin-bottom: var(--sk-space-1); }
+.sk-app .sk-convert-languages__choices { display: flex; flex-wrap: wrap; gap: var(--sk-space-2) var(--sk-space-4); margin-top: var(--sk-space-2); }
+/* How to read a PDF: method, then the scanner with its own options nested under it */
+.sk-app .sk-convert-reading { display: flex; flex-direction: column; gap: var(--sk-space-5); }
+.sk-app .sk-convert-scanner { display: flex; flex-direction: column; gap: var(--sk-space-5); padding: var(--sk-space-4); border: 1px solid var(--sk-border-subtle); border-radius: var(--sk-radius-lg); background: var(--sk-surface); }
+.sk-app .sk-convert-scanner__options { display: flex; flex-direction: column; gap: var(--sk-space-5); }
+.sk-app .sk-convert-app-scanner { gap: var(--sk-space-3); padding: var(--sk-space-3) var(--sk-space-4); }
+.sk-app .sk-convert-app-scanner__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--sk-space-1) var(--sk-space-3); }
+.sk-app .sk-convert-app-scanner__name { font-size: var(--sk-text-sm); font-weight: var(--sk-weight-medium); color: var(--sk-text); }
+.sk-app .sk-convert-app-scanner .sk-caption { margin: 0; }
 
 /* ----- the Files drive app ------------------------------------------------ */
 .sk-app .sk-files .sk-pane--start .sk-pane__body { padding: var(--sk-space-2) 0; }

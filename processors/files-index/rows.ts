@@ -8,6 +8,7 @@
 // rebuilt by replaying its structure operations over the rows (DriveTree),
 // as the reactor's own node projection does.
 import type { FileDocRow, FileNodeRow, SyncMappingRow } from "./schema.js";
+import { parsePublicationRowId } from "../../conversions/publication.js";
 
 type Json = Record<string, unknown>;
 
@@ -76,7 +77,9 @@ const isImage = (mime: string | null) => (mime ?? "").toLowerCase().startsWith("
 /** A File document's row from its global state. */
 export function fileDocRow(documentId: string, state: Json, at: string): FileDocRow {
   const source = (state.source && typeof state.source === "object" ? state.source : null) as Json | null;
-  const renditions = Array.isArray(state.renditions) ? (state.renditions as Json[]) : [];
+  const renditions = (Array.isArray(state.renditions) ? (state.renditions as Json[]) : []).filter((rendition) => {
+    return parsePublicationRowId(rendition.id)?.role !== "manifest";
+  });
   const tags = Array.isArray(state.tags)
     ? (state.tags as Json[])
         .map((t) => ({ id: str(t.id) ?? "", label: str(t.label) ?? "", color: str(t.color) ?? "neutral" }))

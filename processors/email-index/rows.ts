@@ -4,6 +4,7 @@
 // row; one that does not is applied to the row the way the reducer applies
 // it to the document, field by field, so the two paths agree.
 import type { EmailRow } from "./schema.js";
+import { parsePublicationRowId } from "../../conversions/publication.js";
 
 type Json = Record<string, unknown>;
 
@@ -122,6 +123,7 @@ export function rowFromState(
   const others = [...mailboxes(state.to), ...mailboxes(state.cc)];
   const files: Attachment[] = Array.isArray(state.attachments)
     ? (state.attachments as Json[])
+        .filter((a) => !parsePublicationRowId(a.id))
         .map((a) => ({
           id: str(a.id) ?? "",
           ref: str(a.ref) ?? "",
@@ -198,6 +200,7 @@ export function applyAction(
     }
     case "ADD_ATTACHMENT": {
       const id = str(i.id);
+      if (parsePublicationRowId(id)) break;
       const ref = str(i.ref);
       const name = str(i.fileName) ?? "";
       if (!id || !ref) break;

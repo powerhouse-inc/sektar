@@ -35,7 +35,8 @@ import {
   itemFromKey,
   itemKey,
   LinkedDocumentPreview,
-  renditionName,
+  listedRenditions,
+  renditionOptions,
   SOURCE_ITEM,
   useTypeName,
   type PreviewItem,
@@ -43,9 +44,11 @@ import {
 import { useFilesList, useFolderTree, useSyncMappings, type FileListRow, type FolderRow } from "../../sektar/kit/files-index.js";
 import { createMapping, isPlaceholderKind, requestPull, SYNC_TYPE } from "../../sektar/kit/folder-sync.js";
 import { bytes, createEmptyFile, createFileFromUpload, FILE_TYPE, fileKind } from "../../sektar/kit/files.js";
+import { useNow } from "../../sektar/kit/format.js";
 import { Menu } from "../../sektar/kit/menu.js";
 import { useSearch } from "../../sektar/kit/search-context.js";
 import { Button, cx, EmptyState, Icon, Modal, Selector, Skeleton } from "../../sektar/kit/ui.js";
+import { useFileConversion } from "../../sektar/kit/use-conversion.js";
 import { useRowWindow } from "../../sektar/kit/virtual.js";
 import { Pane, Workspace } from "../../sektar/kit/workspace.js";
 import { SyncGlyph } from "../../sektar/kit/sync-glyphs.js";
@@ -911,7 +914,6 @@ function FilePreviewPanel({
 }) {
   const q = useDocumentSafe(row.id);
   const doc = q.data && isFileDocument(q.data) ? q.data : undefined;
-  const [item, setItem] = useState<PreviewItem>(SOURCE_ITEM);
   // The open File changed (a pull from disk, a retag): only the File's own
   // operations moved, not the drive's, so the listing is told here. Once now,
   // and once more after the index has had a beat to follow.
@@ -944,6 +946,14 @@ function FilePreviewPanel({
       </div>
     );
   }
+  return <LoadedFilePreview doc={doc} onOpen={onOpen} />;
+}
+
+/** A loaded File: what it is, the picker of its source and renditions, and the one picked. */
+function LoadedFilePreview({ doc, onOpen }: { doc: FileDocument; onOpen: () => void }) {
+  const [item, setItem] = useState<PreviewItem>(SOURCE_ITEM);
+  const conversion = useFileConversion(doc);
+  const now = useNow();
   const s = doc.state.global;
   const options = [
     {
@@ -952,12 +962,8 @@ function FilePreviewPanel({
       meta: s.source ? (s.source.kind === "DOCUMENT" ? "Document" : (s.source.mimeType ?? "File")) : "Not set",
       icon: "upload" as const,
     },
-    ...s.renditions.map((r) => ({
-      value: itemKey({ kind: "rendition", id: r.id }),
-      name: renditionName(r),
-      meta: r.mimeType,
-      icon: "copy" as const,
-    })),
+    // Markdown a conversion is still writing is not offered until it is finalized.
+    ...renditionOptions(listedRenditions(doc, conversion.renditions), conversion, now),
   ];
   return (
     <div className="sk-files-preview">
@@ -966,7 +972,7 @@ function FilePreviewPanel({
         {s.description && <p className="sk-files-preview__desc">{s.description}</p>}
         <TagBadges tags={s.tags} max={8} />
       </div>
-      {s.placeholder && <DiskChangeAlert key={s.placeholder.foundAt} fileId={row.id} placeholder={s.placeholder} />}
+      {s.placeholder && <DiskChangeAlert key={s.placeholder.foundAt} fileId={doc.header.id} placeholder={s.placeholder} />}
       <div className="sk-row" style={{ gap: "var(--sk-space-2)", alignItems: "center" }}>
         <div className="sk-grow" style={{ minWidth: 0 }}>
           {options.length > 1 && (
@@ -977,7 +983,7 @@ function FilePreviewPanel({
           Open
         </Button>
       </div>
-      <FileItemPreview doc={doc} item={item} />
+      <FileItemPreview doc={doc} item={item} conversion={conversion} onShow={setItem} />
     </div>
   );
 }

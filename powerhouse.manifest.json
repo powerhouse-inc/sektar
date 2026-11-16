@@ -238,6 +238,10 @@
     {
       "id": "integration-index",
       "name": "integration-index"
+    },
+    {
+      "id": "conversion",
+      "name": "conversion"
     }
   ],
   "subgraphs": [
@@ -276,12 +280,20 @@
     {
       "id": "integration-index",
       "name": "integration-index"
+    },
+    {
+      "id": "conversion",
+      "name": "conversion"
     }
   ],
   "pieces": [
     {
       "id": "@powerhousedao/distyra-piece",
       "name": "Distyra"
+    },
+    {
+      "id": "@powerhousedao/docture-piece",
+      "name": "Docture"
     }
   ],
   "config": []

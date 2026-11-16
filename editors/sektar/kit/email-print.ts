@@ -1,8 +1,8 @@
 // An email as a printable page: who sent it to whom and when, its files,
 // then the message itself, laid out for A4. The Mail app prints it to make a
 // PDF of a receipt that came as a message rather than as an attachment (an
-// Apple or Figma receipt); scripts/file-quarter.mjs renders the same page to
-// PDF with a headless browser. No imports, so Node runs this file as is.
+// Apple or Figma receipt); scripts/file-quarter.mjs renders the same page.
+import { parsePublicationRowId } from "../../../conversions/publication-id.js";
 
 export type PrintableAddress = { name?: string | null; address?: string | null };
 
@@ -18,6 +18,7 @@ export type PrintableEmail = {
   html?: string | null;
   text?: string | null;
   attachments?: readonly {
+    id?: string;
     fileName: string;
     mimeType?: string | null;
     sizeBytes?: number | null;
@@ -105,7 +106,7 @@ export function emailPrintName(email: PrintableEmail): string {
 /** The whole printable page, as an HTML document. */
 export function emailPrintHtml(email: PrintableEmail, opts: PrintOptions = {}): string {
   const timeZone = opts.timeZone ?? "Europe/Brussels";
-  const files = (email.attachments ?? []).filter((a) => !a.inline);
+  const files = (email.attachments ?? []).filter((a) => !a.inline && !parsePublicationRowId(a.id));
   const rows: [string, string][] = [
     ["From", list(email.from)],
     ["To", list(email.to)],

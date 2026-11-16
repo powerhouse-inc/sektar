@@ -9,7 +9,7 @@ import {
   type useAttachments,
 } from "@powerhousedao/reactor-browser";
 import { generateId } from "document-model";
-import { actions as fileActions } from "document-models/file";
+import { actions as fileActions, type FileDocument } from "document-models/file";
 import type { BadgeTone } from "./format.js";
 
 export const FILE_TYPE = "sektar/file";
@@ -83,6 +83,16 @@ export function isTextual(mimeType?: string | null): boolean {
     mime.startsWith("text/") ||
     /^application\/(json|xml|x-yaml|yaml|javascript|ld\+json|x-ndjson)$/.test(mime) ||
     /\+(json|xml)$/.test(mime)
+  );
+}
+
+/** Whether the File's source is a stored PDF: what a conversion to Markdown reads. */
+export function hasStoredPdf(doc: FileDocument): boolean {
+  const source = doc.state.global.source;
+  return (
+    source?.kind === "ATTACHMENT" &&
+    Boolean(source.ref) &&
+    fileKind(source.mimeType, source.fileName) === "pdf"
   );
 }
 

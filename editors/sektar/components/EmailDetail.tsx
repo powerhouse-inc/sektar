@@ -12,7 +12,13 @@ import type {
   EmailDocument,
   Mailbox,
 } from "document-models/email";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { fmtDate } from "../kit/format.js";
 import {
   attachmentKind,
@@ -28,6 +34,16 @@ import {
 } from "../kit/mail.js";
 import { traceRender } from "../kit/diagnostics.js";
 import { decodeText } from "../kit/text-decode.js";
+import { useMailConversion, useShowFinished } from "../kit/use-conversion.js";
+import {
+  ConversionPending,
+  ConversionStatus,
+  convertAction,
+  ConvertButton,
+  ConvertDialog,
+  ConvertedMarkdown,
+  useStartedToast,
+} from "./Conversion.js";
 import { IcsPreview, isCalendarFile } from "./IcsPreview.js";
 import { printEmail } from "../kit/print-email.js";
 import { Menu, type MenuItem } from "../kit/menu.js";
@@ -39,6 +55,7 @@ import {
   cx,
   Icon,
   More,
+  Segmented,
   Selector,
   Table,
   Tabs,
@@ -589,7 +606,6 @@ export function EmailDetail({
   );
 }
 
-/** The file itself, beside the message it came with. */
 /** The most of a text file shown inline; the rest is a download away. */
 const TEXT_PREVIEW_LIMIT = 512 * 1024;
 
@@ -637,12 +653,151 @@ function TextPreview({ url }: { url: string }) {
   );
 }
 
+/**
+ * The file itself, beside the message it came with. With the message (`doc`),
+ * a PDF can be converted here and read as Markdown: the result stays with
+ * this attachment, and the message keeps the attachments it was received with.
+ */
 export function AttachmentPreview({
   documentId,
   file,
+  doc,
 }: {
   documentId: string;
   file: EmailAttachment | null;
+  doc?: EmailDocument;
+}) {
+  if (doc && file && attachmentKind(file) === "pdf") {
+    return (
+      <PdfAttachment
+        key={JSON.stringify([doc.header.id, file.id, file.ref])}
+        doc={doc}
+        file={file}
+      />
+    );
+  }
+  return <OriginalAttachment documentId={documentId} file={file} />;
+}
+
+/** What the attachment pane shows: the original (at a page, when one is asked for), or its Markdown. */
+type AttachmentView =
+  | { kind: "original"; page?: number }
+  | { kind: "markdown" };
+
+const ORIGINAL: AttachmentView = { kind: "original" };
+
+/**
+ * A PDF attachment: the original, or its Markdown once it has one, picked
+ * in the toolbar. Before there is any, the toolbar converts it.
+ */
+function PdfAttachment({
+  doc,
+  file,
+}: {
+  doc: EmailDocument;
+  file: EmailAttachment;
+}) {
+  const conversion = useMailConversion(doc, file.id);
+  const [view, setView] = useState<AttachmentView>(ORIGINAL);
+  const [converting, setConverting] = useState(false);
+  const [toast, flash] = useStartedToast();
+  const convert = convertAction(conversion);
+  // The Markdown to read: the current one, else the newest made from an earlier source.
+  const rendition =
+    conversion.current ??
+    (conversion.renditionsPending ? undefined : conversion.renditions.at(-1));
+  useShowFinished(conversion, () => setView({ kind: "markdown" }));
+  const openPage = useCallback(
+    (page: number) => setView({ kind: "original", page }),
+    [],
+  );
+
+  const controls = rendition ? (
+    <Segmented<AttachmentView["kind"]>
+      value={view.kind}
+      onChange={(kind) => setView(kind === "markdown" ? { kind } : ORIGINAL)}
+      options={[
+        { value: "original", label: "Original" },
+        { value: "markdown", label: "Markdown" },
+      ]}
+    />
+  ) : convert.again ? (
+    <Button
+      size="sm"
+      variant="secondary"
+      icon="sync"
+      disabled={convert.disabled}
+      title={convert.title}
+      onClick={() => setConverting(true)}
+    >
+      {convert.label}
+    </Button>
+  ) : (
+    <ConvertButton
+      conversion={conversion}
+      onChoose={() => setConverting(true)}
+      onStarted={flash}
+    />
+  );
+  const status = (
+    <>
+      <ConversionPending conversion={conversion} />
+      <ConversionStatus
+        conversion={conversion}
+        onRetry={() => setConverting(true)}
+      />
+    </>
+  );
+
+  return (
+    <>
+      {view.kind === "markdown" && rendition ? (
+        <ConvertedMarkdown
+          key={rendition.ref}
+          documentId={doc.header.id}
+          rendition={rendition}
+          conversion={conversion}
+          label={controls}
+          status={status}
+          onOpenPage={openPage}
+        />
+      ) : (
+        <OriginalAttachment
+          documentId={doc.header.id}
+          file={file}
+          controls={controls}
+          status={status}
+          page={view.kind === "original" ? view.page : undefined}
+        />
+      )}
+      {converting && (
+        <ConvertDialog
+          conversion={conversion}
+          fileName={file.fileName}
+          onClose={() => setConverting(false)}
+          onStarted={flash}
+        />
+      )}
+      {toast}
+    </>
+  );
+}
+
+function OriginalAttachment({
+  documentId,
+  file,
+  controls,
+  status,
+  page,
+}: {
+  documentId: string;
+  file: EmailAttachment | null;
+  /** In the toolbar, before the open and download controls */
+  controls?: ReactNode;
+  /** Under the toolbar */
+  status?: ReactNode;
+  /** The page a PDF opens at */
+  page?: number;
 }) {
   traceRender("AttachmentPreview");
   const client = useAttachments();
@@ -672,6 +827,8 @@ export function AttachmentPreview({
   return (
     <div className="sk-preview">
       <div className="sk-preview__toolbar">
+        {controls}
+        <span className="sk-grow" />
         {url && (
           <a
             className="sk-btn sk-btn--ghost sk-btn--sm sk-btn--icon"
@@ -684,7 +841,6 @@ export function AttachmentPreview({
             <Icon name="arrow-up-right" />
           </a>
         )}
-        <span className="sk-grow" />
         {client && (
           <Button
             size="sm"
@@ -702,6 +858,7 @@ export function AttachmentPreview({
           />
         )}
       </div>
+      {status}
       <div className="sk-preview__page">
         {!client && (
           <p className="sk-small sk-text-muted">
@@ -728,7 +885,8 @@ export function AttachmentPreview({
         )}
         {url && kind === "pdf" && (
           <iframe
-            src={url}
+            key={page ?? 0}
+            src={page ? `${url}#page=${page}` : url}
             title={file.fileName}
             className="sk-mail-preview-frame"
           />

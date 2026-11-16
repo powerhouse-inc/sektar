@@ -100,3 +100,56 @@
   --color-sk-wordmark: var(--sk-wordmark);
   --color-sk-tagline: var(--sk-tagline-color);
 }
+
+/* Connect's settings menu has no width of its own, so the panel beside it
+   squeezes it until "Document conversion" wraps. It keeps its labels on one line. */
+@media (min-width: 640px) {
+  nav[aria-label="Settings"] {
+    flex-shrink: 0;
+    min-width: 13rem;
+  }
+}
+
+.sk-scanner-progress {
+  border: 1px solid var(--sk-border);
+  border-radius: 12px;
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  background: var(--sk-surface);
+}
+.sk-scanner-progress p {
+  margin: 0;
+}
+.sk-scanner-progress__heading,
+.sk-scanner-progress__numbers {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.sk-scanner-progress__numbers {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.sk-scanner-progress__track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--sk-border);
+}
+.sk-scanner-progress__track > span {
+  display: block;
+  height: 100%;
+  background: var(--sk-accent, #4f8272);
+  transition: width 180ms ease;
+}
+.sk-scanner-progress__file {
+  overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sk-scanner-progress__track > span {
+    transition: none;
+  }
+}

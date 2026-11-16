@@ -318,6 +318,33 @@ describe("sektarListAttachments", () => {
     return call("sektarListAttachments", { documentId: document.header.id });
   };
 
+  it("lists a converted PDF's Markdown but not its manifest", async () => {
+    const document = [
+      addEmailAttachment({ id: "data", ref: RECEIPT, fileName: "data.json" }),
+      addEmailAttachment({
+        id: "sektar-pdf:v1:run:markdown",
+        ref: refOf("c"),
+        fileName: "pdf-conversion.run.md",
+      }),
+      addEmailAttachment({
+        id: "sektar-pdf:v1:run:manifest",
+        ref: LOGO,
+        fileName: "pdf-conversion.run.json",
+      }),
+    ].reduce(
+      (doc, action) => emailReducer(doc, action),
+      emailUtils.createDocument(),
+    );
+    expect(document.state.global.attachments).toHaveLength(3);
+    expect(await list(document)).toMatchObject({
+      found: 2,
+      items: [
+        { fileName: "data.json" },
+        { fileName: "pdf-conversion.run.md" },
+      ],
+    });
+  });
+
   it("finds an invoice's files, on the invoice and on its lines", async () => {
     const document = [
       addInvoiceAttachment(attachmentInput()),

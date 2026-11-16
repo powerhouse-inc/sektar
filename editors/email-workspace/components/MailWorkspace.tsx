@@ -614,6 +614,7 @@ export function MailWorkspace() {
               key={file?.ref ?? "none"}
               documentId={selected.header.id}
               file={file}
+              doc={selected}
             />
           ) : (
             <p className="sk-small sk-text-muted">

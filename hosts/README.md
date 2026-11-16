@@ -115,7 +115,82 @@ host); the `cli`/`desktop` compounds re-point Connect at the switchboard's —
 every drive it serves, the plugin-created Workflows drive included. `vetra`'s
 switchboard member serves the same drives plus the studio ones.
 
-### Building Sektar.app against a local monorepo checkout
+### Building Sektar.app
+
+Native workflow runs own conversion scheduling, step recovery and history. Sektar
+keeps one app-wide conversion configuration, a managed workflow binding and
+immutable batch-request metadata;
+it has no conversion job queue, discovery inbox or staging directory. Existing
+legacy job tables are left untouched for diagnosis and are no longer executed.
+Automatic intake uses one native document-event trigger for Files and Mail,
+including drives and accounts added after setup. Its queue is local
+to one process, defaults to 100 entries and records overflow as cancelled.
+Active work interrupted by a host restart fails and requires a native rerun.
+
+Conversion results use the existing File renditions and Email attachments:
+one Markdown ref and one source-bound JSON manifest per workflow generation.
+Both are direct attachment references on the source document, so access and
+replication use its normal rules. The File and Email models are unchanged.
+Selection compares the manifest's source ref with the current PDF and prefers
+a complete result. Publication checks before writing but has no atomic source
+or Off condition. Folder-sync excludes generated rows for now; its usual
+role-based output names would collide across generations.
+
+Build the app with the standard `ph run desktop build` command. The PDF
+conversion release is blocked on upstream support for desktop runtime
+dependency retention, Switchboard background inference, workflow connection
+access enforcement and Docture page-local layout validation. Local dependency
+patches and the wrapper that repackaged them have been removed.
+
+A conversion runs as a workflow run, in the workflow runtime's own piece
+workers. Sektar builds and ships no conversion worker: `ph-cli build` is the
+whole package build, the `switchboard` and `cli` hosts name the stock runners,
+and nothing is written to `dist/node/conversion-worker`. How many run at once
+and how much memory a worker gets are the runtime's own `PH_WORKFLOWS_*`
+settings; Sektar has none for them.
+
+The runtime hands a piece a file of at most 8 MiB by default.
+`PH_WORKFLOWS_PIECE_MAX_FILE_BYTES`, set on the host process, raises it.
+Capabilities report this runtime cap separately from the configured app-wide
+limits. The UI and admission use the lower of the cap and the global limit;
+saving settings preserves the configured global limit. Oversized files are left out of
+batch previews.
+
+The Docture piece is built to `dist/node/pieces/docture`. The managed
+`Sektar PDF` extraction action uses the same converter, checking current global
+limits inside the action so retries cannot replay an obsolete limit. Sektar
+reconciles its managed workflow definition on host startup. The builder keeps a
+package outside the bundle when the piece's own code imports it and it needs a
+native addon or WebAssembly (`pdfjs-dist`, `@napi-rs/canvas`), and lists it in
+the piece's `package.json`. Docture's PDF.js, Tesseract and PaddleOCR loaders,
+Tesseract, and PaddleOCR with ONNX Runtime are found by
+name at run time, so they must be installed where the piece can resolve them:
+beside the package, as its `dependencies` are. The canvas rasterizer is also
+loaded from the installed Docture package, so builds do not copy the build
+machine's native binary into the piece. Scanner weights are downloaded only after
+**Download and save** in Settings; converting a PDF never downloads and uses only
+the scanner Settings has prepared. The host
+streams pinned files, verifies exact bytes and SHA-256, and atomically caches them
+in `~/.cache/sektar/ocr-models/v1`, derived from the OS user's home in both host
+and workflow workers. OCR only reads verified local files and never downloads.
+The host continues setup after navigation; a restart interrupts setup and requires
+an explicit retry, reusing verified files. Existing settings stay active until setup
+and the final revision check succeed. MuPDF
+is not used: its AGPL license does not suit Sektar.
+`hosts/packaging.test.ts` checks a fresh build and its resolved dependencies.
+
+Digital extraction and OCR can run in the Node host with published dependencies.
+Docture is pinned to 0.3.1. That release improves OCR geometry and table
+reconstruction, but still lacks a public page-local layout validator. The
+layout recovery reproduction still discards valid pages when one page's
+annotations are invalid, so that release gate remains open.
+Integrated AI and AI layout report unavailable when their upstream capabilities
+are missing. Conversion integration tests and the packaged smoke check remain
+acceptance gates; they must pass against supported upstream releases before
+this feature ships. Earlier results obtained with patched packages do not
+clear that gate. The chat assistant's conversion tools are deferred separately.
+
+#### Building against a local monorepo checkout
 
 `ph run desktop build` vendors ph-run and its runtime into the app's stack
 from the npm registry. ph-run is `ph run` without the tools that build, and
@@ -124,6 +199,11 @@ resolve to ph-run's. Until the code these hosts need is released, vendor it
 from a monorepo checkout instead: pack it, then point the build at the
 tarballs with `PH_DESKTOP_LOCAL_PACKAGES` (an env var, so no machine path
 lands in a host file; a relative path resolves against this project).
+
+For conversion, local upstream builds must supply the missing capabilities
+above through their supported APIs. A local tarball is useful for validating
+an upstream fix, but release acceptance requires published versions and a
+fresh install without dependency patches.
 
 ```sh
 # from this project's root; MONOREPO is the linked checkout (README.md,
