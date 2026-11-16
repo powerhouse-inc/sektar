@@ -9,7 +9,7 @@
 //     a sign-in: Connect serves its page and the switchboard answers through it,
 //     it stops when asked, it logs no missing package or branding file, and it
 //     leaves its own folder as it found it (inside a signed app, that folder
-//     is part of the signature).
+//     is part of the signature). Its packaged Docture piece must also read a PDF.
 //
 //   node qa/desktop/smoke.mjs --app <app executable> --node <the app's node> --stack <its stack folder>
 //
@@ -276,6 +276,24 @@ async function theStackRuns() {
       pass(`the stack stops when asked (exit ${stopped})`);
     }
   }
+
+  const conversion = spawnSync(
+    args.node,
+    [path.join(here, "conversion.mjs"), "--stack", args.stack],
+    {
+      cwd: scratch,
+      env: plainEnv(),
+      encoding: "utf8",
+      timeout: 60_000,
+      windowsHide: true,
+    },
+  );
+  if (conversion.status === 0)
+    pass("the packaged Docture piece resolves its PDF engines");
+  else
+    fail(
+      `the packaged PDF converter failed: ${conversion.error?.message ?? conversion.stderr ?? conversion.stdout}`,
+    );
 
   for (const pattern of BROKEN) {
     const line = output.split(/\r?\n/).find((l) => pattern.test(l));

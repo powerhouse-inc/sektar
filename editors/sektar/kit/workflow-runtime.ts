@@ -80,7 +80,7 @@ async function gql<T>(
     data?: T;
     errors?: { message: string }[];
   };
-  if (body.errors?.length) throw new Error(body.errors[0]!.message);
+  if (body.errors?.length) throw new Error(body.errors[0].message);
   if (!body.data)
     throw new Error(`The switchboard answered ${response.status}`);
   return body.data;

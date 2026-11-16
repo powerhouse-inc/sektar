@@ -45,6 +45,7 @@ export default function Editor() {
                   key={file.ref}
                   documentId={document.header.id}
                   file={file}
+                  doc={document}
                 />
               </div>
             )}

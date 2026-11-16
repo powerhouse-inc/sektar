@@ -11,9 +11,14 @@ on:
   pull_request:
     paths:
       - "hosts/desktop/**"
+      - "hosts/switchboard/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "conversions/**"
       - ".github/workflows/desktop.yml"
       - ".github/scripts/desktop-secrets.mjs"
-      - "qa/desktop/smoke.mjs"
+      - "qa/desktop/**"
   workflow_dispatch:
 permissions:
   contents: write

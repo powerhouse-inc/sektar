@@ -19,7 +19,9 @@ import {
   type FileTag,
 } from "document-models/file";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type { ConversionRenditionView } from "../../../conversions/model-adapter.js";
 import { useFillHeight, useNarrow } from "../../backfills/components/measure.js";
+import { coverageOf, coverageText, shortWhen, versionsOf } from "../kit/conversion-model.js";
 import {
   addFileRendition,
   addTextRendition,
@@ -27,6 +29,7 @@ import {
   COMMON_MIME_TYPES,
   FILE_TYPE,
   fileKind,
+  hasStoredPdf,
   MIME_PATTERN,
   nextTagColor,
   RENDITION_TYPES,
@@ -34,7 +37,8 @@ import {
   TAG_COLORS,
   tagTone,
 } from "../kit/files.js";
-import { Menu } from "../kit/menu.js";
+import { useNow } from "../kit/format.js";
+import { Menu, type MenuItem } from "../kit/menu.js";
 import {
   Badge,
   Button,
@@ -44,17 +48,33 @@ import {
   Modal,
   Selector,
 } from "../kit/ui.js";
+import {
+  useFileConversion,
+  useShowFinished,
+  type SourceConversion,
+} from "../kit/use-conversion.js";
 import { Pane, Workspace } from "../kit/workspace.js";
+import {
+  ConversionPendingRow,
+  ConversionStatus,
+  convertAction,
+  ConvertButton,
+  ConvertDialog,
+  useStartedToast,
+} from "./Conversion.js";
 import {
   FileItemPreview,
   FileTypeTile,
   iconForType,
   itemFromKey,
   itemKey,
+  listedRenditions,
+  MarkdownTile,
   openDocument,
   renditionKind,
   renditionMeta,
   renditionName,
+  renditionOptions,
   SOURCE_ITEM,
   useDocumentLocation,
   useTypeName,
@@ -83,13 +103,22 @@ export function FileWorkspace({ doc, dispatch }: { doc: FileDocument; dispatch: 
   const stacked = useNarrow(root, 800, true);
   const previewCollapsed = !stacked && (previewPref ?? false);
   const s = doc.state.global;
+  const conversion = useFileConversion(doc);
+  // What a conversion is still writing is not listed until it is finalized.
+  const listed = useMemo(
+    () => listedRenditions(doc, conversion.renditions),
+    [doc, conversion.renditions],
+  );
+  /** Bumped to open the shown Markdown's conversion details. */
+  const [reveal, setReveal] = useState(0);
+  const now = useNow();
 
   // A rendition that is removed takes the preview back to the source.
   useEffect(() => {
-    if (item.kind === "rendition" && !s.renditions.some((r) => r.id === item.id)) {
+    if (item.kind === "rendition" && !listed.some((r) => r.id === item.id)) {
       setItem(SOURCE_ITEM);
     }
-  }, [item, s.renditions]);
+  }, [item, listed]);
 
   const show = (next: PreviewItem) => {
     setItem(next);
@@ -104,12 +133,7 @@ export function FileWorkspace({ doc, dispatch }: { doc: FileDocument; dispatch: 
       meta: sourceSummary(doc),
       icon: s.source?.kind === "DOCUMENT" ? iconForType(s.source.documentType) : ("upload" as const),
     },
-    ...s.renditions.map((r) => ({
-      value: itemKey({ kind: "rendition", id: r.id }),
-      name: renditionName(r),
-      meta: r.mimeType,
-      icon: "copy" as const,
-    })),
+    ...renditionOptions(listed, conversion, now),
   ];
 
   return (
@@ -120,7 +144,18 @@ export function FileWorkspace({ doc, dispatch }: { doc: FileDocument; dispatch: 
     >
       <Workspace level={level}>
         <Pane grow={1.15} title={<FileHeading doc={doc} />} header={<FileMenu doc={doc} dispatch={dispatch} />}>
-          <FileDetails doc={doc} dispatch={dispatch} active={item} onShow={show} />
+          <FileDetails
+            doc={doc}
+            dispatch={dispatch}
+            active={item}
+            onShow={show}
+            conversion={conversion}
+            renditions={listed}
+            onDetails={(id) => {
+              show({ kind: "rendition", id });
+              setReveal((n) => n + 1);
+            }}
+          />
         </Pane>
         <Pane
           side="end"
@@ -139,7 +174,7 @@ export function FileWorkspace({ doc, dispatch }: { doc: FileDocument; dispatch: 
             />
           }
         >
-          <FileItemPreview doc={doc} item={item} />
+          <FileItemPreview doc={doc} item={item} conversion={conversion} revealDetails={reveal} onShow={setItem} />
         </Pane>
       </Workspace>
     </div>
@@ -210,11 +245,20 @@ function FileDetails({
   dispatch,
   active,
   onShow,
+  conversion,
+  renditions,
+  onDetails,
 }: {
   doc: FileDocument;
   dispatch: Dispatch;
   active: PreviewItem;
   onShow: (item: PreviewItem) => void;
+  /** The conversion of the File's source to Markdown */
+  conversion: SourceConversion;
+  /** The renditions to list: generated ones only once finalized */
+  renditions: readonly FileRendition[];
+  /** Shows a generated rendition with its conversion details open */
+  onDetails: (id: string) => void;
 }) {
   const s = doc.state.global;
   const location = useDocumentLocation(doc.header.id, "files");
@@ -248,7 +292,7 @@ function FileDetails({
       <section className="sk-file-section">
         <header className="sk-file-section__header">
           <h3 className="sk-file-section__title">
-            Extracted content <span className="sk-pane__count">{s.renditions.length}</span>
+            Extracted content <span className="sk-pane__count">{renditions.length}</span>
           </h3>
           <span className="sk-caption">Versions of the source in other formats: text, html, pdf, images…</span>
         </header>
@@ -257,6 +301,9 @@ function FileDetails({
           dispatch={dispatch}
           active={active.kind === "rendition" ? active.id : null}
           onShow={(id) => onShow({ kind: "rendition", id })}
+          conversion={conversion}
+          renditions={renditions}
+          onDetails={onDetails}
         />
       </section>
 
@@ -953,24 +1000,121 @@ function DocumentPicker({
 
 /* ----------------------------------------------------------- renditions */
 
-function RenditionList({
+/** A converted Markdown's meta: how much of the PDF it read, and when it was made where that tells versions apart. */
+function convertedMeta(view: ConversionRenditionView, dated: boolean): string {
+  const coverage = coverageText(view, coverageOf(view.publication.output.pages).unread);
+  return dated ? `${coverage}, ${shortWhen(view.createdAt)}` : coverage;
+}
+
+/** A row of Markdown a conversion made: its state on the row, its actions in its menu. */
+function ConvertedRow({
+  view,
+  active,
+  earlier,
+  onShow,
+  menu,
+}: {
+  view: ConversionRenditionView;
+  active: boolean;
+  /** A version under Earlier versions */
+  earlier: boolean;
+  onShow: () => void;
+  menu: MenuItem[];
+}) {
+  const partial = view.completeness === "partial";
+  return (
+    <li className={cx("sk-file-row", active && "is-active")}>
+      <button type="button" className="sk-file-row__main" onClick={onShow}>
+        <MarkdownTile earlier={earlier} />
+        <span className="sk-file-row__body">
+          <span className="sk-file-row__name">
+            Markdown
+            {partial && (
+              <Badge tone="warning" pill>
+                Partial
+              </Badge>
+            )}
+            {view.stale && (
+              <Badge tone="outline" pill>
+                Previous PDF
+              </Badge>
+            )}
+          </span>
+          <span className="sk-file-row__meta">{convertedMeta(view, earlier || !partial)}</span>
+        </span>
+      </button>
+      <span className="sk-file-row__actions">
+        <Menu
+          label="Markdown"
+          align="end"
+          items={menu}
+          trigger={(open, toggle) => (
+            <button
+              type="button"
+              className="sk-more"
+              aria-haspopup="menu"
+              aria-expanded={open}
+              aria-label={earlier ? `Actions for the Markdown of ${shortWhen(view.createdAt)}` : "Actions for Markdown"}
+              onClick={toggle}
+            >
+              <span />
+            </button>
+          )}
+        />
+      </span>
+    </li>
+  );
+}
+
+/**
+ * Extracted content: what was added by hand, then the Markdown a conversion
+ * made (one in progress as a pending row, the latest, and earlier versions
+ * folded), and the actions that add more.
+ */
+export function RenditionList({
   doc,
   dispatch,
   active,
   onShow,
+  conversion,
+  renditions,
+  onDetails,
 }: {
   doc: FileDocument;
   dispatch: Dispatch;
   active: string | null;
   onShow: (id: string) => void;
+  conversion: SourceConversion;
+  renditions: readonly FileRendition[];
+  onDetails: (id: string) => void;
 }) {
   const client = useAttachments();
   const [editing, setEditing] = useState<FileRendition | null>(null);
   const [addingText, setAddingText] = useState(false);
+  const [converting, setConverting] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [toast, flash] = useStartedToast();
   const input = useRef<HTMLInputElement>(null);
-  const renditions = doc.state.global.renditions;
+  const source = doc.state.global.source;
+  const convertible = hasStoredPdf(doc);
+  const convert = convertAction(conversion);
+
+  // Markdown a conversion made is listed as versions: the latest, then the earlier ones folded.
+  const listedIds = new Set(renditions.map((r) => r.id));
+  const views = conversion.renditions.filter((view) => listedIds.has(view.id));
+  const generated = new Set(views.map((view) => view.id));
+  const plain = renditions.filter((r) => !generated.has(r.id));
+  const { latest, earlier } = versionsOf(views, conversion.renditionsPending);
+  const [showEarlier, setShowEarlier] = useState(false);
+  const activeEarlier = earlier.some((view) => view.id === active);
+  useEffect(() => {
+    if (activeEarlier) setShowEarlier(true);
+  }, [activeEarlier]);
+  const pending = conversion.active !== undefined || conversion.starting;
+
+  // A conversion that ran while this was open shows its Markdown when it is saved.
+  useShowFinished(conversion, onShow);
 
   const upload = (files: File[]) => {
     if (!client || files.length === 0) return;
@@ -992,6 +1136,17 @@ function RenditionList({
   };
   const { dragProps, isDragOver } = useEditorFileDrop({ onFiles: upload });
 
+  const versionMenu = (view: ConversionRenditionView): MenuItem[] => [
+    { label: "Show in preview", onSelect: () => onShow(view.id) },
+    {
+      label: "Convert again…",
+      disabled: !convertible || convert.disabled,
+      onSelect: () => setConverting(true),
+    },
+    { label: "Conversion details", onSelect: () => onDetails(view.id) },
+  ];
+  const rows = plain.length > 0 || pending || latest !== undefined;
+
   return (
     <div {...dragProps} className={cx("sk-file-renditions", isDragOver && "is-over")}>
       <input
@@ -1004,9 +1159,9 @@ function RenditionList({
           e.target.value = "";
         }}
       />
-      {renditions.length > 0 ? (
-        <ul className="sk-file-rows">
-          {renditions.map((r) => (
+      {rows && (
+        <ul className="sk-file-rows sk-file-rows--menus">
+          {plain.map((r) => (
             <li key={r.id} className={cx("sk-file-row", active === r.id && "is-active")}>
               <button type="button" className="sk-file-row__main" onClick={() => onShow(r.id)}>
                 <FileTypeTile kind={renditionKind(r)} />
@@ -1043,8 +1198,44 @@ function RenditionList({
               </span>
             </li>
           ))}
+          <ConversionPendingRow conversion={conversion} />
+          {latest && (
+            <ConvertedRow
+              key={latest.id}
+              view={latest}
+              active={active === latest.id}
+              earlier={false}
+              onShow={() => onShow(latest.id)}
+              menu={versionMenu(latest)}
+            />
+          )}
         </ul>
-      ) : (
+      )}
+      {earlier.length > 0 && (
+        <details
+          className="sk-convert-earlier"
+          open={showEarlier}
+          onToggle={(e) => setShowEarlier(e.currentTarget.open)}
+        >
+          <summary>
+            <Icon name="chevron-right" size={16} mono />
+            Earlier versions ({earlier.length})
+          </summary>
+          <ul className="sk-file-rows sk-file-rows--menus">
+            {earlier.map((view) => (
+              <ConvertedRow
+                key={view.id}
+                view={view}
+                active={active === view.id}
+                earlier
+                onShow={() => onShow(view.id)}
+                menu={versionMenu(view)}
+              />
+            ))}
+          </ul>
+        </details>
+      )}
+      {renditions.length === 0 && !pending && (
         <p className="sk-file-renditions__empty sk-small sk-text-muted">
           Nothing extracted yet. Add a PDF export, preview images, the text of a scan — or drop files here.
         </p>
@@ -1056,9 +1247,36 @@ function RenditionList({
         <Button size="sm" variant="ghost" icon="plus" onClick={() => setAddingText(true)}>
           Add text
         </Button>
+        {convertible && !convert.again && (
+          <ConvertButton conversion={conversion} onChoose={() => setConverting(true)} onStarted={flash} />
+        )}
+        {convertible && convert.again && views.length === 0 && (
+          <Button
+            size="sm"
+            variant="secondary"
+            icon="sync"
+            disabled={convert.disabled}
+            title={convert.title}
+            onClick={() => setConverting(true)}
+          >
+            {convert.label}
+          </Button>
+        )}
         {busy && <span className="sk-caption">{busy}</span>}
       </div>
+      {(convertible || conversion.renditions.length > 0) && (
+        <ConversionStatus conversion={conversion} onRetry={convertible ? () => setConverting(true) : undefined} />
+      )}
       {error && <p className="sk-small sk-text-danger">{error}</p>}
+      {converting && (
+        <ConvertDialog
+          conversion={conversion}
+          fileName={source?.fileName ?? doc.header.name}
+          onClose={() => setConverting(false)}
+          onStarted={flash}
+        />
+      )}
+      {toast}
       {editing && (
         <RenditionModal rendition={editing} onClose={() => setEditing(null)} dispatch={dispatch} />
       )}

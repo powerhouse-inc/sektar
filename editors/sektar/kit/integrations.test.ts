@@ -162,7 +162,7 @@ describe("removal", () => {
     expect(plan.immediate).toBe(false);
     expect(plan.steps.join(" ")).toContain("signs out of Google");
     const backfillOnly = structuredClone(created().state.global);
-    backfillOnly.intent.backfill.items[0]!.documentId = "osq";
+    backfillOnly.intent.backfill.items[0].documentId = "osq";
     expect(hasBuiltAnything(backfillOnly)).toBe(true);
   });
 

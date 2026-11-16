@@ -16,6 +16,7 @@ import type {
   PhAiToolContext,
 } from "@powerhousedao/shared/document-model";
 import { generateId } from "document-model";
+import { parsePublicationRowId } from "../conversions/publication-id.js";
 import { actions as fileActions } from "document-models/file";
 import {
   actions as invoiceActions,
@@ -94,6 +95,7 @@ export function attachmentsIn(state: unknown): HeldAttachment[] {
     }
     if (!value || typeof value !== "object") return;
     const entry = value as Record<string, unknown>;
+    if (parsePublicationRowId(entry.id)?.role === "manifest") return;
     if (typeof entry.ref === "string" && STORED_REF.test(entry.ref)) {
       found.push({
         ref: entry.ref as AttachmentRefString,

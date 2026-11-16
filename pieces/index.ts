@@ -4,8 +4,16 @@ import type { PackagePiece } from "@powerhousedao/pieces-framework";
 
 export const pieces: PackagePiece[] = [
   {
+    name: "@powerhousedao/sektar-pdf-piece",
+    entry: "dist/node/pieces/sektar-pdf/index.mjs",
+  },
+  {
     name: "@powerhousedao/distyra-piece",
     entry: "dist/node/pieces/distyra/index.mjs",
+  },
+  {
+    name: "@powerhousedao/docture-piece",
+    entry: "dist/node/pieces/docture/index.mjs",
   },
 ];
 

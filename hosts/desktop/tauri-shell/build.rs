@@ -24,6 +24,9 @@ fn main() {
             "adopt_old_data",
             "start_stack",
             "switch_identity",
+            "update_state",
+            "update_check",
+            "update_install",
         ]),
     ))
     .expect("failed to run tauri-build");

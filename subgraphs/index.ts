@@ -3,6 +3,7 @@
  * This file is auto-generated and updated by codegen
  */
 export * as CalendarIndexSubgraph from "./calendar-index/index.js";
+export * as ConversionSubgraph from "./conversion/index.js";
 export * as EmailIndexSubgraph from "./email-index/index.js";
 export * as FilesIndexSubgraph from "./files-index/index.js";
 export * as FinanceIndexSubgraph from "./finance-index/index.js";

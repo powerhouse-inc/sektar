@@ -4,6 +4,7 @@
  */
 import type { ProcessorFactoryBuilder } from "@powerhousedao/reactor-browser";
 import { calendarIndexFactoryBuilder } from "processors/calendar-index";
+import { conversionFactoryBuilder } from "processors/conversion";
 import { integrationIndexFactoryBuilder } from "processors/integration-index";
 import { emailIndexFactoryBuilder } from "processors/email-index";
 import { filesIndexFactoryBuilder } from "processors/files-index";
@@ -29,4 +30,5 @@ export const processorFactoryBuilders: ProcessorFactoryBuilder[] = [
   integrationIndexFactoryBuilder,
   rateKeeperFactoryBuilder,
   integrationReconcilerFactoryBuilder,
+  conversionFactoryBuilder,
 ];

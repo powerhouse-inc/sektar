@@ -456,7 +456,7 @@ export function CreateFlow({
                   patch({
                     every: {
                       value: found.value,
-                      unit: found.unit as IntervalUnit,
+                      unit: found.unit,
                     },
                   });
               }}

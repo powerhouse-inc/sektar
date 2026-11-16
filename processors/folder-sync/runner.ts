@@ -8,6 +8,7 @@ import { mkdir, readFile, rename, rm, rmdir, stat, writeFile } from "node:fs/pro
 import { dirname, join, resolve, sep } from "node:path";
 import type { Action } from "document-model";
 import { actions, type FolderSyncIssueInput, type FolderSyncState } from "document-models/folder-sync";
+import { parsePublicationRowId } from "../../conversions/publication.js";
 import {
   collectDocuments,
   collectFolders,
@@ -315,6 +316,7 @@ async function copyFolder(
     wanted.push(main);
     if (s.options.content === "SOURCE_AND_RENDITIONS") {
       for (const r of file.renditions ?? []) {
+        if (parsePublicationRowId(r.id)) continue;
         const rHash = refHash(r.ref);
         const content: WantedFile["source"] | null = r.ref && rHash ? { ref: r.ref } : typeof r.text === "string" ? { text: r.text } : null;
         if (!content) continue;

@@ -14,7 +14,9 @@ import {
   useReactorClient,
 } from "@powerhousedao/reactor-browser";
 import type { FileDocument, FileRendition } from "document-models/file";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import type { ConversionRenditionView } from "../../../conversions/model-adapter.js";
+import { parsePublicationRowId } from "../../../conversions/publication-id.js";
 import {
   bytes,
   fileKind,
@@ -23,12 +25,15 @@ import {
   tileClass,
   type FileKind,
 } from "../kit/files.js";
-import { Badge, Button, cx, Icon, Skeleton } from "../kit/ui.js";
+import { versionsOf, versionWhen } from "../kit/conversion-model.js";
+import { Badge, Button, cx, Icon, Skeleton, type IconName } from "../kit/ui.js";
+import type { SourceConversion } from "../kit/use-conversion.js";
+import { ConvertedMarkdown } from "./Conversion.js";
 
 /* ------------------------------------------------------------ the items */
 
-/** What a preview pane can show: the source, or one rendition. */
-export type PreviewItem = { kind: "source" } | { kind: "rendition"; id: string };
+/** What a preview pane can show: the source (a PDF at a page, when one is asked for), or one rendition. */
+export type PreviewItem = { kind: "source"; page?: number } | { kind: "rendition"; id: string };
 
 export const SOURCE_ITEM: PreviewItem = { kind: "source" };
 
@@ -57,6 +62,63 @@ export function renditionMeta(r: FileRendition): string {
 
 const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+/**
+ * A File's renditions as they are listed and picked: what a conversion
+ * generated is there once its stored pair is verified.
+ */
+export function listedRenditions(
+  doc: FileDocument,
+  finished: readonly ConversionRenditionView[],
+): FileRendition[] {
+  const ready = new Set(finished.map((view) => view.id));
+  return doc.state.global.renditions.filter((r) => !parsePublicationRowId(r.id) || ready.has(r.id));
+}
+
+/** A File's renditions as a picker offers them: Markdown a conversion made as its latest and earlier versions, after the rest. */
+export function renditionOptions(
+  listed: readonly FileRendition[],
+  conversion: Pick<SourceConversion, "renditions" | "renditionsPending">,
+  now: number,
+): { value: string; name: string; meta: string; icon?: IconName; media?: ReactNode }[] {
+  const shown = new Set(listed.map((r) => r.id));
+  const views = conversion.renditions.filter((view) => shown.has(view.id));
+  const { latest, earlier } = versionsOf(views, conversion.renditionsPending);
+  const generated = new Set(views.map((view) => view.id));
+  return [
+    ...listed
+      .filter((r) => !generated.has(r.id))
+      .map((r) => ({
+        value: itemKey({ kind: "rendition", id: r.id }),
+        name: renditionName(r),
+        meta: r.mimeType,
+        icon: "copy" as const,
+      })),
+    ...[...(latest ? [latest] : []), ...earlier].map((view) => ({
+      value: itemKey({ kind: "rendition", id: view.id }),
+      name: view === latest ? "Latest Markdown" : "Earlier Markdown",
+      meta: [
+        view.completeness === "partial" ? "partial" : null,
+        view.stale ? "previous PDF" : null,
+        versionWhen(view.createdAt, now),
+      ]
+        .filter((part) => part !== null)
+        .join(", "),
+      media: <MarkdownTile small earlier={view !== latest} />,
+    })),
+  ];
+}
+
+/** The tile of Markdown a conversion made; an earlier version's is faded. */
+export function MarkdownTile({ small, earlier }: { small?: boolean; earlier?: boolean }) {
+  return (
+    <span
+      className={cx("sk-file-type", "sk-file-type--md", small && "sk-file-type--sm", earlier && "sk-file-type--earlier")}
+    >
+      MD
+    </span>
+  );
+}
+
 /** The type tile: the design system's file tile, with a label for the kinds it lacks. */
 export function FileTypeTile({ kind, small }: { kind: FileKind; small?: boolean }) {
   return (
@@ -76,11 +138,47 @@ export function useTypeName(documentType: string | null | undefined): string {
 
 /* ------------------------------------------------------- the dispatcher */
 
-export function FileItemPreview({ doc, item }: { doc: FileDocument; item: PreviewItem }) {
+export function FileItemPreview({
+  doc,
+  item,
+  conversion,
+  revealDetails,
+  onShow,
+}: {
+  doc: FileDocument;
+  item: PreviewItem;
+  /** The conversion of the File's source: its generated Markdown reads through it */
+  conversion: SourceConversion;
+  /** Changes when a generated rendition's details should open */
+  revealDetails?: number;
+  /** Shows another item, e.g. the PDF at a page the Markdown is missing */
+  onShow?: (item: PreviewItem) => void;
+}) {
   const s = doc.state.global;
+  const openPage = useCallback((page: number) => onShow?.({ kind: "source", page }), [onShow]);
   if (item.kind === "rendition") {
-    const r = s.renditions.find((x) => x.id === item.id);
+    const r = listedRenditions(doc, conversion.renditions).find((x) => x.id === item.id);
     if (!r) return <PreviewEmpty>That rendition is gone.</PreviewEmpty>;
+    const converted = conversion.renditions.find((view) => view.id === r.id);
+    if (converted) {
+      return (
+        <ConvertedMarkdown
+          key={converted.ref}
+          documentId={doc.header.id}
+          rendition={converted}
+          conversion={conversion}
+          revealDetails={revealDetails}
+          onOpenPage={onShow ? openPage : undefined}
+          replacedAt={s.source?.setAt}
+          label={
+            <>
+              <MarkdownTile small />
+              <span className="sk-file-preview__name">{converted.fileName}</span>
+            </>
+          }
+        />
+      );
+    }
     return <RenditionPreview documentId={doc.header.id} rendition={r} />;
   }
   const source = s.source;
@@ -106,6 +204,7 @@ export function FileItemPreview({ doc, item }: { doc: FileDocument; item: Previe
         key={source.ref}
         documentId={doc.header.id}
         file={{ ref: source.ref, fileName: source.fileName ?? "file", mimeType: source.mimeType }}
+        page={item.page}
       />
     );
   }
@@ -189,9 +288,12 @@ export function StoredFilePreview({
   file,
   label,
   subtitle,
+  page,
 }: {
   documentId: string;
   file: StoredFile;
+  /** The page a PDF opens at */
+  page?: number;
   /** In the toolbar in place of the type tile and file name (when a picker above names the file) */
   label?: ReactNode;
   /** Under the file name in the toolbar */
@@ -278,7 +380,12 @@ export function StoredFilePreview({
       )}
       {url && kind === "pdf" && (
         <div className="sk-file-preview__sheet sk-file-preview__sheet--frame">
-          <iframe src={url} title={file.fileName} className="sk-file-preview__frame" />
+          <iframe
+            key={page ?? 0}
+            src={page ? `${url}#page=${page}` : url}
+            title={file.fileName}
+            className="sk-file-preview__frame"
+          />
         </div>
       )}
       {url && text !== null && kind === "html" && (
