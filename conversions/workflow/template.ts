@@ -25,7 +25,7 @@ export const SEKTAR_PIECE_VERSION = "1.0.9";
  * (reactor-workflow is not a dependency of this package); a test pins this to
  * the installed host-shipped pieces.
  */
-export const RUNTIME_PIECE_VERSION = "6.2.3-dev.96";
+export const RUNTIME_PIECE_VERSION = "6.3.0-dev.2";
 export const REACTOR_PIECE = "@powerhousedao/piece-reactor";
 export const DOCUMENT_EVENT_TRIGGER = "document-event";
 

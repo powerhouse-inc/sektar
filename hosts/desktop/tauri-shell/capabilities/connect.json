@@ -25,6 +25,9 @@
     "allow-save-profile",
     "allow-adopt-old-data",
     "allow-start-stack",
-    "allow-switch-identity"
+    "allow-switch-identity",
+    "allow-update-state",
+    "allow-update-check",
+    "allow-update-install"
   ]
 }
